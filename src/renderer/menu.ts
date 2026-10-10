@@ -5,12 +5,19 @@ import { setMeta, refocus } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
 let menu: HTMLElement | null = null
+let menuTile: TileId | null = null // tile the open menu acts on
 
 export function closeMenu() {
   const hadFocus = menu?.contains(document.activeElement)
   menu?.remove()
   menu = null
+  menuTile = null
   if (hadFocus) refocus()
+}
+
+// A tile's menu goes away with the tile.
+export function closeTileMenu(id: TileId) {
+  if (menuTile === id) closeMenu()
 }
 
 // Anything with a renamable title and icon (tiles, tabs).
@@ -26,10 +33,11 @@ export function showTileMenu(id: TileId, x: number, y: number) {
   const t = S.tiles.get(id)
   if (!t) return
   showMetaMenu(
-    { customTitle: t.customTitle, customIcon: t.customIcon, title: displayTitle(t), icon: displayIcon(t), set: (m) => setMeta(id, m) },
+    { customTitle: t.customTitle, customIcon: t.customIcon, title: displayTitle(t), icon: displayIcon(t), set: (m) => S.tiles.has(id) && setMeta(id, m) },
     x,
     y,
   )
+  menuTile = id
 }
 
 export function showMetaMenu(t: MetaTarget, x: number, y: number) {

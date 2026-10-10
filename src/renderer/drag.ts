@@ -109,6 +109,9 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
 
 function applyDrop(src: DragSource, t: Target) {
   debug('layout', 'drop', src, t.placement)
+  // Source or target tile may have closed (or moved) mid-drag.
+  if (src.type === 'tile' && !S.tiles.has(src.id)) return
+  if (t.placement.type === 'slot' && t.placement.at && !contains(S.tree, t.placement.at)) return
   if (src.type === 'template') openTile(src.kind, t.placement)
   else place(src.id, t.placement)
 }

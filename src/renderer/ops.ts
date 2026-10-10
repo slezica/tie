@@ -3,6 +3,7 @@ import { insert, remove, parentDir, contains, type Rect, type Side, type TileId 
 import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { createTile, startTerminal, disposeTile, refreshTitle } from './tile'
 import { render } from './render'
+import { closeTileMenu } from './menu'
 
 export type Placement =
   | { type: 'slot'; at: TileId | null; side: Side }
@@ -90,6 +91,7 @@ export function closeTile(id: TileId) {
     debug('layout', 'close', id)
     detach(id)
     disposeTile(t)
+    closeTileMenu(id)
     S.mru = S.mru.filter((m) => m !== id)
     if (S.active === id) focusNext()
     else render()
