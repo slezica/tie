@@ -48,13 +48,13 @@ export default async (ctx, h) => {
   h.assert(l.tab === l.tabs[1].id && l.tiles.find((t) => t.id === d).tab === l.tabs[0].id, 'CLI targets background tab without switching')
 
   // Close: refused while tiles exist (tab 2 has a shelved tile).
-  await k('Meta+w')
+  await k('Meta+Shift+w')
   h.assert(await ctx.page.isVisible('.dialog'), 'dialog explains non-empty tab')
   await ctx.shot('close-refused')
   await ctx.page.keyboard.press('Enter')
   h.assert((await L()).tabs.length === 2, 'tab kept')
   await ctx.tie('close', b)
-  await k('Meta+w')
+  await k('Meta+Shift+w')
   l = await L()
   h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id, 'empty tab closed, back to tab 1')
 
@@ -65,6 +65,24 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.type('work')
   await ctx.page.keyboard.press('Enter')
   h.assert((await tabTitles())[0] === 'work', 'renamed')
+  // cmd+W closes the active tile.
+  const n = (await L()).tiles.length
+  const act = (await L()).active
+  await k('Meta+w')
+  l = await L()
+  h.assert(l.tiles.length === n - 1 && !l.tiles.some((t) => t.id === act), 'cmd+W closes active tile')
+
+  // Reorder by drag: tab 3 moved before tab 1.
   await k('Meta+t')
+  await k('Meta+t')
+  const order = async () => (await L()).tabs.map((t) => t.id)
+  const before = await order()
+  const tabs = ctx.page.locator('.tab')
+  const last = await tabs.nth(2).boundingBox()
+  const firstBox = await tabs.nth(0).boundingBox()
+  await h.drag(ctx, { x: last.x + last.width / 2, y: last.y + last.height / 2 }, { x: firstBox.x + 4, y: firstBox.y + firstBox.height / 2 })
+  const after = await order()
+  h.assert(after.join() === [before[2], before[0], before[1]].join(), `reordered: ${before} -> ${after}`)
+  h.assert((await L()).tab === before[2], 'dragged tab is current')
   await ctx.shot('tabs')
 }

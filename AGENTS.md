@@ -9,6 +9,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `docs/2026-10-09-daemon-client-architecture.md`: shelved daemon/client design.
 - `docs/2026-10-09-electron-crash-on-quit.md`: node-pty quit crash + macOS launch block.
 - `docs/2026-10-10-tabs-single-renderer.md`: tabs = spaces in one renderer.
+- `docs/PENDING.md`: backlog and open questions.
 
 ## Stack
 

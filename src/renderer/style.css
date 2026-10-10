@@ -134,6 +134,10 @@ body {
   width: 11px;
   height: 11px;
 }
+body.dragging-tab,
+body.dragging-tab .tab {
+  cursor: grabbing;
+}
 #tab-add {
   width: 26px;
   height: 100%;

@@ -20,4 +20,4 @@ Decision 2026-10-10. Supersedes "one WebContentsView per tab" from brainstorming
 - `render()` always renders the visible space.
 - Tab title: custom (right-click menu, shared with tiles) or derived from the active terminal's cwd (polled via `lsof`, no shell integration), else its title.
 - Closing: only empty tabs (board and shelf); otherwise a dialog explains. Safety first; revisit later.
-- Shortcuts: `cmd+T` new (empty), `cmd+W` close, `cmd+1..8` by position, `cmd+9` last, `ctrl+tab` / `ctrl+shift+tab` cycle.
+- Shortcuts: `cmd+T` new (empty), `cmd+shift+W` close (`cmd+W` closes the active tile), `cmd+1..8` by position, `cmd+9` last, `ctrl+tab` / `ctrl+shift+tab` cycle.

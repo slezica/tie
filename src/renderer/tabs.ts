@@ -6,6 +6,7 @@ import { showMetaMenu } from './menu'
 import { infoDialog } from './dialog'
 import { displayTitle, iconHtml } from './tile'
 import { ICON } from './icons'
+import { track } from './drag'
 
 let home = ''
 export const setHome = (h: string) => (home = h)
@@ -84,13 +85,45 @@ export function setTabMeta(id: string, meta: { title?: string | null; icon?: str
 
 const tabEls = new Map<string, HTMLElement>()
 
+// Drag a tab sideways to reorder; order updates live under the pointer.
+function dragTab(e: PointerEvent, id: string) {
+  const x0 = e.clientX
+  let started = false
+  track(e, {
+    move: (ev) => {
+      if (!started && Math.abs(ev.clientX - x0) < 4) return
+      if (!started) document.body.classList.add('dragging-tab')
+      started = true
+      const others = S.spaces.filter((sp) => sp.id !== id)
+      let index = others.length
+      for (let i = 0; i < others.length; i++) {
+        const r = tabEls.get(others[i].id)!.getBoundingClientRect()
+        if (ev.clientX < r.left + r.width / 2) {
+          index = i
+          break
+        }
+      }
+      const moved = S.spaces.find((sp) => sp.id === id)!
+      others.splice(index, 0, moved)
+      if (others.some((sp, i) => sp !== S.spaces[i])) {
+        S.spaces = others
+        renderTabs()
+      }
+    },
+    up: () => document.body.classList.remove('dragging-tab'),
+    cancel: () => document.body.classList.remove('dragging-tab'),
+  })
+}
+
 function createTabEl(id: string): HTMLElement {
   const el = document.createElement('div')
   el.className = 'tab'
   el.dataset.space = id
   el.innerHTML = `<span class="tab-icon"></span><span class="tab-title"></span><button class="tab-close" title="Close tab">${ICON.close}</button>`
   el.addEventListener('pointerdown', (e) => {
-    if (e.button === 0 && !(e.target as HTMLElement).closest('.tab-close')) switchTab(id)
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
+    switchTab(id)
+    dragTab(e, id)
   })
   el.querySelector('.tab-close')!.addEventListener('click', () => closeTab(id))
   el.addEventListener('contextmenu', (e) => {
