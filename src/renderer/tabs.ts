@@ -38,6 +38,8 @@ export function newTab(): string {
 
 export function switchTab(id: string) {
   if (!space(id)) return
+  const left = space(S.visible)
+  if (left) left.revealed = null // its shelf items go away without a pointerleave
   S.visible = S.current = id
   const sp = space(id)!
   if (sp.active) activate(sp.active)

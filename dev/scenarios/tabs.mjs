@@ -85,4 +85,15 @@ export default async (ctx, h) => {
   h.assert(after.join() === [before[2], before[0], before[1]].join(), `reordered: ${before} -> ${after}`)
   h.assert((await L()).tab === before[2], 'dragged tab is current')
   await ctx.shot('tabs')
+
+  // Hover reveal doesn't stick across a tab switch (the item never sees pointerleave).
+  await k('Meta+d')
+  const sh = (await L()).active
+  await ctx.tie('move', sh, '--shelve')
+  await h.hoverShelf(ctx, sh)
+  await k('Meta+t')
+  const bc = await h.boardCenter(ctx)
+  await ctx.page.mouse.move(bc.x, bc.y, { steps: 3 })
+  await k('Meta+1')
+  h.assert(!(await ctx.tie('state')).revealed, 'reveal cleared after tab switch')
 }
