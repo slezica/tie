@@ -22,18 +22,9 @@ export const THEMES: Record<string, Theme> = {
   'tie-dark': {
     label: 'Tie Dark',
     dark: true,
-    accent: '#74c0fc',
-    palette: {
-      background: '#000000', foreground: '#e4e4e4', cursor: '#74c0fc', selectionBackground: '#74c0fc55',
-      ansi: ansi('#1e1e1e #f47067 #8ddb8c #f0c674 #74c0fc #dcbdfb #76e3ea #d0d0d0 #6e7681 #ff938a #b4f1b4 #f8e3a1 #a5d8ff #eedcff #b3f0ff #ffffff'),
-    },
-  },
-  'elegant-dark': {
-    label: 'Elegant Dark',
-    dark: true,
     accent: '#a6cdfa',
     palette: {
-      // From ~/.config/kitty/kitty.conf
+      // Originally from the author's kitty.conf ("Elegant Dark")
       background: '#22252c', foreground: '#dbded8', cursor: '#dbded8', selectionBackground: '#fefefd', selectionForeground: '#000000',
       ansi: ansi('#686966 #eb5443 #bdfc69 #f9eb77 #a6cdfa #f6caf4 #7ef9fd #fefefd #686966 #eb5443 #bdfc69 #f9eb77 #a6cdfa #f6caf4 #7ef9fd #fefefd'),
     },
@@ -114,7 +105,9 @@ export const THEMES: Record<string, Theme> = {
 
 export const DEFAULT_THEME = 'tie-dark'
 
-export const theme = (id: string): Theme => THEMES[id] ?? THEMES[DEFAULT_THEME]
+const ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' } // merged into Tie Dark
+
+export const theme = (id: string): Theme => THEMES[ALIASES[id] ?? id] ?? THEMES[DEFAULT_THEME]
 
 const NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
 

@@ -56,6 +56,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 ## Patterns
 
 - Settings scopes: app-wide (theme), all tiles (line height), tile-kind (terminal shell).
+- Spacing: CSS vars in `style.css` `:root` (`--top-bar`, `--pad`, `--gap`, `--title-h`, `--shelf-w`, `--peak`, `--tile-pad`); `readGeometry()` feeds them to layout code on every render.
 - Colors: only base tokens (`--bg`, `--text`, `--accent`, `--red`, `--green`) are set; everything else is `color-mix` of them. Never hardcode colors.
 - Mutate only through `ops.ts`, which ends in `render()`.
 - Tile elements never re-parent (xterm stays mounted); position is absolute window coords.

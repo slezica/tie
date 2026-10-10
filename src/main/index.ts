@@ -70,7 +70,7 @@ function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
   win = new BrowserWindow({
     ...workArea,
-    backgroundColor: '#000000',
+    backgroundColor: '#1b1e23', // ≈ Tie Dark app background, avoids a flash at startup
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 12, y: 10 },
     show: false,

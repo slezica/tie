@@ -11,15 +11,29 @@ declare global {
 }
 export const tie = window.tie
 
-// Geometry (px).
-export const TOP = 36 // top bar (window drag region)
-export const PAD = 6 // board padding
-export const GAP = 6 // between slotted tiles
-export const TITLE = 30 // title bar height; also collapsed bar thickness
-export const SHELF_W = 68
+// Geometry (px), read from CSS vars in style.css :root (readGeometry, called by render).
+export let TOP = 36 // --top-bar: window drag region
+export let PAD = 6 // --pad: board edge padding
+export let GAP = 6 // --gap: between tiles, and between board and shelf
+export let TITLE = 30 // --title-h: title bar height; also collapsed bar thickness
+export let SHELF_W = 68 // --shelf-w
+export let PEAK = 8 // --peak: reveal ">" size
 export const MIN = 80 // min slotted tile size along split axis
 export const REVEAL = { w: 0.3, h: 0.5 } // max fraction of board
-export const PEAK = 8 // reveal ">" peak size
+
+export function readGeometry() {
+  const cs = getComputedStyle(document.documentElement)
+  const px = (name: string, fallback: number) => {
+    const v = parseFloat(cs.getPropertyValue(name))
+    return Number.isFinite(v) ? v : fallback
+  }
+  TOP = px('--top-bar', TOP)
+  PAD = px('--pad', PAD)
+  GAP = px('--gap', GAP)
+  TITLE = px('--title-h', TITLE)
+  SHELF_W = px('--shelf-w', SHELF_W)
+  PEAK = px('--peak', PEAK)
+}
 
 export type Kind = 'terminal'
 

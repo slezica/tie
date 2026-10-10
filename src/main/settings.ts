@@ -18,9 +18,13 @@ export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings
 
 let current: Settings = load()
 
+const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
+
 function load(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) }
+    const s = { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) }
+    s.theme = THEME_ALIASES[s.theme] ?? s.theme
+    return s
   } catch {
     return { ...DEFAULTS }
   }

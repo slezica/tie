@@ -1,11 +1,11 @@
 /* Wave Terminal look, light blue accent. */
 :root {
   /* Base tokens, set from the active theme (appearance.ts). */
-  --bg: #000000;
-  --text: #e4e4e4;
-  --accent: #74c0fc;
-  --red: #f47067;
-  --green: #8ddb8c;
+  --bg: #22252c;
+  --text: #dbded8;
+  --accent: #a6cdfa;
+  --red: #eb5443;
+  --green: #bdfc69;
   --tile-line-height: 1.15; /* tile content only, not chrome */
   --tile-font: Menlo, monospace;
   --tile-font-size: 12px;
@@ -24,7 +24,14 @@
   --shadow: rgba(0, 0, 0, 0.6);
   --app-bg: color-mix(in srgb, var(--bg) 80%, black); /* behind tiles: 20% darker */
   --radius: 0; /* tiles and drop preview: square */
-  --title-h: 30px;
+  /* Spacing (px). Layout code reads these too: tweak freely. */
+  --top-bar: 36px; /* window drag region above board */
+  --pad: 6px; /* board edge padding */
+  --gap: 6px; /* between tiles, and between board and shelf */
+  --title-h: 30px; /* tile title bar; collapsed bar thickness */
+  --shelf-w: 68px;
+  --peak: 8px; /* shelf reveal arrow */
+  --tile-pad: 4px 0 0 6px; /* inside tile content: top right bottom left */
   --ui-font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
 }
 
@@ -46,7 +53,7 @@ body {
 #top {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 36px;
+  height: var(--top-bar);
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
@@ -163,7 +170,7 @@ body {
   line-height: var(--tile-line-height);
   font-family: var(--tile-font);
   font-size: var(--tile-font-size);
-  padding: 4px 0 0 6px;
+  padding: var(--tile-pad);
 }
 .body .xterm {
   height: 100%;
@@ -233,8 +240,6 @@ body {
 #peak {
   position: absolute;
   display: none;
-  width: 8px;
-  height: 16px;
   background: var(--fg-d);
   clip-path: polygon(0 0, 100% 50%, 0 100%); /* ">" pointing at the shelf item */
   pointer-events: none;
@@ -318,10 +323,10 @@ body.resizing-col { cursor: row-resize; }
 /* Shelf (Wave's right widget bar) */
 #shelf {
   position: absolute;
-  top: 36px;
-  right: 6px;
-  bottom: 6px;
-  width: 68px;
+  top: var(--top-bar);
+  right: var(--pad);
+  bottom: var(--pad);
+  width: var(--shelf-w);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -413,7 +418,7 @@ body.resizing-col { cursor: row-resize; }
 
 #empty-hint {
   position: absolute;
-  inset: 36px 80px 6px 6px;
+  inset: var(--top-bar) calc(var(--shelf-w) + var(--pad) + var(--gap)) var(--pad) var(--pad);
   display: none;
   place-items: center;
   color: var(--faint);

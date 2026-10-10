@@ -18,11 +18,11 @@ export default async (ctx, h) => {
   await ctx.page.selectOption('#set-theme', 'solarized-light')
   h.assert((await cssVar('--bg')) === '#fdf6e3', 'preview applies')
   await ctx.page.keyboard.press('Escape')
-  h.assert((await cssVar('--bg')) === '#000000', 'cancel reverts')
+  h.assert((await cssVar('--bg')) === '#22252c', 'cancel reverts (Tie Dark default)')
 
   // Save Elegant Dark + line height.
   await open()
-  await ctx.page.selectOption('#set-theme', 'elegant-dark')
+  await ctx.page.selectOption('#set-theme', 'nord')
   await ctx.page.fill('#set-line-height', '1.3')
   await ctx.page.waitForFunction(() => document.querySelectorAll('#set-font option').length > 1)
   const fonts = await ctx.page.$$eval('#set-font option', (os) => os.map((o) => o.value))
@@ -39,16 +39,16 @@ export default async (ctx, h) => {
   await ctx.shot('fonts')
   await ctx.page.locator('.save').click()
   await ctx.sleep(200)
-  h.assert((await cssVar('--bg')) === '#22252c', 'elegant dark saved')
+  h.assert((await cssVar('--bg')) === '#2e3440', 'nord saved')
   const lh = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).lineHeight)
   h.assert(lh === 'normal', `chrome line height untouched (${lh})`)
   const tf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-rows')).fontFamily)
   h.assert(tf.includes('MesloLGS'), `terminal font applied (${tf})`)
   const cf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).fontFamily)
   h.assert(!cf.includes('MesloLGS'), 'chrome font untouched')
-  await ctx.shot('elegant-dark')
+  await ctx.shot('nord')
   await h.hoverShelf(ctx, b)
-  await ctx.shot('elegant-dark-reveal')
+  await ctx.shot('nord-reveal')
   await ctx.page.mouse.move(400, 400)
 
   // Light theme screenshot for review.
@@ -69,9 +69,9 @@ export default async (ctx, h) => {
   await ctx.sleep(800)
   const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
   h.assert(line.startsWith('argv0=bash'), `custom shell used: ${line}`)
-  // Persisted across reopen; theme still elegant.
+  // Persisted across reopen; theme still nord.
   await open()
   h.assert((await ctx.page.inputValue('#set-shell')) === 'bash --norc', 'shell persisted')
-  h.assert((await ctx.page.inputValue('#set-theme')) === 'elegant-dark', 'theme persisted')
+  h.assert((await ctx.page.inputValue('#set-theme')) === 'nord', 'theme persisted')
   await ctx.page.keyboard.press('Escape')
 }

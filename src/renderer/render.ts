@@ -1,6 +1,6 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
 import { compute, type Rect, type TileId } from '@core/layout'
-import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, type Tile } from './state'
+import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, type Tile } from './state'
 import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
 import { syncShelf, shelfItemEl } from './shelf'
@@ -28,6 +28,7 @@ function setButtons(t: Tile, opts: { collapse: boolean; zoom: boolean }) {
 }
 
 export function render() {
+  readGeometry()
   const b = boardRect()
   const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed })
   S.rects.clear()
@@ -94,6 +95,8 @@ export function render() {
       peak.style.display = 'block'
       peak.style.left = `${x + size.w}px` // sticks out of the reveal's right edge
       peak.style.top = `${cy - PEAK}px`
+      peak.style.width = `${PEAK}px`
+      peak.style.height = `${PEAK * 2}px`
       peak.style.zIndex = String(Z.reveal + 2)
       peak.classList.toggle('pinned', pinned)
     }
@@ -123,3 +126,6 @@ export function render() {
 
   document.body.classList.toggle('empty', !S.tree && S.floats.length === 0)
 }
+
+// Dev (--hot): CSS edits re-layout immediately.
+if (import.meta.hot) import.meta.hot.on('vite:afterUpdate', () => render())
