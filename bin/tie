@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+// tie: remote control for a running Tie instance (JSON-RPC over unix socket).
+import { connect } from 'node:net'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+const HELP = `tie - control Tie tiles
+
+Usage:
+  tie list [--json]                       List tiles
+  tie open terminal [options]             Open a terminal tile, prints its id
+      --cmd <command>                     Run command instead of interactive shell
+      --cwd <dir>                         Working directory (default: current)
+      --title <text>                      Custom title
+      --at <id> [--side l|r|t|b]          Split next to tile (default: caller/active, longer side)
+      --float                             Open floating
+      --shelved                           Open on the shelf
+  tie close [id]                          Close tile
+  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve
+  tie focus [id]                          Focus tile (pins it if shelved)
+  tie title [id] <text>                   Set title ("" = automatic)
+  tie icon [id] <emoji>                   Set icon ("" = automatic)
+
+[id] defaults to $TIE_TILE (the tile this shell runs in).
+Global: --json for JSON output.
+Env: TIE_SOCKET, TIE_TILE, TIE_INSTANCE.`
+
+const argv = process.argv.slice(2)
+const flags = {}
+const pos = []
+const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help'])
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i]
+  if (a === '-h') flags.help = true
+  else if (a.startsWith('--')) {
+    const k = a.slice(2)
+    if (BOOL.has(k)) flags[k] = true
+    else {
+      if (i + 1 >= argv.length) die(`missing value for --${k}`)
+      flags[k] = argv[++i]
+    }
+  } else pos.push(a)
+}
+
+function die(msg) {
+  console.error(`tie: ${msg}`)
+  process.exit(1)
+}
+
+const socket = process.env.TIE_SOCKET || join(homedir(), '.tie', `${process.env.TIE_INSTANCE || 'default'}.sock`)
+const caller = process.env.TIE_TILE
+
+function call(method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const c = connect(socket)
+    let buf = ''
+    c.on('error', (e) => reject(new Error(`cannot reach Tie at ${socket} (${e.code})`)))
+    c.on('connect', () => c.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: { caller, ...params } }) + '\n'))
+    c.on('data', (d) => {
+      buf += d
+      const nl = buf.indexOf('\n')
+      if (nl < 0) return
+      c.end()
+      const msg = JSON.parse(buf.slice(0, nl))
+      if (msg.error) reject(new Error(msg.error.message))
+      else resolve(msg.result)
+    })
+  })
+}
+
+const pad = (s, n) => String(s).padEnd(n)
+function printTile(t) {
+  if (flags.json) console.log(JSON.stringify(t, null, 2))
+  else console.log(t.id)
+}
+
+async function main() {
+  const [cmd, ...rest] = pos
+  if (!cmd || flags.help) return console.log(HELP)
+  const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved }
+
+  switch (cmd) {
+    case 'list': {
+      const r = await call('list')
+      if (flags.json) return console.log(JSON.stringify(r, null, 2))
+      console.log(`${pad('ID', 5)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
+      for (const t of r.tiles) {
+        const f = [t.active && 'active', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
+          .filter(Boolean)
+          .join(',')
+        console.log(`${pad(t.id, 5)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
+      }
+      return
+    }
+    case 'open': {
+      const kind = rest[0] || 'terminal'
+      return printTile(await call('open', { kind, cmd: flags.cmd, cwd: flags.cwd || process.cwd(), title: flags.title, ...place }))
+    }
+    case 'close':
+      return void (await call('close', { id: rest[0] }))
+    case 'move':
+      return printTile(await call('move', { id: rest[0], ...place }))
+    case 'focus':
+      return printTile(await call('focus', { id: rest[0] }))
+    case 'title':
+    case 'icon': {
+      const [id, value] = rest.length >= 2 ? rest : [undefined, rest[0]]
+      if (value === undefined) die(`${cmd} needs a value`)
+      return printTile(await call(cmd, { id, text: value, emoji: value }))
+    }
+    case 'state': // dev: internal state dump
+      return console.log(JSON.stringify(await call('state'), null, 2))
+    default:
+      die(`unknown command: ${cmd} (see tie --help)`)
+  }
+}
+
+main().catch((e) => die(e.message))
