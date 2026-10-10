@@ -8,9 +8,11 @@ export interface Settings {
   shell: string // terminal tiles: command line for new terminals; '' = default
   theme: string // app-wide: theme id (renderer/themes.ts)
   lineHeight: number // all tiles: content line height
+  fontFamily: string // all tiles: content font, '' = default monospace stack
+  fontSize: number // all tiles: content font size (px)
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15 }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12 }
 export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings.json')
 
 let current: Settings = load()
@@ -28,6 +30,8 @@ export const getSettings = (): Settings => ({ ...current })
 export function setSettings(patch: Partial<Settings>): Settings {
   current = { ...current, ...patch }
   current.lineHeight = Math.min(2, Math.max(1, Number(current.lineHeight) || DEFAULTS.lineHeight))
+  current.fontSize = Math.min(32, Math.max(8, Number(current.fontSize) || DEFAULTS.fontSize))
+  current.fontFamily = String(current.fontFamily ?? '').trim()
   writeFileSync(settingsPath, JSON.stringify(current, null, 2) + '\n')
   log('app', 'settings saved', current)
   return getSettings()

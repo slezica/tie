@@ -2,7 +2,9 @@
 // Pages: Appearance (app-wide look) | Terminal (tile-kind specific).
 import { S, tie } from './state'
 import { THEMES, theme } from './themes'
-import { applyAppearance, appearance } from './appearance'
+import { applyAppearance, appearance, fontInstalled } from './appearance'
+
+const FONT_SUGGESTIONS = ['MesloLGS Nerd Font Mono', 'JetBrains Mono', 'SF Mono', 'Menlo', 'Hack', 'Fira Code', 'Iosevka', 'Cascadia Code']
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
@@ -37,10 +39,21 @@ export async function toggleSettings() {
             ${Object.entries(THEMES).map(([id, t]) => `<option value="${id}">${esc(t.label)}</option>`).join('')}
           </select>
           <div class="swatches"></div>
-          <h3>Text</h3>
-          <label for="set-line-height">Line height</label>
-          <input id="set-line-height" type="number" min="1" max="2" step="0.05" />
-          <p class="hint">Inside tiles.</p>
+          <h3>Text <span class="scope">inside tiles</span></h3>
+          <label for="set-font">Font</label>
+          <input id="set-font" list="font-list" spellcheck="false" placeholder="Default monospace" />
+          <datalist id="font-list">${FONT_SUGGESTIONS.map((f) => `<option value="${esc(f)}"></option>`).join('')}</datalist>
+          <p class="hint warn" hidden>Font not installed, using fallback.</p>
+          <div class="row">
+            <div>
+              <label for="set-font-size">Size</label>
+              <input id="set-font-size" type="number" min="8" max="32" step="1" />
+            </div>
+            <div>
+              <label for="set-line-height">Line height</label>
+              <input id="set-line-height" type="number" min="1" max="2" step="0.05" />
+            </div>
+          </div>
         </section>
         <section data-page="terminal">
           <h2>Terminal</h2>
@@ -60,9 +73,13 @@ export async function toggleSettings() {
   const $ = <T extends HTMLElement>(sel: string) => panel!.querySelector(sel) as T
   const themeSel = $<HTMLSelectElement>('#set-theme')
   const lineHeight = $<HTMLInputElement>('#set-line-height')
+  const font = $<HTMLInputElement>('#set-font')
+  const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
+  font.value = settings.fontFamily
+  fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   shell.placeholder = defaults.shell
 
@@ -71,13 +88,19 @@ export async function toggleSettings() {
       .palette.ansi.map((c) => `<span style="background:${c}"></span>`)
       .join('')
   }
-  const draft = () => ({ theme: themeSel.value, lineHeight: Math.min(2, Math.max(1, Number(lineHeight.value) || 1.15)) })
+  const draft = () => ({
+    theme: themeSel.value,
+    lineHeight: Math.min(2, Math.max(1, Number(lineHeight.value) || 1.15)),
+    fontFamily: font.value.trim(),
+    fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
+  })
   const preview = () => {
     swatches()
+    $('.warn').hidden = fontInstalled(font.value.trim())
     applyAppearance(draft())
   }
   themeSel.addEventListener('change', preview)
-  lineHeight.addEventListener('input', preview)
+  for (const el of [lineHeight, font, fontSize]) el.addEventListener('input', preview)
   swatches()
 
   const show = (p: string) => {

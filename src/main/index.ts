@@ -7,6 +7,7 @@ import { startSocket } from './socket'
 import { getSettings, setSettings, defaultShell, settingsPath } from './settings'
 
 const dev = !app.isPackaged
+app.setName('Tie')
 // TIE_BACKGROUND=1 (harness instances): offscreen rendering, no visible window, no dock icon,
 // never takes focus. Driven entirely over the debugging port.
 const background = !!process.env.TIE_BACKGROUND

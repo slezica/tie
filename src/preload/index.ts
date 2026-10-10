@@ -4,6 +4,8 @@ export interface Settings {
   shell: string
   theme: string
   lineHeight: number
+  fontFamily: string
+  fontSize: number
 }
 
 type DataCb = (id: number, data: string) => void

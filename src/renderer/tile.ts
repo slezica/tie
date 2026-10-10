@@ -45,8 +45,6 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   const body = el.querySelector('.body') as HTMLElement
 
   const term = new Terminal({
-    fontFamily: '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace',
-    fontSize: 12,
     ...termOptions(),
     cursorBlink: true,
     scrollback: 5000,

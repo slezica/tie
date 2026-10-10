@@ -58,7 +58,7 @@ window.addEventListener('resize', () => render())
 async function boot() {
   const info = await tie.info()
   const { settings } = await tie.settings.get()
-  applyAppearance({ theme: settings.theme, lineHeight: settings.lineHeight })
+  applyAppearance(settings)
   S.cwd = info.cwd
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = `tie · ${info.instance}`
   // Shell tiles close when the shell dies; --cmd tiles stay to show exit status.

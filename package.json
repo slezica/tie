@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "postinstall": "electron-rebuild -f -w node-pty"
+    "postinstall": "electron-rebuild -f -w node-pty && dev/brand-electron.sh"
   },
   "devDependencies": {
     "@electron/rebuild": "4.2.0",

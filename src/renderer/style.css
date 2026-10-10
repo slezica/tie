@@ -7,6 +7,8 @@
   --red: #f47067;
   --green: #8ddb8c;
   --tile-line-height: 1.15; /* tile content only, not chrome */
+  --tile-font: Menlo, monospace;
+  --tile-font-size: 12px;
   /* Derived: mixes of text over background, so any theme (incl. light) works. */
   --fg-a: color-mix(in srgb, var(--text) 4.5%, transparent);
   --fg-b: color-mix(in srgb, var(--text) 8%, transparent);
@@ -158,6 +160,8 @@ body {
   overflow: hidden;
   border-radius: 0 0 7px 7px;
   line-height: var(--tile-line-height);
+  font-family: var(--tile-font);
+  font-size: var(--tile-font-size);
   padding: 4px 0 0 6px;
 }
 .body .xterm {
@@ -281,7 +285,7 @@ body.resizing-col { cursor: row-resize; }
   z-index: 5000;
   border: 2px solid var(--accent);
   background: var(--accent-soft);
-  border-radius: var(--radius);
+  border-radius: 0;
   pointer-events: none;
   transition: left 80ms, top 80ms, width 80ms, height 80ms;
 }
@@ -562,9 +566,6 @@ body.empty #empty-hint {
 .settings #set-shell {
   font: 13px 'SF Mono', Menlo, monospace;
 }
-.settings #set-line-height {
-  width: 90px;
-}
 .settings input:focus,
 .settings select:focus {
   border-color: var(--accent);
@@ -578,6 +579,24 @@ body.empty #empty-hint {
 .settings .swatches span {
   height: 12px;
   border-radius: 3px;
+}
+.settings .scope {
+  margin-left: 6px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--faint);
+}
+.settings .row {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+.settings .row input {
+  width: 90px;
+}
+.settings .hint.warn {
+  color: var(--red);
 }
 .settings .hint {
   margin: 6px 0 0;
