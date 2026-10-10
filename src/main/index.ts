@@ -4,7 +4,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { getSettings, setSettings, defaultShell, settingsPath, validateSettings } from './settings'
+import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
 app.setName('Tie')
@@ -62,9 +62,10 @@ ipcMain.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
 ipcMain.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
 ipcMain.on('pty:kill', (_e, id: number) => pty.kill(id))
 ipcMain.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags }))
-ipcMain.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath }))
+ipcMain.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
 ipcMain.handle('settings:set', (_e, patch) => {
-  const errors = validateSettings(patch)
+  const fileError = settingsFileError()
+  const errors = fileError ? [{ field: 'file', message: fileError }] : validateSettings(patch)
   return errors.length ? { ok: false, errors } : { ok: true, settings: setSettings(patch) }
 })
 ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))

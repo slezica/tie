@@ -16,7 +16,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 export async function toggleSettings() {
   if (panel) return cancel()
-  const { settings, defaults, path } = await tie.settings.get()
+  const { settings, defaults, path, error } = await tie.settings.get()
   const saved = appearance()
 
   panel = document.createElement('div')
@@ -137,15 +137,18 @@ export async function toggleSettings() {
   }
   for (const f of Object.values(fields)) f.addEventListener('input', clearErrors)
 
+  const showErrors = (errors: { field: string; message: string }[]) => {
+    clearErrors()
+    status.textContent = errors.map((e) => e.message).join(' · ')
+    status.classList.add('error')
+    for (const e of errors) fields[e.field]?.classList.add('invalid')
+    const first = errors[0]?.field
+    if (first && pageOf[first]) show(pageOf[first])
+  }
   const save = async () => {
     const res = await tie.settings.set({ ...draft(), shell: shell.value.trim() })
     if (res.ok) return close()
-    clearErrors()
-    status.textContent = res.errors.map((e) => e.message).join(' · ')
-    status.classList.add('error')
-    for (const e of res.errors) fields[e.field]?.classList.add('invalid')
-    const first = res.errors[0]?.field
-    if (first && pageOf[first]) show(pageOf[first])
+    showErrors(res.errors)
   }
   $('.save').addEventListener('click', save)
   $('.cancel').addEventListener('click', cancel)
@@ -156,6 +159,7 @@ export async function toggleSettings() {
     else if (e.key === 'Enter' && !(e.target instanceof HTMLSelectElement)) save()
   })
   show(page)
+  if (error) showErrors([{ field: 'file', message: error }])
 }
 
 function cancel() {

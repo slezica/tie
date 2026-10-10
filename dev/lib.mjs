@@ -73,7 +73,7 @@ function freePort() {
   })
 }
 
-// opts.settings: pre-seed the instance's settings file (e.g. to test boot-time application).
+// opts.settings: pre-seed the instance's settings file (object, or raw string e.g. malformed JSON).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
   // Own settings file: tests never see (or touch) the user's settings.
@@ -90,7 +90,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
   rmSync(env.TIE_SETTINGS, { force: true })
-  if (opts.settings) writeFileSync(env.TIE_SETTINGS, JSON.stringify(opts.settings))
+  if (opts.settings) writeFileSync(env.TIE_SETTINGS, typeof opts.settings === 'string' ? opts.settings : JSON.stringify(opts.settings))
   const errFile = join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
   const child = spawn(join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'), ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })

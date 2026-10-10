@@ -18,21 +18,32 @@ export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings
 
 const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
 
+let loadError: string | null = null
 let current: Settings = load()
 
 function load(): Settings {
+  loadError = null
   try {
     const s = { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) }
     s.theme = THEME_ALIASES[s.theme] ?? s.theme
     return s
   } catch (e) {
     // Missing file is normal on first run; anything else must not pass silently.
-    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`tie: cannot load settings (${settingsPath}):`, e)
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error(`tie: cannot load settings (${settingsPath}):`, e)
+      loadError = `Settings file unreadable, fix it before saving: ${e instanceof Error ? e.message : e}`
+    }
     return { ...DEFAULTS }
   }
 }
 
 export const getSettings = (): Settings => ({ ...current })
+
+// An existing file that can't be read is never overwritten: saving waits until it's fixed (re-read here).
+export function settingsFileError(): string | null {
+  if (loadError) current = load()
+  return loadError
+}
 
 export function setSettings(patch: Partial<Settings>): Settings {
   current = { ...current, ...patch }
@@ -92,7 +103,7 @@ export function resolveExecutable(cmd: string): string | null {
 }
 
 export interface SettingsError {
-  field: keyof Settings
+  field: keyof Settings | 'file'
   message: string
 }
 

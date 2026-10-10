@@ -18,8 +18,8 @@ const api = {
   info: () => ipcRenderer.invoke('app:info'),
   ready: () => ipcRenderer.send('renderer:ready'),
   settings: {
-    get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string }> => ipcRenderer.invoke('settings:get'),
-    set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings; message: string }[] }> =>
+    get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string; error: string | null }> => ipcRenderer.invoke('settings:get'),
+    set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings | 'file'; message: string }[] }> =>
       ipcRenderer.invoke('settings:set', patch),
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())

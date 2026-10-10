@@ -69,8 +69,8 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - Shelved tiles stay laid out at reveal size (hidden), so pty size doesn't churn.
 - Drags use pointer capture; native `click`/`dblclick` are retargeted, so title clicks come via `startDrag`'s `onClick`.
 - DOM re-renders must keep elements under an active pointer capture (keyed borders, keyed shelf items).
-- Errors: settings validated on save (`validateSettings`, shown in panel status line); tiles that can't start show an error state (`showError`) instead of closing.
-- Scenarios can `export const settings = {...}` to pre-seed a fresh instance.
+- Errors: settings validated on save (`validateSettings`, shown in panel status line); an unreadable settings file blocks Save (never overwritten); tiles that can't start show an error state (`showError`) instead of closing.
+- Scenarios can `export const settings = {...}` (or a raw string) to pre-seed a fresh instance.
 - Never throw inside node-pty callbacks (aborts the process).
 - Harness instances (`TIE_BACKGROUND=1`) render offscreen: no window, no dock icon, no focus stealing; real user input can't interfere.
 - Harness instances use their own settings file (`tmp/<instance>.settings.json`).
