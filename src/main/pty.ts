@@ -89,15 +89,17 @@ export function initPty(wc: () => WebContents | null) {
     // Resolves once every pty reported exit (or after timeout). Quitting with live ptys
     // lets node-pty call into a torn-down JS env, which aborts the process.
     async killAll(timeoutMs = 1500) {
-      for (const p of ptys.values()) {
+      const targets = [...ptys.entries()] // snapshot: ptys spawned meanwhile are left alone
+      for (const [, p] of targets) {
         try {
           p.kill()
         } catch {}
       }
+      const alive = () => targets.filter(([id]) => ptys.has(id))
       const start = Date.now()
-      while (ptys.size && Date.now() - start < timeoutMs) await new Promise((r) => setTimeout(r, 20))
-      if (ptys.size) {
-        for (const p of ptys.values()) {
+      while (alive().length && Date.now() - start < timeoutMs) await new Promise((r) => setTimeout(r, 20))
+      if (alive().length) {
+        for (const [, p] of alive()) {
           try {
             p.kill('SIGKILL')
           } catch {}

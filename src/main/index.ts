@@ -74,6 +74,13 @@ function createWindow() {
     },
   })
   // TIE_BACKGROUND=1 (harness instances): show without stealing focus.
+  // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys.
+  win.webContents.on('did-start-loading', () => {
+    if (pty.count()) {
+      log('pty', 'page reload, killing', pty.count())
+      pty.killAll()
+    }
+  })
   win.once('ready-to-show', () => (process.env.TIE_BACKGROUND ? win?.showInactive() : win?.show()))
   win.on('close', () => !quitting && app.quit())
   win.on('closed', () => (win = null))
