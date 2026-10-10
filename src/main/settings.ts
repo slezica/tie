@@ -24,7 +24,7 @@ let current: Settings = load()
 function load(): Settings {
   loadError = null
   try {
-    const s = { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) }
+    const s = sanitize({ ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) })
     s.theme = THEME_ALIASES[s.theme] ?? s.theme
     return s
   } catch (e) {
@@ -45,12 +45,23 @@ export function settingsFileError(): string | null {
   return loadError
 }
 
+// Clamp numbers into range; wrongly typed strings fall back to defaults (hand-edited files).
+function sanitize(s: Settings): Settings {
+  const str = (v: unknown, d: string) => (typeof v === 'string' ? v : d)
+  const num = (v: unknown, min: number, max: number, d: number) => Math.min(max, Math.max(min, Number(v) || d))
+  return {
+    ...s,
+    shell: str(s.shell, DEFAULTS.shell),
+    theme: str(s.theme, DEFAULTS.theme),
+    lineHeight: num(s.lineHeight, 1, 2, DEFAULTS.lineHeight),
+    fontSize: num(s.fontSize, 8, 32, DEFAULTS.fontSize),
+    cellWidth: num(s.cellWidth, 70, 150, DEFAULTS.cellWidth),
+    fontFamily: str(s.fontFamily, DEFAULTS.fontFamily).trim(),
+  }
+}
+
 export function setSettings(patch: Partial<Settings>): Settings {
-  current = { ...current, ...patch }
-  current.lineHeight = Math.min(2, Math.max(1, Number(current.lineHeight) || DEFAULTS.lineHeight))
-  current.fontSize = Math.min(32, Math.max(8, Number(current.fontSize) || DEFAULTS.fontSize))
-  current.cellWidth = Math.min(150, Math.max(70, Number(current.cellWidth) || DEFAULTS.cellWidth))
-  current.fontFamily = String(current.fontFamily ?? '').trim()
+  current = sanitize({ ...current, ...patch })
   writeFileSync(settingsPath, JSON.stringify(current, null, 2) + '\n')
   log('app', 'settings saved', current)
   return getSettings()

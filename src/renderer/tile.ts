@@ -80,7 +80,7 @@ export async function startTerminal(t: Tile, cmd?: string) {
   t.term.open(t.body)
   t.fit.fit()
   const { cols, rows } = t.term
-  const res = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } })
+  const res = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } }).catch((e: Error) => ({ error: e.message }))
   // Closed while spawning: disposeTile had no pty to kill yet.
   if (S.tiles.get(t.id) !== t) return void (typeof res === 'number' && tie.pty.kill(res))
   if (typeof res !== 'number') return showError(t, res.error)
