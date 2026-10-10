@@ -10,9 +10,10 @@ export interface Settings {
   lineHeight: number // all tiles: content line height
   fontFamily: string // all tiles: content font, '' = default monospace stack
   fontSize: number // all tiles: content font size (px)
+  cellWidth: number // all tiles: character width, percent (kitty cell_width)
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12 }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100 }
 export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings.json')
 
 let current: Settings = load()
@@ -31,6 +32,7 @@ export function setSettings(patch: Partial<Settings>): Settings {
   current = { ...current, ...patch }
   current.lineHeight = Math.min(2, Math.max(1, Number(current.lineHeight) || DEFAULTS.lineHeight))
   current.fontSize = Math.min(32, Math.max(8, Number(current.fontSize) || DEFAULTS.fontSize))
+  current.cellWidth = Math.min(150, Math.max(70, Number(current.cellWidth) || DEFAULTS.cellWidth))
   current.fontFamily = String(current.fontFamily ?? '').trim()
   writeFileSync(settingsPath, JSON.stringify(current, null, 2) + '\n')
   log('app', 'settings saved', current)

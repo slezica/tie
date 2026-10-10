@@ -92,7 +92,7 @@ export function render() {
     setButtons(S.tiles.get(id)!, { collapse: false, zoom: false })
     if (shown && (S.revealed === id || !S.revealed)) {
       peak.style.display = 'block'
-      peak.style.left = `${x + size.w - PEAK + 1}px`
+      peak.style.left = `${x + size.w}px` // sticks out of the reveal's right edge
       peak.style.top = `${cy - PEAK}px`
       peak.style.zIndex = String(Z.reveal + 2)
       peak.classList.toggle('pinned', pinned)

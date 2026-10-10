@@ -6,6 +6,7 @@ export interface Settings {
   lineHeight: number
   fontFamily: string
   fontSize: number
+  cellWidth: number
 }
 
 type DataCb = (id: number, data: string) => void

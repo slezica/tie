@@ -2,9 +2,7 @@
 // Pages: Appearance (app-wide look) | Terminal (tile-kind specific).
 import { S, tie } from './state'
 import { THEMES, theme } from './themes'
-import { applyAppearance, appearance, fontInstalled } from './appearance'
-
-const FONT_SUGGESTIONS = ['MesloLGS Nerd Font Mono', 'JetBrains Mono', 'SF Mono', 'Menlo', 'Hack', 'Fira Code', 'Iosevka', 'Cascadia Code']
+import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
@@ -41,8 +39,7 @@ export async function toggleSettings() {
           <div class="swatches"></div>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
-          <input id="set-font" list="font-list" spellcheck="false" placeholder="Default monospace" />
-          <datalist id="font-list">${FONT_SUGGESTIONS.map((f) => `<option value="${esc(f)}"></option>`).join('')}</datalist>
+          <select id="set-font"></select>
           <p class="hint warn" hidden>Font not installed, using fallback.</p>
           <div class="row">
             <div>
@@ -52,6 +49,10 @@ export async function toggleSettings() {
             <div>
               <label for="set-line-height">Line height</label>
               <input id="set-line-height" type="number" min="1" max="2" step="0.05" />
+            </div>
+            <div>
+              <label for="set-cell-width">Char width %</label>
+              <input id="set-cell-width" type="number" min="70" max="150" step="1" />
             </div>
           </div>
         </section>
@@ -73,12 +74,18 @@ export async function toggleSettings() {
   const $ = <T extends HTMLElement>(sel: string) => panel!.querySelector(sel) as T
   const themeSel = $<HTMLSelectElement>('#set-theme')
   const lineHeight = $<HTMLInputElement>('#set-line-height')
-  const font = $<HTMLInputElement>('#set-font')
+  const font = $<HTMLSelectElement>('#set-font')
+  const cellWidth = $<HTMLInputElement>('#set-cell-width')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
+  const fonts = await monospaceFonts()
+  if (settings.fontFamily && !fonts.includes(settings.fontFamily)) fonts.unshift(settings.fontFamily)
+  font.innerHTML =
+    `<option value="">Default monospace</option>` + fonts.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('')
   font.value = settings.fontFamily
+  cellWidth.value = String(settings.cellWidth)
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   shell.placeholder = defaults.shell
@@ -93,6 +100,7 @@ export async function toggleSettings() {
     lineHeight: Math.min(2, Math.max(1, Number(lineHeight.value) || 1.15)),
     fontFamily: font.value.trim(),
     fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
+    cellWidth: Math.min(150, Math.max(70, Number(cellWidth.value) || 100)),
   })
   const preview = () => {
     swatches()
@@ -100,7 +108,7 @@ export async function toggleSettings() {
     applyAppearance(draft())
   }
   themeSel.addEventListener('change', preview)
-  for (const el of [lineHeight, font, fontSize]) el.addEventListener('input', preview)
+  for (const el of [lineHeight, font, fontSize, cellWidth]) el.addEventListener('input', preview)
   swatches()
 
   const show = (p: string) => {
