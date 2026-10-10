@@ -1,0 +1,112 @@
+// Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
+
+export async function list(ctx) {
+  return ctx.tie('list')
+}
+
+export async function rectOf(ctx, id) {
+  const t = (await list(ctx)).tiles.find((t) => t.id === id)
+  if (!t?.rect) throw new Error(`no rect for ${id}`)
+  return t.rect
+}
+
+// Point on a tile's title bar (left part, clear of buttons).
+export async function titlePoint(ctx, id) {
+  const r = await rectOf(ctx, id)
+  return r.w < 40 ? { x: r.x + r.w / 2, y: r.y + 60 } : { x: r.x + Math.min(80, r.w / 3), y: r.y + 15 }
+}
+
+// Point inside target tile near the given side (lands in that side's drop triangle).
+export async function sidePoint(ctx, id, side) {
+  const r = await rectOf(ctx, id)
+  const cx = r.x + r.w / 2
+  const cy = r.y + r.h / 2
+  return {
+    l: { x: r.x + r.w * 0.1, y: cy },
+    r: { x: r.x + r.w * 0.9, y: cy },
+    t: { x: cx, y: r.y + r.h * 0.1 },
+    b: { x: cx, y: r.y + r.h * 0.9 },
+    c: { x: cx, y: cy },
+  }[side]
+}
+
+// Low-level drag; optional mid-drag hook (e.g. to take a preview shot).
+export async function drag(ctx, from, to, { shift = false, steps = 12, during } = {}) {
+  const m = ctx.page.mouse
+  await m.move(from.x, from.y)
+  await m.down()
+  if (shift) await ctx.page.keyboard.down('Shift')
+  await m.move(to.x, to.y, { steps })
+  await ctx.sleep(120)
+  if (during) await during()
+  await m.up()
+  if (shift) await ctx.page.keyboard.up('Shift')
+  await ctx.sleep(150)
+}
+
+export async function dragTitle(ctx, id, targetId, side, opts) {
+  await drag(ctx, await titlePoint(ctx, id), await sidePoint(ctx, targetId, side), opts)
+}
+
+export async function boxOf(ctx, selector) {
+  const b = await ctx.page.locator(selector).first().boundingBox()
+  if (!b) throw new Error(`not visible: ${selector}`)
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2, box: b }
+}
+
+export const shelfItem = (ctx, id) => boxOf(ctx, `.item[data-id="${id}"]`)
+export const template = (ctx, kind = 'terminal') => boxOf(ctx, `.template[data-kind="${kind}"]`)
+
+// Drop a tile onto the shelf (below existing items).
+export async function shelve(ctx, id, opts) {
+  const items = await ctx.page.locator('#items').boundingBox()
+  const shelf = await ctx.page.locator('#shelf').boundingBox()
+  const y = Math.min(items.y + items.height + 30, shelf.y + shelf.height - 10)
+  await drag(ctx, await titlePoint(ctx, id), { x: shelf.x + shelf.width / 2, y }, opts)
+}
+
+export async function unshelve(ctx, id, targetId, side, opts) {
+  const p = await shelfItem(ctx, id)
+  await drag(ctx, p, targetId ? await sidePoint(ctx, targetId, side) : await boardCenter(ctx), opts)
+}
+
+export async function spawnFromTemplate(ctx, targetId, side, opts) {
+  const p = await template(ctx)
+  await drag(ctx, p, targetId ? await sidePoint(ctx, targetId, side) : await boardCenter(ctx), opts)
+}
+
+export async function boardCenter(ctx) {
+  const { board } = await list(ctx)
+  return { x: board.x + board.w / 2, y: board.y + board.h / 2 }
+}
+
+export async function hoverShelf(ctx, id) {
+  const p = await shelfItem(ctx, id)
+  await ctx.page.mouse.move(p.x, p.y, { steps: 4 })
+  await ctx.sleep(150)
+}
+
+export async function pin(ctx, id) {
+  const p = await shelfItem(ctx, id)
+  await ctx.page.mouse.click(p.x, p.y)
+  await ctx.sleep(150)
+}
+
+export async function clickButton(ctx, id, name) {
+  await ctx.page.locator(`.tile[data-id="${id}"] .btn.${name}`).click()
+  await ctx.sleep(120)
+}
+
+// Three terminals via CLI: a | b over c. Returns ids.
+export async function threeWaySplit(ctx) {
+  const { tiles } = await list(ctx)
+  const a = tiles[0].id
+  const b = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  const c = (await ctx.tie('open', 'terminal', '--at', b, '--side', 'b')).id
+  await ctx.sleep(300)
+  return [a, b, c]
+}
+
+export function assert(cond, msg) {
+  if (!cond) throw new Error(`assertion failed: ${msg}`)
+}

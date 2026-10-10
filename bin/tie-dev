@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# tie-dev: development toolkit for Tie.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+usage() {
+  cat <<'EOF'
+tie-dev - Tie development toolkit
+
+Usage: tie-dev [--instance NAME] <command> [args]
+
+Commands:
+  run                      Dev mode (Vite HMR), foreground
+  build                    Build to out/
+  start                    Build if needed, launch app in background
+  stop                     Stop instance
+  status                   Show instance info (pid, socket, debug port)
+  logs [-f]                Show instance log (enable tags with TIE_DEBUG=layout,shelf,pty,rpc or *)
+  test --unit              Unit tests (vitest)
+  test --e2e               Run every scenario in dev/scenarios on fresh instances
+  typecheck                tsc --noEmit
+  layout                   ASCII render of the board
+  screenshot [file]        PNG of current state (default tmp/shots/current.png)
+  drive <scenario|-> [--attach] [--keep]
+                           Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
+                           Fresh instance by default; --attach uses running instance;
+                           --keep leaves fresh instance running.
+  scenarios                List scenarios
+
+Instance: --instance NAME or TIE_INSTANCE (default "default"). Each instance has its own
+socket, lock, debug port, log under ~/.tie/.
+EOF
+}
+
+if [[ "${1:-}" == "--instance" ]]; then
+  export TIE_INSTANCE="$2"
+  shift 2
+fi
+export TIE_INSTANCE="${TIE_INSTANCE:-default}"
+mkdir -p "$HOME/.tie"
+INFO="$HOME/.tie/$TIE_INSTANCE.json"
+LOG="$HOME/.tie/$TIE_INSTANCE.log"
+
+needs_build() {
+  [[ ! -f out/main/index.js ]] && return 0
+  [[ -n "$(find src -newer out/main/index.js -type f | head -1)" ]]
+}
+
+build() { npx electron-vite build >/dev/null; }
+
+cmd="${1:-}"
+shift || true
+case "$cmd" in
+  run)
+    exec npx electron-vite dev ;;
+  build)
+    npx electron-vite build ;;
+  start)
+    if needs_build; then build; fi
+    if [[ -f "$INFO" ]] && kill -0 "$(node -p "require('$INFO').pid")" 2>/dev/null; then
+      echo "instance $TIE_INSTANCE already running"; exit 0
+    fi
+    nohup node_modules/electron/dist/Electron.app/Contents/MacOS/Electron . -ApplePersistenceIgnoreState YES >>"$LOG" 2>&1 &
+    for _ in $(seq 1 100); do [[ -f "$INFO" ]] && break; sleep 0.1; done
+    [[ -f "$INFO" ]] || { echo "failed to start, see $LOG"; exit 1; }
+    cat "$INFO"; echo ;;
+  stop)
+    [[ -f "$INFO" ]] || { echo "not running"; exit 0; }
+    kill "$(node -p "require('$INFO').pid")" 2>/dev/null || true
+    for _ in $(seq 1 50); do [[ -f "$INFO" ]] || break; sleep 0.1; done
+    rm -f "$INFO"; echo "stopped $TIE_INSTANCE" ;;
+  status)
+    [[ -f "$INFO" ]] && { cat "$INFO"; echo; } || echo "not running" ;;
+  logs)
+    if [[ "${1:-}" == "-f" ]]; then exec tail -f "$LOG"; else tail -n 100 "$LOG"; fi ;;
+  test)
+    case "${1:-}" in
+      --unit) shift; exec npx vitest run "$@" ;;
+      --e2e)
+        if needs_build; then build; fi
+        fail=0
+        mkdir -p tmp
+        for s in dev/scenarios/*.mjs; do
+          name="$(basename "$s" .mjs)"
+          if node dev/drive.mjs "$s" >/dev/null 2>"tmp/e2e-$name.err"; then echo "ok   $name"
+          else echo "FAIL $name (tmp/e2e-$name.err)"; fail=1; fi
+        done
+        exit $fail ;;
+      *) echo "test --unit | --e2e"; exit 1 ;;
+    esac ;;
+  typecheck)
+    exec npx tsc --noEmit -p tsconfig.json ;;
+  layout)
+    exec node dev/layout.mjs "$@" ;;
+  screenshot)
+    exec node dev/screenshot.mjs "$@" ;;
+  drive)
+    if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
+    exec node dev/drive.mjs "$@" ;;
+  scenarios)
+    for s in dev/scenarios/*.mjs; do echo "$(basename "$s" .mjs)  $(head -1 "$s" | sed 's|^// *||')"; done ;;
+  ""|-h|--help|help)
+    usage ;;
+  *)
+    echo "unknown command: $cmd"; usage; exit 1 ;;
+esac
