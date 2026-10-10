@@ -34,6 +34,7 @@ export interface Tile {
   activity: boolean
   pty: number | null
   cwd?: string
+  cmd?: string
   el: HTMLElement
   body: HTMLElement
   term: Terminal

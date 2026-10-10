@@ -20,6 +20,7 @@ const THEME = {
 export function displayTitle(t: Tile): string {
   if (t.customTitle) return t.customTitle
   if (t.oscTitle) return t.oscTitle
+  if (t.cmd) return t.cmd
   if (t.proc && !SHELLS.has(t.proc)) return t.proc
   return t.proc || 'terminal'
 }
@@ -32,7 +33,7 @@ export function iconHtml(icon: string): string {
   return icon ? `<span class="emoji">${icon}</span>` : `<span class="glyph">&gt;_</span>`
 }
 
-export function createTile(kind: Kind, opts: { title?: string; cwd?: string } = {}): Tile {
+export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd?: string } = {}): Tile {
   const id = newId()
   const el = document.createElement('div')
   el.className = 'tile'
@@ -67,7 +68,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string } = 
   const fit = new FitAddon()
   term.loadAddon(fit)
 
-  const tile: Tile = { id, kind, exit: null, activity: false, pty: null, el, body, term, fit, customTitle: opts.title, cwd: opts.cwd }
+  const tile: Tile = { id, kind, exit: null, activity: false, pty: null, el, body, term, fit, customTitle: opts.title, cwd: opts.cwd, cmd: opts.cmd }
   S.tiles.set(id, tile)
   term.onTitleChange((title) => {
     tile.oscTitle = title
