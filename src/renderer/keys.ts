@@ -122,7 +122,6 @@ function focusDirection(dir: Side) {
     if (!best || compare(score, best.score) < 0) best = { id, score }
   }
   if (!best) return
-  if (S.zoomed) S.zoomed = null
   activate(best.id)
 }
 

@@ -98,6 +98,8 @@ export function activate(id: TileId): void {
   const sp = spaceOf(id)
   if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id))
   const t = getTile(id)
+  // A zoomed tile covers the board: unzoom rather than activate a tile hidden under it.
+  if (S.zoomed && S.zoomed !== id && location(id) !== 'shelved') S.zoomed = null
   S.active = id
   S.mru = [id, ...S.mru.filter((m) => m !== id)]
   const f = S.floats.find((f) => f.id === id)
