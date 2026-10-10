@@ -19,10 +19,10 @@ function prettyDir(dir: string): string {
   return dir.split('/').filter(Boolean).pop() ?? '/'
 }
 
-// Custom title, else the active terminal's working directory, else its title.
+// Custom title, else the active (or first shelved) terminal's working directory, else its title.
 export function tabTitle(sp: Space): string {
   if (sp.customTitle) return sp.customTitle
-  const t = sp.active ? S.tiles.get(sp.active) : undefined
+  const t = S.tiles.get(sp.active ?? sp.shelf[0] ?? '')
   if (t?.cwdNow) return prettyDir(t.cwdNow)
   if (t) return displayTitle(t)
   return 'empty'

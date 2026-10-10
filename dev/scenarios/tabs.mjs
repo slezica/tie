@@ -96,4 +96,8 @@ export default async (ctx, h) => {
   await ctx.page.mouse.move(bc.x, bc.y, { steps: 3 })
   await k('Meta+1')
   h.assert(!(await ctx.tie('state')).revealed, 'reveal cleared after tab switch')
+
+  // A tab holding only shelved tiles isn't titled "empty".
+  const cur = await ctx.page.$eval('.tab.current .tab-title', (e) => e.textContent)
+  h.assert(cur !== 'empty', `shelf-only tab title: ${cur}`)
 }
