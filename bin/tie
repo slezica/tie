@@ -105,7 +105,8 @@ async function main() {
       return printTile(await call('focus', { id: rest[0] }))
     case 'title':
     case 'icon': {
-      const [id, value] = rest.length >= 2 ? rest : [undefined, rest[0]]
+      // With 2+ args the first is the id; the rest is the value, unquoted words included.
+      const [id, value] = rest.length >= 2 ? [rest[0], rest.slice(1).join(' ')] : [undefined, rest[0]]
       if (value === undefined) die(`${cmd} needs a value`)
       return printTile(await call(cmd, { id, text: value, emoji: value }))
     }

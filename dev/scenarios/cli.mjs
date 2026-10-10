@@ -49,4 +49,7 @@ export default async (ctx, h) => {
   // --shelve and --shelved are interchangeable.
   h.assert((await ctx.tie('move', f, '--shelved')).state === 'shelved', 'move --shelved')
   h.assert((await ctx.tie('open', 'terminal', '--shelve')).state === 'shelved', 'open --shelve')
+
+  // Unquoted multi-word title keeps every word.
+  h.assert((await ctx.tie('title', a, 'my', 'build')).title === 'my build', 'multi-word title')
 }
