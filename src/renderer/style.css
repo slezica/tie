@@ -232,15 +232,14 @@ body {
 #peak {
   position: absolute;
   display: none;
-  width: 0;
-  height: 0;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-left: 8px solid var(--fg-d);
+  width: 8px;
+  height: 16px;
+  background: var(--fg-d);
+  clip-path: polygon(0 0, 100% 50%, 0 100%); /* ">" pointing at the shelf item */
   pointer-events: none;
 }
 #peak.pinned {
-  border-left-color: var(--accent);
+  background: var(--accent);
 }
 
 /* Borders between slotted tiles */
