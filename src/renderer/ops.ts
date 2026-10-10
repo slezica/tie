@@ -97,7 +97,7 @@ export function closeTile(id: TileId) {
 export function activate(id: TileId): void {
   const sp = spaceOf(id)
   if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id))
-  const t = getTile(id)
+  getTile(id)
   // A zoomed tile covers the board: unzoom rather than activate a tile hidden under it.
   if (S.zoomed && S.zoomed !== id && location(id) !== 'shelved') S.zoomed = null
   S.active = id
@@ -106,7 +106,14 @@ export function activate(id: TileId): void {
   if (f && S.floats[S.floats.length - 1] !== f) S.floats = [...S.floats.filter((x) => x !== f), f]
   render()
   // Only steal keyboard focus for the space on screen.
-  if (S.current === S.visible && !S.collapsed.has(id) && t.term.element) t.term.focus()
+  if (S.current === S.visible) refocus()
+}
+
+// Keys go to the active tile, or nowhere if it can't take them (collapsed, not started).
+export function refocus() {
+  const t = S.active ? S.tiles.get(S.active) : undefined
+  if (t && !S.collapsed.has(t.id) && t.term.element) t.term.focus()
+  else (document.activeElement as HTMLElement | null)?.blur()
 }
 
 // After close/shelve: most recently used tile still on the board.
@@ -132,6 +139,7 @@ export function toggleCollapse(id: TileId) {
   else if (canCollapse(id)) S.collapsed.add(id)
   if (S.zoomed === id) S.zoomed = null
   render()
+  if (S.active === id && S.current === S.visible) refocus()
 }
 
 export function toggleZoom(id: TileId) {

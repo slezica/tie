@@ -32,4 +32,17 @@ export default async (ctx, h) => {
   await h.clickButton(ctx, a, 'zoom')
   await ctx.tie('focus', b)
   h.assert(!(await ctx.tie('state')).zoomed, 'tie focus unzooms')
+
+  // Focusing a collapsed tile: keys must not keep going to the previous terminal.
+  const txt = (id) => ctx.page.$eval(`.tile[data-id="${id}"] .xterm-rows`, (e) => e.textContent)
+  const x = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  await ctx.sleep(800)
+  await h.clickButton(ctx, x, 'collapse')
+  await ctx.tie('focus', a)
+  await ctx.page.keyboard.press('Meta+ArrowRight')
+  await ctx.sleep(200)
+  h.assert((await h.list(ctx)).active === x, 'collapsed tile active')
+  await ctx.page.keyboard.type('echo TYPED_INTO\n')
+  await ctx.sleep(500)
+  h.assert(!(await txt(a)).includes('TYPED_INTO'), 'keys not sent to previous tile')
 }
