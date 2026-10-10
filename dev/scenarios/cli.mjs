@@ -20,4 +20,17 @@ export default async (ctx, h) => {
   await ctx.sleep(1000)
   const pwd = (await text(rel)).trim().split('\n')[0]
   h.assert(pwd === realpathSync(dir), `relative --cwd: ${pwd}`)
+  await ctx.tie('close', rel)
+
+  // list: flags of background-tab tiles come from their own tab.
+  const a = (await h.list(ctx)).tiles[0].id
+  await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')
+  await ctx.sleep(300)
+  await h.clickButton(ctx, a, 'collapse')
+  await ctx.page.keyboard.press('Meta+t')
+  await ctx.sleep(300)
+  const l = await h.list(ctx)
+  const ta = l.tiles.find((t) => t.id === a)
+  h.assert(ta.collapsed && ta.active === (l.tabs[0].active === a), `background tile flags: ${JSON.stringify(ta)}`)
+  await ctx.page.keyboard.press('Meta+1')
 }

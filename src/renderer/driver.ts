@@ -23,20 +23,22 @@ interface Params {
 
 const SIDES = new Set(['l', 'r', 't', 'b'])
 
+// Flags come from the tile's own space (list runs outside withSpace); rect only for the visible one.
 function tileInfo(id: TileId) {
   const t = getTile(id)
   const r = S.rects.get(id)
+  const sp = spaceOf(id)
   return {
     id,
     kind: t.kind,
     title: displayTitle(t),
     icon: displayIcon(t),
     state: location(id),
-    tab: spaceOf(id)?.id ?? null,
-    collapsed: S.collapsed.has(id),
-    zoomed: S.zoomed === id,
-    active: S.active === id,
-    pinned: S.pinned === id,
+    tab: sp?.id ?? null,
+    collapsed: !!sp?.collapsed.has(id),
+    zoomed: sp?.zoomed === id,
+    active: sp?.active === id,
+    pinned: sp?.pinned === id,
     exit: t.exit,
     error: t.error ?? null,
     term: { cols: t.term.cols, rows: t.term.rows, pty: t.ptySize ?? null }, // mismatch = sizing bug
