@@ -51,7 +51,7 @@ Display title, first match:
 1. `customTitle` (menu, `--title`, `tie title`).
 2. `oscTitle`.
 3. `cmd` (for `--cmd` tiles).
-4. `proc` (shell names only if nothing else).
+4. `proc` (foreground process name).
 5. `terminal`.
 
 Icon: `customIcon`, else program → emoji table (`icons.ts`, grayscale), else `>_` glyph.
