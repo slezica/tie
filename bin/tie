@@ -2,7 +2,7 @@
 // tie: remote control for a running Tie instance (JSON-RPC over unix socket).
 import { connect } from 'node:net'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const HELP = `tie - control Tie tiles
 
@@ -95,7 +95,7 @@ async function main() {
     }
     case 'open': {
       const kind = rest[0] || 'terminal'
-      return printTile(await call('open', { kind, cmd: flags.cmd, cwd: flags.cwd || process.cwd(), title: flags.title, ...place }))
+      return printTile(await call('open', { kind, cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }))
     }
     case 'close':
       return void (await call('close', { id: rest[0] }))
