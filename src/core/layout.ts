@@ -95,7 +95,7 @@ export function insert(root: Node | null, targetId: TileId | null, side: Side, n
 
 // Remove a leaf; its space goes to its siblings proportionally.
 export function remove(root: Node | null, id: TileId): Node | null {
-  if (!root) return null
+  if (!root || !contains(root, id)) return root // unchanged trees keep their identity
   if (root.type === 'leaf') return root.id === id ? null : root
   const children: Node[] = []
   const sizes: number[] = []

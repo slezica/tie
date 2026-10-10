@@ -205,14 +205,18 @@ export function attachBorder(h: HTMLElement) {
     const br = borderData.get(h)
     if (e.button !== 0 || !S.tree || !br) return
     e.preventDefault()
-    const start = S.tree
+    const sp = S.sp
+    const start = sp.tree!
+    let last = start
     const s0 = br.dir === 'row' ? e.clientX : e.clientY
     document.body.classList.add('dragging', br.dir === 'row' ? 'resizing-row' : 'resizing-col')
     const done = () => document.body.classList.remove('dragging', 'resizing-row', 'resizing-col')
-    track(e, {
+    const stop = track(e, {
       move: (ev) => {
+        // Tree changed under the drag (open/close/move, tab switch): stop, never write a stale tree.
+        if (sp.tree !== last || S.visible !== sp.id) return stop(), done()
         const d = (br.dir === 'row' ? ev.clientX : ev.clientY) - s0
-        S.tree = resize(start, br.path, br.index, d, br.length, MIN)
+        sp.tree = last = resize(start, br.path, br.index, d, br.length, MIN)
         render()
       },
       up: done,

@@ -44,6 +44,11 @@ describe('remove', () => {
     expect(remove(leaf('a'), 'a')).toBeNull()
   })
 
+  it('keeps tree identity when the id is absent', () => {
+    const t = insert(leaf('a'), 'a', 'r', 'b')
+    expect(remove(t, 'x')).toBe(t)
+  })
+
   it('redistributes proportionally', () => {
     const t: Node = { type: 'split', dir: 'row', children: [leaf('a'), leaf('b'), leaf('c')], sizes: [0.5, 0.25, 0.25] }
     const r = remove(t, 'c') as any
