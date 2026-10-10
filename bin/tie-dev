@@ -29,18 +29,25 @@ Commands:
                            --keep leaves fresh instance running.
   scenarios                List scenarios
 
-Instance: --instance NAME or TIE_INSTANCE (default "default"). Each instance has its own
+Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "default"). Each instance has its own
 socket, lock, debug port, log under ~/.tie/.
 EOF
 }
 
-# --instance NAME may appear anywhere (e.g. `tie-dev stop --instance x`); never fall back silently.
+# --instance NAME (or --instance=NAME) may appear anywhere (e.g. `tie-dev stop --instance x`);
+# never fall back silently.
 args=()
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == "--instance" ]]; then
     [[ -n "${2:-}" ]] || { echo "--instance needs a name"; exit 1; }
     export TIE_INSTANCE="$2"
     shift 2
+  elif [[ "$1" == --instance=* ]]; then
+    [[ -n "${1#--instance=}" ]] || { echo "--instance needs a name"; exit 1; }
+    export TIE_INSTANCE="${1#--instance=}"
+    shift
+  elif [[ "$1" == --instance* ]]; then
+    echo "unknown option: $1"; exit 1
   else
     args+=("$1")
     shift
