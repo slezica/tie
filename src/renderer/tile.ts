@@ -19,8 +19,10 @@ export function displayIcon(t: Tile): string {
   return t.customIcon || iconFor(t.proc)
 }
 
+// Icons are user text (CLI, menu): escaped, never markup.
 export function iconHtml(icon: string): string {
-  return icon ? `<span class="emoji">${icon}</span>` : `<span class="glyph">&gt;_</span>`
+  const esc = icon.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  return icon ? `<span class="emoji">${esc}</span>` : `<span class="glyph">&gt;_</span>`
 }
 
 export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd?: string } = {}): Tile {

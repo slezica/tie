@@ -52,4 +52,10 @@ export default async (ctx, h) => {
 
   // Unquoted multi-word title keeps every word.
   h.assert((await ctx.tie('title', a, 'my', 'build')).title === 'my build', 'multi-word title')
+
+  // Icons are text, never markup.
+  await ctx.tie('icon', a, '<b id=inj>x</b>')
+  h.assert(!(await ctx.page.$('#inj')), 'icon not parsed as HTML')
+  const shown = await ctx.page.$eval(`.tile[data-id="${a}"] .titlebar .icon`, (e) => e.textContent)
+  h.assert(shown === '<b id=inj>x</b>', `icon shown literally: ${shown}`)
 }
