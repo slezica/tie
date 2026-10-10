@@ -22,8 +22,9 @@ if (spec === '-') {
   const src = readFileSync(0, 'utf8')
   file = join(ROOT, 'tmp', `stdin-${process.pid}.mjs`)
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
-  // Bare statements become the scenario body; helpers are in scope.
-  const body = /export\s+default/.test(src) ? src : `export default async (ctx, h) => {\n const { ${Object.keys(helpers).join(', ')} } = h\n${src}\n}`
+  // Bare statements become the scenario body; helpers are in scope. Inner block: user code may
+  // redeclare any wrapper name (const h = ..., const list = ...).
+  const body = /export\s+default/.test(src) ? src : `export default async (ctx, h) => {\n const { ${Object.keys(helpers).join(', ')} } = h\n{\n${src}\n}\n}`
   writeFileSync(file, body)
 } else {
   const named = join(ROOT, 'dev/scenarios', `${spec}.mjs`)
@@ -32,7 +33,12 @@ if (spec === '-') {
 }
 
 // Scenario modules may export `settings` to pre-seed a fresh instance.
-const mod = await import(pathToFileURL(file).href)
+let mod
+try {
+  mod = await import(pathToFileURL(file).href)
+} finally {
+  if (spec === '-') rmSync(file, { force: true }) // also on SyntaxError
+}
 const fresh = attach ? null : await launch(undefined, { settings: mod.settings })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'default')
 const shotDir = join(ROOT, 'tmp/shots', name)
@@ -68,7 +74,6 @@ try {
   code = 1
 } finally {
   await browser?.close().catch(() => {})
-  if (spec === '-') rmSync(file, { force: true })
   if (fresh && !keep) await fresh.stop()
   if (fresh && keep) console.log(`kept instance: ${instance}`)
 }
