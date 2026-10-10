@@ -78,7 +78,9 @@ export async function startTerminal(t: Tile, cmd?: string) {
   t.term.open(t.body)
   t.fit.fit()
   const { cols, rows } = t.term
-  t.pty = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } })
+  const res = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } })
+  if (typeof res !== 'number') return showError(t, res.error)
+  t.pty = res
   t.ptySize = { cols, rows }
   ptyToTile.set(t.pty, t.id)
   debug('pty', 'started', t.id, t.pty, cols, rows)
@@ -94,6 +96,18 @@ export async function startTerminal(t: Tile, cmd?: string) {
     t.ptySize = { cols: t.term.cols, rows: t.term.rows }
   }
   new ResizeObserver(() => fitTile(t)).observe(t.body)
+}
+
+// Error state: centered message replaces the tile's content; the tile stays open.
+export function showError(t: Tile, message: string) {
+  t.error = message
+  debug('pty', 'error', t.id, message)
+  const el = document.createElement('div')
+  el.className = 'tile-error'
+  el.innerHTML = `<div class="word">Error</div><div class="msg"></div>`
+  ;(el.querySelector('.msg') as HTMLElement).textContent = message
+  t.body.appendChild(el)
+  refreshTitle(t)
 }
 
 export function fitTile(t: Tile) {

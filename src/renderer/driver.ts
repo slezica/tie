@@ -36,6 +36,7 @@ function tileInfo(id: TileId) {
     active: S.active === id,
     pinned: S.pinned === id,
     exit: t.exit,
+    error: t.error ?? null,
     term: { cols: t.term.cols, rows: t.term.rows, pty: t.ptySize ?? null }, // mismatch = sizing bug
     rect: r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) } : null,
   }

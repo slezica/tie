@@ -19,14 +19,15 @@ const api = {
   ready: () => ipcRenderer.send('renderer:ready'),
   settings: {
     get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string }> => ipcRenderer.invoke('settings:get'),
-    set: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:set', patch),
+    set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings; message: string }[] }> =>
+      ipcRenderer.invoke('settings:set', patch),
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())
     },
   },
   log: (tag: string, ...args: unknown[]) => ipcRenderer.send('log', tag, ...args),
   pty: {
-    spawn: (o: { cmd?: string; cwd?: string; cols: number; rows: number; env: Record<string, string> }): Promise<number> =>
+    spawn: (o: { cmd?: string; cwd?: string; cols: number; rows: number; env: Record<string, string> }): Promise<number | { error: string }> =>
       ipcRenderer.invoke('pty:spawn', o),
     write: (id: number, data: string) => ipcRenderer.send('pty:write', id, data),
     resize: (id: number, cols: number, rows: number) => ipcRenderer.send('pty:resize', id, cols, rows),

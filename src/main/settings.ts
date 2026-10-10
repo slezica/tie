@@ -1,7 +1,7 @@
 // User settings: JSON file shared across instances (TIE_SETTINGS overrides path, e.g. for tests).
-import { readFileSync, writeFileSync } from 'node:fs'
-import { userInfo } from 'node:os'
-import { join } from 'node:path'
+import { readFileSync, writeFileSync, statSync, accessSync, constants } from 'node:fs'
+import { userInfo, homedir } from 'node:os'
+import { join, delimiter } from 'node:path'
 import { stateDir, log } from './env'
 
 export interface Settings {
@@ -67,4 +67,41 @@ export function parseCommand(line: string): string[] {
 export function shellArgv(): string[] {
   const argv = parseCommand(current.shell.trim())
   return argv.length ? argv : parseCommand(defaultShell())
+}
+
+// Absolute path of an executable (path or bare name searched in PATH), or null.
+export function resolveExecutable(cmd: string): string | null {
+  if (!cmd) return null
+  const isExec = (p: string) => {
+    try {
+      if (!statSync(p).isFile()) return false
+      accessSync(p, constants.X_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+  if (cmd.includes('/')) {
+    const p = cmd.startsWith('~/') ? join(homedir(), cmd.slice(2)) : cmd
+    return isExec(p) ? p : null
+  }
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (dir && isExec(join(dir, cmd))) return join(dir, cmd)
+  }
+  return null
+}
+
+export interface SettingsError {
+  field: keyof Settings
+  message: string
+}
+
+// Problems that would make a setting unusable. Extend with more checks as settings grow.
+export function validateSettings(s: Partial<Settings>): SettingsError[] {
+  const errors: SettingsError[] = []
+  if (s.shell !== undefined && s.shell.trim()) {
+    const [bin] = parseCommand(s.shell.trim())
+    if (!resolveExecutable(bin)) errors.push({ field: 'shell', message: `Shell not found or not executable: ${bin}` })
+  }
+  return errors
 }

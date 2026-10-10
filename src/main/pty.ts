@@ -2,7 +2,7 @@
 import * as nodePty from 'node-pty'
 import type { WebContents } from 'electron'
 import { homedir } from 'node:os'
-import { shellArgv } from './settings'
+import { shellArgv, resolveExecutable } from './settings'
 import { log } from './env'
 
 export interface SpawnOptions {
@@ -42,16 +42,25 @@ export function initPty(wc: () => WebContents | null) {
   }, 500)
 
   return {
-    spawn(o: SpawnOptions): number {
+    // Returns pty id, or an error message for the tile to show (never throws).
+    spawn(o: SpawnOptions): number | { error: string } {
       const [shell, ...base] = shellArgv()
+      const resolved = resolveExecutable(shell)
+      if (!resolved) return { error: `Shell not found or not executable: ${shell}\nFix it in Settings → Terminal.` }
       const args = o.cmd ? [...base, '-i', '-c', o.cmd] : base
-      const p = nodePty.spawn(shell, args, {
-        name: 'xterm-256color',
-        cols: o.cols,
-        rows: o.rows,
-        cwd: o.cwd || homedir(),
-        env: { ...process.env, ...o.env, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'tie' } as Record<string, string>,
-      })
+      let p: nodePty.IPty
+      try {
+        // Spawn by the configured name (natural $0); resolved path only needed for ~ expansion.
+        p = nodePty.spawn(shell.startsWith('~') ? resolved : shell, args, {
+          name: 'xterm-256color',
+          cols: o.cols,
+          rows: o.rows,
+          cwd: o.cwd || homedir(),
+          env: { ...process.env, ...o.env, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'tie' } as Record<string, string>,
+        })
+      } catch (e) {
+        return { error: `Could not start ${shell}: ${e instanceof Error ? e.message : e}` }
+      }
       ptys.set(p.pid, p)
       log('pty', 'spawn', p.pid, shell, args, o.cwd)
       p.onData((d) => send('pty:data', p.pid, d))

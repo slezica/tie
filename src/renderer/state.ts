@@ -48,6 +48,7 @@ export interface Tile {
   activity: boolean
   pty: number | null
   ptySize?: { cols: number; rows: number } // last size sent to the pty
+  error?: string // tile failed to start; shown instead of content
   cwd?: string
   cmd?: string
   el: HTMLElement

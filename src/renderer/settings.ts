@@ -63,7 +63,7 @@ export async function toggleSettings() {
           <p class="hint">Used for new terminals.</p>
         </section>
         <div class="actions">
-          <span class="path">${esc(path)}</span>
+          <span class="status" title="${esc(path)}">${esc(path)}</span>
           <button class="cancel">Cancel</button>
           <button class="save">Save</button>
         </div>
@@ -126,9 +126,26 @@ export async function toggleSettings() {
   // Cancel restores the look that was active when the panel opened.
   ;(panel as any)._revert = () => applyAppearance(saved)
 
+  // Bottom status line: settings file path, or problems blocking save.
+  const status = $('.status')
+  const fields: Record<string, HTMLElement> = { shell }
+  const pageOf: Record<string, string> = { shell: 'terminal' }
+  const clearErrors = () => {
+    status.textContent = path
+    status.classList.remove('error')
+    for (const f of Object.values(fields)) f.classList.remove('invalid')
+  }
+  for (const f of Object.values(fields)) f.addEventListener('input', clearErrors)
+
   const save = async () => {
-    await tie.settings.set({ ...draft(), shell: shell.value.trim() })
-    close()
+    const res = await tie.settings.set({ ...draft(), shell: shell.value.trim() })
+    if (res.ok) return close()
+    clearErrors()
+    status.textContent = res.errors.map((e) => e.message).join(' · ')
+    status.classList.add('error')
+    for (const e of res.errors) fields[e.field]?.classList.add('invalid')
+    const first = res.errors[0]?.field
+    if (first && pageOf[first]) show(pageOf[first])
   }
   $('.save').addEventListener('click', save)
   $('.cancel').addEventListener('click', cancel)
