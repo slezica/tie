@@ -1,4 +1,4 @@
-// Shift-drop floats; resize by corner; dock back into slot.
+// Shift-drop floats; resize by corner (activates, raises); dock back into slot.
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
   const center = await h.boardCenter(ctx)
@@ -16,4 +16,15 @@ export default async (ctx, h) => {
   t = (await h.list(ctx)).tiles.find((t) => t.id === b)
   h.assert(t.state === 'slotted', 'docked back')
   await ctx.shot('docked')
+
+  // Resizing a background float activates and raises it.
+  const f1 = (await ctx.tie('open', 'terminal', '--float')).id
+  const f2 = (await ctx.tie('open', 'terminal', '--float')).id
+  await ctx.sleep(500)
+  const tp = await h.titlePoint(ctx, f2)
+  await h.drag(ctx, tp, { x: tp.x + 300, y: tp.y + 200 }, { shift: true })
+  const hb = await ctx.page.locator(`.tile[data-id="${f1}"] .rz.nw`).boundingBox()
+  await h.drag(ctx, { x: hb.x + hb.width / 2, y: hb.y + hb.height / 2 }, { x: hb.x - 40, y: hb.y - 40 }, { steps: 5 })
+  const s = await ctx.tie('state')
+  h.assert(s.active === f1 && s.floats.at(-1).id === f1, `resized float active + on top (active=${s.active})`)
 }

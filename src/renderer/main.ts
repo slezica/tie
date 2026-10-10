@@ -20,10 +20,10 @@ tiles.addEventListener('pointerdown', (e) => {
   const target = e.target as HTMLElement
   const id = tileId(target)
   if (!id || !S.tiles.has(id)) return
-  if (target.closest('.rz')) return startFloatResize(e, id)
   if (location(id) !== 'shelved' || S.pinned === id) {
     if (S.active !== id) activate(id)
   }
+  if (target.closest('.rz')) return startFloatResize(e, id)
   if (e.button !== 0 || target.closest('.btn') || !target.closest('.titlebar')) return
   startDrag(e, { type: 'tile', id }, () => onTitleClick(id))
 })
