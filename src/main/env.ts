@@ -11,7 +11,7 @@ export const socketPath = join(stateDir, `${instance}.sock`)
 export const infoPath = join(stateDir, `${instance}.json`)
 export const logPath = join(stateDir, `${instance}.log`)
 
-// Stable port per instance name, overridable.
+// Port per instance name; tie-dev and the harness pass a free one (TIE_DEBUG_PORT).
 function hash(s: string) {
   let h = 0
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0
