@@ -9,6 +9,7 @@ import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
 import { initSettings } from './settings'
 import { applyAppearance } from './appearance'
+import { initKeys } from './keys'
 
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id
@@ -70,6 +71,7 @@ async function boot() {
   initMenu()
   initDriver()
   initSettings()
+  initKeys()
   openTile('terminal', { type: 'slot', at: null, side: 'r' })
   tie.ready()
 }

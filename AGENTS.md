@@ -35,6 +35,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/renderer/settings.ts`: settings panel, left nav: Appearance | Terminal (app menu, cmd+,; harness opens via `tie:settings` DOM event).
 - `src/renderer/themes.ts`: themes (palette + accent), xterm theme mapping.
 - `src/renderer/appearance.ts`: applies theme to CSS tokens + terminals, line height to tile content.
+- `src/renderer/keys.ts`: keymap (chord → action), capture-phase handler before xterm, split/focus-direction actions.
 - `src/renderer/menu.ts`: HTML context menu (rename, icon).
 - `src/renderer/driver.ts`: socket methods → ops (`list`, `open`, `close`, `move`, `focus`, `title`, `icon`, `state`).
 - `src/renderer/icons.ts`: SVG buttons, program → emoji table.
