@@ -79,10 +79,20 @@ export async function startTerminal(t: Tile, cmd?: string) {
   t.fit.fit()
   const { cols, rows } = t.term
   t.pty = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } })
+  t.ptySize = { cols, rows }
   ptyToTile.set(t.pty, t.id)
   debug('pty', 'started', t.id, t.pty, cols, rows)
   t.term.onData((d) => t.pty !== null && tie.pty.write(t.pty, d))
-  t.term.onResize(({ cols, rows }) => t.pty !== null && tie.pty.resize(t.pty, cols, rows))
+  t.term.onResize(({ cols, rows }) => {
+    if (t.pty === null) return
+    tie.pty.resize(t.pty, cols, rows)
+    t.ptySize = { cols, rows }
+  })
+  // xterm may have resized while the pty was spawning (before onResize was hooked).
+  if (t.term.cols !== cols || t.term.rows !== rows) {
+    tie.pty.resize(t.pty, t.term.cols, t.term.rows)
+    t.ptySize = { cols: t.term.cols, rows: t.term.rows }
+  }
   new ResizeObserver(() => fitTile(t)).observe(t.body)
 }
 

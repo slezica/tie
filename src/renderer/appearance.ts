@@ -25,7 +25,12 @@ function isMonospace(family: string): boolean {
 }
 
 // Installed monospace families: system font list when available, else known candidates.
-export async function monospaceFonts(): Promise<string[]> {
+let fontCache: Promise<string[]> | null = null
+export function monospaceFonts(): Promise<string[]> {
+  return (fontCache ??= queryMonospaceFonts())
+}
+
+async function queryMonospaceFonts(): Promise<string[]> {
   let families: string[] = []
   try {
     const q = (window as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts

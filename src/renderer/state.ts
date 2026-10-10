@@ -33,6 +33,7 @@ export interface Tile {
   exit: number | null
   activity: boolean
   pty: number | null
+  ptySize?: { cols: number; rows: number } // last size sent to the pty
   cwd?: string
   cmd?: string
   el: HTMLElement
@@ -74,7 +75,7 @@ export function location(id: TileId): Location | null {
 export function boardRect(): Rect {
   const W = window.innerWidth
   const H = window.innerHeight
-  return { x: PAD, y: TOP, w: W - SHELF_W - PAD * 2, h: H - TOP - PAD }
+  return { x: PAD, y: TOP, w: W - SHELF_W - PAD * 2 - GAP, h: H - TOP - PAD } // GAP before shelf, like between tiles
 }
 
 export function shelfRect(): Rect {

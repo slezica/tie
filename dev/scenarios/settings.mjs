@@ -11,6 +11,9 @@ export default async (ctx, h) => {
 
   await open()
   await ctx.shot('appearance')
+  // Fresh settings file: every field shows its default.
+  for (const [sel, v] of [['#set-font-size', '12'], ['#set-line-height', '1.15'], ['#set-cell-width', '100'], ['#set-theme', 'tie-dark'], ['#set-font', '']])
+    h.assert((await ctx.page.inputValue(sel)) === v, `default ${sel} = ${v}`)
   // Live preview, then cancel reverts.
   await ctx.page.selectOption('#set-theme', 'solarized-light')
   h.assert((await cssVar('--bg')) === '#fdf6e3', 'preview applies')
@@ -21,6 +24,7 @@ export default async (ctx, h) => {
   await open()
   await ctx.page.selectOption('#set-theme', 'elegant-dark')
   await ctx.page.fill('#set-line-height', '1.3')
+  await ctx.page.waitForFunction(() => document.querySelectorAll('#set-font option').length > 1)
   const fonts = await ctx.page.$$eval('#set-font option', (os) => os.map((o) => o.value))
   ctx.log(`${fonts.length - 1} monospace fonts listed`)
   h.assert(fonts.includes('Menlo'), 'system fonts listed')

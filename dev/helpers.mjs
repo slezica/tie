@@ -110,3 +110,11 @@ export async function threeWaySplit(ctx) {
 export function assert(cond, msg) {
   if (!cond) throw new Error(`assertion failed: ${msg}`)
 }
+
+// Every terminal's pty size matches its xterm grid (catches missed resizes).
+export async function assertPtySizes(ctx) {
+  for (const t of (await list(ctx)).tiles) {
+    const { cols, rows, pty } = t.term
+    assert(pty && pty.cols === cols && pty.rows === rows, `${t.id} pty ${JSON.stringify(pty)} != xterm ${cols}x${rows}`)
+  }
+}

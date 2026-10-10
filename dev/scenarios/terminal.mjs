@@ -25,5 +25,14 @@ export default async (ctx, h) => {
   await ctx.sleep(800)
   const t = (await h.list(ctx)).tiles.find((t) => t.id === c.id)
   h.assert(t && t.exit === 3, 'cmd tile stays with exit code')
+  // Sizes stay in sync through template spawn, moves, float, shelve, settings change.
+  await h.spawnFromTemplate(ctx, b, 'b')
+  await ctx.sleep(400)
+  await h.assertPtySizes(ctx)
+  const [x] = (await h.list(ctx)).tiles.map((t) => t.id)
+  await ctx.tie('move', x, '--float')
+  await ctx.tie('move', b, '--shelve')
+  await ctx.sleep(300)
+  await h.assertPtySizes(ctx)
   await ctx.shot('after')
 }

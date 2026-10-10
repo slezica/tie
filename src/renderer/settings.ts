@@ -80,11 +80,16 @@ export async function toggleSettings() {
   const shell = $<HTMLInputElement>('#set-shell')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
-  const fonts = await monospaceFonts()
-  if (settings.fontFamily && !fonts.includes(settings.fontFamily)) fonts.unshift(settings.fontFamily)
-  font.innerHTML =
-    `<option value="">Default monospace</option>` + fonts.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('')
-  font.value = settings.fontFamily
+  // Font list arrives async (system font query can be slow); fields never wait on it.
+  const fillFonts = (fonts: string[]) => {
+    const selected = font.value || settings.fontFamily
+    const list = selected && !fonts.includes(selected) ? [selected, ...fonts] : fonts
+    font.innerHTML =
+      `<option value="">Default monospace</option>` + list.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('')
+    font.value = selected
+  }
+  fillFonts([])
+  monospaceFonts().then((fonts) => panel && fillFonts(fonts))
   cellWidth.value = String(settings.cellWidth)
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
