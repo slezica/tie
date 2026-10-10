@@ -32,7 +32,9 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/renderer/tile.ts`: tile element + terminal (xterm, pty wiring, titles).
 - `src/renderer/drag.ts`: drag/drop, drop targets + preview, border and float resize.
 - `src/renderer/shelf.ts`: shelf column (templates, keyed items, hover reveal, pin, activity).
-- `src/renderer/settings.ts`: settings panel (app menu, cmd+,; harness opens via `tie:settings` DOM event).
+- `src/renderer/settings.ts`: settings panel, left nav: Appearance | Terminal (app menu, cmd+,; harness opens via `tie:settings` DOM event).
+- `src/renderer/themes.ts`: themes (palette + accent), xterm theme mapping.
+- `src/renderer/appearance.ts`: applies theme to CSS tokens + terminals, line height to tile content.
 - `src/renderer/menu.ts`: HTML context menu (rename, icon).
 - `src/renderer/driver.ts`: socket methods → ops (`list`, `open`, `close`, `move`, `focus`, `title`, `icon`, `state`).
 - `src/renderer/icons.ts`: SVG buttons, program → emoji table.
@@ -53,6 +55,8 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 
 ## Patterns
 
+- Settings scopes: app-wide (theme), all tiles (line height), tile-kind (terminal shell).
+- Colors: only base tokens (`--bg`, `--text`, `--accent`, `--red`, `--green`) are set; everything else is `color-mix` of them. Never hardcode colors.
 - Mutate only through `ops.ts`, which ends in `render()`.
 - Tile elements never re-parent (xterm stays mounted); position is absolute window coords.
 - Shelved tiles stay laid out at reveal size (hidden), so pty size doesn't churn.

@@ -8,6 +8,7 @@ import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
 import { initSettings } from './settings'
+import { applyAppearance } from './appearance'
 
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id
@@ -56,6 +57,8 @@ window.addEventListener('resize', () => render())
 
 async function boot() {
   const info = await tie.info()
+  const { settings } = await tie.settings.get()
+  applyAppearance({ theme: settings.theme, lineHeight: settings.lineHeight })
   S.cwd = info.cwd
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = `tie · ${info.instance}`
   // Shell tiles close when the shell dies; --cmd tiles stay to show exit status.

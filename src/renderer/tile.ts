@@ -3,19 +3,9 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { ICON, iconFor, SHELLS } from './icons'
 import { S, tie, type Tile, type Kind, newId, debug } from './state'
+import { termOptions } from './appearance'
 
 const ptyToTile = new Map<number, string>()
-
-const THEME = {
-  background: '#000000',
-  foreground: '#e4e4e4',
-  cursor: '#74c0fc',
-  selectionBackground: '#74c0fc55',
-  black: '#1e1e1e', red: '#f47067', green: '#8ddb8c', yellow: '#f0c674',
-  blue: '#74c0fc', magenta: '#dcbdfb', cyan: '#76e3ea', white: '#d0d0d0',
-  brightBlack: '#6e7681', brightRed: '#ff938a', brightGreen: '#b4f1b4', brightYellow: '#f8e3a1',
-  brightBlue: '#a5d8ff', brightMagenta: '#eedcff', brightCyan: '#b3f0ff', brightWhite: '#ffffff',
-}
 
 export function displayTitle(t: Tile): string {
   if (t.customTitle) return t.customTitle
@@ -57,8 +47,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   const term = new Terminal({
     fontFamily: '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace',
     fontSize: 12,
-    lineHeight: 1.15,
-    theme: THEME,
+    ...termOptions(),
     cursorBlink: true,
     scrollback: 5000,
     macOptionIsMeta: true,

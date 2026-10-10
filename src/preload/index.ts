@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+export interface Settings {
+  shell: string
+  theme: string
+  lineHeight: number
+}
+
 type DataCb = (id: number, data: string) => void
 type ExitCb = (id: number, code: number) => void
 type ProcCb = (id: number, name: string) => void
@@ -9,8 +15,8 @@ const api = {
   info: () => ipcRenderer.invoke('app:info'),
   ready: () => ipcRenderer.send('renderer:ready'),
   settings: {
-    get: (): Promise<{ settings: { shell: string }; defaults: { shell: string }; path: string }> => ipcRenderer.invoke('settings:get'),
-    set: (patch: { shell?: string }) => ipcRenderer.invoke('settings:set', patch),
+    get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string }> => ipcRenderer.invoke('settings:get'),
+    set: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:set', patch),
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())
     },

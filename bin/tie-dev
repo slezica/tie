@@ -43,12 +43,14 @@ mkdir -p "$HOME/.tie"
 INFO="$HOME/.tie/$TIE_INSTANCE.json"
 LOG="$HOME/.tie/$TIE_INSTANCE.log"
 
+# Stamp written only by full builds: `tie-dev run` (dev server) rewrites out/main but not out/renderer.
+STAMP=out/.build-stamp
 needs_build() {
-  [[ ! -f out/main/index.js ]] && return 0
-  [[ -n "$(find src -newer out/main/index.js -type f | head -1)" ]]
+  [[ ! -f "$STAMP" ]] && return 0
+  [[ -n "$(find src -newer "$STAMP" -type f | head -1)" ]]
 }
 
-build() { npx electron-vite build >/dev/null; }
+build() { npx electron-vite build >/dev/null && touch "$STAMP"; }
 
 cmd="${1:-}"
 shift || true
@@ -56,7 +58,7 @@ case "$cmd" in
   run)
     exec npx electron-vite dev ;;
   build)
-    npx electron-vite build ;;
+    npx electron-vite build && touch "$STAMP" ;;
   start)
     if needs_build; then build; fi
     if [[ -f "$INFO" ]] && kill -0 "$(node -p "require('$INFO').pid")" 2>/dev/null; then
