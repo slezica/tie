@@ -1,10 +1,19 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
 import { compute, type Rect, type TileId } from '@core/layout'
-import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, type Tile } from './state'
+import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
+import { renderTabs } from './tabs'
 import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
 import { syncShelf, shelfItemEl } from './shelf'
 import { attachBorder, setBorder } from './drag'
+
+// Tiles of background spaces: display:none (their terminals skip fitting while hidden).
+function hideOtherSpaces() {
+  for (const [id, t] of S.tiles) {
+    const here = spaceOf(id)?.id === S.visible
+    t.el.style.display = here ? '' : 'none'
+  }
+}
 
 const Z = { slotted: 1, border: 5, floating: 10, zoomed: 1000, reveal: 2000 }
 
@@ -27,8 +36,15 @@ function setButtons(t: Tile, opts: { collapse: boolean; zoom: boolean }) {
   if (z.dataset.icon !== zi) (z.innerHTML = zi), (z.dataset.icon = zi)
 }
 
+// Always renders the visible space, even when called from an op running in another (withSpace).
 export function render() {
+  withSpace(S.visible, renderVisible)
+}
+
+function renderVisible() {
   readGeometry()
+  hideOtherSpaces()
+  renderTabs()
   const b = boardRect()
   const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed })
   S.rects.clear()

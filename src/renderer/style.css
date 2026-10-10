@@ -60,10 +60,133 @@ body {
   padding-left: 84px;
 }
 #brand {
+  margin: 0 12px 0 auto;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Tabs, in the OS title bar area (which stays draggable around them) */
+#tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  padding: 5px 0;
+}
+.tab,
+#tab-add {
+  -webkit-app-region: no-drag;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  max-width: 200px;
+  padding: 0 4px 0 12px;
+  border-radius: 6px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  cursor: default;
+}
+.tab:hover {
+  background: var(--fg-a);
+  color: var(--text);
+}
+.tab.current {
+  background: var(--fg-b);
+  color: var(--text);
+}
+.tab-icon:empty {
+  display: none;
+}
+.tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+.tab:hover .tab-close,
+.tab.current .tab-close {
+  opacity: 0.6;
+}
+.tab-close:hover {
+  opacity: 1 !important;
+  background: var(--fg-b);
+}
+.tab-close svg {
+  width: 11px;
+  height: 11px;
+}
+#tab-add {
+  width: 26px;
+  height: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+#tab-add:hover {
+  background: var(--fg-a);
+  color: var(--text);
+}
+
+/* Message dialog */
+.dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 7500;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.dialog {
+  width: min(400px, calc(100vw - 32px));
+  padding: 18px 20px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px var(--shadow);
+}
+.dialog h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.dialog p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.dialog .actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.dialog button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  font: 600 12.5px var(--ui-font);
+  cursor: pointer;
 }
 
 /* Tiles */

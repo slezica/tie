@@ -1,6 +1,7 @@
 // Driver: socket commands (via main) mapped to space operations.
 import { contains, type Side, type TileId } from '@core/layout'
-import { S, tie, location, boardRect, getTile, debug } from './state'
+import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace } from './state'
+import { tabTitle } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, defaultFloatRect, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
@@ -31,6 +32,7 @@ function tileInfo(id: TileId) {
     title: displayTitle(t),
     icon: displayIcon(t),
     state: location(id),
+    tab: spaceOf(id)?.id ?? null,
     collapsed: S.collapsed.has(id),
     zoomed: S.zoomed === id,
     active: S.active === id,
@@ -61,6 +63,8 @@ function placement(p: Params, self?: TileId): Placement {
 const methods: Record<string, (p: Params) => unknown> = {
   list: () => ({
     board: boardRect(),
+    tab: S.visible,
+    tabs: S.spaces.map((sp) => ({ id: sp.id, title: tabTitle(sp), current: sp.id === S.visible, active: sp.active })),
     active: S.active,
     shelf: S.shelf,
     tiles: [...S.tiles.keys()].map(tileInfo),
@@ -117,7 +121,11 @@ export function initDriver() {
     try {
       const fn = methods[method]
       if (!fn) throw new Error(`unknown method: ${method}`)
-      tie.rpc.reply(reqId, null, fn((params ?? {}) as Params))
+      const p = (params ?? {}) as Params
+      // Act in the tab of the tile concerned (or the caller's terminal), else the visible tab.
+      const ref = [p.id, p.at, p.caller].find((x) => x && S.tiles.has(x))
+      const space = (ref && spaceOf(ref)?.id) || S.visible
+      tie.rpc.reply(reqId, null, method === 'list' ? fn(p) : withSpace(space, () => fn(p)))
     } catch (e) {
       tie.rpc.reply(reqId, e instanceof Error ? e.message : String(e), null)
     }

@@ -8,6 +8,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `docs/2026-10-09-mvp-spec.md`: MVP spec, decisions, plan.
 - `docs/2026-10-09-daemon-client-architecture.md`: shelved daemon/client design.
 - `docs/2026-10-09-electron-crash-on-quit.md`: node-pty quit crash + macOS launch block.
+- `docs/2026-10-10-tabs-single-renderer.md`: tabs = spaces in one renderer.
 
 ## Stack
 
@@ -36,6 +37,8 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/renderer/themes.ts`: themes (palette + accent), xterm theme mapping.
 - `src/renderer/appearance.ts`: applies theme to CSS tokens + terminals, line height to tile content.
 - `src/renderer/keys.ts`: keymap (chord → action), capture-phase handler before xterm, split/focus-direction actions.
+- `src/renderer/tabs.ts`: tab bar (keyed), new/switch/cycle/close (empty only), titles from cwd.
+- `src/renderer/dialog.ts`: HTML info dialog.
 - `src/renderer/menu.ts`: HTML context menu (rename, icon).
 - `src/renderer/driver.ts`: socket methods → ops (`list`, `open`, `close`, `move`, `focus`, `title`, `icon`, `state`).
 - `src/renderer/icons.ts`: SVG buttons, program → emoji table.
@@ -47,12 +50,13 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 
 ## Model
 
+- `S.spaces: Space[]`, `S.visible` (shown), `S.current` (ops target; differs only inside `withSpace`). Per-space fields below are accessors onto `S.current`.
 - `S.tree: Node | null`: slot tree. `Leaf {id}` | `Split {dir: 'row'|'col', children, sizes (fractions)}`. Normalized.
 - `S.floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
 - `S.shelf: id[]`: shelved order.
 - `S.collapsed: Set`, `S.zoomed`, `S.active`, `S.mru`, `S.pinned`, `S.revealed`.
 - A tile is in exactly one of tree / floats / shelf (`location(id)`).
-- `Tile`: `id`, `kind`, `customTitle`, `customIcon`, `oscTitle`, `proc`, `cmd`, `exit`, `activity`, `pty`, `el`, `term`, `fit`.
+- `Tile`: `id`, `kind`, `cwdNow` (polled shell cwd), `customTitle`, `customIcon`, `oscTitle`, `proc`, `cmd`, `exit`, `activity`, `pty`, `el`, `term`, `fit`.
 
 ## Patterns
 

@@ -2,8 +2,13 @@
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, location, getTile } from './state'
 import { openTile, activate } from './ops'
+import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 
-export type Action = 'split-right' | 'split-down' | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
+export type Action =
+  | 'split-right' | 'split-down'
+  | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
+  | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
+  | `tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
 
 // Defaults; settings will override per chord later. Chord: modifiers (Cmd, Ctrl, Alt, Shift) + key.
 export const DEFAULT_KEYMAP: Record<string, Action> = {
@@ -13,6 +18,11 @@ export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+Right': 'focus-right',
   'Cmd+Up': 'focus-up',
   'Cmd+Down': 'focus-down',
+  'Cmd+T': 'new-tab',
+  'Cmd+W': 'close-tab',
+  'Ctrl+Tab': 'next-tab',
+  'Ctrl+Shift+Tab': 'prev-tab',
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`Cmd+${n}`, `tab-${n}` as Action])),
 }
 
 let keymap = DEFAULT_KEYMAP
@@ -35,7 +45,7 @@ export function initKeys() {
   window.addEventListener(
     'keydown',
     (e) => {
-      if (editingText(e.target) || document.querySelector('.settings')) return
+      if (editingText(e.target) || document.querySelector('.settings, .dialog-backdrop')) return
       const action = keymap[chord(e)]
       if (!action) return
       e.preventDefault()
@@ -60,6 +70,16 @@ export function run(action: Action) {
       return focusDirection('t')
     case 'focus-down':
       return focusDirection('b')
+    case 'new-tab':
+      return void newTab()
+    case 'close-tab':
+      return void closeTab()
+    case 'next-tab':
+      return cycleTab(1)
+    case 'prev-tab':
+      return cycleTab(-1)
+    default:
+      if (action.startsWith('tab-')) return switchTabIndex(Number(action.slice(4)))
   }
 }
 

@@ -10,6 +10,7 @@ import { initDriver } from './driver'
 import { initSettings } from './settings'
 import { applyAppearance } from './appearance'
 import { initKeys } from './keys'
+import { initTabs, setHome } from './tabs'
 
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id
@@ -61,7 +62,8 @@ async function boot() {
   const { settings } = await tie.settings.get()
   applyAppearance(settings)
   S.cwd = info.cwd
-  if (info.instance !== 'default') document.getElementById('brand')!.textContent = `tie · ${info.instance}`
+  setHome(info.home)
+  if (info.instance !== 'default') document.getElementById('brand')!.textContent = info.instance
   // Shell tiles close when the shell dies; --cmd tiles stay to show exit status.
   initPtyEvents(
     (t) => noteActivity(t.id),
@@ -72,6 +74,7 @@ async function boot() {
   initDriver()
   initSettings()
   initKeys()
+  initTabs()
   openTile('terminal', { type: 'slot', at: null, side: 'r' })
   tie.ready()
 }

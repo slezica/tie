@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, remove, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, location, boardRect, getTile, debug, type Kind } from './state'
+import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { createTile, startTerminal, disposeTile, refreshTitle } from './tile'
 import { render } from './render'
 
@@ -25,14 +25,23 @@ export function defaultFloatRect(): Rect {
   return { x: Math.round((b.w - w) / 2), y: Math.round((b.h - h) / 2), w, h }
 }
 
+// Remove a tile from whichever space holds it.
 function detach(id: TileId) {
-  S.tree = remove(S.tree, id)
-  S.floats = S.floats.filter((f) => f.id !== id)
-  S.shelf = S.shelf.filter((s) => s !== id)
-  S.collapsed.delete(id)
-  if (S.zoomed === id) S.zoomed = null
-  if (S.pinned === id) S.pinned = null
-  if (S.revealed === id) S.revealed = null
+  for (const sp of S.spaces) {
+    sp.tree = remove(sp.tree, id)
+    sp.floats = sp.floats.filter((f) => f.id !== id)
+    sp.shelf = sp.shelf.filter((s) => s !== id)
+    sp.collapsed.delete(id)
+    if (sp.zoomed === id) sp.zoomed = null
+    if (sp.pinned === id) sp.pinned = null
+    if (sp.revealed === id) sp.revealed = null
+  }
+}
+
+// Run an op in the space that holds the tile (no-op wrapper if already current).
+function inTileSpace<T>(id: TileId, fn: () => T): T {
+  const sp = spaceOf(id)
+  return sp && sp.id !== S.current ? withSpace(sp.id, fn) : fn()
 }
 
 export function place(id: TileId, p: Placement) {
@@ -74,23 +83,28 @@ export function openTile(kind: Kind, p: Placement, opts: { cmd?: string; cwd?: s
 }
 
 export function closeTile(id: TileId) {
-  const t = getTile(id)
-  debug('layout', 'close', id)
-  detach(id)
-  disposeTile(t)
-  S.mru = S.mru.filter((m) => m !== id)
-  if (S.active === id) focusNext()
-  else render()
+  inTileSpace(id, () => {
+    const t = getTile(id)
+    debug('layout', 'close', id)
+    detach(id)
+    disposeTile(t)
+    S.mru = S.mru.filter((m) => m !== id)
+    if (S.active === id) focusNext()
+    else render()
+  })
 }
 
-export function activate(id: TileId) {
+export function activate(id: TileId): void {
+  const sp = spaceOf(id)
+  if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id))
   const t = getTile(id)
   S.active = id
   S.mru = [id, ...S.mru.filter((m) => m !== id)]
   const f = S.floats.find((f) => f.id === id)
   if (f && S.floats[S.floats.length - 1] !== f) S.floats = [...S.floats.filter((x) => x !== f), f]
   render()
-  if (!S.collapsed.has(id) && t.term.element) t.term.focus()
+  // Only steal keyboard focus for the space on screen.
+  if (S.current === S.visible && !S.collapsed.has(id) && t.term.element) t.term.focus()
 }
 
 // After close/shelve: most recently used tile still on the board.

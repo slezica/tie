@@ -141,6 +141,12 @@ export function initPtyEvents(onActivity: (t: Tile) => void, onExit: (t: Tile) =
     refreshTitle(t)
     onExit(t)
   })
+  tie.pty.onCwd((pid, cwd) => {
+    const t = S.tiles.get(ptyToTile.get(pid) ?? '')
+    if (!t) return
+    t.cwdNow = cwd
+    document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
+  })
   tie.pty.onProcess((pid, name) => {
     const t = S.tiles.get(ptyToTile.get(pid) ?? '')
     if (!t) return

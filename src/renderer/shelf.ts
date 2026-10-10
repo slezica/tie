@@ -104,7 +104,7 @@ function updateItem(id: TileId) {
 export function syncShelf() {
   const list = document.getElementById('items')!
   for (const [id, el] of items) {
-    if (location(id) !== 'shelved') {
+    if (!S.shelf.includes(id)) {
       el.remove()
       items.delete(id)
     }

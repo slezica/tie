@@ -41,6 +41,9 @@ const api = {
     onProcess: (cb: ProcCb) => {
       ipcRenderer.on('pty:process', (_e, id, n) => cb(id, n))
     },
+    onCwd: (cb: (id: number, cwd: string) => void) => {
+      ipcRenderer.on('pty:cwd', (_e, id, cwd) => cb(id, cwd))
+    },
   },
   rpc: {
     onRequest: (cb: RpcCb) => {

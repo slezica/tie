@@ -1,7 +1,7 @@
 // Single source of truth for the space: board tree, floating tiles, shelf.
 import type { Terminal } from '@xterm/xterm'
 import type { FitAddon } from '@xterm/addon-fit'
-import type { Node, Rect, TileId } from '@core/layout'
+import { contains, type Node, type Rect, type TileId } from '@core/layout'
 import type { TieApi } from '../preload'
 
 declare global {
@@ -49,7 +49,8 @@ export interface Tile {
   pty: number | null
   ptySize?: { cols: number; rows: number } // last size sent to the pty
   error?: string // tile failed to start; shown instead of content
-  cwd?: string
+  cwd?: string // start directory
+  cwdNow?: string // shell's current directory (polled)
   cmd?: string
   el: HTMLElement
   body: HTMLElement
@@ -61,30 +62,95 @@ export interface Float extends Rect {
   id: TileId // x/y relative to board origin
 }
 
+// A space = board + shelf (+ per-space focus state). Shown as a tab.
+export interface Space {
+  id: string
+  tree: Node | null
+  floats: Float[] // z-order: last on top
+  shelf: TileId[]
+  collapsed: Set<TileId>
+  zoomed: TileId | null
+  active: TileId | null
+  mru: TileId[]
+  pinned: TileId | null // shelf item with reveal pinned open
+  revealed: TileId | null // shelf item hovered
+  customTitle?: string
+  customIcon?: string
+}
+
+let spaceSeq = 0
+export const newSpace = (): Space => ({
+  id: `s${++spaceSeq}`,
+  tree: null,
+  floats: [],
+  shelf: [],
+  collapsed: new Set(),
+  zoomed: null,
+  active: null,
+  mru: [],
+  pinned: null,
+  revealed: null,
+})
+
+const first = newSpace()
+
+// Per-space fields (tree, floats, ...) are accessors onto the *current* space: the visible one,
+// or another one temporarily during withSpace(). Code mutating S.tree etc. needs no space plumbing.
 export const S = {
   tiles: new Map<TileId, Tile>(),
-  tree: null as Node | null,
-  floats: [] as Float[], // z-order: last on top
-  shelf: [] as TileId[],
-  collapsed: new Set<TileId>(),
-  zoomed: null as TileId | null,
-  active: null as TileId | null,
-  mru: [] as TileId[],
-  pinned: null as TileId | null, // shelf item with reveal pinned open
-  revealed: null as TileId | null, // shelf item hovered
+  spaces: [first] as Space[],
+  visible: first.id, // the space shown on screen
+  current: first.id, // the space ops act on (== visible except inside withSpace)
   cwd: '',
-  rects: new Map<TileId, Rect>(), // last rendered rects, window coords
+  rects: new Map<TileId, Rect>(), // last rendered rects (visible space), window coords
+  get sp(): Space {
+    return this.spaces.find((x) => x.id === this.current) ?? this.spaces[0]
+  },
+  get tree() { return this.sp.tree },
+  set tree(v: Node | null) { this.sp.tree = v },
+  get floats() { return this.sp.floats },
+  set floats(v: Float[]) { this.sp.floats = v },
+  get shelf() { return this.sp.shelf },
+  set shelf(v: TileId[]) { this.sp.shelf = v },
+  get collapsed() { return this.sp.collapsed },
+  get zoomed() { return this.sp.zoomed },
+  set zoomed(v: TileId | null) { this.sp.zoomed = v },
+  get active() { return this.sp.active },
+  set active(v: TileId | null) { this.sp.active = v },
+  get mru() { return this.sp.mru },
+  set mru(v: TileId[]) { this.sp.mru = v },
+  get pinned() { return this.sp.pinned },
+  set pinned(v: TileId | null) { this.sp.pinned = v },
+  get revealed() { return this.sp.revealed },
+  set revealed(v: TileId | null) { this.sp.revealed = v },
+}
+
+// Run fn with ops acting on another space (e.g. CLI call from a terminal in a background tab).
+export function withSpace<T>(spaceId: string, fn: () => T): T {
+  const prev = S.current
+  S.current = spaceId
+  try {
+    return fn()
+  } finally {
+    S.current = prev
+  }
+}
+
+export function spaceOf(id: TileId): Space | null {
+  return S.spaces.find((x) => (x.tree && contains(x.tree, id)) || x.floats.some((f) => f.id === id) || x.shelf.includes(id)) ?? null
 }
 
 let seq = 0
 export const newId = () => `t${++seq}`
 
 export type Location = 'slotted' | 'floating' | 'shelved'
+// Where a tile sits within its own space.
 export function location(id: TileId): Location | null {
-  if (S.shelf.includes(id)) return 'shelved'
-  if (S.floats.some((f) => f.id === id)) return 'floating'
-  if (S.tiles.has(id)) return 'slotted'
-  return null
+  const sp = spaceOf(id)
+  if (!sp) return null
+  if (sp.shelf.includes(id)) return 'shelved'
+  if (sp.floats.some((f) => f.id === id)) return 'floating'
+  return 'slotted'
 }
 
 export function boardRect(): Rect {

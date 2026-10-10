@@ -11,10 +11,27 @@ export function closeMenu() {
   menu = null
 }
 
+// Anything with a renamable title and icon (tiles, tabs).
+export interface MetaTarget {
+  customTitle?: string
+  customIcon?: string
+  title: string // current displayed title
+  icon: string // current displayed icon ('' = none/default)
+  set: (meta: { title?: string | null; icon?: string | null }) => void
+}
+
 export function showTileMenu(id: TileId, x: number, y: number) {
-  closeMenu()
   const t = S.tiles.get(id)
   if (!t) return
+  showMetaMenu(
+    { customTitle: t.customTitle, customIcon: t.customIcon, title: displayTitle(t), icon: displayIcon(t), set: (m) => setMeta(id, m) },
+    x,
+    y,
+  )
+}
+
+export function showMetaMenu(t: MetaTarget, x: number, y: number) {
+  closeMenu()
   menu = document.createElement('div')
   menu.className = 'menu'
   menu.style.left = `${x}px`
@@ -50,9 +67,9 @@ export function showTileMenu(id: TileId, x: number, y: number) {
     input.select()
   }
 
-  item('Rename…', () => prompt('Title (empty = automatic)', t.customTitle ?? displayTitle(t), (v) => setMeta(id, { title: v || null })))
-  item('Set icon…', () => prompt('Emoji (empty = automatic)', t.customIcon ?? displayIcon(t), (v) => setMeta(id, { icon: v || null })))
-  if (t.customTitle || t.customIcon) item('Reset title & icon', () => (setMeta(id, { title: null, icon: null }), closeMenu()))
+  item('Rename…', () => prompt('Title (empty = automatic)', t.customTitle ?? t.title, (v) => t.set({ title: v || null })))
+  item('Set icon…', () => prompt('Emoji (empty = automatic)', t.customIcon ?? t.icon, (v) => t.set({ icon: v || null })))
+  if (t.customTitle || t.customIcon) item('Reset title & icon', () => (t.set({ title: null, icon: null }), closeMenu()))
 
   // Keep inside window.
   const r = menu.getBoundingClientRect()

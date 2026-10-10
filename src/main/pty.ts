@@ -1,5 +1,6 @@
 // pty host: spawns shells, streams data to the renderer, reports foreground process.
 import * as nodePty from 'node-pty'
+import { execFile } from 'node:child_process'
 import type { WebContents } from 'electron'
 import { homedir } from 'node:os'
 import { shellArgv, resolveExecutable } from './settings'
@@ -15,6 +16,7 @@ export interface SpawnOptions {
 
 const ptys = new Map<number, nodePty.IPty>()
 const procNames = new Map<number, string>()
+const cwds = new Map<number, string>()
 
 export function initPty(wc: () => WebContents | null) {
   // Never throw here: an exception inside node-pty's native callbacks aborts the process.
@@ -40,6 +42,24 @@ export function initPty(wc: () => WebContents | null) {
       }
     }
   }, 500)
+
+  // Shell working directories (no shell integration needed): one batched lsof call per tick.
+  let polling = false
+  setInterval(() => {
+    if (polling || !ptys.size) return
+    polling = true
+    execFile('lsof', ['-a', '-d', 'cwd', '-Fn', '-p', [...ptys.keys()].join(',')], (_err, out) => {
+      polling = false
+      let pid = 0
+      for (const line of (out ?? '').split('\n')) {
+        if (line[0] === 'p') pid = Number(line.slice(1))
+        else if (line[0] === 'n' && ptys.has(pid) && cwds.get(pid) !== line.slice(1)) {
+          cwds.set(pid, line.slice(1))
+          send('pty:cwd', pid, line.slice(1))
+        }
+      }
+    })
+  }, 2000)
 
   return {
     // Returns pty id, or an error message for the tile to show (never throws).
@@ -68,6 +88,7 @@ export function initPty(wc: () => WebContents | null) {
         log('pty', 'exit', p.pid, exitCode)
         ptys.delete(p.pid)
         procNames.delete(p.pid)
+        cwds.delete(p.pid)
         send('pty:exit', p.pid, exitCode)
       })
       return p.pid

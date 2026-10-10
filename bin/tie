@@ -83,12 +83,13 @@ async function main() {
     case 'list': {
       const r = await call('list')
       if (flags.json) return console.log(JSON.stringify(r, null, 2))
-      console.log(`${pad('ID', 5)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
+      const tabIndex = Object.fromEntries(r.tabs.map((t, i) => [t.id, i + 1]))
+      console.log(`${pad('ID', 5)} ${pad('TAB', 4)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
       for (const t of r.tiles) {
         const f = [t.active && 'active', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
           .filter(Boolean)
           .join(',')
-        console.log(`${pad(t.id, 5)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
+        console.log(`${pad(t.id, 5)} ${pad(tabIndex[t.tab] ?? '-', 4)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
       }
       return
     }
