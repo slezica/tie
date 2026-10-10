@@ -33,4 +33,16 @@ export default async (ctx, h) => {
   const ta = l.tiles.find((t) => t.id === a)
   h.assert(ta.collapsed && ta.active === (l.tabs[0].active === a), `background tile flags: ${JSON.stringify(ta)}`)
   await ctx.page.keyboard.press('Meta+1')
+
+  await ctx.sleep(300)
+
+  // move --float on a floating tile keeps its rect.
+  const f = (await ctx.tie('open', 'terminal', '--float')).id
+  await ctx.sleep(300)
+  const tp = await h.titlePoint(ctx, f)
+  await h.drag(ctx, tp, { x: tp.x - 150, y: tp.y - 100 }, { shift: true })
+  const r0 = await h.rectOf(ctx, f)
+  await ctx.tie('move', f, '--float')
+  const r1 = await h.rectOf(ctx, f)
+  h.assert(JSON.stringify(r0) === JSON.stringify(r1), `float rect kept: ${JSON.stringify(r0)} -> ${JSON.stringify(r1)}`)
 }

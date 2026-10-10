@@ -2,7 +2,7 @@
 import { contains, type Side, type TileId } from '@core/layout'
 import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace } from './state'
 import { tabTitle } from './tabs'
-import { place, openTile, closeTile, activate, pin, setMeta, defaultFloatRect, type Placement } from './ops'
+import { place, openTile, closeTile, activate, pin, setMeta, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
 interface Params {
@@ -49,7 +49,7 @@ function tileInfo(id: TileId) {
 // Resolve placement flags. Default: split the caller (or active) tile along its longer side.
 function placement(p: Params, self?: TileId): Placement {
   if (p.shelve || p.shelved) return { type: 'shelf' }
-  if (p.float) return { type: 'float', rect: defaultFloatRect() }
+  if (p.float) return { type: 'float' } // place() keeps a float's rect, else default
   if (p.side && !SIDES.has(p.side)) throw new Error(`bad side: ${p.side} (use l|r|t|b)`)
   const candidates = [p.at, p.caller, S.active, ...S.mru].filter((x): x is TileId => !!x && x !== self)
   const at = p.at ?? candidates.find((c) => contains(S.tree, c)) ?? null
