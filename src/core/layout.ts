@@ -1,0 +1,222 @@
+// Pure slot-tree logic: no DOM, no Electron. Unit-tested in layout.test.ts.
+
+export type TileId = string
+
+// 'row' = children side by side (horizontal split), 'col' = children stacked.
+export type Dir = 'row' | 'col'
+export type Side = 'l' | 'r' | 't' | 'b'
+
+export interface Leaf {
+  type: 'leaf'
+  id: TileId
+}
+
+export interface Split {
+  type: 'split'
+  dir: Dir
+  children: Node[]
+  sizes: number[] // fractions, sum 1
+}
+
+export type Node = Leaf | Split
+
+export interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export const leaf = (id: TileId): Leaf => ({ type: 'leaf', id })
+
+export function leaves(node: Node | null): TileId[] {
+  if (!node) return []
+  if (node.type === 'leaf') return [node.id]
+  return node.children.flatMap(leaves)
+}
+
+export function contains(node: Node | null, id: TileId): boolean {
+  return leaves(node).includes(id)
+}
+
+export const sideDir = (side: Side): Dir => (side === 'l' || side === 'r' ? 'row' : 'col')
+const sideBefore = (side: Side) => side === 'l' || side === 't'
+
+// Collapse single-child splits and merge nested same-direction splits.
+export function normalize(node: Node): Node {
+  if (node.type === 'leaf') return node
+  const children: Node[] = []
+  const sizes: number[] = []
+  node.children.forEach((c, i) => {
+    const n = normalize(c)
+    if (n.type === 'split' && n.dir === node.dir) {
+      n.children.forEach((cc, j) => {
+        children.push(cc)
+        sizes.push(node.sizes[i] * n.sizes[j])
+      })
+    } else {
+      children.push(n)
+      sizes.push(node.sizes[i])
+    }
+  })
+  if (children.length === 1) return children[0]
+  const total = sizes.reduce((a, b) => a + b, 0)
+  return { type: 'split', dir: node.dir, children, sizes: sizes.map((s) => s / total) }
+}
+
+// Insert newId next to targetId on given side; the new tile takes half the target's space.
+export function insert(root: Node | null, targetId: TileId | null, side: Side, newId: TileId): Node {
+  if (!root) return leaf(newId)
+  if (!targetId || !contains(root, targetId)) targetId = leaves(root)[0]
+  const dir = sideDir(side)
+  const before = sideBefore(side)
+
+  const visit = (node: Node): Node => {
+    if (node.type === 'leaf') {
+      if (node.id !== targetId) return node
+      const pair = before ? [leaf(newId), node] : [node, leaf(newId)]
+      return { type: 'split', dir, children: pair, sizes: [0.5, 0.5] }
+    }
+    const idx = node.children.findIndex((c) => c.type === 'leaf' && c.id === targetId)
+    if (idx >= 0 && node.dir === dir) {
+      const children = [...node.children]
+      const sizes = [...node.sizes]
+      const half = sizes[idx] / 2
+      sizes[idx] = half
+      const at = before ? idx : idx + 1
+      children.splice(at, 0, leaf(newId))
+      sizes.splice(at, 0, half)
+      return { ...node, children, sizes }
+    }
+    return { ...node, children: node.children.map(visit) }
+  }
+  return normalize(visit(root))
+}
+
+// Remove a leaf; its space goes to its siblings proportionally.
+export function remove(root: Node | null, id: TileId): Node | null {
+  if (!root) return null
+  if (root.type === 'leaf') return root.id === id ? null : root
+  const children: Node[] = []
+  const sizes: number[] = []
+  root.children.forEach((c, i) => {
+    const n = remove(c, id)
+    if (n) {
+      children.push(n)
+      sizes.push(root.sizes[i])
+    }
+  })
+  if (children.length === 0) return null
+  const total = sizes.reduce((a, b) => a + b, 0)
+  return normalize({ ...root, children, sizes: sizes.map((s) => s / total) })
+}
+
+// Move an existing leaf next to another (remove + insert).
+export function move(root: Node | null, id: TileId, targetId: TileId, side: Side): Node | null {
+  if (id === targetId) return root
+  return insert(remove(root, id), targetId, side, id)
+}
+
+// Parent split direction of a leaf, or null if root/absent.
+export function parentDir(root: Node | null, id: TileId): Dir | null {
+  if (!root || root.type === 'leaf') return null
+  for (const c of root.children) {
+    if (c.type === 'leaf' && c.id === id) return root.dir
+    const d = parentDir(c, id)
+    if (d) return d
+  }
+  return null
+}
+
+// Pick drop side by nearest edge (equivalent to splitting the rect by its diagonals).
+export function dropSide(rect: Rect, px: number, py: number): Side {
+  const nx = (px - rect.x) / rect.w
+  const ny = (py - rect.y) / rect.h
+  const d = { l: nx, r: 1 - nx, t: ny, b: 1 - ny }
+  return (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
+}
+
+export interface LayoutOptions {
+  gap: number // px between siblings
+  bar: number // px thickness of a collapsed tile
+  collapsed: Set<TileId>
+}
+
+export interface TileRect extends Rect {
+  collapsed: 'none' | 'horizontal' | 'vertical'
+}
+
+export interface Border {
+  path: number[] // path of indices from root to the split
+  index: number // border between children[index] and children[index+1]
+  dir: Dir
+  rect: Rect // hit area, spans the gap
+  length: number // px corresponding to a size fraction of 1
+}
+
+export interface Layout {
+  tiles: Map<TileId, TileRect>
+  borders: Border[]
+}
+
+const isCollapsedLeaf = (n: Node, o: LayoutOptions) => n.type === 'leaf' && o.collapsed.has(n.id)
+
+export function compute(root: Node | null, area: Rect, o: LayoutOptions): Layout {
+  const out: Layout = { tiles: new Map(), borders: [] }
+  if (!root) return out
+
+  const walk = (node: Node, r: Rect, path: number[], collapse: TileRect['collapsed']) => {
+    if (node.type === 'leaf') {
+      out.tiles.set(node.id, { ...r, collapsed: collapse })
+      return
+    }
+    const along = node.dir === 'row' ? r.w : r.h
+    const n = node.children.length
+    const avail = along - o.gap * (n - 1)
+    // Collapsed leaves take fixed bar thickness; if all are collapsed, the last one expands.
+    let collapsedFlags = node.children.map((c) => isCollapsedLeaf(c, o))
+    if (collapsedFlags.every(Boolean)) collapsedFlags = collapsedFlags.map((f, i) => (i === n - 1 ? false : f))
+    const fixed = collapsedFlags.filter(Boolean).length * o.bar
+    const flexTotal = node.sizes.reduce((a, s, i) => (collapsedFlags[i] ? a : a + s), 0)
+    const flexAvail = Math.max(0, avail - fixed)
+
+    let pos = node.dir === 'row' ? r.x : r.y
+    node.children.forEach((child, i) => {
+      const len = collapsedFlags[i] ? o.bar : (node.sizes[i] / flexTotal) * flexAvail
+      const cr: Rect = node.dir === 'row' ? { x: pos, y: r.y, w: len, h: r.h } : { x: r.x, y: pos, w: r.w, h: len }
+      const cc: TileRect['collapsed'] = collapsedFlags[i] ? (node.dir === 'row' ? 'vertical' : 'horizontal') : 'none'
+      walk(child, cr, [...path, i], cc)
+      pos += len
+      if (i < n - 1 && !collapsedFlags[i] && !collapsedFlags[i + 1]) {
+        const br: Rect = node.dir === 'row' ? { x: pos, y: r.y, w: o.gap, h: r.h } : { x: r.x, y: pos, w: r.w, h: o.gap }
+        out.borders.push({ path, index: i, dir: node.dir, rect: br, length: flexAvail / (flexTotal || 1) })
+      }
+      if (i < n - 1) pos += o.gap
+    })
+  }
+  walk(root, area, [], 'none')
+  return out
+}
+
+function splitAt(root: Node, path: number[]): Split | null {
+  let node: Node = root
+  for (const i of path) {
+    if (node.type !== 'split') return null
+    node = node.children[i]
+  }
+  return node.type === 'split' ? node : null
+}
+
+// Move the border between children[index] and [index+1] by deltaPx, respecting minPx.
+export function resize(root: Node, path: number[], index: number, deltaPx: number, lengthPx: number, minPx: number): Node {
+  const clone: Node = structuredClone(root)
+  const split = splitAt(clone, path)
+  if (!split || lengthPx <= 0) return root
+  const s = split.sizes
+  const pair = s[index] + s[index + 1]
+  const min = Math.min(minPx / lengthPx, pair / 2)
+  const a = Math.min(Math.max(s[index] + deltaPx / lengthPx, min), pair - min)
+  s[index] = a
+  s[index + 1] = pair - a
+  return clone
+}
