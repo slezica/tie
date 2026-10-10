@@ -1,0 +1,80 @@
+# Settings and Appearance
+
+Settings file, panel, themes, color tokens, fonts.
+
+## File
+
+- `~/.tie/settings.json`, shared by all instances. `TIE_SETTINGS` overrides the path.
+- Loaded once at main startup. Missing → defaults. Unreadable/invalid → defaults + stderr error.
+- Saved whole on every `settings:set` (pretty JSON).
+
+| Key | Default | Scope | Range / meaning |
+|---|---|---|---|
+| `theme` | `tie-dark` | app-wide | theme id (`themes.ts`) |
+| `fontFamily` | `''` | all tiles | `''` = default monospace stack |
+| `fontSize` | 12 | all tiles | 8–32 px |
+| `lineHeight` | 1.15 | all tiles | 1–2 |
+| `cellWidth` | 100 | all tiles | 70–150 % (kitty `cell_width`) |
+| `shell` | `''` | terminal tiles | command line; `''` = login shell (`TERMINALS.md`) |
+
+- Scopes: app-wide (UI + tiles), all tiles (tile content only, never chrome), tile kind.
+- Numbers clamped on save. Theme alias `elegant-dark` → `tie-dark`.
+- Validation (`validateSettings`, main): `shell` executable must resolve. Errors block save.
+- Shell change applies to new terminals only.
+
+## Panel (`settings.ts`)
+
+- Open: app menu `Settings…` / `cmd+,`. Harness: `document.dispatchEvent(new CustomEvent('tie:settings'))`.
+- Left nav: `Appearance` | `Terminal`. Last page remembered while running.
+- Appearance: theme (+ ANSI swatches), font, size, line height, char width.
+- Terminal: shell command (placeholder shows the default).
+- Live preview of appearance. Cancel / Escape / backdrop click reverts.
+- Enter or `Save` saves. On error:
+  - Status line shows messages (otherwise it shows the file path).
+  - Field marked `.invalid`, panel jumps to its page.
+  - Editing the field clears the error.
+- Font list loads async (`queryLocalFonts`, else known candidates), monospace only. Fields don't wait for it.
+- Warning when the chosen font isn't installed.
+
+## Themes (`themes.ts`)
+
+Theme = `{label, dark, accent, palette}`. Palette = xterm colors + 16 ANSI.
+
+Built in: Tie Dark (default), Dracula, Nord, Gruvbox Dark, One Dark, Tokyo Night, Catppuccin Mocha, Solarized Dark, Solarized Light.
+
+Add a theme: new entry in `THEMES`. Nothing else needed.
+
+## Color tokens
+
+`applyAppearance()` sets only base tokens on `:root`:
+
+| Token | From |
+|---|---|
+| `--bg` | palette background |
+| `--text` | palette foreground |
+| `--accent` | theme accent |
+| `--red` | ANSI 1 |
+| `--green` | ANSI 2 |
+
+Everything else in `style.css` is derived with `color-mix`:
+
+- `--fg-a/b/c/d`: text at 4.5 / 8 / 13 / 22 % over transparent.
+- `--muted`, `--faint`, `--panel`, `--border`, `--bar-bg`, `--accent-soft`.
+- `--app-bg`: `--bg` 20% darker (behind tiles).
+- Light themes: `:root.light` + `color-scheme: light`; softer `--shadow`.
+
+Rule: never hardcode colors. Mix from base tokens.
+
+## Fonts and text
+
+- Tile content vars: `--tile-font`, `--tile-font-size`, `--tile-line-height`.
+- xterm options set from the same values (`termOptions()`); existing terminals updated and refit.
+- Font stack: chosen family, then `Hack, JetBrains Mono, SF Mono, Menlo, monospace`.
+- Char width: xterm has no cell scale; emulated with `letterSpacing` from measured `W` width.
+- Chrome uses `--ui-font` (system sans), unaffected by tile settings.
+- Emoji icons rendered grayscale.
+
+## Limitations
+
+- Keymap not configurable (`PENDING.md`).
+- File edits while running aren't picked up; restart or use the panel.
