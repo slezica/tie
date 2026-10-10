@@ -115,7 +115,7 @@ export function disposeTile(t: Tile) {
   S.tiles.delete(t.id)
 }
 
-export function initPtyEvents(onActivity: (t: Tile) => void) {
+export function initPtyEvents(onActivity: (t: Tile) => void, onExit: (t: Tile) => void) {
   tie.pty.onData((pid, data) => {
     const t = S.tiles.get(ptyToTile.get(pid) ?? '')
     if (!t) return
@@ -128,6 +128,7 @@ export function initPtyEvents(onActivity: (t: Tile) => void) {
     t.exit = code
     t.term.write(`\r\n\x1b[90m[process exited with code ${code}]\x1b[0m`)
     refreshTitle(t)
+    onExit(t)
   })
   tie.pty.onProcess((pid, name) => {
     const t = S.tiles.get(ptyToTile.get(pid) ?? '')

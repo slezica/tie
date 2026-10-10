@@ -59,8 +59,18 @@ body {
   border-radius: var(--radius);
   pointer-events: auto; /* no overflow clip: resize handles extend past edges */
 }
-.tile.active {
-  border: 2px solid var(--accent);
+/* Active: accent line over the title bar. Border width never changes, so content never shifts. */
+.tile.active::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+  z-index: 4;
+  pointer-events: none;
 }
 .tile.floating {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -203,7 +213,7 @@ body {
   pointer-events: none;
 }
 .tile.shelved.pinned {
-  border: 2px solid var(--accent);
+  border-color: rgba(116, 192, 252, 0.45);
 }
 
 #peak {

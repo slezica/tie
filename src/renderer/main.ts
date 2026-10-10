@@ -57,7 +57,11 @@ async function boot() {
   const info = await tie.info()
   S.cwd = info.cwd
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = `tie · ${info.instance}`
-  initPtyEvents((t) => noteActivity(t.id))
+  // Shell tiles close when the shell dies; --cmd tiles stay to show exit status.
+  initPtyEvents(
+    (t) => noteActivity(t.id),
+    (t) => !t.cmd && closeTile(t.id),
+  )
   initShelf()
   initMenu()
   initDriver()
