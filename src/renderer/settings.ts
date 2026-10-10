@@ -14,9 +14,13 @@ export function initSettings() {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
+let opening = false
+
 export async function toggleSettings() {
   if (panel) return cancel()
-  const { settings, defaults, path, error } = await tie.settings.get()
+  if (opening) return // a second request while the first awaits settings
+  opening = true
+  const { settings, defaults, path, error } = await tie.settings.get().finally(() => (opening = false))
   const saved = appearance()
 
   panel = document.createElement('div')

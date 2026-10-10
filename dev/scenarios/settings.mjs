@@ -74,4 +74,14 @@ export default async (ctx, h) => {
   h.assert((await ctx.page.inputValue('#set-shell')) === 'bash --norc', 'shell persisted')
   h.assert((await ctx.page.inputValue('#set-theme')) === 'nord', 'theme persisted')
   await ctx.page.keyboard.press('Escape')
+
+  // Two open requests before the first resolves: one panel, Escape closes it.
+  await ctx.page.evaluate(() => {
+    document.dispatchEvent(new Event('tie:settings'))
+    document.dispatchEvent(new Event('tie:settings'))
+  })
+  await ctx.sleep(300)
+  await ctx.page.keyboard.press('Escape')
+  await ctx.sleep(200)
+  h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel')
 }
