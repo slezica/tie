@@ -29,7 +29,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/main/env.ts`: instance name, paths (`~/.tie/<instance>.*`), debug port, tagged logs.
 - `src/preload/index.ts`: `window.tie` bridge (pty, rpc, info, log, ready).
 - `src/renderer/state.ts`: state `S`, geometry constants, `Tile` type.
-- `src/renderer/ops.ts`: all mutations (place, openTile, closeTile, activate, collapse, zoom, pin, meta).
+- `src/renderer/ops.ts`: all mutations (place, openTile, closeTile, activate, refocus, collapse, zoom, pin, meta).
 - `src/renderer/render.ts`: state → DOM (absolute positioning, reveals, borders).
 - `src/renderer/tile.ts`: tile element + terminal (xterm, pty wiring, titles).
 - `src/renderer/drag.ts`: drag/drop, drop targets + preview, border and float resize.
@@ -65,6 +65,8 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - Spacing: CSS vars in `style.css` `:root` (`--top-bar`, `--pad`, `--gap`, `--title-h`, `--shelf-w`, `--peak`, `--tile-pad`); `readGeometry()` feeds them to layout code on every render.
 - Colors: only base tokens (`--bg`, `--text`, `--accent`, `--red`, `--green`) are set; everything else is `color-mix` of them. Never hardcode colors.
 - Mutate only through `ops.ts`, which ends in `render()`.
+- Keyboard focus: `refocus()` (ops.ts) gives keys to the active tile, or nowhere if it can't take them (collapsed); call it after closing any modal/menu.
+- Async or deferred work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)`: it may have closed meanwhile.
 - Tile elements never re-parent (xterm stays mounted); position is absolute window coords.
 - Shelved tiles stay laid out at reveal size (hidden), so pty size doesn't churn.
 - Drags use pointer capture; native `click`/`dblclick` are retargeted, so title clicks come via `startDrag`'s `onClick`.
