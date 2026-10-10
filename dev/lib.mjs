@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { createServer } from 'node:net'
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // Skip macOS 'reopen windows?' prompt after a crash; it blocks app launch indefinitely.
@@ -44,7 +45,9 @@ export async function connectPage(instance) {
       const browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`)
       for (const ctx of browser.contexts()) {
         for (const page of ctx.pages()) {
-          if (await page.$('#tiles').catch(() => null)) return { browser, page }
+          // Must be *this* instance's page: ports can be reused, never drive another Tie (e.g. the user's).
+          const id = await page.evaluate(async () => (await window.tie?.info())?.instance).catch(() => null)
+          if (id === instance) return { browser, page }
         }
       }
       await browser.close()
@@ -58,11 +61,30 @@ export async function connectPage(instance) {
 }
 
 // Launch a fresh built instance in the background; returns { instance, stop }.
+// A port nobody is listening on right now (instance-name hashing can collide).
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = createServer()
+    srv.on('error', reject)
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address()
+      srv.close(() => resolve(port))
+    })
+  })
+}
+
 // opts.settings: pre-seed the instance's settings file (e.g. to test boot-time application).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
   // Own settings file: tests never see (or touch) the user's settings.
-  const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_CWD: ROOT, TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`) }
+  const env = {
+    ...process.env,
+    TIE_INSTANCE: instance,
+    TIE_BACKGROUND: '1',
+    TIE_CWD: ROOT,
+    TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`),
+    TIE_DEBUG_PORT: String(await freePort()),
+  }
   delete env.TIE_SOCKET
   delete env.TIE_TILE
   delete env.ELECTRON_RUN_AS_NODE

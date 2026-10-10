@@ -34,10 +34,19 @@ socket, lock, debug port, log under ~/.tie/.
 EOF
 }
 
-if [[ "${1:-}" == "--instance" ]]; then
-  export TIE_INSTANCE="$2"
-  shift 2
-fi
+# --instance NAME may appear anywhere (e.g. `tie-dev stop --instance x`); never fall back silently.
+args=()
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--instance" ]]; then
+    [[ -n "${2:-}" ]] || { echo "--instance needs a name"; exit 1; }
+    export TIE_INSTANCE="$2"
+    shift 2
+  else
+    args+=("$1")
+    shift
+  fi
+done
+set -- "${args[@]+"${args[@]}"}"
 export TIE_INSTANCE="${TIE_INSTANCE:-default}"
 mkdir -p "$HOME/.tie"
 INFO="$HOME/.tie/$TIE_INSTANCE.json"
