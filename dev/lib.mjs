@@ -1,6 +1,6 @@
 // Shared harness utilities: instance info, tie CLI wrapper, CDP page connection, fresh instances.
 import { spawn, execFile } from 'node:child_process'
-import { existsSync, readFileSync, rmSync, openSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, openSync, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,7 +58,8 @@ export async function connectPage(instance) {
 }
 
 // Launch a fresh built instance in the background; returns { instance, stop }.
-export async function launch(instance = `drive-${process.pid}`) {
+// opts.settings: pre-seed the instance's settings file (e.g. to test boot-time application).
+export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
   // Own settings file: tests never see (or touch) the user's settings.
   const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_CWD: ROOT, TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`) }
@@ -66,6 +67,8 @@ export async function launch(instance = `drive-${process.pid}`) {
   delete env.TIE_TILE
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
+  rmSync(env.TIE_SETTINGS, { force: true })
+  if (opts.settings) writeFileSync(env.TIE_SETTINGS, JSON.stringify(opts.settings))
   const errFile = join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
   const child = spawn(join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'), ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })

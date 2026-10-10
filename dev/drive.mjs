@@ -31,7 +31,9 @@ if (spec === '-') {
   name = basename(file, '.mjs')
 }
 
-const fresh = attach ? null : await launch()
+// Scenario modules may export `settings` to pre-seed a fresh instance.
+const mod = await import(pathToFileURL(file).href)
+const fresh = attach ? null : await launch(undefined, { settings: mod.settings })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'default')
 const shotDir = join(ROOT, 'tmp/shots', name)
 rmSync(shotDir, { recursive: true, force: true })
@@ -59,7 +61,6 @@ try {
     },
     log: (...a) => console.log(...a),
   }
-  const mod = await import(pathToFileURL(file).href)
   const result = await mod.default(ctx, helpers)
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
 } catch (e) {

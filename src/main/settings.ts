@@ -16,16 +16,18 @@ export interface Settings {
 const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100 }
 export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings.json')
 
-let current: Settings = load()
-
 const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
+
+let current: Settings = load()
 
 function load(): Settings {
   try {
     const s = { ...DEFAULTS, ...JSON.parse(readFileSync(settingsPath, 'utf8')) }
     s.theme = THEME_ALIASES[s.theme] ?? s.theme
     return s
-  } catch {
+  } catch (e) {
+    // Missing file is normal on first run; anything else must not pass silently.
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`tie: cannot load settings (${settingsPath}):`, e)
     return { ...DEFAULTS }
   }
 }
