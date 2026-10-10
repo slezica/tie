@@ -7,6 +7,7 @@ import { initShelf, noteActivity } from './shelf'
 import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
+import { initSettings } from './settings'
 
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id
@@ -65,6 +66,7 @@ async function boot() {
   initShelf()
   initMenu()
   initDriver()
+  initSettings()
   openTile('terminal', { type: 'slot', at: null, side: 'r' })
   tie.ready()
 }

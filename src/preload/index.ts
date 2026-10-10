@@ -8,6 +8,13 @@ type RpcCb = (reqId: number, method: string, params: unknown) => void
 const api = {
   info: () => ipcRenderer.invoke('app:info'),
   ready: () => ipcRenderer.send('renderer:ready'),
+  settings: {
+    get: (): Promise<{ settings: { shell: string }; defaults: { shell: string }; path: string }> => ipcRenderer.invoke('settings:get'),
+    set: (patch: { shell?: string }) => ipcRenderer.invoke('settings:set', patch),
+    onOpen: (cb: () => void) => {
+      ipcRenderer.on('settings:open', () => cb())
+    },
+  },
   log: (tag: string, ...args: unknown[]) => ipcRenderer.send('log', tag, ...args),
   pty: {
     spawn: (o: { cmd?: string; cwd?: string; cols: number; rows: number; env: Record<string, string> }): Promise<number> =>

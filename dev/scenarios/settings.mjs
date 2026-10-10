@@ -1,0 +1,25 @@
+// Settings panel: shell command applies to new terminals.
+export default async (ctx, h) => {
+  const open = () => ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
+  await open()
+  await ctx.page.waitForSelector('.settings')
+  await ctx.shot('panel')
+  await ctx.page.fill('#set-shell', 'bash --norc')
+  await ctx.page.keyboard.press('Enter')
+  await ctx.sleep(150)
+  h.assert(!(await ctx.page.$('.settings')), 'closed on Enter')
+  const t = await ctx.tie('open', 'terminal', '--cmd', 'echo "argv0=$0 opts=$-"; sleep 30')
+  await ctx.sleep(800)
+  const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
+  ctx.log(line)
+  h.assert(line.startsWith('argv0=bash'), `custom shell used: ${line}`)
+  // Esc cancels without saving.
+  await open()
+  await ctx.page.waitForSelector('.settings')
+  await ctx.page.fill('#set-shell', 'zsh')
+  await ctx.page.keyboard.press('Escape')
+  await open()
+  await ctx.page.waitForSelector('.settings')
+  h.assert((await ctx.page.inputValue('#set-shell')) === 'bash --norc', 'escape did not save')
+  await ctx.page.keyboard.press('Escape')
+}

@@ -23,6 +23,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/main/index.ts`: window, single-instance lock, IPC, renderer RPC bridge, graceful quit.
 - `src/main/pty.ts`: pty host (spawn, data, resize, foreground process poll, killAll).
 - `src/main/socket.ts`: unix socket, newline-delimited JSON-RPC → renderer.
+- `src/main/settings.ts`: user settings (`~/.tie/settings.json`, `TIE_SETTINGS` override), shell command parsing.
 - `src/main/env.ts`: instance name, paths (`~/.tie/<instance>.*`), debug port, tagged logs.
 - `src/preload/index.ts`: `window.tie` bridge (pty, rpc, info, log, ready).
 - `src/renderer/state.ts`: state `S`, geometry constants, `Tile` type.
@@ -31,6 +32,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - `src/renderer/tile.ts`: tile element + terminal (xterm, pty wiring, titles).
 - `src/renderer/drag.ts`: drag/drop, drop targets + preview, border and float resize.
 - `src/renderer/shelf.ts`: shelf column (templates, keyed items, hover reveal, pin, activity).
+- `src/renderer/settings.ts`: settings panel (app menu, cmd+,; harness opens via `tie:settings` DOM event).
 - `src/renderer/menu.ts`: HTML context menu (rename, icon).
 - `src/renderer/driver.ts`: socket methods → ops (`list`, `open`, `close`, `move`, `focus`, `title`, `icon`, `state`).
 - `src/renderer/icons.ts`: SVG buttons, program → emoji table.
@@ -57,6 +59,8 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 - Drags use pointer capture; native `click`/`dblclick` are retargeted, so title clicks come via `startDrag`'s `onClick`.
 - DOM re-renders must keep elements under an active pointer capture (keyed borders, keyed shelf items).
 - Never throw inside node-pty callbacks (aborts the process).
+- Harness instances (`TIE_BACKGROUND=1`) render offscreen: no window, no dock icon, no focus stealing; real user input can't interfere.
+- Harness instances use their own settings file (`tmp/<instance>.settings.json`).
 - Launch harness instances with `-ApplePersistenceIgnoreState YES` (see crash record).
 
 ## Toolkit

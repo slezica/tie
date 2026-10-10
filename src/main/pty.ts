@@ -1,7 +1,8 @@
 // pty host: spawns shells, streams data to the renderer, reports foreground process.
 import * as nodePty from 'node-pty'
 import type { WebContents } from 'electron'
-import { homedir, userInfo } from 'node:os'
+import { homedir } from 'node:os'
+import { shellArgv } from './settings'
 import { log } from './env'
 
 export interface SpawnOptions {
@@ -10,14 +11,6 @@ export interface SpawnOptions {
   cols: number
   rows: number
   env: Record<string, string>
-}
-
-function loginShell(): string {
-  try {
-    const s = userInfo().shell
-    if (s) return s
-  } catch {}
-  return process.env.SHELL || '/bin/zsh'
 }
 
 const ptys = new Map<number, nodePty.IPty>()
@@ -50,9 +43,8 @@ export function initPty(wc: () => WebContents | null) {
 
   return {
     spawn(o: SpawnOptions): number {
-      // Account login shell, not $SHELL: the launching shell's rc files may override $SHELL.
-      const shell = loginShell()
-      const args = o.cmd ? ['-l', '-i', '-c', o.cmd] : ['-l']
+      const [shell, ...base] = shellArgv()
+      const args = o.cmd ? [...base, '-i', '-c', o.cmd] : base
       const p = nodePty.spawn(shell, args, {
         name: 'xterm-256color',
         cols: o.cols,

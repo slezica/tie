@@ -4,8 +4,12 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
+import { getSettings, setSettings, defaultShell, settingsPath } from './settings'
 
 const dev = !app.isPackaged
+// TIE_BACKGROUND=1 (harness instances): offscreen rendering, no visible window, no dock icon,
+// never takes focus. Driven entirely over the debugging port.
+const background = !!process.env.TIE_BACKGROUND
 
 // Per-instance user data, so instances don't share the single-instance lock.
 app.setPath('userData', join(app.getPath('appData'), `tie-${instance}`))
@@ -57,6 +61,8 @@ ipcMain.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
 ipcMain.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
 ipcMain.on('pty:kill', (_e, id: number) => pty.kill(id))
 ipcMain.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags }))
+ipcMain.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath }))
+ipcMain.handle('settings:set', (_e, patch) => setSettings(patch))
 ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
 function createWindow() {
@@ -71,9 +77,10 @@ function createWindow() {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       sandbox: true,
       contextIsolation: true,
+      offscreen: background,
+      backgroundThrottling: !background,
     },
   })
-  // TIE_BACKGROUND=1 (harness instances): show without stealing focus.
   // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys.
   win.webContents.on('did-start-loading', () => {
     if (pty.count()) {
@@ -81,7 +88,7 @@ function createWindow() {
       pty.killAll()
     }
   })
-  win.once('ready-to-show', () => (process.env.TIE_BACKGROUND ? win?.showInactive() : win?.show()))
+  win.once('ready-to-show', () => !background && win?.show())
   win.on('close', () => !quitting && app.quit())
   win.on('closed', () => (win = null))
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -91,7 +98,20 @@ function createWindow() {
 function setMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      { role: 'appMenu' },
+      {
+        role: 'appMenu',
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => win?.webContents.send('settings:open') },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
       { role: 'editMenu' },
       {
         label: 'View',
@@ -103,6 +123,7 @@ function setMenu() {
 }
 
 app.whenReady().then(async () => {
+  if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
   createWindow()
   startSocket(socketPath, callRenderer)

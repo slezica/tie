@@ -446,3 +446,82 @@ body.empty #empty-hint {
   font: 13px var(--ui-font);
   outline: none;
 }
+
+/* Settings panel */
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 7000;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.settings {
+  width: min(520px, calc(100vw - 32px));
+  padding: 20px 22px 16px;
+  background: #141414;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  user-select: text;
+}
+.settings h2 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.settings label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.settings input {
+  width: 100%;
+  padding: 7px 10px;
+  background: #000;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 13px 'SF Mono', Menlo, monospace;
+  outline: none;
+}
+.settings input:focus {
+  border-color: var(--accent);
+}
+.settings .hint {
+  margin: 8px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.settings code {
+  font: 12px 'SF Mono', Menlo, monospace;
+  color: var(--text);
+}
+.settings .actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings .path {
+  flex: 1;
+  color: #555;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: 600 12.5px var(--ui-font);
+  cursor: pointer;
+}
+.settings button.save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}

@@ -60,7 +60,8 @@ export async function connectPage(instance) {
 // Launch a fresh built instance in the background; returns { instance, stop }.
 export async function launch(instance = `drive-${process.pid}`) {
   rmSync(infoPath(instance), { force: true })
-  const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_CWD: ROOT }
+  // Own settings file: tests never see (or touch) the user's settings.
+  const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_CWD: ROOT, TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`) }
   delete env.TIE_SOCKET
   delete env.TIE_TILE
   delete env.ELECTRON_RUN_AS_NODE
@@ -81,6 +82,7 @@ export async function launch(instance = `drive-${process.pid}`) {
     } catch {}
     for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
     rmSync(errFile, { force: true })
+    rmSync(env.TIE_SETTINGS, { force: true })
   }
   return { instance, stop }
 }
