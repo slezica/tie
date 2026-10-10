@@ -1,4 +1,4 @@
-// Missing shell: tile shows error state (stays open); settings refuses to save a bad shell.
+// Missing shell or cwd: tile shows error state (stays open); settings refuses to save a bad shell.
 export const settings = { shell: '/nonexistent/bash' } // e.g. shell removed after it was set
 
 export default async (ctx, h) => {
@@ -33,4 +33,13 @@ export default async (ctx, h) => {
   await ctx.sleep(500)
   t = (await h.list(ctx)).tiles.find((x) => x.id === ok.id)
   h.assert(t && !t.error && t.term.pty, 'new terminal works')
+
+  // Missing working directory: error state, for shells and --cmd tiles alike.
+  const sh = (await ctx.tie('open', 'terminal', '--cwd', '/nonexistent/dir')).id
+  const cmd = (await ctx.tie('open', 'terminal', '--cwd', '/nonexistent/dir', '--cmd', 'true')).id
+  await ctx.sleep(1500)
+  for (const id of [sh, cmd]) {
+    t = (await h.list(ctx)).tiles.find((x) => x.id === id)
+    h.assert(t && t.error?.includes('/nonexistent/dir'), `${id} shows missing dir: ${t?.error}`)
+  }
 }

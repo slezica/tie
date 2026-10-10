@@ -3,6 +3,7 @@ import * as nodePty from 'node-pty'
 import { execFile } from 'node:child_process'
 import type { WebContents } from 'electron'
 import { homedir } from 'node:os'
+import { statSync } from 'node:fs'
 import { shellArgv, resolveExecutable } from './settings'
 import { log } from './env'
 
@@ -15,6 +16,14 @@ export interface SpawnOptions {
 }
 
 const ptys = new Map<number, nodePty.IPty>()
+
+function isDir(p: string): boolean {
+  try {
+    return statSync(p).isDirectory()
+  } catch {
+    return false
+  }
+}
 const procNames = new Map<number, string>()
 const cwds = new Map<number, string>()
 
@@ -68,6 +77,8 @@ export function initPty(wc: () => WebContents | null) {
       const resolved = resolveExecutable(shell)
       if (!resolved) return { error: `Shell not found or not executable: ${shell}\nFix it in Settings → Terminal.` }
       const args = o.cmd ? [...base, '-i', '-c', o.cmd] : base
+      const cwd = o.cwd || homedir()
+      if (!isDir(cwd)) return { error: `Directory not found: ${cwd}` }
       let p: nodePty.IPty
       try {
         // Spawn by the configured name (natural $0); resolved path only needed for ~ expansion.
@@ -75,7 +86,7 @@ export function initPty(wc: () => WebContents | null) {
           name: 'xterm-256color',
           cols: o.cols,
           rows: o.rows,
-          cwd: o.cwd || homedir(),
+          cwd,
           env: { ...process.env, ...o.env, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'tie' } as Record<string, string>,
         })
       } catch (e) {
