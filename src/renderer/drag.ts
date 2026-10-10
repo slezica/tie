@@ -9,6 +9,40 @@ import { displayIcon, displayTitle, iconHtml } from './tile'
 export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; kind: Kind; label: string }
 
 const THRESHOLD = 4
+
+// Follow a pointer from pointerdown until release. Listens on window (capture phase), so a
+// release is seen even if pointer capture is lost; a move with no button held counts as a
+// missed release. setPointerCapture keeps events flowing over embedded content.
+function track(e: PointerEvent, h: { move: (ev: PointerEvent) => void; up: (ev: PointerEvent) => void; cancel?: () => void }) {
+  try {
+    ;((e.currentTarget ?? e.target) as HTMLElement).setPointerCapture(e.pointerId)
+  } catch {}
+  const id = e.pointerId
+  const onMove = (ev: PointerEvent) => {
+    if (ev.pointerId !== id) return
+    if ((ev.buttons & 1) === 0) return onUp(ev) // release was missed
+    h.move(ev)
+  }
+  const onUp = (ev: PointerEvent) => {
+    if (ev.pointerId !== id) return
+    stop()
+    h.up(ev)
+  }
+  const onCancel = (ev: PointerEvent) => {
+    if (ev.pointerId !== id) return
+    stop()
+    h.cancel?.()
+  }
+  const stop = () => {
+    window.removeEventListener('pointermove', onMove, true)
+    window.removeEventListener('pointerup', onUp, true)
+    window.removeEventListener('pointercancel', onCancel, true)
+  }
+  window.addEventListener('pointermove', onMove, true)
+  window.addEventListener('pointerup', onUp, true)
+  window.addEventListener('pointercancel', onCancel, true)
+  return stop
+}
 let dragging = false
 export const isDragging = () => dragging
 
@@ -81,7 +115,6 @@ function applyDrop(src: DragSource, t: Target) {
 
 // Pointer-down on a draggable: becomes a drag past THRESHOLD, otherwise a click.
 export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void) {
-  const handle = e.currentTarget as HTMLElement
   const sx = e.clientX
   const sy = e.clientY
   const srcRect = src.type === 'tile' ? S.rects.get(src.id) : undefined
@@ -94,7 +127,6 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   const preview = document.getElementById('preview')!
   const line = document.getElementById('shelf-line')!
   const ghost = document.getElementById('ghost')!
-  handle.setPointerCapture(e.pointerId)
 
   const update = () => {
     target = computeTarget(src, lx, ly, shift, grab)
@@ -141,9 +173,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     }
   }
   const finish = () => {
-    handle.removeEventListener('pointermove', onMove)
-    handle.removeEventListener('pointerup', onUp)
-    handle.removeEventListener('pointercancel', onCancel)
+    stopTracking()
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keyup', onKey, true)
     preview.style.display = line.style.display = ghost.style.display = 'none'
@@ -161,9 +191,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     target = null
     finish()
   }
-  handle.addEventListener('pointermove', onMove)
-  handle.addEventListener('pointerup', onUp)
-  handle.addEventListener('pointercancel', onCancel)
+  const stopTracking = track(e, { move: onMove, up: onUp, cancel: onCancel })
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('keyup', onKey, true)
 }
@@ -177,22 +205,19 @@ export function attachBorder(h: HTMLElement) {
     const br = borderData.get(h)
     if (e.button !== 0 || !S.tree || !br) return
     e.preventDefault()
-    h.setPointerCapture(e.pointerId)
     const start = S.tree
     const s0 = br.dir === 'row' ? e.clientX : e.clientY
     document.body.classList.add('dragging', br.dir === 'row' ? 'resizing-row' : 'resizing-col')
-    const onMove = (ev: PointerEvent) => {
-      const d = (br.dir === 'row' ? ev.clientX : ev.clientY) - s0
-      S.tree = resize(start, br.path, br.index, d, br.length, MIN)
-      render()
-    }
-    const onUp = () => {
-      h.removeEventListener('pointermove', onMove)
-      h.removeEventListener('pointerup', onUp)
-      document.body.classList.remove('dragging', 'resizing-row', 'resizing-col')
-    }
-    h.addEventListener('pointermove', onMove)
-    h.addEventListener('pointerup', onUp)
+    const done = () => document.body.classList.remove('dragging', 'resizing-row', 'resizing-col')
+    track(e, {
+      move: (ev) => {
+        const d = (br.dir === 'row' ? ev.clientX : ev.clientY) - s0
+        S.tree = resize(start, br.path, br.index, d, br.length, MIN)
+        render()
+      },
+      up: done,
+      cancel: done,
+    })
   })
 }
 
@@ -203,12 +228,12 @@ export function startFloatResize(e: PointerEvent, id: TileId) {
   if (e.button !== 0 || !f) return
   e.preventDefault()
   e.stopPropagation()
-  h.setPointerCapture(e.pointerId)
   const dir = h.dataset.dir!
   const r0 = { x: f.x, y: f.y, w: f.w, h: f.h }
   const sx = e.clientX
   const sy = e.clientY
   document.body.classList.add('dragging')
+  const done = () => document.body.classList.remove('dragging')
   const onMove = (ev: PointerEvent) => {
     const dx = ev.clientX - sx
     const dy = ev.clientY - sy
@@ -219,11 +244,5 @@ export function startFloatResize(e: PointerEvent, id: TileId) {
     if (dir.includes('n')) (r.y = r0.y + dy), (r.h = r0.h - dy)
     setFloatRect(id, r)
   }
-  const onUp = () => {
-    h.removeEventListener('pointermove', onMove)
-    h.removeEventListener('pointerup', onUp)
-    document.body.classList.remove('dragging')
-  }
-  h.addEventListener('pointermove', onMove)
-  h.addEventListener('pointerup', onUp)
+  track(e, { move: onMove, up: done, cancel: done })
 }

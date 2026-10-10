@@ -11,4 +11,12 @@ export default async (ctx, h) => {
   l = await h.list(ctx)
   h.assert(l.tiles.length === 1, 'spawned on empty board')
   await ctx.shot('after')
+  // Pointer capture lost mid-drag (e.g. element re-rendered): the drop must still land.
+  const [only] = (await h.list(ctx)).tiles.map((t) => t.id)
+  await h.spawnFromTemplate(ctx, only, 'r', {
+    during: () => ctx.page.evaluate(() => document.querySelectorAll('*').forEach((el) => el.hasPointerCapture?.(1) && el.releasePointerCapture(1))),
+  })
+  l = await h.list(ctx)
+  h.assert(l.tiles.length === 2, 'drop lands after capture loss')
+  h.assert(!(await ctx.page.isVisible('#preview')) && !(await ctx.page.isVisible('#ghost')), 'drag visuals cleared')
 }
