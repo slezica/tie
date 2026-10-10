@@ -14,9 +14,9 @@ Usage:
       --title <text>                      Custom title
       --at <id> [--side l|r|t|b]          Split next to tile (default: caller/active, longer side)
       --float                             Open floating
-      --shelved                           Open on the shelf
+      --shelved                           Open on the shelf (alias --shelve)
   tie close [id]                          Close tile
-  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve
+  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved)
   tie focus [id]                          Focus tile (pins it if shelved)
   tie title [id] <text>                   Set title ("" = automatic)
   tie icon [id] <emoji>                   Set icon ("" = automatic)

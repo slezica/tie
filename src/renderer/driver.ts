@@ -83,7 +83,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   move: (p) => {
     const id = getTile(p.id ?? p.caller).id
-    if (!p.at && !p.float && !p.shelve) throw new Error('move needs --at, --float or --shelve')
+    if (!p.at && !p.float && !p.shelve && !p.shelved) throw new Error('move needs --at, --float or --shelve')
     place(id, placement(p, id))
     return tileInfo(id)
   },

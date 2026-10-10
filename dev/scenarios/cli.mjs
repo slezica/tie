@@ -45,4 +45,8 @@ export default async (ctx, h) => {
   await ctx.tie('move', f, '--float')
   const r1 = await h.rectOf(ctx, f)
   h.assert(JSON.stringify(r0) === JSON.stringify(r1), `float rect kept: ${JSON.stringify(r0)} -> ${JSON.stringify(r1)}`)
+
+  // --shelve and --shelved are interchangeable.
+  h.assert((await ctx.tie('move', f, '--shelved')).state === 'shelved', 'move --shelved')
+  h.assert((await ctx.tie('open', 'terminal', '--shelve')).state === 'shelved', 'open --shelve')
 }
