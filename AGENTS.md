@@ -72,7 +72,7 @@ Full-screen Electron workspace: a board of terminal tiles (slot tree + floating)
 ```
 tie-dev [--instance NAME] <command> [args]
 
-  run                      Dev mode (Vite HMR), foreground
+  run [--hot]              Run in foreground; --hot: dev server, UI hot-reloads on change
   build                    Build to out/
   start                    Build if needed, launch app in background
   stop                     Stop instance
