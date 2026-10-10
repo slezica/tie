@@ -1,14 +1,16 @@
 // HTML context menu (not native, so Playwright can drive it).
 import type { TileId } from '@core/layout'
 import { S } from './state'
-import { setMeta } from './ops'
+import { setMeta, refocus } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
 let menu: HTMLElement | null = null
 
 export function closeMenu() {
+  const hadFocus = menu?.contains(document.activeElement)
   menu?.remove()
   menu = null
+  if (hadFocus) refocus()
 }
 
 // Anything with a renamable title and icon (tiles, tabs).

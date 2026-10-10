@@ -1,4 +1,6 @@
 // Small modal message box (HTML, drivable by the harness).
+import { refocus } from './ops'
+
 export function infoDialog(title: string, message: string): Promise<void> {
   return new Promise((resolve) => {
     const back = document.createElement('div')
@@ -8,6 +10,7 @@ export function infoDialog(title: string, message: string): Promise<void> {
     back.querySelector('p')!.textContent = message
     const done = () => {
       back.remove()
+      refocus()
       resolve()
     }
     back.querySelector('.ok')!.addEventListener('click', done)

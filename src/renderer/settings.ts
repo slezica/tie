@@ -1,6 +1,7 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
 // Pages: Appearance (app-wide look) | Terminal (tile-kind specific).
-import { S, tie } from './state'
+import { tie } from './state'
+import { refocus } from './ops'
 import { THEMES, theme } from './themes'
 import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
 
@@ -174,6 +175,5 @@ function cancel() {
 function close() {
   panel?.remove()
   panel = null
-  const t = S.active ? S.tiles.get(S.active) : null
-  t?.term.focus()
+  refocus()
 }

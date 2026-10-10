@@ -1,4 +1,4 @@
-// Right-click title: rename + set icon, from board and shelf.
+// Right-click title: rename + set icon, from board and shelf; keyboard focus returns to the terminal.
 export default async (ctx, h) => {
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
   const p = await h.titlePoint(ctx, a)
@@ -7,6 +7,8 @@ export default async (ctx, h) => {
   await ctx.page.locator('.menu-item', { hasText: 'Rename' }).click()
   await ctx.page.keyboard.type('my server')
   await ctx.page.keyboard.press('Enter')
+  const focused = () => ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id ?? document.activeElement?.tagName)
+  h.assert((await focused()) === a, `terminal refocused after rename: ${await focused()}`)
   await ctx.page.mouse.click(p.x, p.y, { button: 'right' })
   await ctx.page.locator('.menu-item', { hasText: 'Set icon' }).click()
   await ctx.page.keyboard.type('🚀')
@@ -16,4 +18,13 @@ export default async (ctx, h) => {
   h.assert(t.title === 'my server' && t.icon === '🚀', 'renamed + icon')
   await ctx.tie('move', a, '--shelve')
   await ctx.shot('shelved-custom')
+
+  // Info dialog (close non-empty tab) gives focus back too.
+  await ctx.tie('open', 'terminal')
+  await ctx.sleep(500)
+  await ctx.page.keyboard.press('Meta+Shift+w')
+  await ctx.page.waitForSelector('.dialog')
+  await ctx.page.keyboard.press('Enter')
+  const act = (await h.list(ctx)).active
+  h.assert(act && (await focused()) === act, `terminal refocused after dialog: ${await focused()}`)
 }
