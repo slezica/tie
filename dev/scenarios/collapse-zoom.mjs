@@ -45,4 +45,18 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.type('echo TYPED_INTO\n')
   await ctx.sleep(500)
   h.assert(!(await txt(a)).includes('TYPED_INTO'), 'keys not sent to previous tile')
+
+  // A collapsed tile left alone on the board drops its collapse (fresh tab for a clean board).
+  await ctx.page.keyboard.press('Meta+t')
+  await ctx.page.keyboard.press('Meta+d')
+  await ctx.sleep(300)
+  const lone = (await h.list(ctx)).active
+  const q = (await ctx.tie('open', 'terminal', '--at', lone, '--side', 'r')).id
+  await ctx.sleep(300)
+  await h.clickButton(ctx, lone, 'collapse')
+  await ctx.tie('close', q)
+  h.assert(!(await ctx.tie('state')).collapsed.includes(lone), 'sole tile not collapsed')
+  await ctx.tie('open', 'terminal', '--at', lone, '--side', 'r')
+  await ctx.sleep(300)
+  h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split')
 }

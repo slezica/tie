@@ -35,6 +35,8 @@ function detach(id: TileId) {
     if (sp.zoomed === id) sp.zoomed = null
     if (sp.pinned === id) sp.pinned = null
     if (sp.revealed === id) sp.revealed = null
+    // A slotted tile left without siblings can't stay collapsed.
+    for (const c of sp.collapsed) if (!sp.floats.some((f) => f.id === c) && parentDir(sp.tree, c) === null) sp.collapsed.delete(c)
   }
 }
 
