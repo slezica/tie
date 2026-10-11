@@ -1,7 +1,7 @@
 // Driver: socket commands (via main) mapped to space operations.
 import { contains, type Side, type TileId } from '@core/layout'
 import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace } from './state'
-import { tabTitle } from './tabs'
+import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
@@ -87,10 +87,16 @@ const methods: Record<string, (p: Params) => unknown> = {
     place(id, placement(p, id))
     return tileInfo(id)
   },
+  // Strong: brings the tile to the user (its tab, expanded) and takes input. For scripts/hotkeys.
   focus: (p) => {
     const id = getTile(p.id ?? p.caller).id
+    const sp = spaceOf(id)
+    if (sp && sp.id !== S.visible) switchTab(sp.id)
     if (location(id) === 'shelved') pin(id)
-    else activate(id)
+    else {
+      S.collapsed.delete(id)
+      activate(id)
+    }
     return tileInfo(id)
   },
   title: (p) => {

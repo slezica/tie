@@ -128,11 +128,13 @@ export const S = {
 // Run fn with ops acting on another space (e.g. CLI call from a terminal in a background tab).
 export function withSpace<T>(spaceId: string, fn: () => T): T {
   const prev = S.current
+  const prevVisible = S.visible
   S.current = spaceId
   try {
     return fn()
   } finally {
-    S.current = prev
+    // If fn switched tabs, ops now belong to the newly visible space.
+    S.current = S.visible !== prevVisible ? S.visible : prev
   }
 }
 

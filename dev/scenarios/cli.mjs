@@ -58,4 +58,19 @@ export default async (ctx, h) => {
   h.assert(!(await ctx.page.$('#inj')), 'icon not parsed as HTML')
   const shown = await ctx.page.$eval(`.tile[data-id="${a}"] .titlebar .icon`, (e) => e.textContent)
   h.assert(shown === '<b id=inj>x</b>', `icon shown literally: ${shown}`)
+
+  // focus: switches to the tile's tab, expands it, gives it input.
+  const tabsBefore = (await h.list(ctx)).tabs.length
+  const [fa, fb] = await h.threeWaySplit(ctx).catch(async () => [(await h.list(ctx)).tiles[0].id, null])
+  if (fb) {
+    await h.clickButton(ctx, fb, 'collapse')
+    await ctx.page.keyboard.press('Meta+t')
+    await ctx.sleep(200)
+    await ctx.tie('focus', fb)
+    await ctx.sleep(200)
+    const fl = await h.list(ctx)
+    const t = fl.tiles.find((x) => x.id === fb)
+    h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
+    h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
+  }
 }
