@@ -948,6 +948,10 @@ body.empty #empty-hint {
 #quit-hold.show:not(.released) .bar::after {
   animation: quit-hold 1s linear forwards;
 }
+#quit-hold.armed .bar::after {
+  animation: none;
+  transform: scaleX(1);
+}
 @keyframes quit-hold {
   to {
     transform: scaleX(1);

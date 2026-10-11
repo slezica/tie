@@ -55,7 +55,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `src/renderer/settings.ts`: settings panel, nav Appearance | Terminal.
 - `src/renderer/themes.ts`: themes (palette + accent), xterm theme mapping.
 - `src/renderer/appearance.ts`: theme → CSS tokens + terminals; fonts, line height, char width; font list.
-- `src/renderer/quit.ts`: hold-⌘Q-to-quit (menu shows ⌘Q with `registerAccelerator: false`; renderer handles keys).
+- `src/renderer/quit.ts`: hold-⌘Q-to-quit, quits on key release (menu shows ⌘Q with `registerAccelerator: false`; renderer handles keys).
 - `src/renderer/menu.ts`: HTML context menu (rename, icon, reset) for tiles and tabs.
 - `src/renderer/dialog.ts`: HTML info dialog.
 - `src/renderer/icons.ts`: SVG buttons, program → emoji table, shell names.

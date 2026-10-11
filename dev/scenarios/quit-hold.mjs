@@ -15,6 +15,22 @@ export default async (ctx, h) => {
 
   await kb.down('Meta')
   await kb.down('q')
+  await ctx.sleep(1800) // held past the timer: armed, but still running while keys are down
+  h.assert(existsSync(infoPath(ctx.instance)), 'does not quit while keys are held (repeats would hit the app behind)')
+  h.assert((await ctx.page.textContent('#quit-hold span')) === 'Release to quit', 'asks to release')
+  await ctx.shot('armed')
+  // Losing focus (e.g. another app's popup) cancels: never quit without a deliberate release.
+  await ctx.page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await kb.up('q')
+  await kb.up('Meta')
+  await ctx.sleep(500)
+  h.assert(existsSync(infoPath(ctx.instance)), 'blur cancels; release afterwards does not quit')
+  h.assert(!(await ctx.page.isVisible('#quit-hold')), 'hint gone after cancel')
+  // Deliberate hold + release quits.
+  await kb.down('Meta')
+  await kb.down('q')
+  await ctx.sleep(1300)
+  await kb.up('q').catch(() => {})
   for (let i = 0; i < 40 && existsSync(infoPath(ctx.instance)); i++) await ctx.sleep(100)
-  h.assert(!existsSync(infoPath(ctx.instance)), 'holding quits')
+  h.assert(!existsSync(infoPath(ctx.instance)), 'quits on release')
 }

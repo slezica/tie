@@ -58,7 +58,7 @@ Default keymap (`DEFAULT_KEYMAP`, `keys.ts`):
 | `cmd+shift+D` | Split active tile down |
 | `cmd+←/→/↑/↓` | Focus neighbor in direction |
 | `cmd+W` | Close active tile |
-| `cmd+Q` | Quit. With any tile open (any tab): hold ~1s (hint + progress); tap only shows the hint. Menu Quit by mouse is immediate. |
+| `cmd+Q` | Quit, on key release (held keys would otherwise repeat into the app behind). Any tile open (any tab): hold ~1s first (hint, progress, then "Release to quit"); a tap only shows the hint. Window blur cancels (never quits). Menu Quit by mouse is immediate. |
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab (empty only) |
 | `cmd+1..8` | Tab by position |

@@ -3,7 +3,7 @@ import type { Rect, Side, TileId } from '@core/layout'
 import { S, location, getTile, spaceOf, withSpace } from './state'
 import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
-import { quitPressed, quitReleased } from './quit'
+import { quitPressed, quitReleased, quitCancelled } from './quit'
 
 export type Action =
   | 'split-right' | 'split-down'
@@ -63,7 +63,7 @@ export function initKeys() {
     },
     true,
   )
-  window.addEventListener('blur', () => quitReleased())
+  window.addEventListener('blur', () => quitCancelled())
 
   window.addEventListener(
     'keydown',
