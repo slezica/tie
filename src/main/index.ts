@@ -82,7 +82,8 @@ function createWindow() {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       sandbox: true,
       contextIsolation: true,
-      offscreen: background,
+      // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
+      offscreen: background ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
       backgroundThrottling: !background,
     },
   })

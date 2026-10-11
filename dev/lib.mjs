@@ -84,6 +84,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     TIE_CWD: ROOT,
     TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`),
     TIE_DEBUG_PORT: String(await freePort()),
+    TIE_SCALE: process.env.TIE_SCALE || '2', // like a retina Mac
   }
   delete env.TIE_SOCKET
   delete env.TIE_TILE

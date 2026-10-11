@@ -77,7 +77,10 @@ Rule: never hardcode colors. Mix from base tokens.
 - Tile content vars: `--tile-font`, `--tile-font-size`, `--tile-line-height`.
 - xterm options set from the same values (`termOptions()`); existing terminals updated and refit.
 - Font stack: chosen family, then `Hack, JetBrains Mono, SF Mono, Menlo, monospace`.
-- Char width: xterm has no cell scale; emulated with `letterSpacing` from measured `W` width.
+- Char width: xterm has no cell scale; emulated with `letterSpacing`.
+  - xterm adds `Math.round(letterSpacing)` in *device* px, so the delta is computed in device px.
+  - Steps are whole device px: at 2x, 0.5 CSS px per char. Nearest achievable width wins.
+  - Re-applied when the window's device pixel ratio changes.
 - Chrome uses `--ui-font` (system sans), unaffected by tile settings.
 - Emoji icons rendered grayscale.
 

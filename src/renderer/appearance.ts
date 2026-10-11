@@ -55,11 +55,12 @@ export const appearance = () => current
 
 const measure = document.createElement('canvas').getContext('2d')!
 
-// xterm has no cell-width scale; emulate it with letter spacing (px) from the measured glyph width.
+// xterm has no cell-width scale; emulate it with letterSpacing. xterm adds Math.round(letterSpacing)
+// to the cell width in *device* pixels, so pass the delta in device px (nearest achievable width).
 function letterSpacing(a: Appearance): number {
   measure.font = `${a.fontSize}px ${fontStack(a.fontFamily)}`
-  const w = measure.measureText('W').width
-  return Math.round(w * (a.cellWidth / 100 - 1) * 100) / 100
+  const deviceW = measure.measureText('W').width * devicePixelRatio
+  return Math.round(deviceW * (a.cellWidth / 100 - 1))
 }
 
 export function termOptions() {
@@ -71,6 +72,15 @@ export function termOptions() {
     letterSpacing: letterSpacing(current),
   }
 }
+
+// Cell width depends on device pixels: re-apply when the window moves to a display with another DPR.
+function watchDpr() {
+  matchMedia(`(resolution: ${devicePixelRatio}dppx)`).addEventListener('change', () => {
+    applyAppearance(current)
+    watchDpr()
+  }, { once: true })
+}
+watchDpr()
 
 export function applyAppearance(a: Appearance) {
   current = a

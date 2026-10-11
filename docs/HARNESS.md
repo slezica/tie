@@ -135,3 +135,8 @@ All take `ctx` first.
 | `tabs` | tabs, per-tab state, cwd titles, shelf-only title, reveal cleared on switch, close rules, reorder |
 | `template` | template spawn, empty board, lost pointer capture |
 | `terminal` | shell exit, `--cmd` exit, focus stability, pty sizes |
+
+## Device scale
+
+- Harness instances render offscreen at 2x by default (`TIE_SCALE`, like a retina Mac).
+- `TIE_SCALE=1 bin/tie-dev drive ...` for 1x.
