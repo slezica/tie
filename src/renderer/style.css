@@ -23,10 +23,14 @@
   --panel: color-mix(in srgb, var(--text) 7%, var(--bg));
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --shadow: rgba(0, 0, 0, 0.6);
+  /* Effective bar heights (derived from settings classes; layout code reads these). */
+  --top-h: var(--top-bar);
+  --bottom-h: 0px;
   --app-bg: color-mix(in srgb, var(--bg) 80%, black); /* behind tiles: 20% darker */
   --radius: 0; /* tiles and drop preview: square */
   /* Spacing (px). Layout code reads these too: tweak freely. */
-  --top-bar: 36px; /* window drag region above board */
+  --top-bar: 36px; /* height of the bar holding tabs (top or bottom) */
+  --shelf-w-compact: 40px; /* shelf width in compact style */
   --pad: 6px; /* board edge padding */
   --gap: 6px; /* between tiles, and between board and shelf */
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
@@ -51,14 +55,36 @@ body {
   -webkit-user-select: none;
 }
 
+:root.tabs-bottom {
+  --bottom-h: var(--top-bar);
+}
+:root.tabs-bottom.borderless {
+  --top-h: 0px; /* nothing left up top: no traffic lights, no tabs */
+}
+:root.shelf-compact {
+  --shelf-w: var(--shelf-w-compact);
+}
 #top {
   position: absolute;
   inset: 0 0 auto 0;
-  height: var(--top-bar);
+  height: var(--top-h);
+  overflow: hidden;
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
   padding-left: 84px; /* room for the traffic lights */
+}
+#bottom {
+  display: none;
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--bottom-h);
+  padding-left: var(--pad);
+  align-items: center;
+  -webkit-app-region: drag; /* the tab bar is the window's drag handle wherever it is */
+}
+:root.tabs-bottom #bottom {
+  display: flex;
 }
 :root.borderless #top {
   padding-left: var(--pad);
@@ -474,9 +500,9 @@ body.resizing-col { cursor: row-resize; }
 /* Shelf (Wave's right widget bar) */
 #shelf {
   position: absolute;
-  top: var(--top-bar);
+  top: max(var(--top-h), var(--pad));
   right: var(--pad);
-  bottom: var(--pad);
+  bottom: max(var(--bottom-h), var(--pad));
   width: var(--shelf-w);
   display: flex;
   flex-direction: column;
@@ -569,7 +595,7 @@ body.resizing-col { cursor: row-resize; }
 
 #empty-hint {
   position: absolute;
-  inset: var(--top-bar) calc(var(--shelf-w) + var(--pad) + var(--gap)) var(--pad) var(--pad);
+  inset: max(var(--top-h), var(--pad)) calc(var(--shelf-w) + var(--pad) + var(--gap)) max(var(--bottom-h), var(--pad)) var(--pad);
   display: none;
   place-items: center;
   color: var(--faint);
@@ -628,7 +654,7 @@ body.empty #empty-hint {
 .settings {
   display: flex;
   width: min(680px, calc(100vw - 32px));
-  height: min(460px, calc(100vh - 32px)); /* constant across pages */
+  height: min(560px, calc(100vh - 32px)); /* constant across pages */
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -670,7 +696,7 @@ body.empty #empty-hint {
 }
 .settings .pages {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 20px 22px 16px;
@@ -683,6 +709,8 @@ body.empty #empty-hint {
 }
 .settings section.current {
   display: block;
+  min-height: 0;
+  overflow-y: auto; /* only the page scrolls; actions stay put */
 }
 .settings h2 {
   margin: 0 0 14px;
@@ -756,6 +784,9 @@ body.empty #empty-hint {
   display: flex;
   gap: 16px;
   margin-top: 12px;
+}
+.settings .row select {
+  width: 140px;
 }
 .settings .row input {
   width: 90px;
@@ -845,4 +876,32 @@ body.empty #empty-hint {
 }
 .item.pinged .dot {
   display: none; /* ping outranks activity */
+}
+
+/* Compact shelf: icons only */
+:root.shelf-compact .template,
+:root.shelf-compact .item {
+  height: 34px;
+}
+:root.shelf-compact .template .lbl,
+:root.shelf-compact .item .lbl {
+  display: none;
+}
+:root.shelf-compact .template .ico,
+:root.shelf-compact .item .ico {
+  font-size: 14px;
+  height: 18px;
+}
+:root.shelf-compact .template .glyph,
+:root.shelf-compact .item .glyph {
+  font-size: 11px;
+}
+:root.shelf-compact .item .dot,
+:root.shelf-compact .item .ping {
+  top: 4px;
+  right: 4px;
+}
+:root.shelf-compact .item .exit {
+  top: 2px;
+  left: 4px;
 }

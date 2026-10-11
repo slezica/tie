@@ -12,7 +12,8 @@ declare global {
 export const tie = window.tie
 
 // Geometry (px), read from CSS vars in style.css :root (readGeometry, called by render).
-export let TOP = 36 // --top-bar: window drag region
+export let TOP = 36 // --top-h: top strip (traffic lights / tab bar); 0 when tabs bottom + borderless
+export let BOTTOM = 0 // --bottom-h: bottom tab bar, when tabs are at the bottom
 export let PAD = 6 // --pad: board edge padding
 export let GAP = 6 // --gap: between tiles, and between board and shelf
 export let TITLE = 30 // --title-h: title bar height; also collapsed bar thickness
@@ -27,7 +28,8 @@ export function readGeometry() {
     const v = parseFloat(cs.getPropertyValue(name))
     return Number.isFinite(v) ? v : fallback
   }
-  TOP = px('--top-bar', TOP)
+  TOP = px('--top-h', TOP)
+  BOTTOM = px('--bottom-h', BOTTOM)
   PAD = px('--pad', PAD)
   GAP = px('--gap', GAP)
   TITLE = px('--title-h', TITLE)
@@ -159,12 +161,14 @@ export function location(id: TileId): Location | null {
 export function boardRect(): Rect {
   const W = window.innerWidth
   const H = window.innerHeight
-  return { x: PAD, y: TOP, w: W - SHELF_W - PAD * 2 - GAP, h: H - TOP - PAD } // GAP before shelf, like between tiles
+  const top = Math.max(TOP, PAD)
+  return { x: PAD, y: top, w: W - SHELF_W - PAD * 2 - GAP, h: H - top - Math.max(BOTTOM, PAD) } // GAP before shelf, like between tiles
 }
 
 export function shelfRect(): Rect {
   const W = window.innerWidth
-  return { x: W - SHELF_W - PAD, y: TOP, w: SHELF_W, h: window.innerHeight - TOP - PAD }
+  const top = Math.max(TOP, PAD)
+  return { x: W - SHELF_W - PAD, y: top, w: SHELF_W, h: window.innerHeight - top - Math.max(BOTTOM, PAD) }
 }
 
 // Size of a shelved tile's reveal; independent of item position so pty size stays stable.

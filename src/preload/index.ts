@@ -8,6 +8,8 @@ export interface Settings {
   fontSize: number
   cellWidth: number
   borderless: boolean
+  tabBar: 'top' | 'bottom'
+  shelfStyle: 'normal' | 'compact'
 }
 
 type DataCb = (id: number, data: string) => void

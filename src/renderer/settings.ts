@@ -45,6 +45,16 @@ export async function toggleSettings() {
           <h3>Window</h3>
           <label class="check"><input id="set-borderless" type="checkbox" /> Borderless <span class="scope">no window controls, square corners</span></label>
           <p class="hint">Corners change on next launch.</p>
+          <div class="row">
+            <div>
+              <label for="set-tab-bar">Tab bar</label>
+              <select id="set-tab-bar"><option value="top">Top</option><option value="bottom">Bottom</option></select>
+            </div>
+            <div>
+              <label for="set-shelf-style">Shelf</label>
+              <select id="set-shelf-style"><option value="normal">Normal</option><option value="compact">Compact</option></select>
+            </div>
+          </div>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
           <select id="set-font"></select>
@@ -85,6 +95,8 @@ export async function toggleSettings() {
   const font = $<HTMLSelectElement>('#set-font')
   const cellWidth = $<HTMLInputElement>('#set-cell-width')
   const borderless = $<HTMLInputElement>('#set-borderless')
+  const tabBar = $<HTMLSelectElement>('#set-tab-bar')
+  const shelfStyle = $<HTMLSelectElement>('#set-shelf-style')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
@@ -101,6 +113,8 @@ export async function toggleSettings() {
   monospaceFonts().then((fonts) => panel && fillFonts(fonts))
   cellWidth.value = String(settings.cellWidth)
   borderless.checked = settings.borderless
+  tabBar.value = settings.tabBar
+  shelfStyle.value = settings.shelfStyle
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   shell.placeholder = defaults.shell
@@ -117,6 +131,8 @@ export async function toggleSettings() {
     fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
     cellWidth: Math.min(150, Math.max(70, Number(cellWidth.value) || 100)),
     borderless: borderless.checked,
+    tabBar: tabBar.value as 'top' | 'bottom',
+    shelfStyle: shelfStyle.value as 'normal' | 'compact',
   })
   const preview = () => {
     swatches()
@@ -125,6 +141,8 @@ export async function toggleSettings() {
     tie.settings.previewBorderless(borderless.checked)
   }
   themeSel.addEventListener('change', preview)
+  tabBar.addEventListener('change', preview)
+  shelfStyle.addEventListener('change', preview)
   for (const el of [lineHeight, font, fontSize, cellWidth, borderless]) el.addEventListener('input', preview)
   swatches()
 

@@ -1,6 +1,7 @@
 // Look: theme colors (app-wide) and line height (tile content only) applied to CSS tokens and terminals.
 import { S } from './state'
 import { fitTile } from './tile'
+import { render } from './render'
 import { theme, xtermTheme, DEFAULT_THEME } from './themes'
 
 export interface Appearance {
@@ -10,6 +11,8 @@ export interface Appearance {
   fontSize: number
   cellWidth: number // percent of natural character width (kitty's cell_width)
   borderless?: boolean // window controls hidden: tab bar starts at the left edge
+  tabBar?: 'top' | 'bottom'
+  shelfStyle?: 'normal' | 'compact'
 }
 
 const FALLBACK_FONTS = '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace'
@@ -99,7 +102,13 @@ export function applyAppearance(a: Appearance) {
   root.setProperty('--tile-font-size', `${a.fontSize}px`)
   root.setProperty('color-scheme', t.dark ? 'dark' : 'light')
   document.documentElement.classList.toggle('light', !t.dark)
-  document.documentElement.classList.toggle('borderless', !!a.borderless)
+  const cl = document.documentElement.classList
+  cl.toggle('borderless', !!a.borderless)
+  cl.toggle('tabs-bottom', a.tabBar === 'bottom')
+  cl.toggle('shelf-compact', a.shelfStyle === 'compact')
+  const tabs = document.getElementById('tabs')
+  const bar = document.getElementById(a.tabBar === 'bottom' ? 'bottom' : 'top')
+  if (tabs && bar && tabs.parentElement !== bar) bar.prepend(tabs)
   const opts = termOptions()
   for (const tile of S.tiles.values()) {
     tile.term.options.theme = opts.theme
@@ -109,4 +118,5 @@ export function applyAppearance(a: Appearance) {
     tile.term.options.letterSpacing = opts.letterSpacing
     if (tile.term.element) fitTile(tile) // cell size changed
   }
+  render() // bars and shelf width move the board
 }

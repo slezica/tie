@@ -33,7 +33,7 @@ Settings file, panel, themes, color tokens, fonts.
   - Second open request while loading: ignored.
 - On close: keys return to the active tile (`refocus()`).
 - Left nav: `Appearance` | `Terminal`. Last page remembered while running.
-- Appearance: theme (+ ANSI swatches), window (borderless), font, size, line height, char width.
+- Appearance: theme (+ ANSI swatches), window (borderless, tab bar, shelf), font, size, line height, char width.
 - Terminal: shell command (placeholder shows the default).
 - Live preview of appearance. Cancel / Escape / backdrop click reverts.
 - Enter or `Save` saves. On error:
@@ -95,3 +95,11 @@ Rule: never hardcode colors. Mix from base tokens.
 - On: traffic lights hidden (live), tab bar starts at the left edge (`:root.borderless`).
 - Square corners: macOS allows them only on frameless windows, set at creation. So on launch with `borderless`, the window is `frame: false, roundedCorners: false`. Toggling live changes corners on next launch.
 - The top bar stays the window's drag region.
+
+## Tab bar and shelf style
+
+- `tabBar`: `top` (default) | `bottom`. Bottom: tabs move to `#bottom`, which becomes the drag region.
+  - Top strip stays for the traffic lights; with `borderless` it collapses (`--top-h: 0`).
+- `shelfStyle`: `normal` (default) | `compact` (`--shelf-w-compact`, icons only, smaller).
+- Layout reads effective bar heights `--top-h` / `--bottom-h` (derived from `--top-bar` by settings classes).
+- Both apply live (re-layout + refit terminals).

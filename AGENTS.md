@@ -96,7 +96,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Tile elements never re-parent (xterm stays mounted); position is absolute window coords.
 - Shelved tiles stay laid out at reveal size (hidden), so pty size doesn't churn.
 - Settings scopes: app-wide (theme), all tiles (font, size, line height, char width), tile-kind (terminal shell).
-- Spacing: CSS vars in `style.css` `:root`. `readGeometry()` reads `--top-bar`, `--pad`, `--gap`, `--title-h`, `--shelf-w`, `--peak` on every render; `--tile-pad` is CSS-only.
+- Spacing: CSS vars in `style.css` `:root`. `readGeometry()` reads `--top-h`, `--bottom-h`, `--pad`, `--gap`, `--title-h`, `--shelf-w`, `--peak` on every render; `--tile-pad` is CSS-only.
 - Colors: only base tokens (`--bg`, `--text`, `--accent`, `--red`, `--green`, `--yellow`) are set; everything else is `color-mix` of them. Never hardcode colors.
 - Drags use `track()` (window capture listeners + pointer capture); native `click`/`dblclick` are retargeted, so title clicks come via `startDrag`'s `onClick`.
 - DOM re-renders must keep elements under an active pointer capture (keyed borders, shelf items, tabs).
