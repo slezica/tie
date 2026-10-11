@@ -3,6 +3,7 @@ import type { Rect, Side, TileId } from '@core/layout'
 import { S, location, getTile } from './state'
 import { openTile, activate, closeTile } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
+import { quitPressed, quitReleased } from './quit'
 
 export type Action =
   | 'split-right' | 'split-down'
@@ -44,6 +45,26 @@ function editingText(target: EventTarget | null): boolean {
 }
 
 export function initKeys() {
+  // ⌘Q: hold to quit. Handled before anything else, everywhere (also in text fields and panels).
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (!(e.metaKey && e.key.toLowerCase() === 'q')) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (!e.repeat) quitPressed()
+    },
+    true,
+  )
+  window.addEventListener(
+    'keyup',
+    (e) => {
+      if (e.key.toLowerCase() === 'q' || e.key === 'Meta') quitReleased()
+    },
+    true,
+  )
+  window.addEventListener('blur', () => quitReleased())
+
   window.addEventListener(
     'keydown',
     (e) => {

@@ -71,6 +71,7 @@ ipcMain.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
+ipcMain.on('app:quit', () => app.quit())
 ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
 // Borderless: hide the traffic lights (title bar is already hidden; the top bar stays draggable).
@@ -131,7 +132,8 @@ function setMenu() {
           { role: 'hideOthers' },
           { role: 'unhide' },
           { type: 'separator' },
-          { role: 'quit' },
+          // ⌘Q shown but not registered: the UI handles it (hold-to-quit while tiles are open).
+          { label: 'Quit Tie', accelerator: 'CmdOrCtrl+Q', registerAccelerator: false, click: () => app.quit() },
         ],
       },
       { role: 'editMenu' },
