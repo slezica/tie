@@ -5,6 +5,8 @@ Dev toolkit `bin/tie-dev`, instances, scenarios, inspection.
 ## Rules
 
 - Always pass `--instance <name>` to `run`, `start`, `stop`. `default` is the user's app.
+  - Anywhere in the args: `--instance NAME` or `--instance=NAME`.
+  - Empty name or other `--instance*` spelling: error, never a silent fallback.
 - Prefer `tie-dev drive` (fresh offscreen instance, cleaned up after).
 - Harness instances use their own settings file. Never touch `~/.tie/settings.json`.
 
@@ -26,6 +28,7 @@ Dev toolkit `bin/tie-dev`, instances, scenarios, inspection.
 
 - Rebuild trigger: any file in `src/` newer than the build stamp.
 - `layout`, `screenshot`, `--attach` use `TIE_INSTANCE` / `--instance`.
+- `run`, `start`: free debug port (`TIE_DEBUG_PORT` unless set). Hashed ports can collide.
 
 ## Instances
 
@@ -42,17 +45,19 @@ Fresh instance from `drive` (`launch()` in `dev/lib.mjs`):
 | `TIE_BACKGROUND` | `1`: offscreen, no window, no dock icon, no focus stealing |
 | `TIE_CWD` | repo root |
 | `TIE_SETTINGS` | `tmp/<instance>.settings.json` (deleted on stop) |
+| `TIE_DEBUG_PORT` | free port |
 | stderr | `tmp/<instance>.stderr` |
 
 - Offscreen: real user input can't interfere; runs in parallel with your own use.
 - `TIE_SOCKET` / `TIE_TILE` stripped from env, so a harness run inside Tie doesn't target it.
+- CDP attach (`connectPage`) checks the page's `tie.info().instance`: never drives another Tie on a reused port.
 
 ## Scenarios
 
 File in `dev/scenarios/<name>.mjs`. First line: `// description`.
 
 ```js
-export const settings = { theme: 'nord' }   // optional: pre-seed settings file
+export const settings = { theme: 'nord' }   // optional: pre-seed settings file (object or raw string)
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
@@ -70,7 +75,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 - Thrown error → exit 1. Use `h.assert(cond, msg)`.
 - Driver waits for the first `.tile` + 500 ms before running.
 
-Ad hoc, from stdin (helpers destructured into scope):
+Ad hoc, from stdin (helpers destructured into scope; code in an inner block, may redeclare their names):
 
 ```sh
 bin/tie-dev drive - <<'EOF'
@@ -114,15 +119,19 @@ All take `ctx` first.
 | Scenario | Covers |
 |---|---|
 | `boot-settings` | saved settings applied at startup |
-| `borders` | border resize |
-| `collapse-zoom` | collapse bar/strip, zoom, dblclick |
-| `float` | shift-drop float, corner resize, dock back |
+| `cli` | relative `--cwd`, multi-word titles, flag aliases, float rect, escaping, `focus` |
+| `borders` | border resize; tree change mid-drag not overwritten |
+| `collapse-zoom` | collapse bar/strip, zoom, dblclick, keys to visible active tile |
+| `float` | shift-drop float, corner resize (activates, raises), dock back |
 | `keys` | split + focus shortcuts, shortcuts blocked by panel |
-| `menu` | rename + icon from board and shelf |
-| `settings` | panel pages, preview/cancel, fonts, save, shell |
+| `lifecycle` | tiles closed mid-spawn, mid-drag, mid-menu leave nothing behind |
+| `menu` | rename + icon from board and shelf, focus returns to terminal |
+| `settings` | panel pages, preview/cancel, fonts, save, shell, double open |
+| `settings-invalid` | out-of-range / mistyped file values sanitized at load |
+| `settings-malformed` | unparseable file: panel shows error, Save never overwrites |
 | `shelf` | shelve, reveal, pin, activity, reorder, unshelve |
-| `shell-errors` | missing shell error state, save validation |
+| `shell-errors` | missing shell / cwd error state, save validation |
 | `splits` | drop zones, preview, self-drop |
-| `tabs` | tabs, per-tab state, cwd titles, close rules, reorder |
+| `tabs` | tabs, per-tab state, cwd titles, shelf-only title, reveal cleared on switch, close rules, reorder |
 | `template` | template spawn, empty board, lost pointer capture |
 | `terminal` | shell exit, `--cmd` exit, focus stability, pty sizes |

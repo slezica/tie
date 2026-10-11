@@ -7,7 +7,8 @@ Terminal tile lifecycle: create, spawn, size, observe, exit, close.
 1. `createTile()`: element (title bar, `.body`, resize handles) appended to `#tiles`; xterm `Terminal` + fit addon.
 2. `place()` + `render()`: element gets its rect.
 3. `startTerminal()`: `term.open(body)`, fit, then `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
-4. Spawn returns pty id (= pid) or `{error}`.
+4. Spawn returns pty id (= pid) or `{error}`. A rejected spawn counts as `{error}`.
+5. Tile closed while spawning: new pty killed.
 
 xterm options: `scrollback: 5000`, cursor blink, `macOptionIsMeta`, plus appearance (`SETTINGS.md`).
 
@@ -17,7 +18,7 @@ xterm options: `scrollback: 5000`, cursor blink, `macOptionIsMeta`, plus appeara
 - Empty setting → account login shell: `userInfo().shell -l` (ignores `$SHELL`), fallback `$SHELL`, `/bin/zsh`.
 - `--cmd C` → `<shell argv> -i -c C`.
 - Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}`.
-- cwd: tile `cwd`, else app cwd (`TIE_CWD` or home).
+- cwd: tile `cwd`, else app cwd (`TIE_CWD` or home). Not a directory → `{error}` (`Directory not found`).
 
 Env added to the shell:
 
@@ -55,6 +56,7 @@ Display title, first match:
 5. `terminal`.
 
 Icon: `customIcon`, else program → emoji table (`icons.ts`, grayscale), else `>_` glyph.
+- Icons are escaped text, never markup.
 
 Changes fire DOM event `tile-meta` (shelf items, tab titles listen).
 
@@ -66,7 +68,7 @@ Changes fire DOM event `tile-meta` (shelf items, tab titles listen).
 
 ## Errors
 
-- Spawn failure (shell missing, spawn throws): `showError()`.
+- Spawn failure (shell missing, cwd missing, spawn throws or rejects): `showError()`.
   - Centered "Error" + message replaces content.
   - Tile stays open; `tie list --json` shows `error`.
 - Settings refuse to save an invalid shell (`SETTINGS.md`).

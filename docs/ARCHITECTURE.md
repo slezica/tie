@@ -61,7 +61,7 @@ input (mouse/keys/socket) → ops.ts → S mutated → render() → DOM
 | Socket | `~/.tie/<instance>.sock` |
 | Info file | `~/.tie/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
 | Log | `~/.tie/<instance>.log` |
-| Debug port | `TIE_DEBUG_PORT`, else `9300 + hash(instance) % 600`. Dev builds only |
+| Debug port | `TIE_DEBUG_PORT` (`tie-dev`, harness: a free port), else `9300 + hash(instance) % 600`. Dev builds only |
 | userData | `<appData>/tie-<instance>` (separate single-instance lock) |
 
 Other env (main):

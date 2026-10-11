@@ -22,14 +22,17 @@ Space {
 ## Working in a background space
 
 - `withSpace(id, fn)`: run `fn` with `S.current = id`, restore after.
+  - If `fn` switched tabs: `S.current` = new visible space.
 - `render()` always renders `S.visible`, even when called inside `withSpace`.
 - `activate()` in a background space: updates state, no keyboard focus.
 - `closeTile` / `activate` on a tile of another space run in that space (no tab switch).
+- `tie focus` is the exception: switches to the tile's tab.
 
 ## Switching
 
 - Hidden spaces' tiles: `display: none`. Terminals keep running; fit skipped while hidden.
 - `switchTab(id)`: activates that space's active tile (re-focus), else blurs.
+- Clears hover reveal of the tab being left.
 
 ## Tab bar
 
@@ -42,8 +45,8 @@ Space {
 Title, first match:
 
 1. Custom title.
-2. Active terminal's cwd basename (`~` for home). Polled, no shell integration.
-3. Active tile's title.
+2. Cwd basename (`~` for home) of the active tile, else first shelved tile. Polled, no shell integration.
+3. That tile's title.
 4. `empty`.
 
 ## Opening and closing

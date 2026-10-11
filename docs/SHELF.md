@@ -21,7 +21,7 @@ Right-hand column per space: templates on top, parked tiles below.
 | Drag tile onto shelf | Shelved at insert line (between items by vertical midpoint) |
 | Drag item within shelf | Reorder |
 | Drag item onto board | Unshelve, same drop rules as any tile (`INPUT.md`) |
-| `tie move --shelve`, `tie open --shelved` | Appended to shelf |
+| `tie move` / `tie open` with `--shelve` or `--shelved` | Appended to shelf |
 
 - Shelving the active tile → focus goes to MRU board tile.
 - Shelving clears activity.
@@ -35,7 +35,7 @@ Right-hand column per space: templates on top, parked tiles below.
 | Pinned | click item | shown, active | yes |
 
 - Unpin: click item again, or pointerdown anywhere outside the tile and item (menu excluded).
-- `tie focus <shelved id>` pins.
+- `tie focus <shelved id>` pins (switches to its tab first).
 - Reveal hides during drags.
 - Reveal shows the close button only (no collapse/zoom).
 

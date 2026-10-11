@@ -38,7 +38,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `src/main/index.ts`: window, app menu, single-instance lock, IPC handlers, renderer RPC bridge, graceful quit.
 - `src/main/pty.ts`: pty host (spawn, data, resize, kill, process + cwd polling, killAll).
 - `src/main/socket.ts`: unix socket, newline-delimited JSON-RPC → renderer.
-- `src/main/settings.ts`: settings file, defaults, clamping, validation, shell argv/resolution.
+- `src/main/settings.ts`: settings file, defaults, sanitize at load/save, unreadable-file guard, validation, shell argv/resolution.
 - `src/main/env.ts`: instance name, paths (`~/.tie/<instance>.*`), debug port, tagged logs.
 - `src/preload/index.ts`: `window.tie` bridge (info, ready, settings, pty, rpc, log).
 - `src/renderer/index.html`: static layers (`#top`, `#shelf`, `#tiles`, `#borders`, `#preview`, ...).
@@ -92,7 +92,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Mutate only through `ops.ts`, which ends in `render()`.
 - Keyboard focus: `refocus()` (ops.ts) gives keys to the active tile, or nowhere if it can't take them (collapsed); call it after closing any modal/menu.
 - Async or deferred work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)`: it may have closed meanwhile.
-- `render()` always renders the visible space; use `withSpace(id, fn)` to act on another.
+- `render()` always renders the visible space; use `withSpace(id, fn)` to act on another (follows a tab switch inside `fn`).
 - Tile elements never re-parent (xterm stays mounted); position is absolute window coords.
 - Shelved tiles stay laid out at reveal size (hidden), so pty size doesn't churn.
 - Settings scopes: app-wide (theme), all tiles (font, size, line height, char width), tile-kind (terminal shell).
@@ -106,7 +106,6 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Scenarios can `export const settings = {...}` (or a raw string) to pre-seed a fresh instance.
 - Never throw inside node-pty callbacks (aborts the process).
 - Debug logs: `debug(tag, ...)` in renderer, `log(tag, ...)` in main; enabled by `TIE_DEBUG`.
-- Scenarios can `export const settings = {...}` to pre-seed a fresh instance.
 - Harness instances (`TIE_BACKGROUND=1`) render offscreen: no window, no dock icon, no focus stealing.
 - Harness instances use their own settings file (`tmp/<instance>.settings.json`).
 - Launch harness instances with `-ApplePersistenceIgnoreState YES` (see crash record).
@@ -136,7 +135,7 @@ Commands:
                            --keep leaves fresh instance running.
   scenarios                List scenarios
 
-Instance: --instance NAME or TIE_INSTANCE (default "default"). Each instance has its own
+Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "default"). Each instance has its own
 socket, lock, debug port, log under ~/.tie/.
 ```
 

@@ -5,7 +5,12 @@ Settings file, panel, themes, color tokens, fonts.
 ## File
 
 - `~/.tie/settings.json`, shared by all instances. `TIE_SETTINGS` overrides the path.
-- Loaded once at main startup. Missing → defaults. Unreadable/invalid → defaults + stderr error.
+- Loaded once at main startup. Missing → defaults.
+- Sanitized at load and save (`sanitize()`): numbers clamped, wrongly typed strings → defaults.
+- Unreadable or unparseable → defaults + stderr error, and:
+  - Save blocked; the file is never overwritten.
+  - Panel status line shows the problem on open.
+  - While unreadable, re-read on each `settings:get`/`set`; fixing the file unblocks Save.
 - Saved whole on every `settings:set` (pretty JSON).
 
 | Key | Default | Scope | Range / meaning |
@@ -18,13 +23,15 @@ Settings file, panel, themes, color tokens, fonts.
 | `shell` | `''` | terminal tiles | command line; `''` = login shell (`TERMINALS.md`) |
 
 - Scopes: app-wide (UI + tiles), all tiles (tile content only, never chrome), tile kind.
-- Numbers clamped on save. Theme alias `elegant-dark` → `tie-dark`.
+- Theme alias `elegant-dark` → `tie-dark`.
 - Validation (`validateSettings`, main): `shell` executable must resolve. Errors block save.
 - Shell change applies to new terminals only.
 
 ## Panel (`settings.ts`)
 
 - Open: app menu `Settings…` / `cmd+,`. Harness: `document.dispatchEvent(new CustomEvent('tie:settings'))`.
+  - Second open request while loading: ignored.
+- On close: keys return to the active tile (`refocus()`).
 - Left nav: `Appearance` | `Terminal`. Last page remembered while running.
 - Appearance: theme (+ ANSI swatches), font, size, line height, char width.
 - Terminal: shell command (placeholder shows the default).
@@ -77,4 +84,4 @@ Rule: never hardcode colors. Mix from base tokens.
 ## Limitations
 
 - Keymap not configurable (`PENDING.md`).
-- File edits while running aren't picked up; restart or use the panel.
+- File edits while running aren't picked up (except fixing an unreadable file); restart or use the panel.

@@ -14,7 +14,7 @@ Mouse map, keyboard shortcuts, drag mechanics, menus.
 | Title bar | right-click | Menu: rename, set icon, reset |
 | Title buttons | click | Collapse / zoom / close |
 | Border between slotted tiles | drag | Resize both neighbors |
-| Floating tile edges / corners | drag | Resize (8 handles, `.rz`) |
+| Floating tile edges / corners | drag | Activate, raise, resize (8 handles, `.rz`) |
 | Shelf template | drag | Spawn tile at drop |
 | Shelf item | hover / click / drag / right-click | Reveal / pin / move / menu (`SHELF.md`) |
 | Tab | click / drag / right-click | Switch / reorder / menu (`TABS.md`) |
@@ -34,6 +34,7 @@ Mouse map, keyboard shortcuts, drag mechanics, menus.
 - New tile takes half the target's space.
 - Shift can be pressed or released mid-drag.
 - Escape cancels.
+- Dragged or target tile closed mid-drag: drop ignored.
 - Ghost label (icon + title) follows the pointer.
 
 ## Drag mechanics (`drag.ts`)
@@ -45,6 +46,7 @@ Mouse map, keyboard shortcuts, drag mechanics, menus.
 - Pointer capture retargets native `click` / `dblclick`. Title clicks come through `startDrag`'s `onClick`; double-click detected in `main.ts` (350 ms).
 - During any drag: `body.dragging` → tile content and reveals get `pointer-events: none` (drag shield).
 - Border resize: computed from the tree at drag start + pointer delta. Min 80 px.
+  - Stops if the tree changes (open, close, move) or the tab switches mid-drag.
 
 ## Keyboard
 
@@ -88,10 +90,13 @@ Focus direction (i3-like). Candidates: visible slotted + floating tiles, center 
 - Items: `Rename…`, `Set icon…`, `Reset title & icon` (only if custom).
 - Rename / icon replace the menu with an input. Enter applies, Escape closes. Empty = automatic.
 - Closes on outside pointerdown or Escape. Clamped into the window.
+- Tile menu closes with its tile. Actions on a closed tile ignored.
+- On close, if it held keyboard focus: `refocus()`.
 
 ## Dialog (`dialog.ts`)
 
 - `infoDialog(title, message)`: modal, OK button. Enter / Escape / backdrop click close.
+- On close: `refocus()`.
 - Used for "Tab not empty".
 
 ## Limitations

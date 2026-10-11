@@ -65,19 +65,24 @@ Split { type: 'split', dir: 'row' | 'col', children, sizes }  // sizes: fraction
 - Not allowed for the root slotted tile (no siblings) or shelved tiles. Button hidden then.
 - Click on a collapsed title bar expands.
 - Collapsed state lives in `S.collapsed`. Cleared when the tile moves (`detach`).
+- Slotted tile left without siblings (after a detach): collapse cleared.
+- `tie focus` expands.
 
 ## Zoom
 
 - Slotted or floating only. Covers the whole board, dims the rest.
 - Zooming clears the tile's collapse.
-- Toggle: button or double-click title. Focus-direction keys unzoom when they move focus.
+- Toggle: button or double-click title.
+- Activating another board tile unzooms (e.g. focus keys, `tie focus`). Pinning a shelved tile doesn't.
 
 ## Focus
 
 - `S.active`: per space. Null only when no board tile is left (a pinned shelf tile can also be active).
 - `S.mru`: most recent first. Updated by `activate()`.
 - After close or shelve: `focusNext()` = most recent tile still on the board.
-- `activate()` gives keyboard focus to the terminal only if its space is visible and it isn't collapsed.
+- `activate()` calls `refocus()` only if its space is visible.
+- `refocus()`: keys to the active tile; blur if none, collapsed, or not started.
+  - Also called after: collapse toggle (active tile), dialog close, settings panel close, menu close (if it held focus).
 - Empty board allowed: shows hint "Drag a terminal from the shelf, or press ⌘D".
 
 ## Geometry
