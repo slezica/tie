@@ -12,7 +12,10 @@ export default async (ctx, h) => {
   let l = await L()
   h.assert(l.active === c, 'ping does not move focus')
   h.assert((await info(b)).pinged && (await info(s)).pinged, 'pinged')
-  h.assert(await ctx.page.isVisible(`.tile[data-id="${b}"] .ping-dot`), 'title bar dot')
+  h.assert(await ctx.page.isVisible(`.tile[data-id="${b}"] .tile-dot`), 'title bar dot')
+  const dotColor = (id) => ctx.page.evaluate((id) => getComputedStyle(document.querySelector(`.tile[data-id="${id}"] .tile-dot`)).backgroundColor, id)
+  h.assert((await dotColor(b)) !== (await dotColor(c)), 'ping dot (yellow) differs from active dot (accent)')
+  h.assert(!(await ctx.page.isVisible(`.tile[data-id="${a}"] .tile-dot`)), 'plain tile has no dot')
   h.assert(await ctx.page.isVisible(`.item[data-id="${s}"] .ping`), 'shelf badge')
   await ctx.shot('pinged')
 

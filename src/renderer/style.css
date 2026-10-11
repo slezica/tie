@@ -209,18 +209,6 @@ body.dragging-tab .tab {
   border-radius: var(--radius);
   pointer-events: auto; /* no overflow clip: resize handles extend past edges */
 }
-/* Active: accent line over the title bar. Border width never changes, so content never shifts. */
-.tile.active::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: -1px; /* span the full tile, over its border */
-  right: -1px;
-  height: 2px;
-  background: var(--accent);
-  z-index: 4;
-  pointer-events: none;
-}
 .tile.floating {
   box-shadow: 0 12px 40px var(--shadow), 0 0 0 1px var(--fg-a);
 }
@@ -799,8 +787,8 @@ body.empty #empty-hint {
   --shadow: rgba(0, 0, 0, 0.18);
 }
 
-/* Ping: a tile asking for attention (tie ping). Clears when the tile becomes active. */
-.ping-dot,
+/* Title-bar dot: yellow = pinged (tie ping), accent = active. Ping clears on activation. */
+.tile-dot,
 .tab-ping {
   display: none;
   flex: none;
@@ -810,9 +798,15 @@ body.empty #empty-hint {
   background: var(--yellow);
   box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
 }
-.tile.pinged .ping-dot,
+.tile.pinged .tile-dot,
 .tab.pinged .tab-ping {
   display: block;
+}
+/* Active tile: same dot in accent. Exclusive with ping (activation clears it). */
+.tile.active .tile-dot {
+  display: block;
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .item .ping {
   display: none;

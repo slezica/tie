@@ -134,7 +134,7 @@ Soft attention request: `tie ping [id]`. Strong counterpart: `tie focus`.
 - Marks the tile (`Tile.pinged`). No focus change, no layout change, no tab switch.
 - Ignored for the tile active in the visible tab (already in front of the user).
 - Shown as a yellow dot (`--yellow`, theme's ANSI yellow):
-  - title bar, before the title (also on collapsed bars);
+  - title bar, before the title (also on collapsed bars); same spot as the active tile's accent dot;
   - shelf item badge (hides the activity dot);
   - tab, when not the current tab and holding a pinged tile.
 - Clears when the tile becomes active (`activate`): click, cmd+arrows, `tie focus`, pin, tab switch to it.

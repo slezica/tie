@@ -33,7 +33,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   el.innerHTML = `
     <div class="titlebar">
       <span class="icon"></span>
-      <span class="ping-dot" title="Pinged"></span>
+      <span class="tile-dot"></span>
       <span class="title"></span>
       <span class="status"></span>
       <span class="spacer"></span>
