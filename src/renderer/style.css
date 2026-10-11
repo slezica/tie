@@ -316,6 +316,13 @@ body.dragging-tab .tab {
 .body .xterm {
   height: 100%;
 }
+.body .xterm .xterm-scrollable-element > .scrollbar,
+.body .xterm .xterm-scrollable-element > .shadow {
+  display: none !important; /* no scrollbars in terminals; wheel/trackpad still scroll */
+}
+.body .xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
 .body .xterm-viewport {
   background: transparent !important;
 }
