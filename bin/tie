@@ -17,7 +17,7 @@ Usage:
       --shelved                           Open on the shelf (alias --shelve)
   tie close [id]                          Close tile
   tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved)
-  tie focus [id]                          Focus tile (pins it if shelved)
+  tie focus [id]                          Bring tile to user: switch tab, expand, take input
   tie title [id] <text>                   Set title ("" = automatic)
   tie icon [id] <emoji>                   Set icon ("" = automatic)
 
