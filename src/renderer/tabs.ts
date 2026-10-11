@@ -1,5 +1,5 @@
 // Tabs: one per space, in the window's top bar.
-import { S, newSpace, type Space } from './state'
+import { S, newSpace, spaceOf, type Space } from './state'
 import { render } from './render'
 import { activate } from './ops'
 import { showMetaMenu } from './menu'
@@ -121,7 +121,7 @@ function createTabEl(id: string): HTMLElement {
   const el = document.createElement('div')
   el.className = 'tab'
   el.dataset.space = id
-  el.innerHTML = `<span class="tab-icon"></span><span class="tab-title"></span><button class="tab-close" title="Close tab">${ICON.close}</button>`
+  el.innerHTML = `<span class="tab-ping" title="A tile here was pinged"></span><span class="tab-icon"></span><span class="tab-title"></span><button class="tab-close" title="Close tab">${ICON.close}</button>`
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
     switchTab(id)
@@ -156,6 +156,7 @@ export function renderTabs() {
     if (!el) tabEls.set(sp.id, (el = createTabEl(sp.id)))
     if (bar.children[i] !== el) bar.insertBefore(el, bar.children[i] ?? add)
     el.classList.toggle('current', sp.id === S.visible)
+    el.classList.toggle('pinged', sp.id !== S.visible && [...S.tiles.values()].some((t) => t.pinged && spaceOf(t.id)?.id === sp.id))
     const title = tabTitle(sp)
     const t = el.querySelector('.tab-title') as HTMLElement
     if (t.textContent !== title) t.textContent = title

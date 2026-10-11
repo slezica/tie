@@ -20,6 +20,7 @@ bin/tie → unix socket ($TIE_SOCKET) → main (socket.ts) → IPC rpc:request �
 | `tie close [id]` | Close tile |
 | `tie move [id] --at <id> [--side s] \| --float \| --shelve` | Move tile |
 | `tie focus [id]` | Switch to its tab; expand and activate, or pin if shelved |
+| `tie ping [id] [--clear]` | Mark for attention (no focus, no layout change); see LAYOUT "Ping" |
 | `tie title [id] <text>` | Custom title, `""` = automatic |
 | `tie icon [id] <emoji>` | Custom icon, `""` = automatic |
 | `tie state` | Dev: internal state dump of the targeted space (not in `--help`) |
@@ -68,7 +69,7 @@ FLAGS: `active`, `collapsed`, `zoomed`, `pinned`, `exit=N`.
 }
 ```
 
-`TileInfo` (also returned by `open`, `move`, `focus`, `title`, `icon`):
+`TileInfo` (also returned by `open`, `move`, `focus`, `ping`, `title`, `icon`). Includes `pinged`:
 
 | Field | Meaning |
 |---|---|
@@ -101,6 +102,7 @@ Methods and params:
 | `close` | `id` |
 | `move` | `id`, `at`, `side`, `float`, `shelve`, `shelved` |
 | `focus` | `id` |
+| `ping` | `id`, `clear` |
 | `title` | `id`, `text` |
 | `icon` | `id`, `emoji` |
 | `state` | none |

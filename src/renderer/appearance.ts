@@ -82,6 +82,7 @@ export function applyAppearance(a: Appearance) {
   root.setProperty('--accent', t.accent)
   root.setProperty('--red', p.ansi[1])
   root.setProperty('--green', p.ansi[2])
+  root.setProperty('--yellow', p.ansi[3])
   root.setProperty('--tile-line-height', String(a.lineHeight))
   root.setProperty('--tile-font', fontStack(a.fontFamily))
   root.setProperty('--tile-font-size', `${a.fontSize}px`)

@@ -33,6 +33,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   el.innerHTML = `
     <div class="titlebar">
       <span class="icon"></span>
+      <span class="ping-dot" title="Pinged"></span>
       <span class="title"></span>
       <span class="status"></span>
       <span class="spacer"></span>
@@ -57,7 +58,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   const fit = new FitAddon()
   term.loadAddon(fit)
 
-  const tile: Tile = { id, kind, exit: null, activity: false, pty: null, el, body, term, fit, customTitle: opts.title, cwd: opts.cwd, cmd: opts.cmd }
+  const tile: Tile = { id, kind, exit: null, activity: false, pinged: false, pty: null, el, body, term, fit, customTitle: opts.title, cwd: opts.cwd, cmd: opts.cmd }
   S.tiles.set(id, tile)
   term.onTitleChange((title) => {
     tile.oscTitle = title

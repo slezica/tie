@@ -105,12 +105,23 @@ export function activate(id: TileId): void {
   // A zoomed tile covers the board: unzoom rather than activate a tile hidden under it.
   if (S.zoomed && S.zoomed !== id && location(id) !== 'shelved') S.zoomed = null
   S.active = id
+  getTile(id).pinged = false
   S.mru = [id, ...S.mru.filter((m) => m !== id)]
   const f = S.floats.find((f) => f.id === id)
   if (f && S.floats[S.floats.length - 1] !== f) S.floats = [...S.floats.filter((x) => x !== f), f]
   render()
   // Only steal keyboard focus for the space on screen.
   if (S.current === S.visible) refocus()
+}
+
+// Ask for attention without taking focus or changing layout. Ignored for the tile already in
+// front of the user (active in the visible tab).
+export function setPing(id: TileId, on: boolean) {
+  const t = getTile(id)
+  const sp = spaceOf(id)
+  if (on && sp?.id === S.visible && sp.active === id) return
+  t.pinged = on
+  render()
 }
 
 // Keys go to the active tile, or nowhere if it can't take them (collapsed, not started).

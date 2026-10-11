@@ -126,3 +126,16 @@ shelf = { x: W - shelf-w - pad, y: top-bar, w: shelf-w, h: H - top-bar - pad }
 
 - Floats use px coords; not proportional to board size.
 - Layout is not persisted across restarts.
+
+## Ping
+
+Soft attention request: `tie ping [id]`. Strong counterpart: `tie focus`.
+
+- Marks the tile (`Tile.pinged`). No focus change, no layout change, no tab switch.
+- Ignored for the tile active in the visible tab (already in front of the user).
+- Shown as a yellow dot (`--yellow`, theme's ANSI yellow):
+  - title bar, before the title (also on collapsed bars);
+  - shelf item badge (hides the activity dot);
+  - tab, when not the current tab and holding a pinged tile.
+- Clears when the tile becomes active (`activate`): click, cmd+arrows, `tie focus`, pin, tab switch to it.
+- `tie ping [id] --clear` clears explicitly.

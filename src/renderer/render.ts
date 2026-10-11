@@ -54,7 +54,7 @@ function renderVisible() {
     if (!t) return
     setRect(t.el, r)
     t.el.style.zIndex = String(z)
-    t.el.className = 'tile ' + Object.keys(cls).filter((k) => cls[k]).join(' ')
+    t.el.className = 'tile ' + Object.keys(cls).filter((k) => cls[k]).join(' ') + (t.pinged ? ' pinged' : '')
     S.rects.set(id, r)
   }
 

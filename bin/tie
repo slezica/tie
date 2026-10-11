@@ -18,6 +18,7 @@ Usage:
   tie close [id]                          Close tile
   tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved)
   tie focus [id]                          Bring tile to user: switch tab, expand, take input
+  tie ping [id] [--clear]                 Ask for attention: marks tile (and its tab) until it's active
   tie title [id] <text>                   Set title ("" = automatic)
   tie icon [id] <emoji>                   Set icon ("" = automatic)
 
@@ -28,7 +29,7 @@ Env: TIE_SOCKET, TIE_TILE, TIE_INSTANCE.`
 const argv = process.argv.slice(2)
 const flags = {}
 const pos = []
-const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help'])
+const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear'])
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
   if (a === '-h') flags.help = true
@@ -86,7 +87,7 @@ async function main() {
       const tabIndex = Object.fromEntries(r.tabs.map((t, i) => [t.id, i + 1]))
       console.log(`${pad('ID', 5)} ${pad('TAB', 4)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
       for (const t of r.tiles) {
-        const f = [t.active && 'active', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
+        const f = [t.active && 'active', t.pinged && 'pinged', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
           .filter(Boolean)
           .join(',')
         console.log(`${pad(t.id, 5)} ${pad(tabIndex[t.tab] ?? '-', 4)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
@@ -101,6 +102,8 @@ async function main() {
       return void (await call('close', { id: rest[0] }))
     case 'move':
       return printTile(await call('move', { id: rest[0], ...place }))
+    case 'ping':
+      return printTile(await call('ping', { id: rest[0], clear: flags.clear }))
     case 'focus':
       return printTile(await call('focus', { id: rest[0] }))
     case 'title':

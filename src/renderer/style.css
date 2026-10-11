@@ -6,6 +6,7 @@
   --accent: #a6cdfa;
   --red: #eb5443;
   --green: #bdfc69;
+  --yellow: #f9eb77; /* ping */
   --tile-line-height: 1.15; /* tile content only, not chrome */
   --tile-font: Menlo, monospace;
   --tile-font-size: 12px;
@@ -796,4 +797,37 @@ body.empty #empty-hint {
 
 :root.light {
   --shadow: rgba(0, 0, 0, 0.18);
+}
+
+/* Ping: a tile asking for attention (tie ping). Clears when the tile becomes active. */
+.ping-dot,
+.tab-ping {
+  display: none;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
+}
+.tile.pinged .ping-dot,
+.tab.pinged .tab-ping {
+  display: block;
+}
+.item .ping {
+  display: none;
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
+}
+.item.pinged .ping {
+  display: block;
+}
+.item.pinged .dot {
+  display: none; /* ping outranks activity */
 }

@@ -46,6 +46,7 @@ export interface Tile {
   proc?: string
   exit: number | null
   activity: boolean
+  pinged: boolean // asked for attention (tie ping); clears when the tile becomes active
   pty: number | null
   ptySize?: { cols: number; rows: number } // last size sent to the pty
   error?: string // tile failed to start; shown instead of content

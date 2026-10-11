@@ -2,7 +2,7 @@
 import { contains, type Side, type TileId } from '@core/layout'
 import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace } from './state'
 import { tabTitle, switchTab } from './tabs'
-import { place, openTile, closeTile, activate, pin, setMeta, type Placement } from './ops'
+import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
 
 interface Params {
@@ -19,6 +19,7 @@ interface Params {
   float?: boolean
   shelve?: boolean
   shelved?: boolean
+  clear?: boolean
 }
 
 const SIDES = new Set(['l', 'r', 't', 'b'])
@@ -39,6 +40,7 @@ function tileInfo(id: TileId) {
     zoomed: sp?.zoomed === id,
     active: sp?.active === id,
     pinned: sp?.pinned === id,
+    pinged: t.pinged,
     exit: t.exit,
     error: t.error ?? null,
     term: { cols: t.term.cols, rows: t.term.rows, pty: t.ptySize ?? null }, // mismatch = sizing bug
@@ -97,6 +99,12 @@ const methods: Record<string, (p: Params) => unknown> = {
       S.collapsed.delete(id)
       activate(id)
     }
+    return tileInfo(id)
+  },
+  // Soft: mark for attention, no focus or layout change.
+  ping: (p) => {
+    const id = getTile(p.id ?? p.caller).id
+    setPing(id, !p.clear)
     return tileInfo(id)
   },
   title: (p) => {

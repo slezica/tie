@@ -54,7 +54,7 @@ function createItem(id: TileId): HTMLElement {
   const el = document.createElement('div')
   el.className = 'item'
   el.dataset.id = id
-  el.innerHTML = `<div class="ico"></div><div class="lbl"></div><span class="dot"></span><span class="exit"></span>`
+  el.innerHTML = `<div class="ico"></div><div class="lbl"></div><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
   el.addEventListener('pointerenter', () => {
     if (isDragging()) return
     S.revealed = id
@@ -93,6 +93,7 @@ function updateItem(id: TileId) {
   if (lbl.textContent !== title) lbl.textContent = title
   el.title = title
   el.classList.toggle('activity', t.activity)
+  el.classList.toggle('pinged', t.pinged)
   el.classList.toggle('pinned', S.pinned === id)
   el.classList.toggle('revealed', S.revealed === id)
   const exit = el.querySelector('.exit') as HTMLElement
