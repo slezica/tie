@@ -37,6 +37,7 @@ const api = {
     write: (id: number, data: string) => ipcRenderer.send('pty:write', id, data),
     resize: (id: number, cols: number, rows: number) => ipcRenderer.send('pty:resize', id, cols, rows),
     kill: (id: number) => ipcRenderer.send('pty:kill', id),
+    cwd: (id: number): Promise<string | null> => ipcRenderer.invoke('pty:cwd', id),
     onData: (cb: DataCb) => {
       ipcRenderer.on('pty:data', (_e, id, d) => cb(id, d))
     },

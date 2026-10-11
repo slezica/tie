@@ -12,6 +12,12 @@ Terminal tile lifecycle: create, spawn, size, observe, exit, close.
 
 xterm options: `scrollback: 5000`, cursor blink, `macOptionIsMeta`, plus appearance (`SETTINGS.md`).
 
+## Start directory
+
+- `tie open --cwd`: given dir (relative to the caller).
+- Divided from a terminal (`cmd+D`, `cmd+shift+D`, template dropped next to it): that shell's current dir, read fresh (`pty:cwd` → `lsof`), not the 2s poll.
+- Otherwise: the space default (`TIE_CWD` or home).
+
 ## Spawn (`src/main/pty.ts`)
 
 - argv from settings `shell` (`parseCommand`: whitespace split, quotes group).

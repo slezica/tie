@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, remove, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
+import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { createTile, startTerminal, disposeTile, refreshTitle } from './tile'
 import { render } from './render'
 import { closeTileMenu } from './menu'
@@ -83,6 +83,14 @@ export function openTile(kind: Kind, p: Placement, opts: { cmd?: string; cwd?: s
   render()
   startTerminal(t, opts.cmd).then(() => S.active === t.id && t.term.focus())
   return t.id
+}
+
+// Where a terminal's shell is right now (fresh read), for new terminals divided from it.
+export async function cwdOf(id: TileId | null | undefined): Promise<string | undefined> {
+  const t = id ? S.tiles.get(id) : undefined
+  if (!t) return undefined
+  const now = t.pty !== null ? await tie.pty.cwd(t.pty) : null
+  return now ?? t.cwdNow ?? t.cwd
 }
 
 export function closeTile(id: TileId) {

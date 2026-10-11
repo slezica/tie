@@ -1,7 +1,7 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropSide, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, boardRect, shelfRect, location, debug, type Kind } from './state'
-import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, type Placement } from './ops'
+import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, type Placement } from './ops'
 import { render } from './render'
 import { shelfItemEl } from './shelf'
 import { displayIcon, displayTitle, iconHtml } from './tile'
@@ -107,13 +107,17 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   return null
 }
 
-function applyDrop(src: DragSource, t: Target) {
+async function applyDrop(src: DragSource, t: Target) {
   debug('layout', 'drop', src, t.placement)
   // Source or target tile may have closed (or moved) mid-drag.
   if (src.type === 'tile' && !S.tiles.has(src.id)) return
   if (t.placement.type === 'slot' && t.placement.at && !contains(S.tree, t.placement.at)) return
-  if (src.type === 'template') openTile(src.kind, t.placement)
-  else place(src.id, t.placement)
+  if (src.type === 'tile') return place(src.id, t.placement)
+  // Template dropped next to a tile: start where that tile's shell is (like cmd+D).
+  const at = t.placement.type === 'slot' ? t.placement.at : null
+  const cwd = at ? await cwdOf(at) : undefined
+  if (at && !contains(S.tree, at)) return
+  openTile(src.kind, t.placement, { cwd })
 }
 
 // Pointer-down on a draggable: becomes a drag past THRESHOLD, otherwise a click.

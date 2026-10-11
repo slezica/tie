@@ -141,5 +141,15 @@ export function initPty(wc: () => WebContents | null) {
       }
     },
     count: () => ptys.size,
+    // Current directory of a shell, read now (the poll above may be up to 2s stale).
+    cwd(id: number): Promise<string | null> {
+      if (!ptys.has(id)) return Promise.resolve(null)
+      return new Promise((resolve) => {
+        execFile('lsof', ['-a', '-d', 'cwd', '-Fn', '-p', String(id)], (_err, out) => {
+          const line = (out ?? '').split('\n').find((l) => l[0] === 'n')
+          resolve(line ? line.slice(1) : null)
+        })
+      })
+    },
   }
 }

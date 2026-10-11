@@ -1,7 +1,7 @@
 // Keyboard shortcuts: a keymap (chord → action), handled before terminals see the keys.
 import type { Rect, Side, TileId } from '@core/layout'
-import { S, location, getTile } from './state'
-import { openTile, activate, closeTile } from './ops'
+import { S, location, getTile, spaceOf, withSpace } from './state'
+import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased } from './quit'
 
@@ -109,10 +109,15 @@ export function run(action: Action) {
 }
 
 // New tile of the active tile's kind, as if its template were dropped on that edge. Slotted only.
-function splitActive(side: Side) {
+// The new terminal starts where the source shell is now.
+async function splitActive(side: Side) {
   if (!S.tree) return void openTile('terminal', { type: 'slot', at: null, side })
-  if (!S.active || location(S.active) !== 'slotted') return
-  openTile(getTile(S.active).kind, { type: 'slot', at: S.active, side })
+  const src = S.active
+  if (!src || location(src) !== 'slotted') return
+  const kind = getTile(src).kind
+  const cwd = await cwdOf(src)
+  if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved meanwhile
+  withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))
 }
 
 // Nearest visible tile in a direction (slotted and floating). Prefers tiles overlapping on the
