@@ -11,9 +11,10 @@ export interface Settings {
   fontFamily: string // all tiles: content font, '' = default monospace stack
   fontSize: number // all tiles: content font size (px)
   cellWidth: number // all tiles: character width, percent (kitty cell_width)
+  borderless: boolean // app-wide: hide window controls (kitty hide_window_decorations)
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100 }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false }
 export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings.json')
 
 const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
@@ -57,6 +58,7 @@ function sanitize(s: Settings): Settings {
     fontSize: num(s.fontSize, 8, 32, DEFAULTS.fontSize),
     cellWidth: num(s.cellWidth, 70, 150, DEFAULTS.cellWidth),
     fontFamily: str(s.fontFamily, DEFAULTS.fontFamily).trim(),
+    borderless: typeof s.borderless === 'boolean' ? s.borderless : DEFAULTS.borderless,
   }
 }
 

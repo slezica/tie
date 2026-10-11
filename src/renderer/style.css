@@ -58,7 +58,10 @@ body {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
-  padding-left: 84px;
+  padding-left: 84px; /* room for the traffic lights */
+}
+:root.borderless #top {
+  padding-left: var(--pad);
 }
 #brand {
   margin: 0 12px 0 auto;
@@ -713,6 +716,17 @@ body.empty #empty-hint {
   border-radius: 6px;
   font: 13px var(--ui-font);
   outline: none;
+}
+.settings label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.settings input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
 }
 .settings #set-shell {
   font: 13px 'SF Mono', Menlo, monospace;

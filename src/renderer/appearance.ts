@@ -9,6 +9,7 @@ export interface Appearance {
   fontFamily: string // '' = default stack
   fontSize: number
   cellWidth: number // percent of natural character width (kitty's cell_width)
+  borderless?: boolean // window controls hidden: tab bar starts at the left edge
 }
 
 const FALLBACK_FONTS = '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace'
@@ -98,6 +99,7 @@ export function applyAppearance(a: Appearance) {
   root.setProperty('--tile-font-size', `${a.fontSize}px`)
   root.setProperty('color-scheme', t.dark ? 'dark' : 'light')
   document.documentElement.classList.toggle('light', !t.dark)
+  document.documentElement.classList.toggle('borderless', !!a.borderless)
   const opts = termOptions()
   for (const tile of S.tiles.values()) {
     tile.term.options.theme = opts.theme

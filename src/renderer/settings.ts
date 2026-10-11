@@ -42,6 +42,9 @@ export async function toggleSettings() {
             ${Object.entries(THEMES).map(([id, t]) => `<option value="${id}">${esc(t.label)}</option>`).join('')}
           </select>
           <div class="swatches"></div>
+          <h3>Window</h3>
+          <label class="check"><input id="set-borderless" type="checkbox" /> Borderless <span class="scope">no window controls, square corners</span></label>
+          <p class="hint">Corners change on next launch.</p>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
           <select id="set-font"></select>
@@ -81,6 +84,7 @@ export async function toggleSettings() {
   const lineHeight = $<HTMLInputElement>('#set-line-height')
   const font = $<HTMLSelectElement>('#set-font')
   const cellWidth = $<HTMLInputElement>('#set-cell-width')
+  const borderless = $<HTMLInputElement>('#set-borderless')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
@@ -96,6 +100,7 @@ export async function toggleSettings() {
   fillFonts([])
   monospaceFonts().then((fonts) => panel && fillFonts(fonts))
   cellWidth.value = String(settings.cellWidth)
+  borderless.checked = settings.borderless
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   shell.placeholder = defaults.shell
@@ -111,14 +116,16 @@ export async function toggleSettings() {
     fontFamily: font.value.trim(),
     fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
     cellWidth: Math.min(150, Math.max(70, Number(cellWidth.value) || 100)),
+    borderless: borderless.checked,
   })
   const preview = () => {
     swatches()
     $('.warn').hidden = fontInstalled(font.value.trim())
     applyAppearance(draft())
+    tie.settings.previewBorderless(borderless.checked)
   }
   themeSel.addEventListener('change', preview)
-  for (const el of [lineHeight, font, fontSize, cellWidth]) el.addEventListener('input', preview)
+  for (const el of [lineHeight, font, fontSize, cellWidth, borderless]) el.addEventListener('input', preview)
   swatches()
 
   const show = (p: string) => {
@@ -129,7 +136,10 @@ export async function toggleSettings() {
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
 
   // Cancel restores the look that was active when the panel opened.
-  ;(panel as any)._revert = () => applyAppearance(saved)
+  ;(panel as any)._revert = () => {
+    applyAppearance(saved)
+    tie.settings.previewBorderless(!!saved.borderless)
+  }
 
   // Bottom status line: settings file path, or problems blocking save.
   const status = $('.status')

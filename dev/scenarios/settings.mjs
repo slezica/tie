@@ -84,4 +84,15 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   await ctx.sleep(200)
   h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel')
+
+  // Borderless: tab bar moves to the left edge (traffic lights hidden by main), persists.
+  const tabsX = () => ctx.page.evaluate(() => document.getElementById('tabs').getBoundingClientRect().x)
+  const x0 = await tabsX()
+  await open()
+  await ctx.page.locator('nav button[data-page="appearance"]').click()
+  await ctx.page.check('#set-borderless')
+  await ctx.page.locator('.save').click()
+  await ctx.sleep(200)
+  h.assert((await tabsX()) < x0 - 40, `tab bar shifted left (${x0} -> ${await tabsX()})`)
+  h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
 }

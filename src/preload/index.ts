@@ -7,6 +7,7 @@ export interface Settings {
   fontFamily: string
   fontSize: number
   cellWidth: number
+  borderless: boolean
 }
 
 type DataCb = (id: number, data: string) => void
@@ -21,6 +22,7 @@ const api = {
     get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string; error: string | null }> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings | 'file'; message: string }[] }> =>
       ipcRenderer.invoke('settings:set', patch),
+    previewBorderless: (on: boolean) => ipcRenderer.send('window:borderless-preview', on),
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())
     },

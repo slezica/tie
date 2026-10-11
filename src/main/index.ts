@@ -66,17 +66,32 @@ ipcMain.handle('settings:get', () => ({ settings: getSettings(), defaults: { she
 ipcMain.handle('settings:set', (_e, patch) => {
   const fileError = settingsFileError()
   const errors = fileError ? [{ field: 'file', message: fileError }] : validateSettings(patch)
-  return errors.length ? { ok: false, errors } : { ok: true, settings: setSettings(patch) }
+  if (errors.length) return { ok: false, errors }
+  const settings = setSettings(patch)
+  applyWindowSettings()
+  return { ok: true, settings }
 })
 ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
+// Borderless: hide the traffic lights (title bar is already hidden; the top bar stays draggable).
+function applyWindowSettings() {
+  if (process.platform === 'darwin' && win && !win.isDestroyed()) win.setWindowButtonVisibility(!getSettings().borderless)
+}
+ipcMain.on('window:borderless-preview', (_e, on: boolean) => {
+  if (process.platform === 'darwin') win?.setWindowButtonVisibility(!on)
+})
+
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
+  // Borderless at creation: frameless with square corners (macOS only allows that when frameless,
+  // and only at creation). Toggling later hides the traffic lights live; corners follow on restart.
+  const frame = getSettings().borderless
+    ? { frame: false, roundedCorners: false }
+    : { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 10 } }
   win = new BrowserWindow({
     ...workArea,
+    ...frame,
     backgroundColor: '#1b1e23', // ≈ Tie Dark app background, avoids a flash at startup
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 10 },
     show: false,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
@@ -94,6 +109,7 @@ function createWindow() {
       pty.killAll()
     }
   })
+  applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
   win.on('close', () => !quitting && app.quit())
   win.on('closed', () => (win = null))

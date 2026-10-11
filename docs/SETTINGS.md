@@ -33,7 +33,7 @@ Settings file, panel, themes, color tokens, fonts.
   - Second open request while loading: ignored.
 - On close: keys return to the active tile (`refocus()`).
 - Left nav: `Appearance` | `Terminal`. Last page remembered while running.
-- Appearance: theme (+ ANSI swatches), font, size, line height, char width.
+- Appearance: theme (+ ANSI swatches), window (borderless), font, size, line height, char width.
 - Terminal: shell command (placeholder shows the default).
 - Live preview of appearance. Cancel / Escape / backdrop click reverts.
 - Enter or `Save` saves. On error:
@@ -88,3 +88,10 @@ Rule: never hardcode colors. Mix from base tokens.
 
 - Keymap not configurable (`PENDING.md`).
 - File edits while running aren't picked up (except fixing an unreadable file); restart or use the panel.
+
+## Borderless window
+
+- `borderless` (app-wide, default off). kitty analogue: `hide_window_decorations yes`.
+- On: traffic lights hidden (live), tab bar starts at the left edge (`:root.borderless`).
+- Square corners: macOS allows them only on frameless windows, set at creation. So on launch with `borderless`, the window is `frame: false, roundedCorners: false`. Toggling live changes corners on next launch.
+- The top bar stays the window's drag region.
