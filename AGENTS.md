@@ -39,7 +39,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `src/main/pty.ts`: pty host (spawn, data, resize, kill, process + cwd polling, killAll).
 - `src/main/socket.ts`: unix socket, newline-delimited JSON-RPC → renderer.
 - `src/main/settings.ts`: settings file, defaults, sanitize at load/save, unreadable-file guard, validation, shell argv/resolution.
-- `src/main/env.ts`: instance name, paths (`~/.tie/<instance>.*`), debug port, tagged logs.
+- `src/main/env.ts`: instance name (`default` packaged, `dev` from repo), paths (`~/.tie/<instance>.*`, `~/.tie/log/`), debug port, tagged logs.
 - `src/preload/index.ts`: `window.tie` bridge (info, ready, settings, pty, rpc, log).
 - `src/renderer/index.html`: static layers (`#top`, `#shelf`, `#tiles`, `#borders`, `#preview`, ...).
 - `src/renderer/style.css`: tokens, spacing vars, all styles.
@@ -136,7 +136,7 @@ Commands:
                            --keep leaves fresh instance running.
   scenarios                List scenarios
 
-Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "default"). Each instance has its own
+Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
 socket, lock, debug port, log under ~/.tie/.
 ```
 

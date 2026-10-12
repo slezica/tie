@@ -1,7 +1,7 @@
 // ASCII render of the board from `tie list --json`.
 import { tie } from './lib.mjs'
 
-const instance = process.env.TIE_INSTANCE || 'default'
+const instance = process.env.TIE_INSTANCE || 'dev'
 const COLS = Number(process.argv[2]) || 100
 
 const r = await tie(instance, 'list')

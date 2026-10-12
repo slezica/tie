@@ -1,15 +1,18 @@
-// Instance identity and paths. Each TIE_INSTANCE gets its own socket, lock, debug port, log.
+// Instance identity and paths. Each TIE_INSTANCE gets its own socket, lock, debug port, log, settings.
+// Installed app = `default`; dev runs (repo checkout) = `dev`, so both can run side by side.
+import { app } from 'electron'
 import { mkdirSync, appendFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-export const instance = process.env.TIE_INSTANCE || 'default'
+export const instance = process.env.TIE_INSTANCE || (app.isPackaged ? 'default' : 'dev')
 export const stateDir = join(homedir(), '.tie')
-mkdirSync(stateDir, { recursive: true })
+export const logDir = join(stateDir, 'log')
+mkdirSync(logDir, { recursive: true })
 
 export const socketPath = join(stateDir, `${instance}.sock`)
 export const infoPath = join(stateDir, `${instance}.json`)
-export const logPath = join(stateDir, `${instance}.log`)
+export const logPath = join(logDir, `${instance}.log`)
 
 // Port per instance name; tie-dev and the harness pass a free one (TIE_DEBUG_PORT).
 function hash(s: string) {

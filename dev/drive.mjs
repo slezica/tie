@@ -40,7 +40,7 @@ try {
   if (spec === '-') rmSync(file, { force: true }) // also on SyntaxError
 }
 const fresh = attach ? null : await launch(undefined, { settings: mod.settings })
-const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'default')
+const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
 const shotDir = join(ROOT, 'tmp/shots', name)
 rmSync(shotDir, { recursive: true, force: true })
 mkdirSync(shotDir, { recursive: true })

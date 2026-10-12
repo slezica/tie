@@ -60,7 +60,9 @@ input (mouse/keys/socket) → ops.ts → S mutated → render() → DOM
 |---|---|
 | Socket | `~/.tie/<instance>.sock` |
 | Info file | `~/.tie/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
-| Log | `~/.tie/<instance>.log` |
+| Log | `~/.tie/log/<instance>.log` |
+| Settings | `~/.tie/settings.json` (`default`), `~/.tie/settings.<instance>.json` (others) |
+| Instance | `TIE_INSTANCE`, else `default` when packaged, `dev` from the repo |
 | Debug port | `TIE_DEBUG_PORT` (`tie-dev`, harness: a free port), else `9300 + hash(instance) % 600`. Dev builds only |
 | userData | `<appData>/tie-<instance>` (separate single-instance lock) |
 

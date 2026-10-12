@@ -1,8 +1,8 @@
 // User settings: JSON file shared across instances (TIE_SETTINGS overrides path, e.g. for tests).
-import { readFileSync, writeFileSync, statSync, accessSync, constants } from 'node:fs'
+import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, accessSync, constants } from 'node:fs'
 import { userInfo, homedir } from 'node:os'
 import { join, delimiter } from 'node:path'
-import { stateDir, log } from './env'
+import { stateDir, instance, log } from './env'
 
 export interface Settings {
   shell: string // terminal tiles: command line for new terminals; '' = default
@@ -17,7 +17,13 @@ export interface Settings {
 }
 
 const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal' }
-export const settingsPath = process.env.TIE_SETTINGS || join(stateDir, 'settings.json')
+// `default` (installed app): settings.json; other instances: settings.<instance>.json.
+export const settingsPath =
+  process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
+
+// First dev run: start from the installed app's settings rather than blank.
+if (!process.env.TIE_SETTINGS && instance === 'dev' && !existsSync(settingsPath) && existsSync(join(stateDir, 'settings.json')))
+  copyFileSync(join(stateDir, 'settings.json'), settingsPath)
 
 const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
 

@@ -4,11 +4,11 @@ Dev toolkit `bin/tie-dev`, instances, scenarios, inspection.
 
 ## Rules
 
-- Always pass `--instance <name>` to `run`, `start`, `stop`. `default` is the user's app.
+- `tie-dev` defaults to instance `dev` (the repo build). `default` is the installed app: never target it.
   - Anywhere in the args: `--instance NAME` or `--instance=NAME`.
   - Empty name or other `--instance*` spelling: error, never a silent fallback.
 - Prefer `tie-dev drive` (fresh offscreen instance, cleaned up after).
-- Harness instances use their own settings file. Never touch `~/.tie/settings.json`.
+- Harness instances use their own settings file. Never touch `~/.tie/settings*.json`.
 
 ## Commands
 
@@ -17,7 +17,7 @@ Dev toolkit `bin/tie-dev`, instances, scenarios, inspection.
 | `run [--hot]` | Foreground. Builds if `src/` changed. `--hot`: electron-vite dev server, UI hot reload |
 | `build` | Build to `out/`, touch `out/.build-stamp` |
 | `start` / `stop` / `status` | Background instance via info file pid |
-| `logs [-f]` | Tail `~/.tie/<instance>.log` |
+| `logs [-f]` | Tail `~/.tie/log/<instance>.log` |
 | `test --unit` | Vitest (`src/core/layout.test.ts`) |
 | `test --e2e` | Every scenario, each on a fresh instance. Errors → `tmp/e2e-<name>.err` |
 | `typecheck` | `tsc --noEmit` |
@@ -111,7 +111,7 @@ All take `ctx` first.
 
 ## Logs
 
-- `TIE_DEBUG=layout,shelf,pty,rpc,app` or `*` → `~/.tie/<instance>.log`.
+- `TIE_DEBUG=layout,shelf,pty,rpc,app` or `*` → `~/.tie/log/<instance>.log`.
 - Renderer logs via `debug(tag, ...)` (`state.ts`) → main `log()`.
 
 ## Scenario list
