@@ -13,7 +13,8 @@ export const ELECTRON_ARGS = ['.', '-ApplePersistenceIgnoreState', 'YES']
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-export const infoPath = (instance) => join(homedir(), '.tie', `${instance}.json`)
+export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
+export const infoPath = (instance) => join(stateDir, `${instance}.json`)
 
 export function readInfo(instance) {
   const p = infoPath(instance)

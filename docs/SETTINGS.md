@@ -4,7 +4,7 @@ Settings file, panel, themes, color tokens, fonts.
 
 ## File
 
-- `~/.tie/settings.json` for the installed app (`default`); `~/.tie/settings.<instance>.json` for others (e.g. `settings.dev.json`). `TIE_SETTINGS` overrides.
+- `~/.config/tie/settings.json` for the installed app (`default`); `~/.config/tie/settings.<instance>.json` for others (e.g. `settings.dev.json`). `TIE_SETTINGS` overrides.
 - First `dev` run copies `settings.json` to `settings.dev.json` if missing.
 - Loaded once at main startup. Missing → defaults.
 - Sanitized at load and save (`sanitize()`): numbers clamped, wrongly typed strings → defaults.

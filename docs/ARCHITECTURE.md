@@ -58,10 +58,10 @@ input (mouse/keys/socket) → ops.ts → S mutated → render() → DOM
 
 | Thing | Value |
 |---|---|
-| Socket | `~/.tie/<instance>.sock` |
-| Info file | `~/.tie/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
-| Log | `~/.tie/log/<instance>.log` |
-| Settings | `~/.tie/settings.json` (`default`), `~/.tie/settings.<instance>.json` (others) |
+| Socket | `~/.config/tie/<instance>.sock` |
+| Info file | `~/.config/tie/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
+| Log | `~/.config/tie/log/<instance>.log` |
+| Settings | `~/.config/tie/settings.json` (`default`), `~/.config/tie/settings.<instance>.json` (others) |
 | Instance | `TIE_INSTANCE`, else `default` when packaged, `dev` from the repo |
 | Debug port | `TIE_DEBUG_PORT` (`tie-dev`, harness: a free port), else `9300 + hash(instance) % 600`. Dev builds only |
 | userData | `<appData>/tie-<instance>` (separate single-instance lock) |

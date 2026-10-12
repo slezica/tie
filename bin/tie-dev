@@ -30,7 +30,7 @@ Commands:
   scenarios                List scenarios
 
 Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
-socket, lock, debug port, log under ~/.tie/.
+socket, lock, debug port, log under ~/.config/tie/.
 EOF
 }
 
@@ -55,10 +55,10 @@ while [[ $# -gt 0 ]]; do
 done
 set -- "${args[@]+"${args[@]}"}"
 export TIE_INSTANCE="${TIE_INSTANCE:-dev}"
-mkdir -p "$HOME/.tie"
-INFO="$HOME/.tie/$TIE_INSTANCE.json"
-mkdir -p "$HOME/.tie/log"
-LOG="$HOME/.tie/log/$TIE_INSTANCE.log"
+STATE="${XDG_CONFIG_HOME:-$HOME/.config}/tie"
+mkdir -p "$STATE/log"
+INFO="$STATE/$TIE_INSTANCE.json"
+LOG="$STATE/log/$TIE_INSTANCE.log"
 
 # Stamp written only by full builds: `tie-dev run` (dev server) rewrites out/main but not out/renderer.
 STAMP=out/.build-stamp

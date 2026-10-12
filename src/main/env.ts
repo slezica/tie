@@ -1,14 +1,23 @@
 // Instance identity and paths. Each TIE_INSTANCE gets its own socket, lock, debug port, log, settings.
 // Installed app = `default`; dev runs (repo checkout) = `dev`, so both can run side by side.
 import { app } from 'electron'
-import { mkdirSync, appendFileSync } from 'node:fs'
+import { mkdirSync, appendFileSync, existsSync, readdirSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 export const instance = process.env.TIE_INSTANCE || (app.isPackaged ? 'default' : 'dev')
-export const stateDir = join(homedir(), '.tie')
+// All state lives in ~/.config/tie (or $XDG_CONFIG_HOME/tie): settings, sockets, info files, logs.
+export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
 export const logDir = join(stateDir, 'log')
 mkdirSync(logDir, { recursive: true })
+
+// One-time move of settings from the old ~/.tie (sockets/logs there are disposable).
+const oldDir = join(homedir(), '.tie')
+if (existsSync(oldDir)) {
+  for (const f of readdirSync(oldDir).filter((f) => /^settings(\..+)?\.json$/.test(f))) {
+    if (!existsSync(join(stateDir, f))) renameSync(join(oldDir, f), join(stateDir, f))
+  }
+}
 
 export const socketPath = join(stateDir, `${instance}.sock`)
 export const infoPath = join(stateDir, `${instance}.json`)

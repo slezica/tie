@@ -48,7 +48,8 @@ function die(msg) {
   process.exit(1)
 }
 
-const socket = process.env.TIE_SOCKET || join(homedir(), '.tie', `${process.env.TIE_INSTANCE || 'default'}.sock`)
+const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
+const socket = process.env.TIE_SOCKET || join(stateDir, `${process.env.TIE_INSTANCE || 'default'}.sock`)
 const caller = process.env.TIE_TILE
 
 function call(method, params = {}) {

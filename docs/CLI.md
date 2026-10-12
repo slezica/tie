@@ -84,7 +84,7 @@ FLAGS: `active`, `collapsed`, `zoomed`, `pinned`, `exit=N`.
 
 ## Socket protocol
 
-- Unix socket, `~/.tie/<instance>.sock`. Newline-delimited JSON-RPC 2.0.
+- Unix socket, `~/.config/tie/<instance>.sock`. Newline-delimited JSON-RPC 2.0.
 - One request per line, one reply line each, matched by `id`. Several requests per connection allowed.
 
 ```json
@@ -115,7 +115,7 @@ Methods and params:
 | Var | Use |
 |---|---|
 | `TIE_SOCKET` | socket path (set in Tie shells) |
-| `TIE_INSTANCE` | fallback: `~/.tie/<instance>.sock` |
+| `TIE_INSTANCE` | fallback: `~/.config/tie/<instance>.sock` |
 | `TIE_TILE` | caller tile id |
 
 ## Limitations
