@@ -24,7 +24,8 @@ if (!app.requestSingleInstanceLock()) {
 let win: BrowserWindow | null = null
 let quitting = false
 const pty = initPty(() => (win && !win.isDestroyed() ? win.webContents : null))
-const binDir = join(app.getAppPath(), 'bin')
+// Put on PATH in Tie terminals: the repo's bin/ in dev; Tie.app/Contents/Resources/bin when installed.
+const binDir = app.isPackaged ? join(process.resourcesPath, 'bin') : join(app.getAppPath(), 'bin')
 
 // Renderer RPC: socket calls forwarded to renderer, replies matched by id.
 // Calls wait until the renderer has registered its driver.

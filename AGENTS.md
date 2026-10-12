@@ -13,6 +13,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `docs/CLI.md`: `tie` CLI, socket JSON-RPC protocol, placement defaults.
 - `docs/SETTINGS.md`: settings file + panel, themes, color tokens, fonts.
 - `docs/HARNESS.md`: `tie-dev`, instances, scenarios, helpers, logs.
+- `docs/PACKAGING.md`: Tie.app build/install, bundle layout, CLI launcher, signing.
 
 ## Records and backlog
 
@@ -65,6 +66,9 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `dev/helpers.mjs`: scenario helpers.
 - `dev/drive.mjs`: scenario runner. `dev/screenshot.mjs`, `dev/layout.mjs`: inspection.
 - `dev/scenarios/*.mjs`: Playwright scenarios (also the e2e suite).
+- `electron-builder.yml`: packaging config (Tie.app, arm64, asar, unpacked node-pty, CLI resources).
+- `resources/bin/tie`: CLI launcher shipped in Tie.app (runs CLI with Electron as Node).
+- `build/icon.png`, `build/icon.icns`: placeholder app icon (`dev/icon.cjs` renders it).
 - `dev/brand-electron.sh`: postinstall, names dev Electron bundle "Tie".
 - `electron.vite.config.ts`: build config, `@core` alias, CJS preload.
 
@@ -135,6 +139,10 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
+  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc)
+  release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
+  install                  Package, then install to /Applications/Tie.app (Tie must not be running)
+  icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
 
 Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
 socket, lock, debug port, log under ~/.config/tie/.

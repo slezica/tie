@@ -2,3 +2,4 @@ tmp/
 node_modules/
 out/
 worktree/
+.impeccable/hook.cache.json

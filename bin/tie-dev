@@ -28,6 +28,10 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
+  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc)
+  release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
+  install                  Package, then install to /Applications/Tie.app (Tie must not be running)
+  icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
 
 Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
 socket, lock, debug port, log under ~/.config/tie/.
@@ -62,6 +66,7 @@ LOG="$STATE/log/$TIE_INSTANCE.log"
 
 # Stamp written only by full builds: `tie-dev run` (dev server) rewrites out/main but not out/renderer.
 STAMP=out/.build-stamp
+APP_OUT=out/package/mac-arm64/Tie.app
 needs_build() {
   [[ ! -f "$STAMP" ]] && return 0
   [[ -n "$(find src -newer "$STAMP" -type f | head -1)" ]]
@@ -125,6 +130,52 @@ case "$cmd" in
   drive)
     if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
     exec node dev/drive.mjs "$@" ;;
+  package)
+    build
+    rm -rf out/package
+    npx electron-builder --config electron-builder.yml >/dev/null
+    codesign --force --deep --sign - "$APP_OUT" 2>/dev/null
+    echo "$APP_OUT ($(node -p "require('./package.json').version"))" ;;
+  release)
+    [[ "${1:-}" == "--version" && -n "${2:-}" ]] || { echo "usage: tie-dev release --version X.Y.Z"; exit 1; }
+    want="$2"
+    [[ "$want" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must be X.Y.Z"; exit 1; }
+    [[ -z "$(git status --porcelain)" ]] || { echo "repo not clean:"; git status --short; exit 1; }
+    git rev-parse -q --verify "refs/tags/v$want" >/dev/null && { echo "tag v$want exists"; exit 1; }
+    have="$(node -p "require('./package.json').version")"
+    cmp="$(node -e "const [a,b]=process.argv.slice(1).map(v=>v.split('.').map(Number));const d=a.map((x,i)=>x-b[i]).find(x=>x!==0)||0;console.log(Math.sign(d))" "$want" "$have")"
+    [[ "$cmp" != "-1" ]] || { echo "version $want is lower than current $have"; exit 1; }
+    echo "checks..."
+    "$0" typecheck && "$0" test --unit >/dev/null && echo "  typecheck, unit ok" || { echo "checks failed"; exit 1; }
+    e2e="$("$0" test --e2e)" || { echo "$e2e"; echo "e2e failed"; exit 1; }
+    echo "  e2e ok ($(grep -c '^ok' <<<"$e2e") scenarios)"
+    if [[ "$cmp" == "1" ]]; then
+      npm version "$want" --no-git-tag-version >/dev/null
+      git add package.json package-lock.json
+      git commit -qm "package: set version $want"
+    fi
+    git tag "v$want"
+    "$0" package
+    echo "released v$want" ;;
+  install)
+    info="${XDG_CONFIG_HOME:-$HOME/.config}/tie/default.json"
+    if [[ -f "$info" ]] && kill -0 "$(node -p "require('$info').pid")" 2>/dev/null; then
+      echo "Tie is running: quit it first (hold cmd+Q)"; exit 1
+    fi
+    "$0" package >/dev/null
+    rm -rf /Applications/Tie.app
+    ditto "$APP_OUT" /Applications/Tie.app
+    echo "installed /Applications/Tie.app"
+    echo "tie CLI outside Tie terminals: add /Applications/Tie.app/Contents/Resources/bin to PATH" ;;
+  icon)
+    node_modules/electron/dist/Electron.app/Contents/MacOS/Electron dev/icon.cjs -ApplePersistenceIgnoreState YES 2>/dev/null
+    rm -rf tmp/icon.iconset && mkdir -p tmp/icon.iconset
+    for s in 16 32 128 256 512; do
+      sips -z $s $s build/icon.png --out "tmp/icon.iconset/icon_${s}x${s}.png" >/dev/null
+      sips -z $((s*2)) $((s*2)) build/icon.png --out "tmp/icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+    done
+    iconutil -c icns tmp/icon.iconset -o build/icon.icns
+    echo "build/icon.png build/icon.icns" ;;
   scenarios)
     for s in dev/scenarios/*.mjs; do echo "$(basename "$s" .mjs)  $(head -1 "$s" | sed 's|^// *||')"; done ;;
   ""|-h|--help|help)

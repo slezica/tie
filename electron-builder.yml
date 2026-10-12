@@ -1,0 +1,25 @@
+# Tie.app (arm64, .app only, ad-hoc signed by `tie-dev package`). See docs/PACKAGING.md.
+appId: com.salezica.tie
+productName: Tie
+directories:
+  output: out/package
+  buildResources: build
+files:
+  - out/**
+  - '!out/package/**' # previous packages
+  - '!out/.build-stamp'
+  - package.json
+asarUnpack:
+  - node_modules/node-pty/** # native module + spawn-helper must be real files
+extraResources:
+  - from: resources/bin # CLI launcher (shell), put on PATH in Tie terminals
+    to: bin
+  - from: bin/tie # CLI itself, run by the launcher with Tie's Electron as Node
+    to: cli/tie.mjs
+mac:
+  target:
+    - target: dir
+      arch: arm64
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+  identity: null # signed ad hoc afterwards; no Apple developer identity

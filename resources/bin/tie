@@ -1,0 +1,6 @@
+#!/bin/sh
+# tie CLI launcher inside Tie.app: runs the CLI with Tie's bundled Electron as Node (like VS Code's
+# `code`), so no system Node is needed. Tie puts this folder on PATH in its terminals.
+self="$(readlink -f "$0")"
+contents="$(cd "$(dirname "$self")/../.." && pwd)" # Tie.app/Contents
+ELECTRON_RUN_AS_NODE=1 exec "$contents/MacOS/Tie" "$contents/Resources/cli/tie.mjs" "$@"
