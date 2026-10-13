@@ -87,13 +87,20 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     TIE_DEBUG_PORT: String(await freePort()),
     TIE_SCALE: process.env.TIE_SCALE || '2', // like a retina Mac
   }
+  // Trace folder (TIE_RUN_DIR): app log with all debug tags + Electron stderr, kept after the run.
+  const runDir = opts.runDir
+  if (runDir) {
+    mkdirSync(runDir, { recursive: true })
+    env.TIE_LOG = join(runDir, 'app.log')
+    env.TIE_DEBUG = process.env.TIE_DEBUG || '*'
+  }
   delete env.TIE_SOCKET
   delete env.TIE_TILE
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
   rmSync(env.TIE_SETTINGS, { force: true })
   if (opts.settings) writeFileSync(env.TIE_SETTINGS, typeof opts.settings === 'string' ? opts.settings : JSON.stringify(opts.settings))
-  const errFile = join(ROOT, 'tmp', `${instance}.stderr`)
+  const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
   const child = spawn(join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'), ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })
   for (let i = 0; i < 150 && !existsSync(infoPath(instance)); i++) await sleep(100)
@@ -108,7 +115,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
       process.kill(pid, 'SIGTERM')
     } catch {}
     for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
-    rmSync(errFile, { force: true })
+    if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
   }
   return { instance, stop }

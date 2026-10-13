@@ -21,7 +21,7 @@ if (existsSync(oldDir)) {
 
 export const socketPath = join(stateDir, `${instance}.sock`)
 export const infoPath = join(stateDir, `${instance}.json`)
-export const logPath = join(logDir, `${instance}.log`)
+export const logPath = process.env.TIE_LOG || join(logDir, `${instance}.log`) // TIE_LOG: harness trace folder
 
 // Port per instance name; tie-dev and the harness pass a free one (TIE_DEBUG_PORT).
 function hash(s: string) {

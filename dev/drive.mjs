@@ -1,6 +1,6 @@
 // Run a Playwright scenario against a fresh (default) or running (--attach) instance.
 // Scenario = module exporting `async (ctx, helpers)`; from file, dev/scenarios name, or stdin (-).
-import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ROOT, sleep, tie, connectPage, launch } from './lib.mjs'
@@ -39,9 +39,23 @@ try {
 } finally {
   if (spec === '-') rmSync(file, { force: true }) // also on SyntaxError
 }
-const fresh = attach ? null : await launch(undefined, { settings: mod.settings })
+// Every run leaves a trace folder: out/log/runs/<time>-<name>/ (or TIE_RUN_DIR from tie-dev test --e2e).
+const d = new Date()
+const p2 = (n) => String(n).padStart(2, '0')
+const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}` // local time
+const runDir = process.env.TIE_RUN_DIR || join(ROOT, 'out/log/runs', `${stamp}-${name}`)
+mkdirSync(runDir, { recursive: true })
+// Mirror the runner's own output (results, shot paths, errors) into the trace.
+for (const k of ['log', 'error']) {
+  const orig = console[k].bind(console)
+  console[k] = (...a) => {
+    appendFileSync(join(runDir, 'drive.log'), (k === 'error' ? 'ERROR ' : '') + a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ') + '\n')
+    orig(...a)
+  }
+}
+const fresh = attach ? null : await launch(undefined, { settings: mod.settings, runDir })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
-const shotDir = join(ROOT, 'tmp/shots', name)
+const shotDir = join(runDir, 'shots')
 rmSync(shotDir, { recursive: true, force: true })
 mkdirSync(shotDir, { recursive: true })
 
@@ -76,5 +90,7 @@ try {
   await browser?.close().catch(() => {})
   if (fresh && !keep) await fresh.stop()
   if (fresh && keep) console.log(`kept instance: ${instance}`)
+  appendFileSync(join(runDir, 'drive.log'), `exit=${code}\n`)
+  process.stderr.write(`trace: ${runDir}\n`)
 }
 process.exit(code)

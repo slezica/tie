@@ -65,6 +65,17 @@ INFO="$STATE/$TIE_INSTANCE.json"
 LOG="$STATE/log/$TIE_INSTANCE.log"
 
 # Stamp written only by full builds: `tie-dev run` (dev server) rewrites out/main but not out/renderer.
+# Trace: every invocation is logged; scenario runs leave a folder each (see docs/HARNESS.md).
+LOGDIR="$ROOT/out/log"
+RUNS="$LOGDIR/runs"
+mkdir -p "$RUNS"
+T0=$(date +%s)
+CMDLINE="$*"
+echo "$(date '+%F %T') start [$TIE_INSTANCE] tie-dev $CMDLINE" >> "$LOGDIR/tie-dev.log"
+trap 'code=$?; echo "$(date "+%F %T") end   [$TIE_INSTANCE] tie-dev $CMDLINE exit=$code $(( $(date +%s) - T0 ))s" >> "$LOGDIR/tie-dev.log"' EXIT
+# Keep the newest 50 run folders.
+{ ls -1dt "$RUNS"/*/ 2>/dev/null || true; } | tail -n +51 | while read -r d; do rm -rf "$d"; done
+
 STAMP=out/.build-stamp
 APP_OUT=out/package/mac-arm64/Tie.app
 needs_build() {
@@ -112,12 +123,15 @@ case "$cmd" in
       --e2e)
         if needs_build; then build; fi
         fail=0
-        mkdir -p tmp
+        run="$RUNS/$(date +%Y%m%d-%H%M%S)-e2e"
+        mkdir -p "$run"
         for s in dev/scenarios/*.mjs; do
           name="$(basename "$s" .mjs)"
-          if node dev/drive.mjs "$s" >/dev/null 2>"tmp/e2e-$name.err"; then echo "ok   $name"
-          else echo "FAIL $name (tmp/e2e-$name.err)"; fail=1; fi
+          if TIE_RUN_DIR="$run/$name" node dev/drive.mjs "$s" >/dev/null 2>&1; then line="ok   $name"
+          else line="FAIL $name ($run/$name/)"; fail=1; fi
+          echo "$line" | tee -a "$run/summary.txt"
         done
+        echo "trace: $run"
         exit $fail ;;
       *) echo "test --unit | --e2e"; exit 1 ;;
     esac ;;
@@ -129,7 +143,7 @@ case "$cmd" in
     exec node dev/screenshot.mjs "$@" ;;
   drive)
     if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
-    exec node dev/drive.mjs "$@" ;;
+    node dev/drive.mjs "$@" ;;
   package)
     build
     rm -rf out/package

@@ -67,7 +67,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 |---|---|
 | `page` | Playwright page (CDP) |
 | `tie(...args)` | `bin/tie ... --json`, parsed |
-| `shot(label)` | `tmp/shots/<scenario>/<nn>-<label>.png` |
+| `shot(label)` | `out/log/runs/<time>-<scenario>/shots/<nn>-<label>.png` |
 | `sleep(ms)`, `log(...)` | utilities |
 | `instance` | instance name |
 
@@ -140,3 +140,16 @@ All take `ctx` first.
 
 - Harness instances render offscreen at 2x by default (`TIE_SCALE`, like a retina Mac).
 - `TIE_SCALE=1 bin/tie-dev drive ...` for 1x.
+
+## Traces (`out/log/`)
+
+Run something, leave it, let an agent examine it later.
+
+- `out/log/tie-dev.log`: one start/end line per `tie-dev` invocation (time, instance, command, exit, duration).
+- `out/log/runs/<time>-<name>/`: one folder per scenario run (`drive`, `test --e2e`, `release`):
+  - `drive.log`: runner output (results, shot paths, errors, exit).
+  - `app.log`: the instance's own log, all debug tags on (`TIE_DEBUG=*`, `TIE_LOG`).
+  - `electron.log`: Electron stdout/stderr.
+  - `shots/`: screenshots (`ctx.shot`).
+- `test --e2e`: one `<time>-e2e/` folder with a subfolder per scenario and `summary.txt`.
+- Newest 50 run folders kept. Excluded from packages.

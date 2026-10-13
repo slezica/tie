@@ -113,6 +113,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Debug logs: `debug(tag, ...)` in renderer, `log(tag, ...)` in main; enabled by `TIE_DEBUG`.
 - Harness instances (`TIE_BACKGROUND=1`) render offscreen: no window, no dock icon, no focus stealing.
 - Harness instances use their own settings file (`tmp/<instance>.settings.json`).
+- Traces: `out/log/tie-dev.log` (every command) and `out/log/runs/<time>-<name>/` (per scenario run: drive.log, app.log, electron.log, shots/). Look there first when a run failed.
 - Launch harness instances with `-ApplePersistenceIgnoreState YES` (see crash record).
 
 ## Toolkit
