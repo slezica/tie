@@ -80,8 +80,14 @@ STAMP=out/.build-stamp
 APP_OUT=out/package/mac-arm64/Tie.app
 needs_build() {
   [[ ! -f "$STAMP" ]] && return 0
-  [[ -n "$(find src -newer "$STAMP" -type f | head -1)" ]]
+  [[ -n "$(find src electron.vite.config.ts package.json package-lock.json -newer "$STAMP" -type f | head -1)" ]]
 }
+
+# Content hash of everything that goes into Tie.app. Stored in the bundle (Resources/fingerprint)
+# so package/install can tell whether anything changed.
+PKG_INPUTS=(src bin/tie resources build electron-builder.yml electron.vite.config.ts package.json package-lock.json)
+fingerprint() { find "${PKG_INPUTS[@]}" -type f -print0 | sort -z | xargs -0 shasum | shasum | cut -c1-16; }
+bundle_fp() { cat "$1/Contents/Resources/fingerprint" 2>/dev/null; }
 
 build() { npx electron-vite build >/dev/null && touch "$STAMP"; }
 
@@ -145,18 +151,33 @@ case "$cmd" in
     if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
     node dev/drive.mjs "$@" ;;
   package)
-    build
+    fp="$(fingerprint)"
+    version="$(node -p "require('./package.json').version")"
+    if [[ "$(bundle_fp "$APP_OUT")" == "$fp" ]] && codesign -v "$APP_OUT" 2>/dev/null; then
+      echo "$APP_OUT ($version, up to date)"; exit 0
+    fi
+    if pgrep -f "^$ROOT/$APP_OUT/Contents/MacOS/Tie" >/dev/null; then
+      echo "Tie is running from $APP_OUT: quit it first (or run the installed copy)"; exit 1
+    fi
+    if needs_build; then build; fi
     rm -rf out/package
+    mkdir -p out/package && echo "$fp" > out/package/fingerprint
     npx electron-builder --config electron-builder.yml >/dev/null
     codesign --force --deep --sign - "$APP_OUT" 2>/dev/null
-    echo "$APP_OUT ($(node -p "require('./package.json').version"))" ;;
+    echo "$APP_OUT ($version)" ;;
   release)
     [[ "${1:-}" == "--version" && -n "${2:-}" ]] || { echo "usage: tie-dev release --version X.Y.Z"; exit 1; }
     want="$2"
     [[ "$want" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must be X.Y.Z"; exit 1; }
     [[ -z "$(git status --porcelain)" ]] || { echo "repo not clean:"; git status --short; exit 1; }
-    git rev-parse -q --verify "refs/tags/v$want" >/dev/null && { echo "tag v$want exists"; exit 1; }
     have="$(node -p "require('./package.json').version")"
+    # Resumable: tag already on HEAD with matching version = released; just make sure it's packaged.
+    if git rev-parse -q --verify "refs/tags/v$want" >/dev/null; then
+      if [[ "$(git rev-list -n1 "v$want")" == "$(git rev-parse HEAD)" && "$have" == "$want" ]]; then
+        echo "v$want already tagged on HEAD"; "$0" package; echo "released v$want"; exit 0
+      fi
+      echo "tag v$want exists on another commit"; exit 1
+    fi
     cmp="$(node -e "const [a,b]=process.argv.slice(1).map(v=>v.split('.').map(Number));const d=a.map((x,i)=>x-b[i]).find(x=>x!==0)||0;console.log(Math.sign(d))" "$want" "$have")"
     [[ "$cmp" != "-1" ]] || { echo "version $want is lower than current $have"; exit 1; }
     echo "checks..."
@@ -172,14 +193,18 @@ case "$cmd" in
     "$0" package
     echo "released v$want" ;;
   install)
-    info="${XDG_CONFIG_HOME:-$HOME/.config}/tie/default.json"
-    if [[ -f "$info" ]] && kill -0 "$(node -p "require('$info').pid")" 2>/dev/null; then
-      echo "Tie is running: quit it first (hold cmd+Q)"; exit 1
-    fi
+    dest="${TIE_INSTALL_DIR:-/Applications}/Tie.app"
     "$0" package >/dev/null
-    rm -rf /Applications/Tie.app
-    ditto "$APP_OUT" /Applications/Tie.app
-    echo "installed /Applications/Tie.app"
+    if [[ -n "$(bundle_fp "$APP_OUT")" && "$(bundle_fp "$APP_OUT")" == "$(bundle_fp "$dest")" ]]; then
+      echo "$dest up to date"; exit 0
+    fi
+    # Refuse only to replace the copy that is actually running.
+    if pgrep -f "^$dest/Contents/MacOS/Tie" >/dev/null; then
+      echo "Tie is running from $dest: quit it first (hold cmd+Q)"; exit 1
+    fi
+    rm -rf "$dest"
+    ditto "$APP_OUT" "$dest"
+    echo "installed $dest"
     echo "tie CLI outside Tie terminals: add /Applications/Tie.app/Contents/Resources/bin to PATH" ;;
   icon)
     node_modules/electron/dist/Electron.app/Contents/MacOS/Electron dev/icon.cjs -ApplePersistenceIgnoreState YES 2>/dev/null

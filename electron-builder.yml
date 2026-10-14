@@ -17,6 +17,8 @@ extraResources:
     to: bin
   - from: bin/tie # CLI itself, run by the launcher with Tie's Electron as Node
     to: cli/tie.mjs
+  - from: out/package/fingerprint # input hash, lets tie-dev package/install skip when unchanged
+    to: fingerprint
 mac:
   target:
     - target: dir
