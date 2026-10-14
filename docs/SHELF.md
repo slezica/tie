@@ -1,65 +1,39 @@
 # Shelf
 
-Right-hand column per space: templates on top, parked tiles below.
+Right-hand column per space: `#templates` (only `terminal`), `.sep`, `#items` (one `.item` per shelved tile, `S.shelf` order).
 
-## Parts
+- Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto shelf → new shelved tile.
+- Item: icon + label (`displayTitle`/`displayIcon`, `TERMINALS.md`), activity dot, ping dot, exit mark (`✓` green / `✗` red).
+- Right-click item: tile menu (`INPUT.md`).
 
-```
-#shelf
-  #templates   tile kinds to spawn (only: terminal)
-  .sep
-  #items       one .item per shelved tile, in S.shelf order
-```
-
-- Templates: drag onto board → new tile there. Drag onto shelf → new shelved tile.
-- Items: icon + label, activity dot, exit mark.
-
-## Moving tiles in and out
+## In and out
 
 | Action | Result |
 |---|---|
-| Drag tile onto shelf | Shelved at insert line (between items by vertical midpoint) |
+| Drag tile onto shelf | Shelved at insert line (by item vertical midpoints) |
 | Drag item within shelf | Reorder |
-| Drag item onto board | Unshelve, same drop rules as any tile (`INPUT.md`) |
-| `tie move` / `tie open` with `--shelve` or `--shelved` | Appended to shelf |
+| Drag item onto board | Unshelve, normal drop rules (`INPUT.md`) |
+| `tie open/move --shelve` | Appended |
 
-- Shelving the active tile → focus goes to MRU board tile.
-- Shelving clears activity.
+- Shelving the active tile → `focusNext()`. Shelving clears activity.
 
 ## Reveal and pin
 
 | State | Trigger | Tile | Interactive |
 |---|---|---|---|
 | Hidden | default | `visibility: hidden` | no |
-| Revealed | hover item | shown next to item | no (`pointer-events: none`) |
-| Pinned | click item | shown, active | yes |
+| Revealed | hover item (`S.revealed`) | shown next to item | no (`pointer-events: none`) |
+| Pinned | click item (`S.pinned`) | shown, active | yes |
 
-- Unpin: click item again, or pointerdown anywhere outside the tile and item (menu excluded).
-- `tie focus <shelved id>` pins (switches to its tab first).
-- Reveal hides during drags.
-- Reveal shows the close button only (no collapse/zoom).
+- Unpin: click item again, or pointerdown outside tile and item (menu excluded). Unpinning an active shelved tile → `focusNext()`.
+- `tie focus <shelved id>` pins (switches tab first).
+- Hover reveal cleared on drag start and when leaving the tab.
+- Reveal shows only the close button.
+- Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
+- Position: left of shelf, vertically centered on its item (`getBoundingClientRect()` in `render.ts`), clamped into the board.
+- `#peak`: arrow from reveal toward item. Accent when pinned.
 
-## Reveal geometry
+## Activity
 
-- Size: 30% board width × 50% board height (`revealSize()`).
-  - Independent of item position, so pty size never changes on hover.
-- Shelved tiles always stay laid out at reveal size, hidden.
-- Vertically centered on its item, clamped into the board.
-- `#peak`: `>` arrow (clip-path) from reveal edge toward the item. Accent when pinned.
-
-## Activity and exit
-
-- `noteActivity()` on pty data: sets dot on shelved, not-revealed, not-pinned tiles.
-- Cleared by hover, pin, or re-shelve.
-- Exit mark: `✓` (code 0, green) or `✗` (red) once the process exits.
-
-## Titles and icons
-
-- Same as tile title bar: `displayTitle()` / `displayIcon()` (`TERMINALS.md`).
-- Updated on `tile-meta` DOM event.
-- Right-click item → rename / set icon menu (`INPUT.md`).
-
-## Implementation notes
-
-- `syncShelf()`: keyed reconcile. Hovered/captured item elements survive re-renders.
-- Reveal positions computed in `render.ts` from item `getBoundingClientRect()`.
+- `noteActivity()` on pty data: dot on shelved tiles not revealed or pinned.
+- Cleared by hover, pin, re-shelve.

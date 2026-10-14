@@ -1,107 +1,61 @@
 # Input
 
-Mouse map, keyboard shortcuts, drag mechanics, menus.
-
 ## Mouse map
 
-| Where | Gesture | Effect |
-|---|---|---|
-| Tile (anywhere) | pointerdown | Activate (not for unpinned shelved tiles) |
-| Title bar | drag | Move, with drop preview |
-| Title bar | shift held at drop | Float at pointer |
-| Title bar | click on collapsed tile | Expand |
-| Title bar | double-click | Toggle zoom (board tiles) |
-| Title bar | right-click | Menu: rename, set icon, reset |
-| Title buttons | click | Collapse / zoom / close |
-| Border between slotted tiles | drag | Resize both neighbors |
-| Floating tile edges / corners | drag | Activate, raise, resize (8 handles, `.rz`) |
-| Shelf template | drag | Spawn tile at drop |
-| Shelf item | hover / click / drag / right-click | Reveal / pin / move / menu (`SHELF.md`) |
-| Tab | click / drag / right-click | Switch / reorder / menu (`TABS.md`) |
+- Tile pointerdown: activate (not unpinned shelved tiles).
+- Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
+- Title buttons: collapse / zoom / close.
+- Border between slotted tiles: drag resizes neighbors.
+- Float edges/corners (8 `.rz` handles): activate, raise, resize.
+- Shelf: `SHELF.md`. Tabs: `TABS.md`.
 
 ## Drop targets
 
 | Pointer over | Shift | Result | Preview |
 |---|---|---|---|
-| Shelf | any | Shelf at insert line | accent line between items |
+| Shelf | any | Shelf at insert line | accent line |
 | Board | yes | Float, grabbed at pointer | float rect |
 | Board, no slotted tiles (or only the dragged one) | no | Root slot | whole board |
 | Slotted tile | no | Slot on nearest edge (`dropSide`) | resulting rect |
-| Dragged tile itself | no | Nothing | none |
-| Elsewhere | - | Nothing | none |
+| Dragged tile itself, elsewhere | - | Nothing | none |
 
-- Floating tiles are not drop targets. The slotted tile under them is.
-- New tile takes half the target's space.
-- Shift can be pressed or released mid-drag.
-- Escape cancels.
-- Dragged or target tile closed mid-drag: drop ignored.
-- Ghost label (icon + title) follows the pointer.
+- Floats are not targets; the slotted tile under them is.
+- Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 
 ## Drag mechanics (`drag.ts`)
 
-- `startDrag()`: pointerdown becomes a drag after 4 px (`THRESHOLD`), else a click (`onClick`).
-- `track()`: pointer followed on `window` in capture phase.
-  - Release seen even if pointer capture is lost.
-  - A move with no button held counts as a missed release.
-- Pointer capture retargets native `click` / `dblclick`. Title clicks come through `startDrag`'s `onClick`; double-click detected in `main.ts` (350 ms).
-- During any drag: `body.dragging` → tile content and reveals get `pointer-events: none` (drag shield).
-- Border resize: computed from the tree at drag start + pointer delta. Min 80 px.
-  - Stops if the tree changes (open, close, move) or the tab switches mid-drag.
+- `startDrag()`: drag after 4 px (`THRESHOLD`), else `onClick`.
+- `track()`: window capture listeners + pointer capture. Release seen even if capture lost; a move with no button held = missed release.
+- During drags: `body.dragging` → tile content and reveals `pointer-events: none`.
+- Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).
 
-## Keyboard
-
-Default keymap (`DEFAULT_KEYMAP`, `keys.ts`):
+## Keyboard (`DEFAULT_KEYMAP`, `keys.ts`)
 
 | Chord | Action |
 |---|---|
-| `cmd+D` | Split active tile right (new terminal) |
-| `cmd+shift+D` | Split active tile down |
-| `cmd+←/→/↑/↓` | Focus neighbor in direction |
+| `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
+| `cmd+←/→/↑/↓` | Focus neighbor |
 | `cmd+W` | Close active tile |
-| `cmd+Q` | Quit, on key release (held keys would otherwise repeat into the app behind). Any tile open (any tab): hold ~1s first (hint, progress, then "Release to quit"); a tap only shows the hint. Window blur cancels (never quits). Menu Quit by mouse is immediate. |
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab (empty only) |
-| `cmd+1..8` | Tab by position |
-| `cmd+9` | Last tab |
+| `cmd+1..8` / `cmd+9` | Tab by position / last |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
-| `cmd+,` | Settings (app menu, main process) |
+| `cmd+Q` | Quit on release (`quit.ts`) |
+| `cmd+,` | Settings (app menu, main) |
 
-- Handler on `window`, capture phase: runs before xterm.
-- Skipped while editing text (`input`, `textarea`, `select`, contenteditable). xterm's hidden textarea doesn't count.
-- Skipped while settings panel or a dialog is open.
-- Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows as `Left/Right/Up/Down`.
-- App menu includes the standard Edit menu (copy, paste).
+- Handler on `window`, capture phase (before xterm). Skipped while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open.
+- Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
+- Split: empty board (no tree) → root terminal; active tile not slotted → no-op.
+- Quit: own handler, works everywhere. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels. Menu Quit by mouse is immediate.
+- Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
-Split:
+## Context menu (`menu.ts`) and dialog (`dialog.ts`)
 
-- Empty board: opens a terminal as root.
-- Active tile not slotted (floating, shelved): no-op.
-
-Focus direction (i3-like). Candidates: visible slotted + floating tiles, center beyond the active one in that direction. Ranked by:
-
-1. Overlap on the perpendicular axis (yes first).
-2. Gap along the axis.
-3. Perpendicular center offset.
-4. MRU order.
-
-## Context menu (`menu.ts`)
-
-- HTML, not native (drivable by Playwright).
-- Targets: tile title bar, shelf item, tab.
-- Items: `Rename…`, `Set icon…`, `Reset title & icon` (only if custom).
-- Rename / icon replace the menu with an input. Enter applies, Escape closes. Empty = automatic.
-- Closes on outside pointerdown or Escape. Clamped into the window.
-- Tile menu closes with its tile. Actions on a closed tile ignored.
-- On close, if it held keyboard focus: `refocus()`.
-
-## Dialog (`dialog.ts`)
-
-- `infoDialog(title, message)`: modal, OK button. Enter / Escape / backdrop click close.
-- On close: `refocus()`.
-- Used for "Tab not empty".
+- Menu targets: tile title bar, shelf item, tab. Items: `Rename…`, `Set icon…`, `Reset title & icon` (if custom).
+- Rename / icon swap the menu for an input: Enter applies (empty = automatic), Escape closes.
+- Menu closes on outside pointerdown, Escape, or its tile closing. Clamped into the window. `refocus()` on close if it held focus.
+- `infoDialog(title, message)`: modal OK; Enter / Escape / backdrop close, then `refocus()`.
 
 ## Limitations
 
-- Keymap not configurable yet (`PENDING.md`).
-- No dropping tiles onto tabs.
 - No confirmation before closing a tile with a running program.

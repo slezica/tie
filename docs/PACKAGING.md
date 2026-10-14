@@ -1,58 +1,44 @@
 # Packaging
 
-Tie ships as `Tie.app` (arm64), built with electron-builder, installed by copying to `/Applications`.
+`Tie.app` (arm64), electron-builder (`electron-builder.yml`, id `com.salezica.tie`), installed by copying to `/Applications`. No auto-update: re-run `tie-dev install`.
 
 ## Commands
 
 | Command | Does |
 |---|---|
 | `tie-dev package` | `out/package/mac-arm64/Tie.app`, signed ad hoc |
-| `tie-dev release --version X.Y.Z` | release: see below |
-| `tie-dev install` | package, replace `/Applications/Tie.app` (refuses while Tie runs) |
-| `tie-dev icon` | re-render placeholder icon (`dev/icon.cjs` → `build/icon.png`, `.icns`) |
+| `tie-dev install` | package, replace `/Applications/Tie.app` (refuses while instance `default` runs) |
+| `tie-dev release --version X.Y.Z` | below |
+| `tie-dev icon` | `dev/icon.cjs` → `build/icon.png` → `.icns` |
 
-Update = `tie-dev install` again. No auto-update.
+`release`:
 
-## Release
+1. Fails unless repo clean, `X.Y.Z` ≥ `package.json` version, tag `vX.Y.Z` absent.
+2. Typecheck, unit, e2e; any failure stops (nothing committed).
+3. Higher version: set it, commit `package: set version X.Y.Z`.
+4. Tag `vX.Y.Z`, package.
 
-`tie-dev release --version X.Y.Z`:
+## Bundle (`Tie.app/Contents`)
 
-1. Fails unless: repo clean, `X.Y.Z` ≥ `package.json` version, tag `vX.Y.Z` absent.
-2. Typecheck, unit, e2e. Any failure stops here (nothing committed).
-3. If higher: set version, commit `package: set version X.Y.Z`. Equal: no-op.
-4. Tag `vX.Y.Z`.
-5. Package (`out/package/`). Version shows in the app's Info.plist.
-
-## Bundle layout
-
-| Path in `Tie.app/Contents` | What |
+| Path | What |
 |---|---|
-| `MacOS/Tie` | Electron binary |
-| `Resources/app.asar` | `out/**` + `package.json` + prod deps (archive: read by Electron, not by the shell) |
+| `MacOS/Tie` | Electron |
+| `Resources/app.asar` | `out/**` (minus package, log, stamp) + `package.json` + prod deps |
 | `Resources/app.asar.unpacked/node_modules/node-pty` | native module + `spawn-helper` (must be real files) |
-| `Resources/bin/tie` | CLI launcher (`resources/bin/tie`, shell) |
+| `Resources/bin/tie` | launcher (`resources/bin/tie`, sh) |
 | `Resources/cli/tie.mjs` | CLI (`bin/tie`) |
 
-Config: `electron-builder.yml`. Bundle id `com.salezica.tie`.
+## CLI launcher
 
-## CLI
-
-- Launcher runs the CLI with Tie's Electron as Node (`ELECTRON_RUN_AS_NODE=1`), like VS Code's `code`. No system Node needed. ~40-70 ms.
-- Tie terminals get `Resources/bin` on PATH (like kitty). Dev runs put the repo's `bin/` instead.
+- Runs the CLI with Tie's Electron as Node (`ELECTRON_RUN_AS_NODE=1`). No system Node needed.
+- Tie terminals get `Resources/bin` on PATH; dev runs get the repo's `bin/`.
 - Outside Tie: add `/Applications/Tie.app/Contents/Resources/bin` to PATH.
 
-## Installed vs dev
+## Packaged vs dev
 
-| | Installed | Dev (`tie-dev run`) |
-|---|---|---|
-| Instance | `default` | `dev` |
-| Socket | `~/.config/tie/default.sock` | `~/.config/tie/dev.sock` |
-| Settings | `settings.json` | `settings.dev.json` |
-| Debug port, DevTools menu | off | on |
-
-Both can run side by side.
+- Instance `default` vs `dev` (`ARCHITECTURE.md`); both run side by side.
+- Packaged: no debug port, no DevTools menu (harness can't attach).
 
 ## Signing
 
-- Ad hoc (`codesign --sign -`): enough for apps you build yourself (not quarantined).
-- No Apple developer identity, no notarization. Needed only to distribute.
+Ad hoc (`codesign --sign -`), enough for self-built apps. No developer identity, no notarization (needed only to distribute).

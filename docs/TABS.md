@@ -1,72 +1,44 @@
 # Tabs and Spaces
 
-One tab per space. All spaces live in one renderer. Decision: `2026-10-10-tabs-single-renderer.md`.
+One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). Space fields: AGENTS.md "Model".
 
-## Space
+## Acting on a space
 
-```ts
-Space {
-  id            // "s1", "s2", ...
-  tree, floats, shelf
-  collapsed, zoomed, active, mru, pinned, revealed
-  customTitle?, customIcon?
-}
-```
-
-- `S.spaces`: tab order.
-- `S.visible`: space on screen.
-- `S.current`: space ops act on. Equals `visible` except inside `withSpace()`.
-- `S.tree`, `S.floats`, ... are accessors onto `S.current`. Ops need no space parameter.
-- `S.tiles` is global (all spaces). `spaceOf(id)` finds a tile's space.
-
-## Working in a background space
-
-- `withSpace(id, fn)`: run `fn` with `S.current = id`, restore after.
-  - If `fn` switched tabs: `S.current` = new visible space.
-- `render()` always renders `S.visible`, even when called inside `withSpace`.
-- `activate()` in a background space: updates state, no keyboard focus.
-- `closeTile` / `activate` on a tile of another space run in that space (no tab switch).
+- Ops act on `S.current` with no space parameter.
+- `withSpace(id, fn)`: run `fn` with `S.current = id`, restore after. If `fn` switched tabs: `S.current` = new visible space.
+- `render()` always renders `S.visible`, even inside `withSpace`.
+- `closeTile` / `activate` on another space's tile run in that space, no tab switch, no keyboard focus.
 - `tie focus` is the exception: switches to the tile's tab.
+- Socket calls run in the space of `id`, `at` or `caller`, else visible (`CLI.md`).
 
-## Switching
+## Switching (`switchTab`)
 
-- Hidden spaces' tiles: `display: none`. Terminals keep running; fit skipped while hidden.
-- `switchTab(id)`: activates that space's active tile (re-focus), else blurs.
-- Clears hover reveal of the tab being left.
+- Activates the space's active tile (refocus), else blurs.
+- Clears hover reveal of the tab left.
+- Hidden spaces' tiles: `display: none`; terminals keep running, fit skipped.
 
 ## Tab bar
 
-- In `#top` (window drag region), after macOS traffic lights.
-- Each tab: optional icon, title, close button. `+` adds a tab.
-- Drag sideways to reorder (live, 4 px threshold). Pointerdown also switches.
-- Right-click: rename / set icon (same menu as tiles).
-- `#brand` (right): instance name, when not `default`.
+- In `#top` (after traffic lights), or `#bottom` with `tabBar: bottom` (`SETTINGS.md`). Its bar is the window drag region.
+- Tab: ping dot, custom icon, title, close button. `+` adds a tab.
+- Pointerdown switches; drag sideways reorders (live, 4 px threshold).
+- Right-click: rename / set icon menu.
+- `#brand` (right): instance name when not `default`.
 
-Title, first match:
+Title (`tabTitle`), first match:
 
-1. Custom title.
-2. Cwd basename (`~` for home) of the active tile, else first shelved tile. Polled, no shell integration.
-3. That tile's title.
+1. `customTitle`.
+2. Tile = active, else first shelved. Its `cwdNow` basename (`~` for home).
+3. That tile's display title.
 4. `empty`.
 
-## Opening and closing
+## Open and close
 
 - New tab: empty, inserted after the visible one, switched to.
-- Close: only empty tabs (board, floats and shelf). Else info dialog, tab kept.
-- Closing the last tab creates a fresh empty one.
-- After closing the visible tab: switch to the one before.
-
-## Shortcuts
-
-See `INPUT.md`. `cmd+T`, `cmd+shift+W`, `cmd+1..8`, `cmd+9` (last), `ctrl+tab` / `ctrl+shift+tab`.
-
-## CLI
-
-- Calls act in the space of the tile they reference (`id`, `at`, or caller `$TIE_TILE`), else the visible one.
-- A terminal in a background tab can open/move tiles in its own tab without switching.
-- `tie list` shows the `TAB` (1-based position) of each tile. See `CLI.md`.
+- Close: only empty tabs (board, floats, shelf). Else info dialog "Tab not empty".
+- Last tab closed: fresh empty one created. Visible tab closed: switch to the one before.
 
 ## Limitations
 
-- No moving tiles between tabs.
+- No moving tiles between tabs; no dropping onto tabs.
 - No tab commands over the CLI.

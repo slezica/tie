@@ -1,94 +1,67 @@
 # Terminals
 
-Terminal tile lifecycle: create, spawn, size, observe, exit, close.
-
 ## Create (`tile.ts`)
 
-1. `createTile()`: element (title bar, `.body`, resize handles) appended to `#tiles`; xterm `Terminal` + fit addon.
+1. `createTile()`: element (title bar, `.body`, `.rz` handles) in `#tiles`; xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options).
 2. `place()` + `render()`: element gets its rect.
-3. `startTerminal()`: `term.open(body)`, fit, then `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
-4. Spawn returns pty id (= pid) or `{error}`. A rejected spawn counts as `{error}`.
+3. `startTerminal()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
+4. Returns pty id (= pid) or `{error}`; rejection counts as `{error}`.
 5. Tile closed while spawning: new pty killed.
-
-xterm options: `scrollback: 5000`, cursor blink, `macOptionIsMeta`, plus appearance (`SETTINGS.md`).
 
 ## Start directory
 
-- `tie open --cwd`: given dir (relative to the caller).
-- Divided from a terminal (`cmd+D`, `cmd+shift+D`, template dropped next to it): that shell's current dir, read fresh (`pty:cwd` → `lsof`), not the 2s poll.
-- Otherwise: the space default (`TIE_CWD` or home).
-
-## Spawn (`src/main/pty.ts`)
-
-- argv from settings `shell` (`parseCommand`: whitespace split, quotes group).
-- Empty setting → account login shell: `userInfo().shell -l` (ignores `$SHELL`), fallback `$SHELL`, `/bin/zsh`.
-- `--cmd C` → `<shell argv> -i -c C`.
-- Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}`.
-- cwd: tile `cwd`, else app cwd (`TIE_CWD` or home). Not a directory → `{error}` (`Directory not found`).
-
-Env added to the shell:
-
-| Var | Value |
+| Opened by | cwd |
 |---|---|
-| `TIE_TILE` | tile id |
-| `TIE_SOCKET` | instance socket path |
-| `TIE_INSTANCE` | instance name |
-| `PATH` | `<app>/bin` prepended (`tie` available) |
-| `TERM` / `COLORTERM` / `TERM_PROGRAM` | `xterm-256color` / `truecolor` / `tie` |
+| `tie open` | `--cwd` resolved against caller's cwd; default caller's cwd |
+| `cmd+D`, template dropped next to a tile | that shell's cwd, read fresh (`cwdOf` → `pty:cwd` → `lsof`), not the 2 s poll |
+| Other | `S.cwd` (`TIE_CWD`, else home) |
+
+## Spawn (`src/main/pty.ts`, `settings.ts`)
+
+- argv: settings `shell` (`parseCommand`: whitespace split, quotes group).
+- Empty → `defaultShell()`: `userInfo().shell -l` (ignores `$SHELL`, which rc files may override), fallback `$SHELL`, `/bin/zsh`.
+- `--cmd C` → `<argv> -i -c C`.
+- Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}`.
+- cwd not a directory → `{error}` (`Directory not found`).
+- Env added: `TIE_TILE`, `TIE_SOCKET`, `TIE_INSTANCE`, `PATH` with `bin/` prepended (`tie` available; `PACKAGING.md`), `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=tie`.
 
 ## Size
 
 - `ResizeObserver` on `.body` → `fitTile()` → xterm resize → `pty.resize`.
 - `fitTile()` skips bodies under 10 px (collapsed, hidden tab).
-- Resync after spawn: xterm may resize while the pty is spawning.
-- `t.ptySize` = last size sent. `tie list --json` exposes `term: {cols, rows, pty}`; mismatch = bug.
-- Shelved tiles stay at reveal size: no resize on hover.
+- Resync after spawn: xterm may resize while the pty spawns.
+- `t.ptySize` = last size sent; `tie list --json` `term` shows both. Mismatch = bug (`assertPtySizes`).
 
 ## Observe
 
-| Source | How | Updates |
+| Source | How | Sets |
 |---|---|---|
 | Output | `pty:data` | `term.write`, shelf activity |
-| Title | OSC title escape (`onTitleChange`) | `oscTitle` |
-| Foreground process | node-pty `process`, polled 500 ms | `proc` (icon, title fallback) |
-| Shell working dir | one batched `lsof -d cwd` per 2 s | `cwdNow` (tab title) |
+| Title escape | xterm `onTitleChange` | `oscTitle` |
+| Foreground process | node-pty `process`, polled 500 ms | `proc` |
+| Shell cwd | one batched `lsof -d cwd` every 2 s | `cwdNow` (tab title) |
 
-Display title, first match:
+`displayTitle()`, first match: `customTitle`, `oscTitle`, `cmd`, `proc`, `terminal`.
 
-1. `customTitle` (menu, `--title`, `tie title`).
-2. `oscTitle`.
-3. `cmd` (for `--cmd` tiles).
-4. `proc` (foreground process name).
-5. `terminal`.
+`displayIcon()`: `customIcon`, else `PROGRAMS[proc]` (`icons.ts`), else `>_` glyph. Icons are escaped text, never markup; emoji grayscale.
 
-Icon: `customIcon`, else program → emoji table (`icons.ts`, grayscale), else `>_` glyph.
-- Icons are escaped text, never markup.
-
-Changes fire DOM event `tile-meta` (shelf items, tab titles listen).
+Meta changes fire `tile-meta`.
 
 ## Exit
 
-- Writes `[process exited with code N]`, sets `exit`, title bar shows `✓` or `✗ N`.
-- Shell tiles (no `cmd`): close on exit.
-- `--cmd` tiles: stay open, showing exit status.
+- Writes `[process exited with code N]`, sets `exit`, title shows `✓` / `✗ N`.
+- Shell tiles (no `cmd`): close on exit. `--cmd` tiles: stay open.
 
 ## Errors
 
-- Spawn failure (shell missing, cwd missing, spawn throws or rejects): `showError()`.
-  - Centered "Error" + message replaces content.
-  - Tile stays open; `tie list --json` shows `error`.
+- Spawn failure (shell, cwd, throw): `showError()`: "Error" + message replaces content. Tile stays open; `tie list --json` shows `error`.
 - Settings refuse to save an invalid shell (`SETTINGS.md`).
 
 ## Close
 
-- `closeTile()` → `disposeTile()`: kill pty, dispose xterm, remove element, drop from `S.tiles`.
-- Page reload kills all ptys. Quit waits for pty exits (`ARCHITECTURE.md`).
-
-## Rules
-
-- Never throw inside node-pty callbacks: aborts the process. `send()` guards everything.
+`closeTile()` → `disposeTile()`: kill pty, dispose xterm, remove element, drop from `S.tiles`.
 
 ## Limitations
 
 - No terminal read/write over the CLI (by design: secrets, elevated programs).
-- cwd via `lsof` polling: up to 2 s stale.
+- `cwdNow` up to 2 s stale.
