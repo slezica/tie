@@ -7,16 +7,23 @@
 | Command | Does |
 |---|---|
 | `tie-dev package` | `out/package/mac-arm64/Tie.app`, signed ad hoc |
-| `tie-dev install` | package, replace `/Applications/Tie.app` (refuses while instance `default` runs) |
+| `tie-dev install` | package, replace `/Applications/Tie.app` (`TIE_INSTALL_DIR` overrides) |
 | `tie-dev release --version X.Y.Z` | below |
 | `tie-dev icon` | `dev/icon.cjs` → `build/icon.png` → `.icns` |
 
+Idempotent:
+
+- Fingerprint = hash of all inputs (`src`, `bin/tie`, `resources`, `build`, configs, `package.json`, lockfile), stored in `Resources/fingerprint`.
+- `package`: skips if fingerprint matches and signature valid. `install`: skips if installed fingerprint matches.
+- Both refuse to replace a copy that is running (matched by executable path).
+
 `release`:
 
-1. Fails unless repo clean, `X.Y.Z` ≥ `package.json` version, tag `vX.Y.Z` absent.
-2. Typecheck, unit, e2e; any failure stops (nothing committed).
-3. Higher version: set it, commit `package: set version X.Y.Z`.
-4. Tag `vX.Y.Z`, package.
+1. Fails unless repo clean and `X.Y.Z` ≥ `package.json` version.
+2. Tag `vX.Y.Z` on HEAD with matching version: already released, just `package`. Tag elsewhere: fail.
+3. Typecheck, unit, e2e; any failure stops (nothing committed).
+4. Higher version: set it, commit `package: set version X.Y.Z`.
+5. Tag `vX.Y.Z`, package.
 
 ## Bundle (`Tie.app/Contents`)
 
@@ -27,6 +34,7 @@
 | `Resources/app.asar.unpacked/node_modules/node-pty` | native module + `spawn-helper` (must be real files) |
 | `Resources/bin/tie` | launcher (`resources/bin/tie`, sh) |
 | `Resources/cli/tie.mjs` | CLI (`bin/tie`) |
+| `Resources/fingerprint` | input hash (idempotency) |
 
 ## CLI launcher
 
