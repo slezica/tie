@@ -1,41 +1,14 @@
-// Keyboard shortcuts: a keymap (chord → action), handled before terminals see the keys.
+// Keyboard shortcuts: keymap (@core/keymap) → actions, handled before terminals see the keys.
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, location, getTile, spaceOf, withSpace } from './state'
 import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
-
-export type Action =
-  | 'split-right' | 'split-down'
-  | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
-  | 'close-tile'
-  | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
-  | `tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
-
-// Defaults; settings will override per chord later. Chord: modifiers (Cmd, Ctrl, Alt, Shift) + key.
-export const DEFAULT_KEYMAP: Record<string, Action> = {
-  'Cmd+D': 'split-right',
-  'Cmd+Shift+D': 'split-down',
-  'Cmd+Left': 'focus-left',
-  'Cmd+Right': 'focus-right',
-  'Cmd+Up': 'focus-up',
-  'Cmd+Down': 'focus-down',
-  'Cmd+T': 'new-tab',
-  'Cmd+W': 'close-tile',
-  'Cmd+Shift+W': 'close-tab',
-  'Ctrl+Tab': 'next-tab',
-  'Ctrl+Shift+Tab': 'prev-tab',
-  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`Cmd+${n}`, `tab-${n}` as Action])),
-}
+import { DEFAULT_KEYMAP, actionFor, type Action, type KeyInput } from '@core/keymap'
 
 let keymap = DEFAULT_KEYMAP
 
-const KEY_NAMES: Record<string, string> = { ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down' }
-
-export function chord(e: KeyboardEvent): string {
-  const key = KEY_NAMES[e.key] ?? (e.key.length === 1 ? e.key.toUpperCase() : e.key)
-  return [e.metaKey && 'Cmd', e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', key].filter(Boolean).join('+')
-}
+const keyInput = (e: KeyboardEvent): KeyInput => ({ key: e.key, meta: e.metaKey, control: e.ctrlKey, alt: e.altKey, shift: e.shiftKey })
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
 function editingText(target: EventTarget | null): boolean {
@@ -69,7 +42,7 @@ export function initKeys() {
     'keydown',
     (e) => {
       if (editingText(e.target) || document.querySelector('.settings, .dialog-backdrop')) return
-      const action = keymap[chord(e)]
+      const action = actionFor(keyInput(e), keymap)
       if (!action) return
       e.preventDefault()
       e.stopPropagation()
