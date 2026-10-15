@@ -12,6 +12,20 @@ import { applyAppearance } from './appearance'
 import { initKeys } from './keys'
 import { initTabs, setHome } from './tabs'
 
+// SECURITY: native drops (from Finder, browsers) are no-ops. Unclaimed, the browser navigates the
+// window to a dropped link/file (and the preload would follow), and dropped text lands in xterm's
+// textarea = typed into the shell. Capture phase: claimed before any element sees it.
+// Tie's own drags use pointer events, not HTML drag-and-drop.
+window.addEventListener('dragover', (e) => e.preventDefault(), true)
+window.addEventListener(
+  'drop',
+  (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  },
+  true,
+)
+
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id
 
