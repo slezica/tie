@@ -3,6 +3,7 @@ import { app, shell, ipcMain, protocol, net, type WebContents, type BrowserWindo
 import { log } from './env'
 import { pathToFileURL } from 'node:url'
 import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
+import { CONTENT_SCHEME } from '../core/content'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
 let shellUrl = ''
@@ -12,7 +13,13 @@ export function setShellUrl(url: string) {
 
 export function harden() {
   // Before ready: privileged schemes must be registered early.
-  protocol.registerSchemesAsPrivileged([{ scheme: 'tie', privileges: { standard: true, secure: true, supportFetchAPI: true } }])
+  // SECURITY: tie-content (content tiles): `standard` (per-token origins, relative URLs) and
+  // `secure` only. Never `bypassCSP`; no `corsEnabled` / `supportFetchAPI` (cross-origin reads:
+  // Electron GHSA-v3j7, GHSA-j84w). Content text goes over the frame's port instead.
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'tie', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+    { scheme: CONTENT_SCHEME, privileges: { standard: true, secure: true } },
+  ])
   app.on('web-contents-created', (_e, wc) => guard(wc))
   // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
   // mic, geolocation, external protocol launch...). The shell needs none; content tiles get none.

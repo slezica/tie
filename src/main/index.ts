@@ -5,6 +5,7 @@ import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } fr
 import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
+import { openContent, closeContent, clearContent, serveContent } from './content'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -65,7 +66,7 @@ ipc.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
 ipc.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
 ipc.on('pty:kill', (_e, id: number) => pty.kill(id))
 ipc.handle('pty:cwd', (_e, id: number) => pty.cwd(id))
-ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags }))
+ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags, dev }))
 ipc.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
 ipc.handle('settings:set', (_e, patch) => {
   const fileError = settingsFileError()
@@ -75,6 +76,8 @@ ipc.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
+ipc.handle('content:open', (_e, root: unknown, kind: unknown) => openContent(root, kind))
+ipc.on('content:close', (_e, token: unknown) => closeContent(token))
 ipc.on('app:quit', () => app.quit())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
@@ -108,10 +111,11 @@ function createWindow() {
       backgroundThrottling: !background,
     },
   })
-  // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys.
+  // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys and content tokens.
   // SECURITY: on commit (`did-navigate`), not `did-start-loading`: the latter also fires for
   // navigations the guards then block, so hostile content could kill every terminal.
   win.webContents.on('did-navigate', () => {
+    clearContent()
     if (pty.count()) {
       log('pty', 'page reload, killing', pty.count())
       pty.killAll()
@@ -164,6 +168,7 @@ app.whenReady().then(async () => {
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
   serveShell(join(import.meta.dirname, '../renderer'))
+  serveContent()
   createWindow()
   startSocket(socketPath, callRenderer)
   await ready

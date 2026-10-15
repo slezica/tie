@@ -1,0 +1,103 @@
+// Content protocol: tie-content://<token>/ serves one content tile (sandboxed frame, opaque origin).
+// Token → root registry, viewer files, root files. docs/TILES.md, docs/SECURITY.md.
+import { app, protocol, type WebFrameMain } from 'electron'
+import { randomBytes } from 'node:crypto'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { realpathSync, statSync } from 'node:fs'
+import { extname, isAbsolute, join } from 'node:path'
+import { log } from './env'
+import { CONTENT_SCHEME, routeContent, isInside, contentCsp, viewerUrl, parseContentUrl } from '../core/content'
+
+interface Entry {
+  root: string // real path
+  kind: string // viewer name
+  frame: number | null // frameTreeNodeId of the one frame that may show it (bound on first load)
+}
+
+const entries = new Map<string, Entry>()
+
+// Kinds with a viewer (out/viewers/<kind>.html|js). The probe is a harness kind: dev builds only.
+const VIEWERS = new Set(app.isPackaged ? [] : ['probe'])
+const viewersDir = join(import.meta.dirname, '../viewers')
+
+const TYPES: Record<string, string> = {
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+  '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+}
+
+// SECURITY: the shell (trusted) names the root; still checked: absolute, existing directory, real
+// path (symlinked roots resolve once, here). Returns the frame URL, never file paths.
+export function openContent(root: unknown, kind: unknown): { token: string; url: string } | { error: string } {
+  if (typeof kind !== 'string' || !VIEWERS.has(kind)) return { error: `unknown kind: ${String(kind)}` }
+  let real: string
+  try {
+    if (typeof root !== 'string' || !isAbsolute(root)) throw new Error()
+    real = realpathSync(root)
+    if (!statSync(real).isDirectory()) throw new Error()
+  } catch {
+    return { error: `Directory not found: ${String(root)}` }
+  }
+  const token = randomBytes(16).toString('hex')
+  entries.set(token, { root: real, kind, frame: null })
+  log('content', 'open', kind, token.slice(0, 8), real)
+  return { token, url: viewerUrl(token, kind) }
+}
+
+export function closeContent(token: unknown) {
+  if (typeof token === 'string' && entries.delete(token)) log('content', 'close', token.slice(0, 8))
+}
+
+// Shell reloaded: its content tiles are gone.
+export function clearContent() {
+  entries.clear()
+}
+
+// SECURITY: frame nav lock (with will-frame-navigate, security.ts). A subframe may load only the
+// exact viewer URL of a registered token, as a direct child of the shell, and each token binds to
+// the first frame that loads it: content can't navigate itself elsewhere (meta refresh, location,
+// links, drops) or into another tile's viewer. So the shell's port handshake (targetOrigin '*' to
+// an opaque origin) always reaches the tile's own viewer.
+export function contentFrameAllowed(url: string, frame: WebFrameMain | null, shellFrame: WebFrameMain): boolean {
+  const u = parseContentUrl(url)
+  const e = u && entries.get(u.token)
+  if (!u || !e || url !== viewerUrl(u.token, e.kind) || !frame || frame.parent !== shellFrame) return false
+  e.frame ??= frame.frameTreeNodeId
+  return e.frame === frame.frameTreeNodeId
+}
+
+const refuse = (url: string, why: string) => {
+  log('security', 'refused content', why, url)
+  return new Response('not found', { status: 404 })
+}
+
+// SECURITY: content responses never sniff, never cache; root files are inert if ever opened as a
+// document (CSP sandbox, nothing loads). Viewer pages get contentCsp with a fresh nonce each time.
+// Files are read here (no net.fetch: no redirects, no file:// URL handling).
+const HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' }
+
+export function serveContent() {
+  protocol.handle(CONTENT_SCHEME, async (req) => {
+    if (req.method !== 'GET') return refuse(req.url, 'method')
+    const r = routeContent(req.url, (t) => entries.get(t))
+    if (!r) return refuse(req.url, 'route')
+    const token = parseContentUrl(req.url)!.token
+    if ('viewer' in r) {
+      const body = await readFile(join(viewersDir, r.viewer)).catch(() => null)
+      if (!body) return refuse(req.url, 'viewer missing')
+      if (r.viewer.endsWith('.js')) return new Response(body, { headers: { ...HEADERS, 'Content-Type': 'text/javascript; charset=utf-8' } })
+      const nonce = randomBytes(16).toString('base64')
+      const html = body.toString('utf8').replaceAll('%NONCE%', nonce)
+      return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(nonce, token) } })
+    }
+    // SECURITY: symlinks inside the root may point anywhere: the real path must stay inside too.
+    const real = await realpath(r.file).catch(() => null)
+    if (!real || !isInside(r.entry.root, real)) return refuse(req.url, 'outside root')
+    const st = await stat(real).catch(() => null)
+    if (!st?.isFile()) return refuse(req.url, 'not a file')
+    const body = await readFile(real).catch(() => null)
+    if (!body) return refuse(req.url, 'unreadable')
+    const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'
+    return new Response(body, { headers: { ...HEADERS, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
+  })
+}

@@ -36,6 +36,11 @@ const api = {
       ipcRenderer.on('settings:open', () => cb())
     },
   },
+  // Content tiles (sandboxed frames): main registers `root` under a fresh token, returns the frame URL.
+  content: {
+    open: (root: string, kind: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind),
+    close: (token: string) => ipcRenderer.send('content:close', token),
+  },
   log: (tag: string, ...args: unknown[]) => ipcRenderer.send('log', tag, ...args),
   pty: {
     spawn: (o: { cmd?: string; cwd?: string; cols: number; rows: number; env: Record<string, string> }): Promise<number | { error: string }> =>
