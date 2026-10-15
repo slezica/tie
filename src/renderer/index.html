@@ -2,7 +2,13 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <!-- SECURITY: shell CSP. Scripts only from the app; no frames, plugins, workers, forms, <base>
+         (content tiles will get their own origin, allowed in frame-src then). Inline styles stay:
+         xterm injects <style> elements and style attributes (truecolor), no nonce support. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>Tie</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
