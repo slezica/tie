@@ -14,6 +14,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `docs/SETTINGS.md`: settings, themes, tokens, fonts.
 - `docs/HARNESS.md`: `tie-dev`, scenarios, helpers, traces.
 - `docs/PACKAGING.md`: Tie.app, release, CLI launcher.
+- `docs/SECURITY.md`: threat model, guards + their tests, fuses, rules.
 
 ## Records and backlog
 
@@ -35,7 +36,8 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 ## Files
 
 - `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
@@ -49,7 +51,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
   - `main.ts`: boot, delegated tile events.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`), `package-check.mjs` (fuses + smoke), `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -83,6 +85,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).
+- Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
 
@@ -110,7 +113,8 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
-  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc)
+  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
+  check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)

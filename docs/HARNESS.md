@@ -43,7 +43,7 @@ export const settings = { theme: 'nord' }   // optional pre-seed (object or raw 
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
-`ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`.
+`ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text).
 
 - Runs after first `.tile` + 500 ms. Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
@@ -70,6 +70,7 @@ EOF
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid |
+| `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie list --json` `term`.
 
@@ -79,3 +80,8 @@ Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), 
 - `runs/<time>-<name>/` per `drive` run: `drive.log` (output, shot paths, errors, exit), `app.log` (all tags), `electron.log` (stdout/stderr), `shots/<nn>-<label>.png`.
 - `test --e2e`: `runs/<time>-e2e/` with `summary.txt` + one subfolder per scenario.
 - Newest 50 run folders kept. Excluded from packages.
+
+## Package check (`dev/package-check.mjs`)
+
+- `tie-dev check-package [app]`; also run by `tie-dev package` (failure removes the package).
+- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, no `[security]` log lines.

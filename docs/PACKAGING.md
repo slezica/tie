@@ -6,7 +6,7 @@
 
 | Command | Does |
 |---|---|
-| `tie-dev package` | `out/package/mac-arm64/Tie.app`, signed ad hoc |
+| `tie-dev package` | `out/package/mac-arm64/Tie.app`, security fuses, signed ad hoc, then `check-package` (fuses + smoke; failure removes it) |
 | `tie-dev install` | package, replace `/Applications/Tie.app` (`TIE_INSTALL_DIR` overrides) |
 | `tie-dev release --version X.Y.Z` | below |
 | `tie-dev icon` | `dev/icon.cjs` → `build/icon.png` → `.icns` |

@@ -2,7 +2,7 @@
 
 ## Create (`tile.ts`)
 
-1. `createTile()`: element (title bar, `.body`, `.rz` handles) in `#tiles`; xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options).
+1. `createTile()`: element (title bar, `.body`, `.rz` handles) in `#tiles`; xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options, `linkHandler`).
 2. `place()` + `render()`: element gets its rect.
 3. `startTerminal()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
 4. Returns pty id (= pid) or `{error}`; rejection counts as `{error}`.
@@ -24,6 +24,11 @@
 - Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}`.
 - cwd not a directory → `{error}` (`Directory not found`).
 - Env added: `TIE_TILE`, `TIE_SOCKET`, `TIE_INSTANCE`, `PATH` with `bin/` prepended (`tie` available; `PACKAGING.md`), `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=tie`.
+
+## Links
+
+- OSC 8 hyperlinks only (no plain-URL detection). Hover: `.link-tip` with the real URL (red if blocked).
+- cmd-click → `tie.openExternal` → main, http(s) only. Plain click: nothing. `SECURITY.md`.
 
 ## Size
 
