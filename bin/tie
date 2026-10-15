@@ -9,6 +9,7 @@ const HELP = `tie - control Tie tiles
 Usage:
   tie list [--json]                       List tiles
   tie open terminal [options]             Open a terminal tile, prints its id
+  tie open <file> [placement]             Open a file in its viewer (markdown: .md, .markdown)
       --cmd <command>                     Run command instead of interactive shell
       --cwd <dir>                         Working directory (default: current)
       --title <text>                      Custom title
@@ -96,8 +97,10 @@ async function main() {
       return
     }
     case 'open': {
+      // A kind name, else a file path (resolved here, against the caller's cwd).
       const kind = rest[0] || 'terminal'
-      return printTile(await call('open', { kind, cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }))
+      const path = rest[0] ? resolve(rest[0]) : undefined
+      return printTile(await call('open', { kind, path, cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }))
     }
     case 'close':
       return void (await call('close', { id: rest[0] }))

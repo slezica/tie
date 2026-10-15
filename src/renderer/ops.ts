@@ -86,6 +86,14 @@ export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}): TileId 
   return t.id
 }
 
+// A new tile split from `id` (or, if it isn't slotted, from the active / most recent slotted tile),
+// along the longer side: like `tie open` from that tile.
+export function besidePlacement(id: TileId | null): Placement {
+  const at = [id, S.active, ...S.mru].find((x): x is TileId => !!x && contains(S.tree, x)) ?? null
+  const r = at ? S.rects.get(at) : null
+  return { type: 'slot', at, side: r && r.h > r.w ? 'b' : 'r' }
+}
+
 // A tile's directory right now (terminal: its shell's, fresh read), for new terminals divided from it.
 export async function cwdOf(id: TileId | null | undefined): Promise<string | undefined> {
   const t = id ? S.tiles.get(id) : undefined

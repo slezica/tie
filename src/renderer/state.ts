@@ -36,7 +36,7 @@ export function readGeometry() {
   PEAK = px('--peak', PEAK)
 }
 
-export type Kind = 'terminal' | 'probe'
+export type Kind = 'terminal' | 'markdown' | 'probe'
 
 // Common to every kind; kind state lives behind `surface` (kinds/).
 export interface Tile {

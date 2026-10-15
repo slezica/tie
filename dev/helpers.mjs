@@ -224,3 +224,64 @@ export async function press(ctx, chord) {
   await send(ctx, 'keyDown', key, mods)
   await send(ctx, 'keyUp', key, mods)
 }
+
+// Content frame of a tile (any content kind), once its viewer has answered the handshake. Looked
+// up by the tile's iframe src each time: a markdown tile reloads its frame when it navigates to
+// another directory (new token).
+export async function contentFrame(ctx, id, ms = 5000) {
+  for (let t = 0; t < ms; t += 100) {
+    const src = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`)?.src, id)
+    const f = src && ctx.page.frames().find((f) => f.url() === src)
+    if (f && (await f.evaluate(() => !!(window.probe?.inits || window.markdown?.port)).catch(() => false))) return f
+    await ctx.sleep(100)
+  }
+  throw new Error(`no content frame for ${id}`)
+}
+
+// Markdown tile as its viewer shows it: rendered text, revision, scroll, renders, source key.
+export async function mdState(ctx, id) {
+  const f = await contentFrame(ctx, id)
+  return f.evaluate(() => ({
+    text: document.getElementById('doc').innerText,
+    html: document.getElementById('doc').innerHTML,
+    rev: window.markdown.rev,
+    key: window.markdown.key,
+    renders: window.markdown.renders,
+    scrollY: Math.round(scrollY),
+  }))
+}
+
+// Poll until fn() is truthy (returns its value), else throw `what`.
+export async function waitFor(ctx, fn, what, ms = 4000) {
+  for (let t = 0; t < ms; t += 50) {
+    const v = await fn().catch(() => null)
+    if (v) return v
+    await ctx.sleep(50)
+  }
+  throw new Error(`timed out: ${what}`)
+}
+
+// `tie list --json` entry of a tile.
+export const tileOf = async (ctx, id) => (await list(ctx)).tiles.find((t) => t.id === id)
+
+// Next file picker answer in this harness instance (path, or null = cancel). Main, dev socket.
+export const pickNext = (ctx, path) => rpc(ctx.instance, 'pick', { path })
+
+// OS drag-and-drop at a point (CDP): data = { files: [paths] } or { items: [{ mimeType, data }] }.
+export async function osDrop(ctx, at, data) {
+  const cdp = await ctx.page.context().newCDPSession(ctx.page)
+  for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { dragOperationsMask: 1, items: [], ...data } })
+  await cdp.detach()
+  await ctx.sleep(500)
+}
+
+// Real click on an element inside a content frame (hidden-window scenarios route it into the
+// frame). `meta`: cmd held.
+export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
+  const b = await frame.locator(selector).first().boundingBox()
+  if (!b) throw new Error(`not visible in frame: ${selector}`)
+  if (meta) await ctx.page.keyboard.down('Meta')
+  await ctx.page.mouse.click(b.x + Math.min(b.width / 2, 10), b.y + b.height / 2)
+  if (meta) await ctx.page.keyboard.up('Meta')
+  await ctx.sleep(300)
+}

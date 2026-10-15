@@ -3,11 +3,14 @@
 import type { TileId } from '@core/layout'
 import type { Kind } from '../state'
 import { terminalKind } from './terminal'
+import { markdownKind } from './markdown'
 
 export interface OpenOpts {
   title?: string
   cwd?: string // start directory
   cmd?: string
+  path?: string // file to view (kinds in NEEDS_FILE)
+  hash?: string // anchor to show first (#part)
 }
 
 // What the host offers a kind.
@@ -35,11 +38,16 @@ export interface Surface {
   drop?(data: DataTransfer): void
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
+  history?(step: -1 | 1): void // back / forward (cmd+[ / cmd+])
 }
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 
-const KINDS: Partial<Record<Kind, KindFactory>> = { terminal: terminalKind }
+const KINDS: Partial<Record<Kind, KindFactory>> = { terminal: terminalKind, markdown: markdownKind }
+
+// Kinds that show a file: opened with a path (tie open <path>, drops, template + picker), never bare.
+const NEEDS_FILE = new Set<string>(['markdown'])
+export const needsFile = (kind: string) => NEEDS_FILE.has(kind)
 
 // Dev builds add the harness probe (boot).
 export function registerKind(kind: Kind, factory: KindFactory) {

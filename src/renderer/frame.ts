@@ -14,11 +14,18 @@ export interface FrameSpec {
   title: string
   icon: string
   handlers: Handlers
+  onReady?: () => void // viewer answered the handshake (each load): send it its content
+}
+
+// What a content kind gets back: the Surface, plus messages to its viewer and root changes.
+export interface FrameSurface extends Surface {
+  post(msg: unknown): void // to the viewer, over the port (dropped before the handshake)
+  setRoot(root: string): Promise<void> // new token for another directory; the viewer reloads
 }
 
 const READY_MS = 5000 // viewer must answer the handshake by then, else the tile shows an error
 
-export function frameSurface(host: Host, spec: FrameSpec): Surface {
+export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
   let token: string | null = null
   let frame: HTMLIFrameElement | null = null
   let port: MessagePort | null = null
@@ -36,6 +43,7 @@ export function frameSurface(host: Host, spec: FrameSpec): Surface {
     if (req.verb === 'ready') {
       if (readyTimer) clearTimeout(readyTimer)
       readyTimer = null
+      spec.onReady?.()
     }
     const fn = spec.handlers[req.verb] as ((r: Request) => void) | undefined
     if (fn) fn(req)
@@ -55,7 +63,7 @@ export function frameSurface(host: Host, spec: FrameSpec): Surface {
     readyTimer = setTimeout(() => host.alive() && host.error('Content did not load'), READY_MS)
   }
 
-  return {
+  const surface: FrameSurface = {
     mount: async () => {
       const res = await tie.content.open(spec.root, spec.viewer).catch((e: Error) => ({ error: e.message }))
       if (!host.alive()) return void ('token' in res && tie.content.close(res.token))
@@ -87,7 +95,21 @@ export function frameSurface(host: Host, spec: FrameSpec): Surface {
     },
     title: () => spec.title,
     icon: () => spec.icon,
+    post: (msg) => port?.postMessage(msg),
+    setRoot: async (root) => {
+      const res = await tie.content.open(root, spec.viewer).catch((e: Error) => ({ error: e.message }))
+      if (!host.alive() || !frame) return void ('token' in res && tie.content.close(res.token))
+      if ('error' in res) return host.error(res.error)
+      const old = token
+      token = res.token
+      port?.close()
+      port = null
+      frame.src = res.url // same element: the nav lock binds the new token to this frame
+      if (old) tie.content.close(old)
+      debug('content', 'root', host.id, spec.viewer)
+    },
   }
+  return surface
 }
 
 const safeJson = (v: unknown) => {

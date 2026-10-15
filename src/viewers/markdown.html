@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>markdown</title>
+    <!-- Nonce placeholders are replaced per response by main (content.ts): only tagged styles and
+         scripts apply. Colors and fonts arrive from the host (theme message) as custom properties. -->
+    <style nonce="%NONCE%">
+      :root {
+        --muted: color-mix(in srgb, var(--fg) 62%, var(--bg));
+        --rule: color-mix(in srgb, var(--fg) 16%, var(--bg));
+        --code-bg: color-mix(in srgb, var(--fg) 7%, var(--bg));
+        --mark: color-mix(in srgb, var(--accent) 30%, var(--bg));
+        background: var(--bg);
+        color: var(--fg);
+        font: var(--size) / 1.5 var(--font);
+        -webkit-font-smoothing: antialiased;
+      }
+      body {
+        margin: 0;
+        padding: 8px 14px 24px;
+        overflow-wrap: anywhere;
+      }
+      ::selection { background: var(--mark); }
+      :focus { outline: none; }
+      :focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+      h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.25; margin: 1em 0 0.4em; }
+      h1 { font-size: 1.35em; }
+      h2 { font-size: 1.2em; }
+      h3 { font-size: 1.08em; }
+      h4, h5, h6 { font-size: 1em; }
+      h6 { color: var(--muted); }
+      h1, h2 { padding-bottom: 0.2em; border-bottom: 1px solid var(--rule); }
+      #doc > :first-child { margin-top: 0.3em; }
+      p, ul, ol, dl, blockquote, pre, table { margin: 0 0 0.7em; }
+      ul, ol { padding-left: 1.5em; }
+      li > ul, li > ol { margin-bottom: 0; }
+      li + li { margin-top: 0.15em; }
+      a { color: var(--accent); text-decoration: none; cursor: pointer; }
+      a:hover { text-decoration: underline; }
+      hr { border: 0; border-top: 1px solid var(--rule); margin: 1em 0; }
+      img { max-width: 100%; }
+      blockquote { margin-left: 0; padding-left: 0.8em; border-left: 3px solid var(--rule); color: var(--muted); }
+      table { border-collapse: collapse; display: block; overflow-x: auto; }
+      th, td { border: 1px solid var(--rule); padding: 0.2em 0.6em; }
+      th { background: var(--code-bg); font-weight: 600; }
+
+      code, pre { font-family: var(--mono); }
+      code { font-size: 0.92em; background: var(--code-bg); padding: 0.1em 0.3em; border-radius: 3px; }
+      pre { background: var(--code-bg); padding: 0.6em 0.8em; border-radius: 4px; overflow-x: auto; line-height: 1.35; }
+      pre code { background: none; padding: 0; font-size: 0.9em; }
+
+      /* Task lists: the box sits where the bullet was. */
+      li.task { list-style: none; }
+      input.task-box { margin: 0 0.45em 0 -1.25em; vertical-align: -0.1em; accent-color: var(--accent); cursor: pointer; }
+
+      /* Remote (or out-of-folder) image: never requested; alt text / URL instead. */
+      .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 3px; color: var(--muted); font-size: 0.9em; }
+
+      /* highlight.js tokens → theme ANSI palette (--a0..--a15). */
+      .hljs-comment, .hljs-quote { color: var(--muted); font-style: italic; }
+      .hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-meta .hljs-keyword { color: var(--a5); }
+      .hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta .hljs-string { color: var(--a2); }
+      .hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--a3); }
+      .hljs-title, .hljs-section, .hljs-title.function_ { color: var(--a4); }
+      .hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-selector-class, .hljs-selector-id { color: var(--a6); }
+      .hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-template-variable, .hljs-name { color: var(--a1); }
+      .hljs-meta, .hljs-link { color: var(--a4); }
+      .hljs-deletion { color: var(--a1); }
+      .hljs-emphasis { font-style: italic; }
+      .hljs-strong { font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main id="doc"></main>
+    <script nonce="%NONCE%" src="./markdown.js"></script>
+  </body>
+</html>

@@ -17,7 +17,7 @@ interface Entry {
 const entries = new Map<string, Entry>()
 
 // Kinds with a viewer (out/viewers/<kind>.html|js). The probe is a harness kind: dev builds only.
-const VIEWERS = new Set(app.isPackaged ? [] : ['probe'])
+const VIEWERS = new Set(app.isPackaged ? ['markdown'] : ['markdown', 'probe'])
 const viewersDir = join(import.meta.dirname, '../viewers')
 
 const TYPES: Record<string, string> = {

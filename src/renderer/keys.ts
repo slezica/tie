@@ -5,6 +5,7 @@ import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
 import type { Action } from '@core/keymap'
+import { needsFile } from './kinds'
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
 function editingText(target: Element | null): boolean {
@@ -62,18 +63,24 @@ export function run(action: Action) {
       return cycleTab(1)
     case 'prev-tab':
       return cycleTab(-1)
+    case 'history-back':
+      return void (S.active && S.tiles.get(S.active)?.surface.history?.(-1))
+    case 'history-forward':
+      return void (S.active && S.tiles.get(S.active)?.surface.history?.(1))
     default:
       if (action.startsWith('tab-')) return switchTabIndex(Number(action.slice(4)))
   }
 }
 
 // New tile of the active tile's kind, as if its template were dropped on that edge. Slotted only.
-// The new terminal starts where the source shell is now.
+// The new terminal starts where the source shell is now. Kinds showing a file split into a
+// terminal in the file's directory.
 async function splitActive(side: Side) {
   if (!S.tree) return void openTile('terminal', { type: 'slot', at: null, side })
   const src = S.active
   if (!src || location(src) !== 'slotted') return
-  const kind = getTile(src).kind
+  const own = getTile(src).kind
+  const kind = needsFile(own) ? 'terminal' : own
   const cwd = await cwdOf(src)
   if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved meanwhile
   withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))

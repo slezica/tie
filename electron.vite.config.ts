@@ -6,7 +6,7 @@ import { copyFileSync, mkdirSync } from 'node:fs'
 // Content viewers (src/viewers/<kind>.html|ts) → out/viewers, served by main under
 // tie-content://<token>/_tie/. Classic IIFE scripts: opaque-origin frames can't load modules from
 // tie-content (no CORS). Built with main, so `electron-vite dev` has them too.
-const VIEWERS = ['probe']
+const VIEWERS = ['markdown', 'probe']
 function viewers(): Plugin {
   return {
     name: 'tie-viewers',

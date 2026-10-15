@@ -3,6 +3,7 @@ import { S, tie, location } from './state'
 import { render } from './render'
 import { openTile, activate, closeTile, toggleCollapse, toggleZoom } from './ops'
 import { initTerminals } from './kinds/terminal'
+import { initMarkdown } from './kinds/markdown'
 import { registerKind } from './kinds'
 import { probeKind } from './kinds/probe'
 import { initFrames } from './frame'
@@ -84,6 +85,7 @@ async function boot() {
   setHome(info.home)
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = info.instance
   initTerminals()
+  initMarkdown()
   initFrames()
   if (info.dev) registerKind('probe', probeKind)
   initShelf()

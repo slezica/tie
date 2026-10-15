@@ -21,6 +21,8 @@ describe('actionFor', () => {
     expect(actionFor(k('w', { meta: true }))).toBe('close-tile')
     expect(actionFor(k('Tab', { control: true }))).toBe('next-tab')
     expect(actionFor(k('9', { meta: true }))).toBe('tab-9')
+    expect(actionFor(k('[', { meta: true }))).toBe('history-back')
+    expect(actionFor(k(']', { meta: true }))).toBe('history-forward')
   })
   it('never takes Esc, plain keys, or editing combos', () => {
     for (const x of [k('Escape'), k('d'), k('c', { meta: true }), k('v', { meta: true }), k('x', { meta: true }), k('a', { meta: true }), k('z', { meta: true }), k('Z', { meta: true, shift: true }), k('q', { meta: true }), k('Enter')])

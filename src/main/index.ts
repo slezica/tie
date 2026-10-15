@@ -7,6 +7,7 @@ import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, clearContent, serveContent } from './content'
+import { fileViewer, openDoc, closeDoc, clearDocs, toggleTask, pickFile, setNextPick, type DocPush } from './docs'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -82,6 +83,12 @@ ipc.handle('settings:set', (_e, patch) => {
 })
 ipc.handle('content:open', (_e, root: unknown, kind: unknown) => openContent(root, kind))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
+const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed', id, p)
+ipc.handle('doc:viewer', (_e, path: unknown) => fileViewer(path))
+ipc.handle('doc:open', (_e, path: unknown) => openDoc(path, pushDoc))
+ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
+ipc.handle('doc:toggle', (_e, id: unknown, line: unknown, expected: unknown, rev: unknown) => toggleTask(id, line, expected, rev, pushDoc))
+ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('app:quit', () => app.quit())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
@@ -121,6 +128,7 @@ function createWindow() {
   // navigations the guards then block, so hostile content could kill every terminal.
   win.webContents.on('did-navigate', () => {
     clearContent()
+    clearDocs()
     if (pty.count()) {
       log('pty', 'page reload, killing', pty.count())
       pty.killAll()
@@ -142,10 +150,12 @@ function createWindow() {
 
 // Dev builds only, answered by main (harness): `frames` (tie-dev frames), `input`: a key or mouse
 // event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
-// real keys (shortcuts live there).
+// real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
+// instances (null = cancel; docs.ts).
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
+  pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
 }
 
 // The window's frame tree; content frames should be out-of-process.

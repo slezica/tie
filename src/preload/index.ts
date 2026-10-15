@@ -41,6 +41,18 @@ const api = {
     open: (root: string, kind: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind),
     close: (token: string) => ipcRenderer.send('content:close', token),
   },
+  // Files in viewer tiles (markdown). Main checks paths, reads, watches and writes.
+  doc: {
+    viewer: (path: string): Promise<{ kind: 'markdown'; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path),
+    open: (path: string): Promise<{ id: number; text: string; rev: string } | { error: string }> => ipcRenderer.invoke('doc:open', path),
+    close: (id: number) => ipcRenderer.send('doc:close', id),
+    toggle: (id: number, line: number, expected: string, rev: string): Promise<{ ok: true } | { error: string }> =>
+      ipcRenderer.invoke('doc:toggle', id, line, expected, rev),
+    pick: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('doc:pick', defaultPath),
+    onChange: (cb: (id: number, p: { text: string; rev: string } | { missing: true }) => void) => {
+      ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
+    },
+  },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
   // or modal has focus, its keys stay its own.
   keys: {

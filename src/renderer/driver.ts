@@ -4,7 +4,7 @@ import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type K
 import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
-import { kindFactory } from './kinds'
+import { kindFactory, needsFile } from './kinds'
 
 interface Params {
   id?: TileId
@@ -12,6 +12,7 @@ interface Params {
   kind?: string
   cmd?: string
   cwd?: string
+  path?: string // `tie open <path>`: absolute, resolved against the caller's cwd
   title?: string
   text?: string
   emoji?: string
@@ -74,10 +75,11 @@ const methods: Record<string, (p: Params) => unknown> = {
     shelf: S.shelf,
     tiles: [...S.tiles.keys()].map(tileInfo),
   }),
+  // Kind (resolved by resolveOpen): a kind name, or a file's viewer.
   open: (p) => {
     const kind = p.kind ?? 'terminal'
     if (!kindFactory(kind)) throw new Error(`unknown kind: ${kind}`)
-    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title })
+    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path })
     return tileInfo(id)
   },
   close: (p) => {
@@ -133,13 +135,30 @@ const methods: Record<string, (p: Params) => unknown> = {
   }),
 }
 
+// `tie open <arg>`: a known kind name opens that kind (today's behavior). Otherwise <arg> is a file
+// (main checks: exists, regular file, has a viewer) → its viewer kind. Kinds that show a file
+// can't be opened bare.
+async function resolveOpen(p: Params) {
+  const kind = p.kind ?? 'terminal'
+  if (kindFactory(kind)) {
+    if (needsFile(kind)) throw new Error(`${kind} shows a file: tie open <path>`)
+    delete p.path
+    return
+  }
+  if (!p.path) throw new Error(`unknown kind: ${kind}`)
+  const v = await tie.doc.viewer(p.path)
+  if ('error' in v) throw new Error(v.error)
+  p.kind = v.kind
+}
+
 export function initDriver() {
-  tie.rpc.onRequest((reqId, method, params) => {
+  tie.rpc.onRequest(async (reqId, method, params) => {
     debug('rpc', method, params)
     try {
       const fn = methods[method]
       if (!fn) throw new Error(`unknown method: ${method}`)
       const p = (params ?? {}) as Params
+      if (method === 'open') await resolveOpen(p) // async: before choosing the space
       // Act in the tab of the tile concerned (or the caller's terminal), else the visible tab.
       const ref = [p.id, p.at, p.caller].find((x) => x && S.tiles.has(x))
       const space = (ref && spaceOf(ref)?.id) || S.visible
