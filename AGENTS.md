@@ -1,6 +1,6 @@
 # Tie: Tiled Integrated Environment
 
-Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) with a shelf for parking tiles, scriptable via the `tie` CLI.
+Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames) in a slot tree + floating, with a shelf for parking tiles, scriptable via the `tie` CLI.
 
 ## Guides
 
@@ -9,6 +9,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `docs/SHELF.md`: templates, reveal/pin, activity.
 - `docs/TABS.md`: spaces, `withSpace`, tab bar.
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
+- `docs/TILES.md`: tile host, kinds, `Surface`, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
 - `docs/CLI.md`: `tie` CLI, socket protocol, placement.
 - `docs/SETTINGS.md`: settings, themes, tokens, fonts.
@@ -40,14 +41,18 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/core/content.ts`: content URL/token/path checks, viewer files, content CSP (main). Tests: `content.test.ts`.
+- `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `probe` only.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, `Host` for kinds, mount/dispose, error state.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text), `probe.ts` (dev harness content kind).
+  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, focus).
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel): UI parts.
@@ -56,7 +61,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
   - `main.ts`: boot, delegated tile events.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`, `probeFrame`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -70,7 +75,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
-  - `id` (`t1`...), `kind` (`'terminal'`), `customTitle`, `customIcon`.
+  - `id` (`t1`...), `kind` (`'terminal'`, dev `'probe'`), `customTitle`, `customIcon`.
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
@@ -92,6 +97,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).
+- Content kinds: only via `frameSurface` (`TILES.md`); new frame verbs in `core/requests.ts`.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
@@ -114,6 +120,7 @@ Commands:
   test --e2e               Run every scenario in dev/scenarios on fresh instances
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
+  frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
   drive <scenario|-> [--attach] [--keep]
                            Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
@@ -131,5 +138,5 @@ Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; t
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `open`, `close`, `move`, `focus`, `ping`, `title`, `icon`; dev-only `state`. See `docs/CLI.md`.
+- `tie --help`: `list`, `open`, `close`, `move`, `focus`, `ping`, `title`, `icon`; dev-only `state`, `frames`, `open probe`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

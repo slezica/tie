@@ -18,13 +18,14 @@
 - `layout [cols]`, `screenshot`, `drive --attach`: target `--instance` / `TIE_INSTANCE`.
 - `test --e2e`: each scenario on a fresh instance; trace folder per run (below).
 - `scenarios`: name + first-line description of each scenario.
+- `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
 | Env | Value |
 |---|---|
 | `TIE_INSTANCE` | `drive-<pid>` |
-| `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere |
+| `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere. `hidden` (scenario `hiddenWindow`): real window, never shown |
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
 | `TIE_SETTINGS` | `tmp/<instance>.settings.json`, deleted on stop |
@@ -40,11 +41,13 @@
 
 ```js
 export const settings = { theme: 'nord' }   // optional pre-seed (object or raw string)
+export const hiddenWindow = true            // optional: real never-shown window, not offscreen
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
 `ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text).
 
+- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame input (`frame-input`).
 - Runs after first `.tile` + 500 ms. Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
 
@@ -71,9 +74,10 @@ EOF
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
 | `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
+| `frames`, `probeFrame(id)` | window frame tree (`tie frames`: url, origin, pid, out-of-process); Playwright frame inside a probe tile, once its handshake is done |
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 
-Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie list --json` `term`.
+Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term`.
 
 ## Traces (`out/log/`)
 

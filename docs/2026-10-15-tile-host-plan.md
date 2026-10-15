@@ -116,3 +116,12 @@ Design consequences:
 - Harness gets a hidden-window mode (`TIE_BACKGROUND=hidden`, scenario `export const hiddenWindow = true`) for frame input scenarios.
 - Shield in `track()` (all pointer drags, from pointerdown), not only after the drag threshold.
 - Phase 3 harness keys go through main (`sendInputEvent`, dev socket), not CDP.
+
+### Phase 2 notes (implementation)
+
+- Frame self-navigation to another origin: refused by the shell's CSP `frame-src` before `will-frame-navigate`; the frame ends on `chrome-error://` (content only breaks itself). Nav lock covers `tie-content:` targets.
+- Tokens: all-digit hex would canonicalize as an IPv4 host; minted until the URL keeps the token.
+- Nav lock tightened beyond "registered token": exact viewer URL, direct child of the shell, token bound to its first frame (`frameTreeNodeId`).
+- Requests: `ready` (host) and `openLink` only. `openLink` has no gesture requirement yet (markdown decides).
+- Not built: frame crash detection (no per-frame crash event); ready timeout (5 s) covers load failures.
+- Without `sandbox`, the per-token origin alone still blocks `parent.tie` (mutation run): defence in depth.

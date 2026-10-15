@@ -3,7 +3,7 @@
 ## Threat model
 
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
-- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), future content tiles (markdown, html, web).
+- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, html, web): any script inside their frame.
 - Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code.
 
 ## Rules
@@ -13,13 +13,20 @@
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
 - New IPC: `ipc.on` / `ipc.handle` (`shellIpc`), never `ipcMain` directly.
 - Opening URLs: only `openExternal` in `src/main/security.ts`.
-- Pure checks in `src/core/security.ts` (main) and `src/core/paste.ts` (renderer), unit-tested.
+- Pure checks in `src/core/security.ts`, `src/core/content.ts` (main), `src/core/paste.ts`, `src/core/requests.ts` (renderer), unit-tested.
+- Content kinds only through the frame host (`TILES.md`): the baseline is not per kind.
+- Never add `tie-content:` to shell `script-src`; never `allow-same-origin` on content frames; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
 
 ## Guards
 
 | Guard | Where | Test |
 |---|---|---|
-| Navigation (all frames), redirects: only shell reloads pass | `security.ts` `guard()` | `sec-navigate` |
+| Navigation (all frames), redirects: only shell reloads pass; subframes only via the content nav lock | `security.ts` `guard()` | `sec-navigate`, `sec-content-nav` |
+| Content frame nav lock: exact viewer URL of a registered token, child of the shell, one frame per token | `content.ts` `contentFrameAllowed` | `sec-content-nav` |
+| Content frames: `sandbox="allow-scripts"` only (opaque origin), own process, no `window.tie`, no top nav/popups/storage | `frame.ts` | `sec-content-escape` |
+| `tie-content://`: privileges `standard`+`secure` only; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, unit |
+| Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
+| Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |
 | `<webview>` attach: denied until a kind needs it | `guard()` | — |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
@@ -29,7 +36,7 @@
 | Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |
 | IPC: shell main frame of shell window only | `shellIpc`, `isShellSender` | unit |
 | Shell on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
-| Shell CSP: scripts from app only; no frames, objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp` |
+| Shell CSP: scripts from app only; frames only `tie-content:`; no objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp`, `sec-content-nav` |
 | Fuses (below) | `electron-builder.yml` | `check-package` |
 
 ## Fuses
@@ -41,6 +48,7 @@
 ## Harness
 
 - `probe(ctx)`: local http page reporting hits and whether it got `window.tie`. `assertUntouched(what)`.
+- Probe kind (dev builds): `tie open probe [--cwd root]`, `h.probeFrame(ctx, id)` = Playwright frame inside it (the attacker's seat). `h.frames(ctx)` / `tie-dev frames`: frame tree, out-of-process.
 - `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).

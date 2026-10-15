@@ -19,6 +19,8 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie ping [id] [--clear]` | Attention mark (`LAYOUT.md`) |
 | `tie title [id] <text>` / `tie icon [id] <emoji>` | Custom title / icon; `""` = automatic |
 | `tie state` | Dev: internal state of the targeted space (not in `--help`) |
+| `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
+| `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
 - `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`.
 - `--shelve` = `--shelved` (both commands).
@@ -72,4 +74,4 @@ Methods = commands. Params: `open` {`kind`, `cmd`, `cwd`, `title`, `at`, `side`,
 
 - No auth: any local process of the user can connect.
 - No events; poll `list`.
-- No terminal I/O. Only `terminal` kind.
+- No terminal I/O. Kinds: `terminal`; `probe` in dev builds.
