@@ -606,6 +606,26 @@ body.empty #empty-hint {
   display: grid;
 }
 
+/* Terminal link hover tip: the real URL behind OSC 8 link text. */
+.link-tip {
+  position: absolute;
+  z-index: 7000;
+  max-width: 60vw;
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 4px 16px var(--shadow);
+  font-size: 12px;
+  pointer-events: none;
+}
+.link-tip.blocked {
+  color: var(--red);
+}
+
 /* Context menu */
 .menu {
   position: absolute;

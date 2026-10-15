@@ -21,6 +21,8 @@ const api = {
   info: () => ipcRenderer.invoke('app:info'),
   ready: () => ipcRenderer.send('renderer:ready'),
   quit: () => ipcRenderer.send('app:quit'),
+  // Main validates the scheme (http/https only).
+  openExternal: (url: string) => ipcRenderer.send('external:open', url),
   settings: {
     get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string; error: string | null }> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings | 'file'; message: string }[] }> =>

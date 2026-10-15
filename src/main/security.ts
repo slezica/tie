@@ -1,5 +1,5 @@
 // Security guards for every webContents. Threat model, research: docs/SECURITY.md.
-import { app, type WebContents } from 'electron'
+import { app, shell, type WebContents } from 'electron'
 import { log } from './env'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
@@ -38,4 +38,18 @@ function guard(wc: WebContents) {
     log('security', 'blocked webview')
     e.preventDefault()
   })
+}
+
+// SECURITY: the only path from content to the OS's URL handlers. Schemes beyond http(s) launch
+// arbitrary registered apps (smb:, file:, custom handlers with argument injection): refused.
+// Harness instances (TIE_BACKGROUND) record instead of opening.
+const EXTERNAL_SCHEMES = new Set(['http:', 'https:'])
+export function openExternal(url: unknown) {
+  let u: URL | null = null
+  try {
+    u = new URL(String(url))
+  } catch {}
+  if (!u || !EXTERNAL_SCHEMES.has(u.protocol)) return log('security', 'refused external', String(url))
+  log('security', 'external open', u.href)
+  if (!process.env.TIE_BACKGROUND) shell.openExternal(u.href)
 }

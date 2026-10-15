@@ -5,7 +5,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl } from './security'
+import { harden, setShellUrl, openExternal } from './security'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -76,6 +76,7 @@ ipcMain.handle('settings:set', (_e, patch) => {
   return { ok: true, settings }
 })
 ipcMain.on('app:quit', () => app.quit())
+ipcMain.on('external:open', (_e, url: unknown) => openExternal(url))
 ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
 // Borderless: hide the traffic lights (title bar is already hidden; the top bar stays draggable).

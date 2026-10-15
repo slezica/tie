@@ -25,6 +25,28 @@ export function iconHtml(icon: string): string {
   return icon ? `<span class="emoji">${esc}</span>` : `<span class="glyph">&gt;_</span>`
 }
 
+// SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
+// xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
+// URL, only cmd-click opens it, and only via main's openExternal (which allows http(s) only).
+// Non-http schemes pass xterm (allowNonHttpProtocols) so the tip can show them as blocked.
+const linkTip = document.createElement('div')
+linkTip.className = 'link-tip'
+const webUrl = (uri: string) => /^https?:\/\//i.test(uri)
+const linkHandler = {
+  allowNonHttpProtocols: true,
+  activate: (e: MouseEvent, uri: string) => {
+    if (e.metaKey) tie.openExternal(uri)
+  },
+  hover: (e: MouseEvent, uri: string) => {
+    linkTip.textContent = webUrl(uri) ? `⌘-click to open ${uri}` : `Blocked link: ${uri}`
+    linkTip.classList.toggle('blocked', !webUrl(uri))
+    linkTip.style.left = `${e.clientX + 12}px`
+    linkTip.style.top = `${e.clientY + 16}px`
+    document.body.appendChild(linkTip)
+  },
+  leave: () => linkTip.remove(),
+}
+
 export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd?: string } = {}): Tile {
   const id = newId()
   const el = document.createElement('div')
@@ -54,6 +76,7 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
     macOptionIsMeta: true,
     macOptionClickForcesSelection: true,
     allowProposedApi: true,
+    linkHandler,
   })
   const fit = new FitAddon()
   term.loadAddon(fit)
