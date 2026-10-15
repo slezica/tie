@@ -83,7 +83,7 @@ export function refreshTitle(t: Tile) {
 // Error state: centered message replaces the tile's content; the tile stays open.
 export function showError(t: Tile, message: string) {
   t.error = message
-  debug('pty', 'error', t.id, message)
+  debug('app', 'tile error', t.id, message)
   const el = document.createElement('div')
   el.className = 'tile-error'
   el.innerHTML = `<div class="word">Error</div><div class="msg"></div>`

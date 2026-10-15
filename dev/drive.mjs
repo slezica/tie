@@ -32,7 +32,8 @@ if (spec === '-') {
   name = basename(file, '.mjs')
 }
 
-// Scenario modules may export `settings` to pre-seed a fresh instance.
+// Scenario modules may export `settings` to pre-seed a fresh instance, `hiddenWindow` for a real
+// (never shown) window instead of offscreen.
 let mod
 try {
   mod = await import(pathToFileURL(file).href)
@@ -53,7 +54,7 @@ for (const k of ['log', 'error']) {
     orig(...a)
   }
 }
-const fresh = attach ? null : await launch(undefined, { settings: mod.settings, runDir })
+const fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, runDir })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
 const shotDir = join(runDir, 'shots')
 rmSync(shotDir, { recursive: true, force: true })

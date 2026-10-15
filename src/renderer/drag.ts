@@ -12,8 +12,11 @@ const THRESHOLD = 4
 
 // Follow a pointer from pointerdown until release. Listens on window (capture phase), so a
 // release is seen even if pointer capture is lost; a move with no button held counts as a
-// missed release. setPointerCapture keeps events flowing over embedded content.
+// missed release. Pointer capture does not hold over content frames (out-of-process): while
+// tracking, frames ignore the pointer (body.tracking, style.css), else they swallow moves and the
+// release.
 export function track(e: PointerEvent, h: { move: (ev: PointerEvent) => void; up: (ev: PointerEvent) => void; cancel?: () => void }) {
+  document.body.classList.add('tracking')
   try {
     ;((e.currentTarget ?? e.target) as HTMLElement).setPointerCapture(e.pointerId)
   } catch {}
@@ -34,6 +37,7 @@ export function track(e: PointerEvent, h: { move: (ev: PointerEvent) => void; up
     h.cancel?.()
   }
   const stop = () => {
+    document.body.classList.remove('tracking')
     window.removeEventListener('pointermove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
     window.removeEventListener('pointercancel', onCancel, true)

@@ -41,6 +41,11 @@ export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 
 const KINDS: Partial<Record<Kind, KindFactory>> = { terminal: terminalKind }
 
+// Dev builds add the harness probe (boot).
+export function registerKind(kind: Kind, factory: KindFactory) {
+  KINDS[kind] = factory
+}
+
 export function kindFactory(kind: string): KindFactory | undefined {
   return Object.hasOwn(KINDS, kind) ? KINDS[kind as Kind] : undefined
 }

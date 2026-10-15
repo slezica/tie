@@ -3,6 +3,9 @@ import { S, tie, location } from './state'
 import { render } from './render'
 import { openTile, activate, closeTile, toggleCollapse, toggleZoom } from './ops'
 import { initTerminals } from './kinds/terminal'
+import { registerKind } from './kinds'
+import { probeKind } from './kinds/probe'
+import { initFrames } from './frame'
 import { initShelf } from './shelf'
 import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
@@ -81,6 +84,8 @@ async function boot() {
   setHome(info.home)
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = info.instance
   initTerminals()
+  initFrames()
+  if (info.dev) registerKind('probe', probeKind)
   initShelf()
   initMenu()
   initPaste()

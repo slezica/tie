@@ -1,9 +1,10 @@
 // Driver: socket commands (via main) mapped to space operations.
 import { contains, type Side, type TileId } from '@core/layout'
-import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace } from './state'
+import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
+import { kindFactory } from './kinds'
 
 interface Params {
   id?: TileId
@@ -74,8 +75,9 @@ const methods: Record<string, (p: Params) => unknown> = {
     tiles: [...S.tiles.keys()].map(tileInfo),
   }),
   open: (p) => {
-    if ((p.kind ?? 'terminal') !== 'terminal') throw new Error(`unknown kind: ${p.kind}`)
-    const id = openTile('terminal', placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title })
+    const kind = p.kind ?? 'terminal'
+    if (!kindFactory(kind)) throw new Error(`unknown kind: ${kind}`)
+    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title })
     return tileInfo(id)
   },
   close: (p) => {

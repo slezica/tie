@@ -12,7 +12,10 @@ const dev = !app.isPackaged
 app.setName('Tie')
 // TIE_BACKGROUND=1 (harness instances): offscreen rendering, no visible window, no dock icon,
 // never takes focus. Driven entirely over the debugging port.
+// TIE_BACKGROUND=hidden: a real (not offscreen) window that is never shown. Input routes like a
+// visible window (into content frames), which offscreen rendering doesn't do.
 const background = !!process.env.TIE_BACKGROUND
+const offscreen = background && process.env.TIE_BACKGROUND !== 'hidden'
 
 // Per-instance user data, so instances don't share the single-instance lock.
 app.setPath('userData', join(app.getPath('appData'), `tie-${instance}`))
@@ -107,7 +110,7 @@ function createWindow() {
       sandbox: true,
       contextIsolation: true,
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
-      offscreen: background ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
+      offscreen: offscreen ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
       backgroundThrottling: !background,
     },
   })

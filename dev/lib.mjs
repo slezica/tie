@@ -75,13 +75,14 @@ function freePort() {
 }
 
 // opts.settings: pre-seed the instance's settings file (object, or raw string e.g. malformed JSON).
+// opts.hiddenWindow: never-shown real window instead of offscreen (input reaches content frames).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
   // Own settings file: tests never see (or touch) the user's settings.
   const env = {
     ...process.env,
     TIE_INSTANCE: instance,
-    TIE_BACKGROUND: '1',
+    TIE_BACKGROUND: opts.hiddenWindow ? 'hidden' : '1',
     TIE_CWD: ROOT,
     TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`),
     TIE_DEBUG_PORT: String(await freePort()),
