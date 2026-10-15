@@ -12,6 +12,17 @@ const noHash = (u: string) => u.split('#')[0]
 
 export function harden() {
   app.on('web-contents-created', (_e, wc) => guard(wc))
+  // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
+  // mic, geolocation, external protocol launch...). The shell needs none; content tiles get none.
+  // Every session, including partitions created later for content.
+  app.on('session-created', (s) => {
+    s.setPermissionRequestHandler((_wc, permission, cb) => {
+      log('security', 'denied permission', permission)
+      cb(false)
+    })
+    s.setPermissionCheckHandler(() => false)
+    s.setDevicePermissionHandler(() => false)
+  })
 }
 
 function guard(wc: WebContents) {
