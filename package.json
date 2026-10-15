@@ -10,12 +10,12 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "postinstall": "electron-rebuild -f -w node-pty && dev/brand-electron.sh"
+    "postinstall": "install-electron && electron-rebuild -f -w node-pty && dev/brand-electron.sh"
   },
   "devDependencies": {
     "@electron/rebuild": "4.2.0",
     "@types/node": "24.19.2",
-    "electron": "44.4.5",
+    "electron": "44.7.2",
     "electron-builder": "26.17.0",
     "electron-vite": "5.0.0",
     "playwright": "1.63.0",

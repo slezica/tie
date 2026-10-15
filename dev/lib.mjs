@@ -102,7 +102,10 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   if (opts.settings) writeFileSync(env.TIE_SETTINGS, typeof opts.settings === 'string' ? opts.settings : JSON.stringify(opts.settings))
   const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
-  const child = spawn(join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'), ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })
+  const bin = join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron')
+  // Electron's binary is downloaded by `install-electron` (our postinstall), not by its package.
+  if (!existsSync(bin)) throw new Error(`no Electron binary at ${bin}: run npm install (postinstall downloads it)`)
+  const child = spawn(bin, ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })
   for (let i = 0; i < 150 && !existsSync(infoPath(instance)); i++) await sleep(100)
   if (!existsSync(infoPath(instance))) {
     child.kill()
