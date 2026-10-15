@@ -5,7 +5,6 @@
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
 - Untrusted input: terminal output (OSC 8 links, titles), dropped data, future content tiles (markdown, html, web).
 - Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code.
-- Prior art, source-verified: `research/{wave,vscode,joplin,terminals,electron}.md`.
 
 ## Rules
 
@@ -29,6 +28,7 @@
 | Native drops: no-ops (capture phase) | `renderer/main.ts` | `sec-drop` |
 | IPC: shell main frame of shell window only | `shellIpc`, `isShellSender` | unit |
 | Shell on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
+| Shell CSP: scripts from app only; no frames, objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp` |
 | Fuses (below) | `electron-builder.yml` | `check-package` |
 
 ## Fuses

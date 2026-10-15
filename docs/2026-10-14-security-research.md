@@ -14,14 +14,12 @@ Merged record of five source-level studies. Basis for `docs/SECURITY.md` (Track 
 
 - Date: 2026-10-14.
 - Five agents in parallel, one subject each:
-
-| Subject | Raw report |
-|---|---|
-| Wave Terminal | `research/wave.md` |
-| VS Code (webviews, markdown preview, integrated browser) | `research/vscode.md` |
-| Joplin desktop (note viewer) | `research/joplin.md` |
-| Hyper + Tabby (+ xterm.js) | `research/terminals.md` |
-| Electron itself + app postmortems (Signal, Element, Mattermost, Discord, Slack, Teams, Obsidian, Typora, MarkText, Zettlr, Logseq, ...) | `research/electron.md` |
+  - Wave Terminal.
+  - VS Code: webviews, markdown preview, integrated browser.
+  - Joplin desktop: note viewer.
+  - Hyper + Tabby (+ xterm.js).
+  - Electron itself + app postmortems (Signal, Element, Mattermost, Discord, Slack, Teams, Obsidian, Typora, MarkText, Zettlr, Logseq, ...).
+- Raw per-agent reports merged here, then discarded: revisits redo the research for current state.
 
 ## Evidence rule
 
@@ -441,7 +439,7 @@ Electron/postmortems:
 | Mattermost | CVE-2026-1046 | server help links → `openExternal` | `22fd6e2b` `isHttpLink` |
 | VS Code | CVE-2021-43908 | see VS Code; also leaked origin via `@font-face` `Origin` | — |
 
-- Full commit URLs in `research/electron.md`.
+- Commit ids are in each project's repo (full URLs not kept).
 
 ### Postmortems: markdown / notes
 - Root cause in nearly all: Node on + isolation off. Obsidian still ships it in 2026 `[adv]`.
