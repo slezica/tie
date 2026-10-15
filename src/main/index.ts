@@ -1,9 +1,11 @@
 import { app, BrowserWindow, ipcMain, Menu, screen } from 'electron'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
+import { harden, setShellUrl } from './security'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -106,7 +108,9 @@ function createWindow() {
     },
   })
   // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys.
-  win.webContents.on('did-start-loading', () => {
+  // SECURITY: on commit (`did-navigate`), not `did-start-loading`: the latter also fires for
+  // navigations the guards then block, so hostile content could kill every terminal.
+  win.webContents.on('did-navigate', () => {
     if (pty.count()) {
       log('pty', 'page reload, killing', pty.count())
       pty.killAll()
@@ -116,8 +120,14 @@ function createWindow() {
   win.once('ready-to-show', () => !background && win?.show())
   win.on('close', () => !quitting && app.quit())
   win.on('closed', () => (win = null))
-  if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  else win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
+  if (process.env.ELECTRON_RENDERER_URL) {
+    setShellUrl(process.env.ELECTRON_RENDERER_URL)
+    win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  } else {
+    const file = join(import.meta.dirname, '../renderer/index.html')
+    setShellUrl(pathToFileURL(file).href)
+    win.loadFile(file)
+  }
 }
 
 function setMenu() {
@@ -147,6 +157,8 @@ function setMenu() {
     ]),
   )
 }
+
+harden()
 
 app.whenReady().then(async () => {
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')

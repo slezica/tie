@@ -80,6 +80,8 @@ try {
       return p
     },
     log: (...a) => console.log(...a),
+    runDir,
+    appLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
   }
   const result = await mod.default(ctx, helpers)
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))

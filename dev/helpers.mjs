@@ -118,3 +118,40 @@ export async function assertPtySizes(ctx) {
     assert(pty && pty.cols === cols && pty.rows === rows, `${t.id} pty ${JSON.stringify(pty)} != xterm ${cols}x${rows}`)
   }
 }
+
+// Probe: local http page that reports what it can reach. A hit means content loaded somewhere it
+// shouldn't; `bridged` means it also got `window.tie` (= could spawn ptys: full RCE).
+// Always `await probe.close()` (try/finally).
+export async function probe(ctx) {
+  const { createServer } = await import('node:http')
+  const hits = []
+  const reports = []
+  const page = `<!doctype html><script>fetch('/report', { method: 'POST', body: JSON.stringify({ bridged: typeof window.tie === 'object' && !!window.tie, href: location.href }) })</script>`
+  const srv = createServer((req, res) => {
+    if (req.url === '/report') {
+      let body = ''
+      req.on('data', (c) => (body += c))
+      req.on('end', () => (reports.push(JSON.parse(body)), res.end()))
+      return
+    }
+    hits.push(req.url)
+    res.setHeader('content-type', 'text/html')
+    res.end(page)
+  })
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r))
+  const url = `http://127.0.0.1:${srv.address().port}`
+  return {
+    url,
+    hits,
+    reports,
+    // Wait a bit for anything in flight, then assert nothing reached the probe.
+    async assertUntouched(what, ms = 1500) {
+      await ctx.sleep(ms)
+      assert(!hits.length, `${what}: probe loaded (${hits.join(', ')})${reports.some((r) => r.bridged) ? ' WITH window.tie (RCE)' : ''}`)
+    },
+    close: () => new Promise((r) => srv.close(r)),
+  }
+}
+
+// App URL the shell must stay on (guards against navigation).
+export const shellUrl = (ctx) => ctx.page.evaluate(() => location.href)
