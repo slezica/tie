@@ -103,8 +103,9 @@ export async function clickButton(ctx, id, name) {
 export async function threeWaySplit(ctx) {
   const { tiles } = await list(ctx)
   const a = tiles[0].id
-  const b = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
-  const c = (await ctx.tie('open', 'terminal', '--at', b, '--side', 'b')).id
+  // --focus: like user splits, c ends active.
+  const b = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r', '--focus')).id
+  const c = (await ctx.tie('open', 'terminal', '--at', b, '--side', 'b', '--focus')).id
   await ctx.sleep(300)
   return [a, b, c]
 }

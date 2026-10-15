@@ -21,6 +21,7 @@ interface Params {
   float?: boolean
   shelve?: boolean
   shelved?: boolean
+  focus?: boolean // open, move: give the tile input
   clear?: boolean
 }
 
@@ -79,7 +80,8 @@ const methods: Record<string, (p: Params) => unknown> = {
   open: (p) => {
     const kind = p.kind ?? 'terminal'
     if (!kindFactory(kind)) throw new Error(`unknown kind: ${kind}`)
-    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path })
+    // Input moves to the new tile only with --focus: a script showing something never redirects typing.
+    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path }, { activate: !!p.focus })
     return tileInfo(id)
   },
   close: (p) => {
@@ -90,7 +92,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   move: (p) => {
     const id = getTile(p.id ?? p.caller).id
     if (!p.at && !p.float && !p.shelve && !p.shelved) throw new Error('move needs --at, --float or --shelve')
-    place(id, placement(p, id))
+    place(id, placement(p, id), { activate: !!p.focus })
     return tileInfo(id)
   },
   // Strong: brings the tile to the user (its tab, expanded) and takes input. For scripts/hotkeys.

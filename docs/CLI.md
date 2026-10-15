@@ -11,7 +11,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 - `tie --help` is the capability listing for agents (no separate docs needed): usage lines, then sections DESCRIPTION, TILE KINDS (file types, viewer behavior), TILE IDS, PLACEMENT, BEHAVIOR (focus, ping, close semantics), OUTPUT AND EXIT STATUS, ENVIRONMENT, EXAMPLES.
 - Keep it in sync with commands, kinds and env: the `cli` scenario checks every section, command, kind and env var appears.
-- `open` on the board activates the new tile (takes keyboard input); `--shelved` doesn't.
+- `open` / `move` never take keyboard input (no activation) unless `--focus`. Empty board (nothing active): the new tile activates. UI opens (templates, splits, drops) always activate.
 
 ## Commands
 
@@ -29,7 +29,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
 | `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
-- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`.
+- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--focus`.
 - `open <arg>`: a registered kind name → that kind (`./terminal` for a file named so). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, no viewer → `No viewer for .ext` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
 - `--shelve` = `--shelved` (both commands).
 - `[id]` defaults to `$TIE_TILE`.

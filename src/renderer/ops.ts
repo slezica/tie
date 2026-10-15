@@ -48,7 +48,9 @@ function inTileSpace<T>(id: TileId, fn: () => T): T {
   return sp && sp.id !== S.current ? withSpace(sp.id, fn) : fn()
 }
 
-export function place(id: TileId, p: Placement) {
+// `activate: false` (CLI without --focus): the user's input stays where it is, unless nothing
+// has it (empty board).
+export function place(id: TileId, p: Placement, o: { activate?: boolean } = {}) {
   const t = getTile(id)
   const from = location(id)
   const oldFloat = S.floats.find((f) => f.id === id)
@@ -73,14 +75,16 @@ export function place(id: TileId, p: Placement) {
   if (p.type === 'shelf') {
     if (S.active === id) focusNext()
     else render()
+  } else if (o.activate === false && S.active !== null) {
+    render()
   } else {
     activate(id)
   }
 }
 
-export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}): TileId {
+export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { activate?: boolean } = {}): TileId {
   const t = createTile(kind, opts)
-  place(t.id, p)
+  place(t.id, p, o)
   render()
   mountTile(t).then(() => S.active === t.id && t.surface.focus())
   return t.id

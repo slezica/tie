@@ -16,8 +16,9 @@ USAGE
       --at <id> [--side l|r|t|b]          Split next to tile (default: caller/active, longer side)
       --float                             Open floating
       --shelved                           Open on the shelf (alias --shelve)
+      --focus                             Give the new tile keyboard input (default: input stays)
   tie close [id]                          Close tile
-  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved)
+  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
   tie focus [id]                          Bring tile to user: switch tab, expand, take input
   tie ping [id] [--clear]                 Ask for attention: marks tile (and its tab) until it's active
   tie title [id] <text>                   Set title ("" = automatic)
@@ -61,7 +62,8 @@ PLACEMENT (open, move)
   --shelved                   on the shelf: an icon the user can hover to peek or click to open.
 
 BEHAVIOR
-  - open on the board makes the new tile active: it takes keyboard input. --shelved doesn't.
+  - open and move never take the user's keyboard input: typing stays where it was. --focus gives
+    the tile input (only when the user expects it). Empty board: the new tile gets input.
   - focus switches to the tile's tab, expands it, and gives it input. Use sparingly.
   - ping marks the tile (and its tab) with a dot until the user activates it. No focus change.
     Pinging the tile the user is already on does nothing.
@@ -88,7 +90,7 @@ EXAMPLES
 const argv = process.argv.slice(2)
 const flags = {}
 const pos = []
-const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear'])
+const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear', 'focus'])
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
   if (a === '-h') flags.help = true
@@ -138,7 +140,7 @@ function printTile(t) {
 async function main() {
   const [cmd, ...rest] = pos
   if (!cmd || flags.help) return console.log(HELP)
-  const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved }
+  const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved, focus: flags.focus }
 
   switch (cmd) {
     case 'list': {

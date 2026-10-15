@@ -30,7 +30,7 @@ export default async (ctx, h) => {
   h.assert((await active()) === c, 'right from a now returns to c (most recent)')
 
   // Floats: reachable by arrows; split shortcuts don't apply.
-  const f = (await ctx.tie('open', 'terminal', '--float')).id
+  const f = (await ctx.tie('open', 'terminal', '--float', '--focus')).id
   await ctx.sleep(300)
   const before = (await h.list(ctx)).tiles.length
   await k('Meta+d')
