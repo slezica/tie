@@ -1,6 +1,5 @@
 // Look: theme colors (app-wide) and line height (tile content only) applied to CSS tokens and terminals.
 import { S } from './state'
-import { fitTile } from './tile'
 import { render } from './render'
 import { theme, xtermTheme, DEFAULT_THEME } from './themes'
 
@@ -109,14 +108,6 @@ export function applyAppearance(a: Appearance) {
   const tabs = document.getElementById('tabs')
   const bar = document.getElementById(a.tabBar === 'bottom' ? 'bottom' : 'top')
   if (tabs && bar && tabs.parentElement !== bar) bar.prepend(tabs)
-  const opts = termOptions()
-  for (const tile of S.tiles.values()) {
-    tile.term.options.theme = opts.theme
-    tile.term.options.lineHeight = opts.lineHeight
-    tile.term.options.fontFamily = opts.fontFamily
-    tile.term.options.fontSize = opts.fontSize
-    tile.term.options.letterSpacing = opts.letterSpacing
-    if (tile.term.element) fitTile(tile) // cell size changed
-  }
+  for (const tile of S.tiles.values()) tile.surface.appearance?.()
   render() // bars and shelf width move the board
 }

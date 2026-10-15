@@ -113,7 +113,7 @@ export function assert(cond, msg) {
 
 // Every terminal's pty size matches its xterm grid (catches missed resizes).
 export async function assertPtySizes(ctx) {
-  for (const t of (await list(ctx)).tiles) {
+  for (const t of (await list(ctx)).tiles.filter((t) => t.kind === 'terminal')) {
     const { cols, rows, pty } = t.term
     assert(pty && pty.cols === cols && pty.rows === rows, `${t.id} pty ${JSON.stringify(pty)} != xterm ${cols}x${rows}`)
   }

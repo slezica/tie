@@ -3,18 +3,20 @@ import { S, tie, type Tile } from './state'
 import { activate } from './ops'
 import { confirmDialog } from './dialog'
 import { pasteRisks, showControls, shellQuote } from '@core/paste'
+import { terminalOf } from './kinds/terminal'
 
 // SECURITY: every paste into a terminal goes through here, never straight to xterm. Control
 // characters and would-run newlines ask first (settings can turn each check off: then raw).
 // "Paste anyway" sends the text unmodified.
 export async function pasteInto(t: Tile, text: string) {
-  if (!text || t.pty === null) return
+  const term = terminalOf(t.id)
+  if (!text || !term || term.pty === null) return
   const { settings } = await tie.settings.get()
-  const risks = pasteRisks(text, t.term.modes.bracketedPasteMode)
+  const risks = pasteRisks(text, term.term.modes.bracketedPasteMode)
   const warn = { control: risks.control && settings.warnPasteControl, run: risks.run && settings.warnPasteRun }
   if ((warn.control || warn.run) && !(await confirmPaste(text, warn))) return
   if (S.tiles.get(t.id) !== t) return // closed while asking
-  t.term.paste(text)
+  term.term.paste(text)
 }
 
 function confirmPaste(text: string, warn: { control: boolean; run: boolean }): Promise<boolean> {

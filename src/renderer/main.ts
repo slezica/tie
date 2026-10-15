@@ -2,8 +2,8 @@ import '@xterm/xterm/css/xterm.css'
 import { S, tie, location } from './state'
 import { render } from './render'
 import { openTile, activate, closeTile, toggleCollapse, toggleZoom } from './ops'
-import { initPtyEvents } from './tile'
-import { initShelf, noteActivity } from './shelf'
+import { initTerminals } from './kinds/terminal'
+import { initShelf } from './shelf'
 import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
@@ -80,11 +80,7 @@ async function boot() {
   S.cwd = info.cwd
   setHome(info.home)
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = info.instance
-  // Shell tiles close when the shell dies; --cmd tiles stay to show exit status.
-  initPtyEvents(
-    (t) => noteActivity(t.id),
-    (t) => !t.cmd && closeTile(t.id),
-  )
+  initTerminals()
   initShelf()
   initMenu()
   initPaste()

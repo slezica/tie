@@ -1,7 +1,8 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, remove, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
-import { createTile, startTerminal, disposeTile, refreshTitle } from './tile'
+import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
+import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
+import type { OpenOpts } from './kinds'
 import { render } from './render'
 import { closeTileMenu } from './menu'
 
@@ -77,20 +78,18 @@ export function place(id: TileId, p: Placement) {
   }
 }
 
-export function openTile(kind: Kind, p: Placement, opts: { cmd?: string; cwd?: string; title?: string } = {}): TileId {
+export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}): TileId {
   const t = createTile(kind, opts)
   place(t.id, p)
   render()
-  startTerminal(t, opts.cmd).then(() => S.active === t.id && t.term.focus())
+  mountTile(t).then(() => S.active === t.id && t.surface.focus())
   return t.id
 }
 
-// Where a terminal's shell is right now (fresh read), for new terminals divided from it.
+// A tile's directory right now (terminal: its shell's, fresh read), for new terminals divided from it.
 export async function cwdOf(id: TileId | null | undefined): Promise<string | undefined> {
   const t = id ? S.tiles.get(id) : undefined
-  if (!t) return undefined
-  const now = t.pty !== null ? await tie.pty.cwd(t.pty) : null
-  return now ?? t.cwdNow ?? t.cwd
+  return t?.surface.cwd?.()
 }
 
 export function closeTile(id: TileId) {
@@ -135,8 +134,8 @@ export function setPing(id: TileId, on: boolean) {
 // Keys go to the active tile, or nowhere if it can't take them (collapsed, not started).
 export function refocus() {
   const t = S.active ? S.tiles.get(S.active) : undefined
-  if (t && !S.collapsed.has(t.id) && t.term.element) t.term.focus()
-  else (document.activeElement as HTMLElement | null)?.blur()
+  if (t && !S.collapsed.has(t.id) && t.surface.focus()) return
+  ;(document.activeElement as HTMLElement | null)?.blur()
 }
 
 // After close/shelve: most recently used tile still on the board.

@@ -1,22 +1,17 @@
-// Tile element + terminal kind. Elements live in one layer and are never re-parented.
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { ICON, iconFor, SHELLS } from './icons'
-import { S, tie, type Tile, type Kind, newId, debug } from './state'
-import { termOptions } from './appearance'
-
-const ptyToTile = new Map<number, string>()
+// Tile host: element, title bar, error state, lifecycle. The body belongs to the tile's kind
+// (kinds/). Elements live in one layer and are never re-parented.
+import { ICON } from './icons'
+import { S, type Tile, type Kind, newId, debug } from './state'
+import { kindFactory, type Host, type OpenOpts } from './kinds'
+import { noteActivity } from './shelf'
+import { closeTile } from './ops'
 
 export function displayTitle(t: Tile): string {
-  if (t.customTitle) return t.customTitle
-  if (t.oscTitle) return t.oscTitle
-  if (t.cmd) return t.cmd
-  if (t.proc && !SHELLS.has(t.proc)) return t.proc
-  return t.proc || 'terminal'
+  return t.customTitle || t.surface.title()
 }
 
 export function displayIcon(t: Tile): string {
-  return t.customIcon || iconFor(t.proc)
+  return t.customIcon || t.surface.icon()
 }
 
 // Icons are user text (CLI, menu): escaped, never markup.
@@ -25,33 +20,14 @@ export function iconHtml(icon: string): string {
   return icon ? `<span class="emoji">${esc}</span>` : `<span class="glyph">&gt;_</span>`
 }
 
-// SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
-// xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
-// URL, only cmd-click opens it, and only via main's openExternal (which allows http(s) only).
-// Non-http schemes pass xterm (allowNonHttpProtocols) so the tip can show them as blocked.
-const linkTip = document.createElement('div')
-linkTip.className = 'link-tip'
-const webUrl = (uri: string) => /^https?:\/\//i.test(uri)
-const linkHandler = {
-  allowNonHttpProtocols: true,
-  activate: (e: MouseEvent, uri: string) => {
-    if (e.metaKey) tie.openExternal(uri)
-  },
-  hover: (e: MouseEvent, uri: string) => {
-    linkTip.textContent = webUrl(uri) ? `⌘-click to open ${uri}` : `Blocked link: ${uri}`
-    linkTip.classList.toggle('blocked', !webUrl(uri))
-    linkTip.style.left = `${e.clientX + 12}px`
-    linkTip.style.top = `${e.clientY + 16}px`
-    document.body.appendChild(linkTip)
-  },
-  leave: () => linkTip.remove(),
-}
-
-export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd?: string } = {}): Tile {
+export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
+  const factory = kindFactory(kind)
+  if (!factory) throw new Error(`unknown kind: ${kind}`)
   const id = newId()
   const el = document.createElement('div')
   el.className = 'tile'
   el.dataset.id = id
+  el.dataset.kind = kind
   el.innerHTML = `
     <div class="titlebar">
       <span class="icon"></span>
@@ -69,26 +45,31 @@ export function createTile(kind: Kind, opts: { title?: string; cwd?: string; cmd
   document.getElementById('tiles')!.appendChild(el)
   const body = el.querySelector('.body') as HTMLElement
 
-  const term = new Terminal({
-    ...termOptions(),
-    cursorBlink: true,
-    scrollback: 5000,
-    macOptionIsMeta: true,
-    macOptionClickForcesSelection: true,
-    allowProposedApi: true,
-    linkHandler,
-  })
-  const fit = new FitAddon()
-  term.loadAddon(fit)
-
-  const tile: Tile = { id, kind, exit: null, activity: false, pinged: false, pty: null, el, body, term, fit, customTitle: opts.title, cwd: opts.cwd, cmd: opts.cmd }
+  const tile = { id, kind, exit: null, activity: false, pinged: false, el, body, customTitle: opts.title } as Omit<Tile, 'surface'> as Tile
+  const host: Host = {
+    id,
+    body,
+    alive: () => S.tiles.get(id) === tile,
+    changed: () => host.alive() && refreshTitle(tile),
+    activity: () => noteActivity(id),
+    exit: (code) => {
+      tile.exit = code
+      refreshTitle(tile)
+    },
+    error: (message) => showError(tile, message),
+    close: () => host.alive() && closeTile(id),
+  }
   S.tiles.set(id, tile)
-  term.onTitleChange((title) => {
-    tile.oscTitle = title
-    refreshTitle(tile)
-  })
+  tile.surface = factory(host, opts)
   refreshTitle(tile)
   return tile
+}
+
+// Start the kind's content once the element has a size; then follow body resizes.
+export async function mountTile(t: Tile) {
+  await t.surface.mount()
+  if (S.tiles.get(t.id) !== t || t.error) return
+  new ResizeObserver(() => t.surface.resize()).observe(t.body)
 }
 
 export function refreshTitle(t: Tile) {
@@ -97,33 +78,6 @@ export function refreshTitle(t: Tile) {
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
   document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
-}
-
-// Open xterm into the body and start the pty once the element has a size.
-export async function startTerminal(t: Tile, cmd?: string) {
-  t.term.open(t.body)
-  t.fit.fit()
-  const { cols, rows } = t.term
-  const res = await tie.pty.spawn({ cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: t.id } }).catch((e: Error) => ({ error: e.message }))
-  // Closed while spawning: disposeTile had no pty to kill yet.
-  if (S.tiles.get(t.id) !== t) return void (typeof res === 'number' && tie.pty.kill(res))
-  if (typeof res !== 'number') return showError(t, res.error)
-  t.pty = res
-  t.ptySize = { cols, rows }
-  ptyToTile.set(t.pty, t.id)
-  debug('pty', 'started', t.id, t.pty, cols, rows)
-  t.term.onData((d) => t.pty !== null && tie.pty.write(t.pty, d))
-  t.term.onResize(({ cols, rows }) => {
-    if (t.pty === null) return
-    tie.pty.resize(t.pty, cols, rows)
-    t.ptySize = { cols, rows }
-  })
-  // xterm may have resized while the pty was spawning (before onResize was hooked).
-  if (t.term.cols !== cols || t.term.rows !== rows) {
-    tie.pty.resize(t.pty, t.term.cols, t.term.rows)
-    t.ptySize = { cols: t.term.cols, rows: t.term.rows }
-  }
-  new ResizeObserver(() => fitTile(t)).observe(t.body)
 }
 
 // Error state: centered message replaces the tile's content; the tile stays open.
@@ -138,47 +92,8 @@ export function showError(t: Tile, message: string) {
   refreshTitle(t)
 }
 
-export function fitTile(t: Tile) {
-  if (t.body.clientWidth < 10 || t.body.clientHeight < 10) return // collapsed/hidden
-  const d = t.fit.proposeDimensions()
-  if (d && (d.cols !== t.term.cols || d.rows !== t.term.rows)) t.fit.fit()
-}
-
 export function disposeTile(t: Tile) {
-  if (t.pty !== null) {
-    tie.pty.kill(t.pty)
-    ptyToTile.delete(t.pty)
-  }
-  t.term.dispose()
+  t.surface.dispose()
   t.el.remove()
   S.tiles.delete(t.id)
-}
-
-export function initPtyEvents(onActivity: (t: Tile) => void, onExit: (t: Tile) => void) {
-  tie.pty.onData((pid, data) => {
-    const t = S.tiles.get(ptyToTile.get(pid) ?? '')
-    if (!t) return
-    t.term.write(data)
-    onActivity(t)
-  })
-  tie.pty.onExit((pid, code) => {
-    const t = S.tiles.get(ptyToTile.get(pid) ?? '')
-    if (!t) return
-    t.exit = code
-    t.term.write(`\r\n\x1b[90m[process exited with code ${code}]\x1b[0m`)
-    refreshTitle(t)
-    onExit(t)
-  })
-  tie.pty.onCwd((pid, cwd) => {
-    const t = S.tiles.get(ptyToTile.get(pid) ?? '')
-    if (!t) return
-    t.cwdNow = cwd
-    document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
-  })
-  tie.pty.onProcess((pid, name) => {
-    const t = S.tiles.get(ptyToTile.get(pid) ?? '')
-    if (!t) return
-    t.proc = name
-    refreshTitle(t)
-  })
 }

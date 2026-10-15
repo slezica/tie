@@ -1,8 +1,7 @@
 // Single source of truth for the space: board tree, floating tiles, shelf.
-import type { Terminal } from '@xterm/xterm'
-import type { FitAddon } from '@xterm/addon-fit'
 import { contains, type Node, type Rect, type TileId } from '@core/layout'
 import type { TieApi } from '../preload'
+import type { Surface } from './kinds'
 
 declare global {
   interface Window {
@@ -39,26 +38,19 @@ export function readGeometry() {
 
 export type Kind = 'terminal'
 
+// Common to every kind; kind state lives behind `surface` (kinds/).
 export interface Tile {
   id: TileId
   kind: Kind
   customTitle?: string
   customIcon?: string
-  oscTitle?: string
-  proc?: string
-  exit: number | null
+  exit: number | null // content ended with this code (terminal: process exit)
   activity: boolean
   pinged: boolean // asked for attention (tie ping); clears when the tile becomes active
-  pty: number | null
-  ptySize?: { cols: number; rows: number } // last size sent to the pty
   error?: string // tile failed to start; shown instead of content
-  cwd?: string // start directory
-  cwdNow?: string // shell's current directory (polled)
-  cmd?: string
   el: HTMLElement
   body: HTMLElement
-  term: Terminal
-  fit: FitAddon
+  surface: Surface
 }
 
 export interface Float extends Rect {

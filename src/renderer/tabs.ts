@@ -23,7 +23,8 @@ function prettyDir(dir: string): string {
 export function tabTitle(sp: Space): string {
   if (sp.customTitle) return sp.customTitle
   const t = S.tiles.get(sp.active ?? sp.shelf[0] ?? '')
-  if (t?.cwdNow) return prettyDir(t.cwdNow)
+  const dir = t?.surface.dir?.()
+  if (dir) return prettyDir(dir)
   if (t) return displayTitle(t)
   return 'empty'
 }

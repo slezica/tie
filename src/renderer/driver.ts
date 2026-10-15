@@ -43,7 +43,7 @@ function tileInfo(id: TileId) {
     pinged: t.pinged,
     exit: t.exit,
     error: t.error ?? null,
-    term: { cols: t.term.cols, rows: t.term.rows, pty: t.ptySize ?? null }, // mismatch = sizing bug
+    ...t.surface.info?.(), // terminal: `term` (xterm vs pty size)
     rect: r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) } : null,
   }
 }
