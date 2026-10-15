@@ -15,9 +15,12 @@
   "devDependencies": {
     "@electron/rebuild": "4.2.0",
     "@types/node": "24.19.2",
+    "dompurify": "3.4.17",
     "electron": "44.7.2",
     "electron-builder": "26.17.0",
     "electron-vite": "5.0.0",
+    "highlight.js": "11.12.0",
+    "markdown-it": "15.0.2",
     "playwright": "1.63.0",
     "typescript": "5.9.3",
     "vite": "7.3.7",
@@ -26,9 +29,6 @@
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "dompurify": "3.4.17",
-    "highlight.js": "11.12.0",
-    "markdown-it": "15.0.2",
     "node-pty": "1.1.0"
   },
   "author": "salezica"

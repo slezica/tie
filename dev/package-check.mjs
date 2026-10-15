@@ -1,7 +1,7 @@
 // Checks a packaged Tie.app: Electron fuses as expected, then a smoke launch (boots, CLI answers).
 // Usage: node dev/package-check.mjs [path/to/Tie.app]
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, rmSync, readFileSync } from 'node:fs'
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT, sleep, infoPath } from './lib.mjs'
 
@@ -43,6 +43,16 @@ try {
     const list = JSON.parse(execFileSync(join(app, 'Contents/Resources/bin/tie'), ['list', '--json'], { env, encoding: 'utf8' }))
     if (list.tiles?.length === 1) console.log('ok   smoke: boots, CLI answers')
     else fail(`smoke: unexpected list ${JSON.stringify(list)}`)
+    // Markdown viewer is packaged (not a dev-only viewer): a file opens without error.
+    const md = join(ROOT, 'tmp', `${instance}.md`)
+    writeFileSync(md, '# smoke\n')
+    const tie = (...a) => JSON.parse(execFileSync(join(app, 'Contents/Resources/bin/tie'), [...a, '--json'], { env, encoding: 'utf8' }))
+    const id = tie('open', md).id
+    let t
+    for (let i = 0; i < 30 && !t?.doc; i++) (await sleep(100), (t = tie('list').tiles.find((x) => x.id === id)))
+    rmSync(md, { force: true })
+    if (t?.doc && !t.error) console.log('ok   smoke: markdown opens')
+    else fail(`smoke: markdown tile ${JSON.stringify(t)}`)
     const refused = (existsSync(log) ? readFileSync(log, 'utf8') : '').match(/\[security\].*/g) || []
     if (refused.length) fail(`smoke: security log not empty:\n  ${refused.join('\n  ')}`)
   }
