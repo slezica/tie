@@ -3,7 +3,7 @@
 // a kind supplies only its viewer name, root and request handlers. docs/TILES.md.
 import { S, tie, location, debug } from './state'
 import { activate } from './ops'
-import { parseRequest, type Request, type Verb } from '@core/requests'
+import { parseRequest, needsGesture, type Request, type Verb } from '@core/requests'
 import type { Host, Surface } from './kinds'
 
 export type Handlers = { [V in Verb]?: (req: Extract<Request, { verb: V }>) => void }
@@ -29,6 +29,10 @@ export function frameSurface(host: Host, spec: FrameSpec): Surface {
   const onRequest = (data: unknown) => {
     const req = parseRequest(data)
     if (!req) return debug('security', 'dropped request', host.id, safeJson(data))
+    // SECURITY: verbs acting for the user (open a link, write a file) only while this frame has
+    // focus: the user just clicked or typed in it (VS Code's rule). The viewer posts them from its
+    // click handler only; script running in the frame without a gesture gets nothing.
+    if (needsGesture(req.verb) && (!frame || document.activeElement !== frame)) return debug('security', 'refused request without focus', host.id, req.verb)
     if (req.verb === 'ready') {
       if (readyTimer) clearTimeout(readyTimer)
       readyTimer = null

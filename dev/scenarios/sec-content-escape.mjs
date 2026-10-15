@@ -73,6 +73,13 @@ export default async (ctx, h) => {
     h.assert((await img(fa, `tie-content://${tokenOf(fa)}/pic.svg`)) === 'load', 'own image loads')
     h.assert((await img(fa, `tie-content://${tokenOf(fb)}/pic.svg`)) === 'error', "another tile's token refused")
 
+    // Gesture verbs (openLink) need the frame focused: script posting without a user click gets nothing.
+    await fa.evaluate((u) => window.probe.port.postMessage({ verb: 'openLink', url: u + '/nofocus' }), p.url)
+    await ctx.sleep(300)
+    h.assert(/refused request without focus t\d+ openLink/.test(ctx.appLog()) && !ctx.appLog().includes(`${p.url}/nofocus`), 'openLink without focus refused')
+    // Focus the frame (as a click in it would), for the request checks below.
+    await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), a)
+
     // Requests: only typed verbs; openLink only http(s) (main decides); junk dropped.
     await fa.evaluate((u) => {
       const port = window.probe.port
