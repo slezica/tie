@@ -24,6 +24,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `docs/2026-10-09-electron-crash-on-quit.md`: node-pty quit crash + macOS launch block.
 - `docs/2026-10-10-tabs-single-renderer.md`: tabs = spaces in one renderer.
 - `docs/2026-10-14-security-research.md`: prior art (Wave, VS Code, Joplin, Hyper/Tabby, Electron), methodology.
+- `docs/2026-10-15-tile-host-plan.md`: tile host, frame isolation, keys in main; phased plan.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
