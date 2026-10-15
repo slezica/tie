@@ -2,9 +2,11 @@
 
 ## Interface
 
-- Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/renderer/keys.ts`) from the settings panel.
+- Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/core/keymap.ts`) from the settings panel.
 - Move tile to another tab: drop a dragged tile onto a tab in the tab bar.
 - Open question: confirm before closing a tile (cmd+W) whose foreground process isn't the shell?
+- Quit: replace hold-to-quit with a confirmation dialog. Then ⌘Q is a plain shortcut: block it in main like the rest, drop quit-press/release/cancel (`main/keys.ts`, `quit.ts`). Hold needed the keyup, which a blocked keydown loses.
+- Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
 
 ## Alerts
 
