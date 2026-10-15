@@ -125,3 +125,10 @@ Design consequences:
 - Requests: `ready` (host) and `openLink` only. `openLink` has no gesture requirement yet (markdown decides).
 - Not built: frame crash detection (no per-frame crash event); ready timeout (5 s) covers load failures.
 - Without `sandbox`, the per-token origin alone still blocks `parent.tie` (mutation run): defence in depth.
+
+### 3.1 Harness input vs `before-input-event` (from the 2.1 spike)
+
+- CDP keys (`page.keyboard`): never reach `before-input-event`. Moving shortcuts to main breaks every scenario that presses them via CDP.
+- `webContents.sendInputEvent` keys: reach `before-input-event` (offscreen and hidden window), then the shell's main widget if not blocked.
+- → Harness chords go through main: dev socket method `input` (main, dev builds) → `sendInputEvent`; helpers `press`, `keyDown`, `keyUp`. Text typing stays CDP.
+- Gap (needs a manual check on real hardware): a key typed while a content frame has OS focus. Chromium routes it to the frame's widget; `PreHandleKeyboardEvent` is per WebContents, so `before-input-event` should fire (source, not runtime-verified). No harness path delivers a key that is both routed to a frame and seen by `before-input-event`.
