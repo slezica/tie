@@ -41,8 +41,9 @@ TILE KINDS
   terminal   Interactive shell (the user's login shell), or --cmd. A shell tile closes when its
              shell exits. A --cmd tile stays after the command ends and shows the exit status.
   markdown   Files .md, .markdown (tie open <file>). Rendered with headings, lists, tables,
-             highlighted code, task boxes. Read-only for the user except task boxes (- [ ]):
-             clicking one writes the change to the file.
+             highlighted code, task boxes, footnotes, definition lists, :emoji: shortcodes; a
+             leading --- front matter block is shown as-is (not parsed). Read-only for the user
+             except task boxes (- [ ]): clicking one writes the change to the file.
              - Live: re-renders on every save (any editor or tool), keeping the scroll position.
                Deleted file: last view stays.
              - Raw HTML in the file is shown as text, never rendered.

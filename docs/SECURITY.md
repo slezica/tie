@@ -28,7 +28,7 @@
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | Gesture rule: link opens and file writes (`openLink`, `followLink`, `toggleTask`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |
-| Markdown render: raw HTML escaped (`html: false`), DOMPurify on the final HTML, remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |
+| Markdown render: raw HTML escaped (`html: false`; also in footnotes, front matter), DOMPurify on the final HTML (after every plugin), remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |
 | Markdown links: anchors, http(s) (→ `openExternal`), markdown paths (main re-checks the file); other schemes refused | `@core/markdown` `classifyLink`, `kinds/markdown.ts` | `sec-markdown`, `markdown-links`, unit |
 | Task toggles: write only at the revision the viewer rendered, only the line it showed, only task items, UTF-8 round-trip; through the real path | `main/docs.ts`, `@core/markdown` `applyToggle` | `sec-markdown`, unit |
 | Opening files: main checks absolute, existing regular file, known viewer | `main/docs.ts` `fileViewer` | `markdown-open` |

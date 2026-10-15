@@ -29,6 +29,12 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 - markdown-it `html: false` (raw HTML shown as text), `linkify`. DOMPurify on the final HTML (after every plugin and the highlighter): no `style`, forms, `style` attributes; ids/names prefixed `user-content-` (no DOM clobbering); URLs http(s), `tie-content://`, relative.
 - Tasks: list items starting `[ ]` / `[x]` → checkbox with `data-line` (source line, from markdown-it's map).
 - Headings: GitHub-style slug ids (anchors).
+- Footnotes (`markdown-it-footnote`): `[^x]` refs, `[^x]: ...` notes, `^[inline]`. Ids `fn1` / `fnref1` (prefixed like headings): ref and back-ref scroll in-page.
+- Definition lists (`markdown-it-deflist`): `Term` then `: definition` → `<dl>`.
+- Emoji (`markdown-it-emoji`, full set): `:name:` shortcodes only; emoticons (`:)`, `<3`) and unknown names stay text.
+- Front matter: a leading `---` block closed by `---` / `...` → `<pre class="front-matter">` (muted, monospace), text as-is, never parsed. Unclosed or not at line 1: ordinary markdown.
+- No typographer: quotes and dashes as typed.
+- Plugins: markdown-it org only, exact versions, bundled into the viewer; output still goes through DOMPurify.
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
 - Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
 - Style: `<style nonce>` in `src/viewers/markdown.html` (the only place markdown styles live). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.

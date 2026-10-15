@@ -55,6 +55,20 @@
       li.task { list-style: none; }
       input.task-box { margin: 0 0.45em 0 -1.25em; vertical-align: -0.1em; accent-color: var(--accent); cursor: pointer; }
 
+      /* Front matter: shown as-is, never parsed; quieter than code. */
+      pre.front-matter { background: none; border: 1px dashed var(--rule); color: var(--muted); }
+
+      /* Definition lists. */
+      dt { font-weight: 600; }
+      dd { margin: 0 0 0.3em 1.5em; }
+
+      /* Footnotes: smaller, after a rule; refs are superscript links. */
+      sup.footnote-ref { line-height: 0; }
+      hr.footnotes-sep { margin-top: 1.5em; }
+      section.footnotes { font-size: 0.9em; color: var(--muted); }
+      section.footnotes ol { padding-left: 1.5em; }
+      .footnote-item p { margin-bottom: 0.3em; }
+
       /* Remote (or out-of-folder) image: never requested; alt text / URL instead. */
       .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 3px; color: var(--muted); font-size: 0.9em; }
 

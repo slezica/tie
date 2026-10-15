@@ -1,9 +1,13 @@
 // Markdown viewer: runs in the tile's sandboxed content frame (opaque origin, strict CSP). Text,
 // theme and scroll requests arrive over the host's port; links and task toggles go back as
 // requests, posted from the click handler only (the host also requires frame focus).
-// Pipeline: markdown-it (raw HTML escaped) → highlight.js → DOMPurify on the final HTML.
+// Pipeline: markdown-it (raw HTML escaped; footnotes, deflists, emoji, front matter) → highlight.js
+// → DOMPurify on the final HTML.
 // docs/MARKDOWN.md.
 import MarkdownIt from 'markdown-it'
+import footnote from 'markdown-it-footnote'
+import deflist from 'markdown-it-deflist'
+import { full as emoji } from 'markdown-it-emoji'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -39,6 +43,27 @@ const md = new MarkdownIt({
   linkify: true,
   highlight: (code, lang) => (lang && hljs.getLanguage(lang) ? hljs.highlight(code, { language: lang, ignoreIllegals: true }).value : ''),
 })
+// Footnote ids (fn1, fnref1) get DOMPurify's prefix like headings: scrollToHash finds them.
+// Emoji: :name: shortcodes only, no emoticons (`:)`, `:p`, `<3` stay text).
+md.use(footnote).use(deflist).use(emoji, { shortcuts: {} })
+
+// Front matter: a leading `---` block up to `---` / `...`. Shown as-is (muted, monospace), never
+// parsed. No closing line: not front matter.
+md.block.ruler.before('table', 'front_matter', (state, start, end, silent) => {
+  const line = (l: number) => state.src.slice(state.bMarks[l], state.eMarks[l]).trimEnd()
+  if (start !== 0 || state.parentType !== 'root' || line(0) !== '---') return false
+  for (let l = 1; l < end; l++) {
+    if (line(l) !== '---' && line(l) !== '...') continue
+    if (silent) return true
+    const t = state.push('front_matter', 'pre', 0)
+    t.content = state.getLines(1, l, 0, true)
+    t.map = [0, l + 1]
+    state.line = l + 1
+    return true
+  }
+  return false
+})
+md.renderer.rules.front_matter = (tokens, idx) => `<pre class="front-matter"><code>${md.utils.escapeHtml(tokens[idx].content)}</code></pre>\n`
 
 // Task list items (`- [ ] x`): a checkbox token carrying the item's source line.
 md.core.ruler.after('inline', 'tasks', (state) => {

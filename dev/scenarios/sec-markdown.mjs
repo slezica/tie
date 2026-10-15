@@ -1,4 +1,4 @@
-// Security: markdown tiles. Raw HTML shown as text, never run; DOMPurify on the final HTML; remote
+// Security: markdown tiles. Raw HTML shown as text, never run (body, footnotes, front matter); DOMPurify on the final HTML; remote
 // images never requested; images outside the file's folder refused; task toggles write only the
 // line the viewer saw at the revision it saw; link and toggle requests need the frame focused.
 // Hidden window: real clicks focus the frame.
@@ -16,6 +16,10 @@ export default async (ctx, h) => {
   symlinkSync(join(base, 'outside.svg'), join(dir, 'link.svg'))
   const f = join(dir, 'doc.md')
   const doc = [
+    '---',
+    'title: <script>window.__xss = 5</script>',
+    '---',
+    '',
     '# Doc',
     '',
     '<img src=x onerror="window.__xss = 1"> <script>window.__xss = 2</script>',
@@ -29,7 +33,12 @@ export default async (ctx, h) => {
     '',
     `[out](${p.url}/clicked)`,
     '',
+    'Noted.[^x]',
+    '',
+    '[^x]: <img src=x onerror="window.__xss = 6"> <b>bold</b>',
+    '',
   ].join('\n')
+  const lineOf = (s) => doc.split('\n').indexOf(s)
   writeFileSync(f, doc)
   const file = () => readFileSync(f, 'utf8')
   try {
@@ -49,6 +58,13 @@ export default async (ctx, h) => {
     }))
     h.assert(dom.text.includes('<script>window.__xss = 2</script>') && dom.text.includes('<img src=x onerror='), `raw HTML shown as text: ${dom.text.slice(0, 200)}`)
     h.assert(dom.scripts === 0 && dom.handlers === 0 && dom.jsLinks === 0 && dom.xss === undefined, `no markup from the document: ${JSON.stringify(dom)}`)
+    const parts = await fr.evaluate(() => ({
+      front: document.querySelector('#doc pre.front-matter')?.textContent,
+      note: document.querySelector('#doc .footnote-item')?.textContent,
+      bold: document.querySelectorAll('#doc .footnote-item b').length,
+    }))
+    h.assert(parts.front?.includes('<script>window.__xss = 5</script>'), `front matter: raw HTML as text: ${parts.front}`)
+    h.assert(parts.note?.includes('<img src=x onerror=') && parts.note.includes('<b>bold</b>') && parts.bold === 0, `footnote: raw HTML as text: ${JSON.stringify(parts)}`)
 
     // DOMPurify on the final HTML: with markdown-it's raw HTML turned on (as if escaping failed),
     // the next render (live reload) still strips scripts and handlers.
@@ -83,7 +99,7 @@ export default async (ctx, h) => {
     const rev = (await h.mdState(ctx, id)).rev
     const post = (m) => fr.evaluate((m) => window.markdown.port.postMessage(m), m)
     await post({ verb: 'followLink', href: `${p.url}/nofocus`, newTile: false })
-    await post({ verb: 'toggleTask', line: 8, expected: '- [ ] alpha', rev })
+    await post({ verb: 'toggleTask', line: lineOf('- [ ] alpha'), expected: '- [ ] alpha', rev })
     await ctx.sleep(500)
     h.assert((ctx.appLog().match(/refused request without focus t\d+ (followLink|toggleTask)/g) ?? []).length === 2, 'both refused without focus')
     h.assert(!ctx.appLog().includes(`${p.url}/nofocus`) && file() === doc, 'nothing opened, file unchanged')
@@ -100,9 +116,9 @@ export default async (ctx, h) => {
     const now = file()
     const cur = (await h.mdState(ctx, id)).rev
     for (const [why, m] of [
-      ['stale revision', { verb: 'toggleTask', line: 9, expected: '- [ ] beta', rev }],
-      ['line changed', { verb: 'toggleTask', line: 9, expected: '- [ ] gamma', rev: cur }],
-      ['not a task', { verb: 'toggleTask', line: 0, expected: '# Doc', rev: cur }],
+      ['stale revision', { verb: 'toggleTask', line: lineOf('- [ ] beta'), expected: '- [ ] beta', rev }],
+      ['line changed', { verb: 'toggleTask', line: lineOf('- [ ] beta'), expected: '- [ ] gamma', rev: cur }],
+      ['not a task', { verb: 'toggleTask', line: lineOf('# Doc'), expected: '# Doc', rev: cur }],
       ['no such line', { verb: 'toggleTask', line: 999, expected: '', rev: cur }],
     ]) {
       await post(m)
