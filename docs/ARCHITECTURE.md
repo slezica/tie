@@ -11,14 +11,14 @@
 | Core | `src/core/` | Pure logic, no DOM/Electron: `layout.ts` (slot tree), `security.ts`, `content.ts` (checks, main), `paste.ts`, `requests.ts` (checks, renderer) |
 
 - Window: `sandbox`, `contextIsolation`, CSP `script-src 'self'`, served from `tie://app/`. One per instance. Guards: `SECURITY.md`.
-- Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (renderer handles it). Reload/DevTools in dev only.
+- Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` + renderer hold-to-quit). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
 - Data flow: input (mouse/keys/socket) → `ops.ts` → `S` → `render()` → DOM.
 
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
-- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close`, `rpc:request|reply`, `log`.
+- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close`, `keys:action|suspend`, `rpc:request|reply`, `log`.
 - Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd.
-- Main → renderer: `pty:data|exit|process|cwd`, `settings:open`, `rpc:request` (socket calls, `CLI.md`).
+- Main → renderer: `pty:data|exit|process|cwd`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
 
 ## Instances (`src/main/env.ts`)
@@ -39,7 +39,7 @@ Other env (main):
 
 - `TIE_CWD`: default start dir for terminals (default: home).
 - `TIE_BACKGROUND=1`: offscreen, no dock icon, never focused (`HARNESS.md`). `TIE_BACKGROUND=hidden`: same, but a real never-shown window (input routes into content frames). `TIE_SCALE`: offscreen device scale (default 1).
-- `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`.
+- `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`, `keys`.
 
 ## Startup
 

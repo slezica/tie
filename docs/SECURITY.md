@@ -27,6 +27,7 @@
 | `tie-content://`: privileges `standard`+`secure` only; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, unit |
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
+| Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |
 | `<webview>` attach: denied until a kind needs it | `guard()` | — |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
@@ -51,4 +52,6 @@
 - Probe kind (dev builds): `tie open probe [--cwd root]`, `h.probeFrame(ctx, id)` = Playwright frame inside it (the attacker's seat). `h.frames(ctx)` / `tie-dev frames`: frame tree, out-of-process.
 - `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening.
+- Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`.
+- Limits: no harness path sends a key that is both routed into a focused frame and seen by `before-input-event`; `sec-keys` covers each half (frame really focused via `hiddenWindow`; main handles keys whatever the focus). Real-hardware check: manual.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).

@@ -132,3 +132,10 @@ Design consequences:
 - `webContents.sendInputEvent` keys: reach `before-input-event` (offscreen and hidden window), then the shell's main widget if not blocked.
 - → Harness chords go through main: dev socket method `input` (main, dev builds) → `sendInputEvent`; helpers `press`, `keyDown`, `keyUp`. Text typing stays CDP.
 - Gap (needs a manual check on real hardware): a key typed while a content frame has OS focus. Chromium routes it to the frame's widget; `PreHandleKeyboardEvent` is per WebContents, so `before-input-event` should fire (source, not runtime-verified). No harness path delivers a key that is both routed to a frame and seen by `before-input-event`.
+
+### Phase 3 notes (implementation)
+
+- ⌘Q keydown is **not** blocked in main: a keydown blocked in `before-input-event` loses its keyup (Chromium suppresses it), and hold-to-quit quits on release. Main reports press/release/blur; the renderer keeps the keydown from xterm. Content frames may see ⌘Q's keydown (harmless; they can't stop main's handling).
+- Suspend: main skips the keymap while the renderer reports a focused text field or open modal (`keys:suspend`); the renderer also drops actions while a modal is open.
+- Main window `blur` cancels a hold (the shell page sees no blur while a frame has focus).
+- Scenarios pressing shortcuts now use `h.press` / `keyDown` / `keyUp` (through main); intent unchanged.

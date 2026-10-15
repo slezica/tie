@@ -19,6 +19,7 @@
 - `test --e2e`: each scenario on a fresh instance; trace folder per run (below).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -75,6 +76,7 @@ EOF
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
 | `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
 | `frames`, `probeFrame(id)` | window frame tree (`tie frames`: url, origin, pid, out-of-process); Playwright frame inside a probe tile, once its handshake is done |
+| `press(chord)`, `keyDown(key)`, `keyUp(key)` | keys through main (dev socket `input` → `sendInputEvent`): pass `before-input-event` like real keys. Use for shortcuts; CDP `ctx.page.keyboard` skips it (fine for typing) |
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term`.

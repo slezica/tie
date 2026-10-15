@@ -51,6 +51,7 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 
 - No window `message` listener in the shell: requests arrive over the port only.
 - Focus: a click in a frame gives the shell no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
+- Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
 - Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
 
 ## Requests (`core/requests.ts`)

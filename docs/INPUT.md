@@ -29,7 +29,7 @@
 - During drags: `body.dragging` → tile content and reveals `pointer-events: none`.
 - Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).
 
-## Keyboard (`DEFAULT_KEYMAP`, `keys.ts`)
+## Keyboard (`DEFAULT_KEYMAP` in `core/keymap.ts`; `main/keys.ts`, `renderer/keys.ts`)
 
 | Chord | Action |
 |---|---|
@@ -43,10 +43,13 @@
 | `cmd+Q` | Quit on release (`quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |
 
-- Handler on `window`, capture phase (before xterm). Skipped while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open.
+- Matched in main (`before-input-event` on the window's webContents): sees real keys before any page, content frames included. Matching keydowns are blocked (no page sees them) and sent as `keys:action`; the renderer runs them (`run()`).
+- Suspended while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open: the renderer reports changes (`keys:suspend`, on focus changes and body children changes). Actions arriving while a modal is open are dropped.
+- Never in the keymap: Esc, editing combos (cmd+C/V/X/A/Z). Synthetic `KeyboardEvent`s trigger nothing (they never reach main).
+- Blocked keydowns lose their keyup (Chromium suppresses it).
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op.
-- Quit: own handler, works everywhere. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels. Menu Quit by mouse is immediate.
+- Quit: main reports `quit-press` (cmd+Q keydown, not repeats), `quit-release` (Q or ⌘ keyup), `quit-cancel` (window blur); never suspended. The keydown is not blocked (a blocked keydown loses its keyup, and the release is what quits); the renderer keeps it from xterm. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels (shell page `blur`, and main's window `blur` for when a frame has focus). Menu Quit by mouse is immediate.
 - Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)
