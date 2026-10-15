@@ -73,4 +73,12 @@ export default async (ctx, h) => {
     h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
     h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
   }
+
+  // --help is the capability listing for agents: every command, kind and env var, in sections.
+  {
+    const help = execFileSync(join(ROOT, 'bin/tie'), ['--help']).toString()
+    const want = ['USAGE', 'DESCRIPTION', 'TILE KINDS', 'TILE IDS', 'PLACEMENT', 'BEHAVIOR', 'OUTPUT AND EXIT STATUS', 'ENVIRONMENT', 'EXAMPLES']
+    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
+      h.assert(help.includes(w), `help mentions ${w}`)
+  }
 }

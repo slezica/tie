@@ -7,6 +7,12 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - Main waits for renderer ready. Timeout 10 s per call.
 - Space: tile in `id`, `at` or `caller`, else visible tab. `list` runs outside `withSpace`.
 
+## Help
+
+- `tie --help` is the capability listing for agents (no separate docs needed): usage lines, then sections DESCRIPTION, TILE KINDS (file types, viewer behavior), TILE IDS, PLACEMENT, BEHAVIOR (focus, ping, close semantics), OUTPUT AND EXIT STATUS, ENVIRONMENT, EXAMPLES.
+- Keep it in sync with commands, kinds and env: the `cli` scenario checks every section, command, kind and env var appears.
+- `open` on the board activates the new tile (takes keyboard input); `--shelved` doesn't.
+
 ## Commands
 
 | Command | Does |
