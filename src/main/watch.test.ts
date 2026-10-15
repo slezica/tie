@@ -17,7 +17,7 @@ const texts = () => events.map((e) => (e.type === 'change' ? e.buf.toString() : 
 const start = (path: string, text: string, opts = {}) => {
   events = []
   w = watchFile(path, revision(text), (e) => events.push(e), { poll: 60_000, ...opts }) // poll off: events must come from fs.watch
-  return sleep(150) // watchers armed
+  return w.ready.then(() => sleep(250)) // FSEvents misses events right after a stream starts (the poll covers that in the app)
 }
 
 beforeEach(() => {

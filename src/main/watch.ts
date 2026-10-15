@@ -47,6 +47,7 @@ export interface WatchOpts {
 }
 
 export interface Watch {
+  ready: Promise<void> // directory watchers armed (tests; until then only the poll sees changes)
   check(): Promise<void> // re-read now (after our own write, or to resync)
   close(): void
 }
@@ -160,9 +161,10 @@ export function watchFile(path: string, rev: string, onEvent: (e: WatchEvent) =>
   void stat(path)
     .then((st) => (lastStat = st))
     .catch(() => {})
-  void arm()
+  const ready = arm()
 
   return {
+    ready,
     check,
     close: () => {
       closed = true

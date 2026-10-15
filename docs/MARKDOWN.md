@@ -68,6 +68,7 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 - Read: stat-read-stat; changed in between → retry (≤5, then accept).
 - Missing: re-check at +100, +300 ms (backup-rename writers), then report missing once; keep watching. Last render stays (frozen). Back → reported even if unchanged.
 - Report only on hash change. Backstop poll 2.5 s (stat; full read if moved); re-arms watchers when a directory was replaced or removed.
+- FSEvents misses changes in the first moments after a watch starts: the poll catches those.
 - Max 8 MB.
 
 ## Opening

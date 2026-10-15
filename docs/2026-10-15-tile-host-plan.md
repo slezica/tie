@@ -165,6 +165,7 @@ Design consequences:
 - Viewer CSS: nonce'd `<style>`; theme values via CSSOM `setProperty` (not blocked by the CSP).
 - Root change (another directory): same iframe, new `src`/token; the nav lock binds the new token to the same `frameTreeNodeId`. Old token closed after.
 - Watcher on real files (vitest, macOS): in place, temp + rename, backup rename + new (6 ms gap: never reported missing), delete/recreate, symlinked path, bursts (≤3 events for 20 writes), directory removed + recreated (re-armed by the poll).
+- FSEvents (`fs.watch(dir)`) drops changes made right after the watch starts (first watch also starts libuv's FSEvents thread). A write within ~100 ms of opening is caught by the 2.5 s poll, not the watcher. Unit tests await `Watch.ready` + 250 ms (a fixed 150 ms flaked under load).
 - Toggle refusals push the file as it is now (viewer re-renders from disk); writes go through `realpath` (symlink kept); non-UTF-8 files refused (text must round-trip).
 - Harness: CDP `Input.dispatchDragEvent` in offscreen mode reaches the shell even over a frame: the OS-drag frame shield (`body.os-drag`) is not exercised by `markdown-open`.
 - Package: viewer libraries were `dependencies` → copied into `app.asar` unused (17 MB). Now `devDependencies` (6.9 MB). Package smoke opens a markdown file.
