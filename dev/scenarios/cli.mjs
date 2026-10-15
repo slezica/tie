@@ -27,12 +27,12 @@ export default async (ctx, h) => {
   await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')
   await ctx.sleep(300)
   await h.clickButton(ctx, a, 'collapse')
-  await ctx.page.keyboard.press('Meta+t')
+  await h.press(ctx, 'Meta+t')
   await ctx.sleep(300)
   const l = await h.list(ctx)
   const ta = l.tiles.find((t) => t.id === a)
   h.assert(ta.collapsed && ta.active === (l.tabs[0].active === a), `background tile flags: ${JSON.stringify(ta)}`)
-  await ctx.page.keyboard.press('Meta+1')
+  await h.press(ctx, 'Meta+1')
 
   await ctx.sleep(300)
 
@@ -64,7 +64,7 @@ export default async (ctx, h) => {
   const [fa, fb] = await h.threeWaySplit(ctx).catch(async () => [(await h.list(ctx)).tiles[0].id, null])
   if (fb) {
     await h.clickButton(ctx, fb, 'collapse')
-    await ctx.page.keyboard.press('Meta+t')
+    await h.press(ctx, 'Meta+t')
     await ctx.sleep(200)
     await ctx.tie('focus', fb)
     await ctx.sleep(200)

@@ -19,16 +19,16 @@ export default async (ctx, h) => {
   h.assert(await ctx.page.isVisible(`.item[data-id="${s}"] .ping`), 'shelf badge')
   await ctx.shot('pinged')
 
-  await ctx.page.keyboard.press('Meta+t')
+  await h.press(ctx, 'Meta+t')
   await ctx.sleep(200)
   h.assert(await ctx.page.isVisible('.tab.pinged .tab-ping'), 'background tab shows ping')
   await ctx.shot('tab-dot')
-  await ctx.page.keyboard.press('Meta+1')
+  await h.press(ctx, 'Meta+1')
   await ctx.sleep(200)
   h.assert(!(await ctx.page.isVisible('.tab.pinged')), 'current tab has no tab dot')
   h.assert((await info(b)).pinged, 'switching tabs does not clear non-active tiles')
 
-  await ctx.page.keyboard.press('Meta+ArrowUp') // c -> b
+  await h.press(ctx, 'Meta+ArrowUp') // c -> b
   await ctx.sleep(200)
   h.assert((await L()).active === b && !(await info(b)).pinged, 'activation clears')
   await h.pin(ctx, s)

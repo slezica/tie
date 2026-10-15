@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { createServer } from 'node:net'
+import { createServer, connect as netConnect } from 'node:net'
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // Skip macOS 'reopen windows?' prompt after a crash; it blocks app launch indefinitely.
@@ -32,6 +32,23 @@ export function tie(instance, ...args) {
       if (err) return reject(new Error(stderr.trim() || err.message))
       const out = stdout.trim()
       resolve(out ? JSON.parse(out) : null)
+    })
+  })
+}
+
+// Raw socket call (JSON-RPC) to an instance; for methods bin/tie doesn't expose (dev `input`).
+export function rpc(instance, method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const c = netConnect(readInfo(instance).socket)
+    let buf = ''
+    c.on('error', reject)
+    c.on('connect', () => c.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) + '\n'))
+    c.on('data', (d) => {
+      buf += d
+      if (!buf.includes('\n')) return
+      c.end()
+      const msg = JSON.parse(buf.slice(0, buf.indexOf('\n')))
+      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
     })
   })
 }

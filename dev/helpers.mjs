@@ -1,3 +1,5 @@
+import { rpc } from './lib.mjs'
+
 // Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
 
 export async function list(ctx) {
@@ -192,4 +194,33 @@ export async function probeFrame(ctx, id) {
     await ctx.sleep(100)
   }
   throw new Error(`no probe frame for ${id}`)
+}
+
+// Keys through main (webContents.sendInputEvent): they pass before-input-event, where shortcuts
+// live. CDP keys (ctx.page.keyboard) skip it: fine for typing text, not for shortcuts.
+// Chords like Playwright's: 'Meta+d', 'Meta+Shift+ArrowLeft', 'Control+Tab'. Modifiers held with
+// keyDown('Meta') apply to later keys until keyUp.
+const MODS = { Meta: 'meta', Control: 'control', Alt: 'alt', Shift: 'shift' }
+const CODES = { ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down' }
+const held = new WeakMap()
+const heldOf = (ctx) => held.get(ctx) ?? (held.set(ctx, new Set()), held.get(ctx))
+const keyCode = (k) => CODES[k] ?? (k.length === 1 ? k.toUpperCase() : k)
+const send = (ctx, type, key, mods) => rpc(ctx.instance, 'input', { type, keyCode: keyCode(key), modifiers: [...mods] })
+
+export async function keyDown(ctx, key) {
+  const mods = heldOf(ctx)
+  await send(ctx, 'keyDown', key, mods)
+  if (MODS[key]) mods.add(MODS[key])
+}
+export async function keyUp(ctx, key) {
+  const mods = heldOf(ctx)
+  if (MODS[key]) mods.delete(MODS[key])
+  await send(ctx, 'keyUp', key, mods)
+}
+export async function press(ctx, chord) {
+  const parts = chord.split('+')
+  const key = parts.pop()
+  const mods = new Set([...heldOf(ctx), ...parts.map((m) => MODS[m])])
+  await send(ctx, 'keyDown', key, mods)
+  await send(ctx, 'keyUp', key, mods)
 }

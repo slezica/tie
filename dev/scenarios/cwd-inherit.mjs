@@ -9,7 +9,7 @@ export default async (ctx, h) => {
   const a = (await h.list(ctx)).tiles[0].id
   await ctx.page.keyboard.type('cd /tmp\n')
   await ctx.sleep(100) // well under the 2s cwd poll: the split must read it fresh
-  await ctx.page.keyboard.press('Meta+d')
+  await h.press(ctx, 'Meta+d')
   await ctx.sleep(300)
   const b = (await h.list(ctx)).active
   h.assert(b !== a, 'split opened')

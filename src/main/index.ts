@@ -137,7 +137,15 @@ function createWindow() {
   }
 }
 
-// Dev (tie-dev frames): the window's frame tree; content frames should be out-of-process.
+// Dev builds only, answered by main (harness): `frames` (tie-dev frames), `input`: a key or mouse
+// event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
+// real keys (shortcuts live there).
+const devMethods: Record<string, (params: unknown) => unknown> = {
+  frames: () => frameTree(),
+  input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
+}
+
+// The window's frame tree; content frames should be out-of-process.
 function frameTree() {
   const top = win?.webContents.mainFrame
   if (!top) return []
@@ -181,7 +189,7 @@ app.whenReady().then(async () => {
   serveShell(join(import.meta.dirname, '../renderer'))
   serveContent()
   createWindow()
-  startSocket(socketPath, (method, params) => (dev && method === 'frames' ? Promise.resolve(frameTree()) : callRenderer(method, params)))
+  startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready
   writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }))
   log('app', 'ready', { instance, socketPath, debugPort })

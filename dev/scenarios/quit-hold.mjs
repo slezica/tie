@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs'
 import { infoPath } from '../lib.mjs'
 
 export default async (ctx, h) => {
-  const kb = ctx.page.keyboard
+  // Keys through main (h.keyDown/keyUp): ⌘Q is handled in before-input-event.
+  const kb = { down: (k) => h.keyDown(ctx, k), up: (k) => h.keyUp(ctx, k), press: (k) => h.press(ctx, k) }
   await kb.down('Meta')
   await kb.press('q')
   await kb.up('Meta')

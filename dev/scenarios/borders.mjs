@@ -34,7 +34,7 @@ export default async (ctx, h) => {
   s = await ctx.tie('state')
   h.assert(leaves(s.tree).includes(d), `opened tile kept in tree: ${leaves(s.tree)}`)
 
-  await midDrag(() => ctx.page.keyboard.press('Meta+t'))
+  await midDrag(() => h.press(ctx, 'Meta+t'))
   const l = await h.list(ctx)
   h.assert(l.tabs.length === 2 && l.tiles.every((t) => t.tab === l.tabs[0].id), 'tiles stay in tab 1')
   h.assert(!(await ctx.tie('state')).tree, 'new tab board stays empty')

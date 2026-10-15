@@ -22,7 +22,7 @@ export default async (ctx, h) => {
   // Info dialog (close non-empty tab) gives focus back too.
   await ctx.tie('open', 'terminal')
   await ctx.sleep(500)
-  await ctx.page.keyboard.press('Meta+Shift+w')
+  await h.press(ctx, 'Meta+Shift+w')
   await ctx.page.waitForSelector('.dialog')
   await ctx.page.keyboard.press('Enter')
   const act = (await h.list(ctx)).active

@@ -1,7 +1,7 @@
 // Tabs: new (empty), switch, per-tab board + shelf, cwd-derived titles, rename, close only when empty.
 export default async (ctx, h) => {
   const k = async (chord) => {
-    await ctx.page.keyboard.press(chord)
+    await h.press(ctx, chord)
     await ctx.sleep(250)
   }
   const L = () => h.list(ctx)

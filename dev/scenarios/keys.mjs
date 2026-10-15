@@ -1,7 +1,7 @@
 // Keyboard: cmd+D / cmd+shift+D split the active tile; cmd+arrows move focus (incl. floats).
 export default async (ctx, h) => {
   const k = async (chord) => {
-    await ctx.page.keyboard.press(chord)
+    await h.press(ctx, chord)
     await ctx.sleep(250)
   }
   const active = async () => (await h.list(ctx)).active
