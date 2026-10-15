@@ -1,11 +1,11 @@
-import { app, BrowserWindow, ipcMain, Menu, screen } from 'electron'
+import { app, BrowserWindow, Menu, screen } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl, openExternal } from './security'
+import { harden, setShellUrl, openExternal, shellIpc } from './security'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -24,6 +24,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
+const ipc = shellIpc(() => win)
 let quitting = false
 const pty = initPty(() => (win && !win.isDestroyed() ? win.webContents : null))
 // Put on PATH in Tie terminals: the repo's bin/ in dev; Tie.app/Contents/Resources/bin when installed.
@@ -33,7 +34,7 @@ const binDir = app.isPackaged ? join(process.resourcesPath, 'bin') : join(app.ge
 // Calls wait until the renderer has registered its driver.
 let rendererReady: () => void
 const ready = new Promise<void>((r) => (rendererReady = r))
-ipcMain.on('renderer:ready', () => rendererReady())
+ipc.on('renderer:ready', () => rendererReady())
 
 let nextReq = 1
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
@@ -49,7 +50,7 @@ async function callRenderer(method: string, params: unknown): Promise<unknown> {
     }, 10_000)
   })
 }
-ipcMain.on('rpc:reply', (_e, reqId: number, error: string | null, result: unknown) => {
+ipc.on('rpc:reply', (_e, reqId: number, error: string | null, result: unknown) => {
   const p = pending.get(reqId)
   if (!p) return
   pending.delete(reqId)
@@ -57,17 +58,17 @@ ipcMain.on('rpc:reply', (_e, reqId: number, error: string | null, result: unknow
   else p.resolve(result)
 })
 
-ipcMain.handle('pty:spawn', (_e, o) => {
+ipc.handle('pty:spawn', (_e, o) => {
   const env = { ...o.env, TIE_SOCKET: socketPath, TIE_INSTANCE: instance, PATH: `${binDir}:${process.env.PATH ?? ''}` }
   return pty.spawn({ ...o, env })
 })
-ipcMain.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
-ipcMain.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
-ipcMain.on('pty:kill', (_e, id: number) => pty.kill(id))
-ipcMain.handle('pty:cwd', (_e, id: number) => pty.cwd(id))
-ipcMain.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags }))
-ipcMain.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
-ipcMain.handle('settings:set', (_e, patch) => {
+ipc.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
+ipc.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
+ipc.on('pty:kill', (_e, id: number) => pty.kill(id))
+ipc.handle('pty:cwd', (_e, id: number) => pty.cwd(id))
+ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags }))
+ipc.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
+ipc.handle('settings:set', (_e, patch) => {
   const fileError = settingsFileError()
   const errors = fileError ? [{ field: 'file', message: fileError }] : validateSettings(patch)
   if (errors.length) return { ok: false, errors }
@@ -75,15 +76,15 @@ ipcMain.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
-ipcMain.on('app:quit', () => app.quit())
-ipcMain.on('external:open', (_e, url: unknown) => openExternal(url))
-ipcMain.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
+ipc.on('app:quit', () => app.quit())
+ipc.on('external:open', (_e, url: unknown) => openExternal(url))
+ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
 // Borderless: hide the traffic lights (title bar is already hidden; the top bar stays draggable).
 function applyWindowSettings() {
   if (process.platform === 'darwin' && win && !win.isDestroyed()) win.setWindowButtonVisibility(!getSettings().borderless)
 }
-ipcMain.on('window:borderless-preview', (_e, on: boolean) => {
+ipc.on('window:borderless-preview', (_e, on: boolean) => {
   if (process.platform === 'darwin') win?.setWindowButtonVisibility(!on)
 })
 
