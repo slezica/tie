@@ -46,9 +46,10 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
-  - `tile.ts`: tile element, xterm, pty wiring, titles, error state.
+  - `tile.ts`: tile host: element, title bar, `Host` for kinds, mount/dispose, error state.
+  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text).
   - `drag.ts`: `track()`, drag/drop, border + float resize.
-  - `paste.ts`: guarded paste + OS drops into terminals.
+  - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel): UI parts.
   - `keys.ts`: keymap, split, focus-direction. `quit.ts`: hold-⌘Q.
   - `driver.ts`: socket methods → ops.
@@ -68,18 +69,20 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - `Space` also: `id` (`s1`...), `customTitle`, `customIcon`.
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
-- `Tile`:
+- `Tile` (common to all kinds):
   - `id` (`t1`...), `kind` (`'terminal'`), `customTitle`, `customIcon`.
-  - `oscTitle` (title escape), `proc` (foreground process), `cmd` (`--cmd`).
-  - `cwd` (start dir), `cwdNow` (polled).
-  - `pty` (= pid, or null), `ptySize` (last sent), `exit` (code or null), `error` (start error).
+  - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
-  - `el`, `body`, `term`, `fit`.
+  - `el`, `body`, `surface`.
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`.
+- `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`.
+- Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
 
 ## Patterns
 
 - Mutate only through `ops.ts`; ops end in `render()`, which always renders `S.visible`. Other space: `withSpace(id, fn)`.
-- Async work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)`: it may have closed.
+- Async work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)` (kinds: `host.alive()`): it may have closed.
+- Shell code never reaches into a kind's state: only through `Surface`.
 - `refocus()` after closing any modal/menu: keys to the active tile, or blur.
 - Tile elements never re-parent (xterm stays mounted); absolute window coords.
 - Keyed DOM reconcile where an element may hold pointer capture or hover (borders, shelf items, tabs).

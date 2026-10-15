@@ -1,12 +1,16 @@
 # Terminals
 
-## Create (`tile.ts`)
+## Create
 
-1. `createTile()`: element (title bar, `.body`, `.rz` handles) in `#tiles`; xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options, `linkHandler`).
+Terminal = a tile kind (`kinds/terminal.ts`) behind the `Surface` interface (`kinds/index.ts`). The host (`tile.ts`) owns element, title bar, error state.
+
+1. `createTile()` (host): element (title bar, `.body`, `.rz` handles) in `#tiles`; `terminalKind()`: xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options, `linkHandler`).
 2. `place()` + `render()`: element gets its rect.
-3. `startTerminal()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
+3. `mountTile()` → `Surface.mount()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
 4. Returns pty id (= pid) or `{error}`; rejection counts as `{error}`.
-5. Tile closed while spawning: new pty killed.
+5. Tile closed while spawning (`host.alive()` false): new pty killed.
+
+Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`. Shell code reaches it only through `Surface` (`title`, `icon`, `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`).
 
 ## Start directory
 
@@ -27,11 +31,12 @@
 
 ## Paste (`paste.ts`)
 
-- cmd+V and drops go through `pasteInto()`, never straight to xterm (capture listener on `#tiles`).
+- cmd+V and drops on a tile go to `Surface.paste` / `Surface.drop` (capture listener on `#tiles`). The terminal's go through `pasteInto()`, never straight to xterm.
 - Asks first (`confirmDialog`, preview with control chars as red `^X`):
   - control characters (C0 except tab/LF/CR, DEL, C1): `warnPasteControl`.
   - newlines while the program hasn't enabled bracketed paste (would run): `warnPasteRun`.
 - Cancel = nothing. "Paste anyway" or check off = raw text via `term.paste()`.
+- Drops (`dropText`): files → shell-quoted paths + space; else first link; else plain text. Then activate + guarded paste.
 
 ## Links
 
@@ -40,8 +45,8 @@
 
 ## Size
 
-- `ResizeObserver` on `.body` → `fitTile()` → xterm resize → `pty.resize`.
-- `fitTile()` skips bodies under 10 px (collapsed, hidden tab).
+- `ResizeObserver` on `.body` (host, after a successful mount) → `Surface.resize()` → `fitTerm()` → xterm resize → `pty.resize`.
+- `fitTerm()` skips bodies under 10 px (collapsed, hidden tab).
 - Resync after spawn: xterm may resize while the pty spawns.
 - `t.ptySize` = last size sent; `tie list --json` `term` shows both. Mismatch = bug (`assertPtySizes`).
 
@@ -49,30 +54,30 @@
 
 | Source | How | Sets |
 |---|---|---|
-| Output | `pty:data` | `term.write`, shelf activity |
+| Output | `pty:data` | `term.write`, shelf activity (`host.activity()`) |
 | Title escape | xterm `onTitleChange` | `oscTitle` |
 | Foreground process | node-pty `process`, polled 500 ms | `proc` |
 | Shell cwd | one batched `lsof -d cwd` every 2 s | `cwdNow` (tab title) |
 
-`displayTitle()`, first match: `customTitle`, `oscTitle`, `cmd`, `proc`, `terminal`.
+`displayTitle()`: `customTitle`, else `Surface.title()`: first of `oscTitle`, `cmd`, `proc`, `terminal`.
 
-`displayIcon()`: `customIcon`, else `PROGRAMS[proc]` (`icons.ts`), else `>_` glyph. Icons are escaped text, never markup; emoji grayscale.
+`displayIcon()`: `customIcon`, else `Surface.icon()`: `PROGRAMS[proc]` (`icons.ts`), else `>_` glyph. Icons are escaped text, never markup; emoji grayscale.
 
-Meta changes fire `tile-meta`.
+Meta changes: `host.changed()` → `refreshTitle()` → `tile-meta` event.
 
 ## Exit
 
-- Writes `[process exited with code N]`, sets `exit`, title shows `✓` / `✗ N`.
-- Shell tiles (no `cmd`): close on exit. `--cmd` tiles: stay open.
+- Writes `[process exited with code N]`, `host.exit(code)`: sets tile `exit`, title shows `✓` / `✗ N`.
+- Shell tiles (no `cmd`): `host.close()`. `--cmd` tiles: stay open.
 
 ## Errors
 
-- Spawn failure (shell, cwd, throw): `showError()`: "Error" + message replaces content. Tile stays open; `tie list --json` shows `error`.
+- Spawn failure (shell, cwd, throw): `host.error()` → `showError()`: "Error" + message replaces content. Tile stays open; `tie list --json` shows `error`.
 - Settings refuse to save an invalid shell (`SETTINGS.md`).
 
 ## Close
 
-`closeTile()` → `disposeTile()`: kill pty, dispose xterm, remove element, drop from `S.tiles`.
+`closeTile()` → `disposeTile()`: `Surface.dispose()` (kill pty, dispose xterm), remove element, drop from `S.tiles`.
 
 ## Limitations
 

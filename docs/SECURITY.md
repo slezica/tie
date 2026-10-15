@@ -24,8 +24,8 @@
 | `<webview>` attach: denied until a kind needs it | `guard()` | — |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
 | Permissions: all denied, every session | `harden()` | `sec-permissions` |
-| Terminal links: hover shows URL, cmd-click only, http(s) only | `tile.ts` `linkHandler`, `openExternal` | `sec-links` |
-| Native drops: never navigate; on a terminal, quoted paths / text via guarded paste, else nothing | `renderer/main.ts`, `paste.ts` | `sec-drop` |
+| Terminal links: hover shows URL, cmd-click only, http(s) only | `kinds/terminal.ts` `linkHandler`, `openExternal` | `sec-links` |
+| Native drops: never navigate; on a terminal, quoted paths / text via guarded paste, else nothing | `renderer/main.ts`, `paste.ts`, `kinds/terminal.ts` | `sec-drop` |
 | Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |
 | IPC: shell main frame of shell window only | `shellIpc`, `isShellSender` | unit |
 | Shell on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |

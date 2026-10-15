@@ -57,7 +57,7 @@
 - `infoDialog(title, message)`: modal OK; Enter / Escape / backdrop close, then `refocus()`.
 - `confirmDialog({cls, title, body, confirm})` → bool: Cancel focused (Enter cancels); Escape / backdrop = false.
 
-## OS drops (`paste.ts`)
+## OS drops (`paste.ts` → `Surface.drop`)
 
 - Native drag-and-drop from other apps (Finder, browsers). Tie's own drags are pointer-based (above).
 - On a terminal: files → shell-quoted paths + space; else first `text/uri-list` link, else `text/plain`. Activates the tile, then the guarded paste.

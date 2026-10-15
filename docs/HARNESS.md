@@ -69,7 +69,7 @@ EOF
 | `hoverShelf`, `pin`, `shelfItem`, `template`, `boxOf(selector)` | shelf + DOM points |
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
-| `assert`, `assertPtySizes` | checks; pty size == xterm grid |
+| `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
 | `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 
