@@ -31,7 +31,7 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 - Headings: GitHub-style slug ids (anchors).
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
 - Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
-- Style: `<style nonce>` in the viewer page. Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
+- Style: `<style nonce>` in `src/viewers/markdown.html` (the only place markdown styles live). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
 - Scroll: kept on reload; top on a new page; on back/forward restored if the frame didn't reload (same directory).
 - Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`).
 
@@ -52,6 +52,7 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 ## History
 
 - Per tile: list + index. Push drops forward entries.
+- Shift+Up / Shift+Down (viewer, frame focused): scroll a third of the tile height. Plain arrows: browser step.
 - `cmd+[` / `cmd+]` (`history-back` / `history-forward`, keymap in main): active tile's `Surface.history(step)`. No-op on other kinds and at the ends.
 
 ## Task toggles

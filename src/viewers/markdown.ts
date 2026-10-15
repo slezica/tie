@@ -187,6 +187,14 @@ addEventListener('click', (e) => {
   if (href.startsWith('#')) return scrollToHash(href)
   state.port?.postMessage({ verb: 'followLink', href, newTile: e.metaKey })
 })
+// Shift+Up / Shift+Down: scroll a third of the tile's height (fast scanning). Plain arrows keep the
+// browser's small step.
+addEventListener('keydown', (e) => {
+  if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
+  e.preventDefault()
+  scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'instant' })
+})
+
 // Middle clicks, drops: never navigate (the nav lock would refuse anyway).
 addEventListener('auxclick', (e) => (e.target as Element).closest?.('a') && e.preventDefault())
 addEventListener('dragover', (e) => e.preventDefault())
