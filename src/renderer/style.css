@@ -499,10 +499,11 @@ body.resizing-col .border.col:hover::after {
 .border.col:hover::after { top: 2px; bottom: 2px; left: 0; right: 0; }
 
 /* Drag shield: tile content ignores the pointer during any drag. Content frames from pointerdown
-   on (track()): they'd swallow moves and the release. */
+   on (track()): they'd swallow moves and the release. OS drags (main.ts): drops land in the shell. */
 body.dragging .body,
 body.dragging .tile.shelved.revealed,
-body.tracking .body iframe {
+body.tracking .body iframe,
+body.os-drag .body iframe {
   pointer-events: none;
 }
 body.dragging {

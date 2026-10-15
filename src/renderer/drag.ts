@@ -1,10 +1,11 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropSide, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
-import { S, GAP, TITLE, MIN, boardRect, shelfRect, location, debug, type Kind } from './state'
+import { S, GAP, TITLE, MIN, tie, boardRect, shelfRect, location, debug, type Kind } from './state'
 import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, type Placement } from './ops'
 import { render } from './render'
 import { shelfItemEl } from './shelf'
 import { displayIcon, displayTitle, iconHtml } from './tile'
+import { needsFile } from './kinds'
 
 export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; kind: Kind; label: string }
 
@@ -121,7 +122,16 @@ async function applyDrop(src: DragSource, t: Target) {
   const at = t.placement.type === 'slot' ? t.placement.at : null
   const cwd = at ? await cwdOf(at) : undefined
   if (at && !contains(S.tree, at)) return
-  openTile(src.kind, t.placement, { cwd })
+  if (!needsFile(src.kind)) return void openTile(src.kind, t.placement, { cwd })
+  // Kinds showing a file: pick one first (main's dialog); cancel = no tile.
+  const path = await tie.doc.pick(cwd ?? S.cwd)
+  if (!path || (at && !contains(S.tree, at))) return
+  openTile(src.kind, t.placement, { path })
+}
+
+// Where a template dropped at (x, y) would land (OS file drops use the same rules).
+export function placementAt(x: number, y: number): Placement | null {
+  return computeTarget({ type: 'template', kind: 'terminal', label: '' }, x, y, false, { dx: 120, dy: 14 })?.placement ?? null
 }
 
 // Pointer-down on a draggable: becomes a drag past THRESHOLD, otherwise a click.

@@ -9,7 +9,10 @@ import { showTileMenu } from './menu'
 
 const items = new Map<TileId, HTMLElement>()
 
-const TEMPLATES: { kind: Kind; label: string; icon: string }[] = [{ kind: 'terminal', label: 'terminal', icon: '' }]
+const TEMPLATES: { kind: Kind; label: string; icon: string }[] = [
+  { kind: 'terminal', label: 'terminal', icon: '' },
+  { kind: 'markdown', label: 'markdown', icon: '📝' }, // drop → file picker
+]
 
 export function initShelf() {
   const tpl = document.getElementById('templates')!

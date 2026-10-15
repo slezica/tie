@@ -27,10 +27,18 @@ window.addEventListener(
   (e) => {
     e.preventDefault()
     e.stopPropagation()
-    dropOnTile(e) // on a terminal: paths/text through the paste guards (paste.ts)
+    document.body.classList.remove('os-drag')
+    dropOnTile(e) // on a terminal: paths/text through the paste guards; files elsewhere: viewers (paste.ts)
   },
   true,
 )
+// SECURITY: while an OS drag is over the window, content frames ignore the pointer (body.os-drag,
+// style.css): the drop lands in the shell (opens files beside the tile), and content never sees
+// dropped files. A drag entering the window straight over a frame still reaches it (no dragenter
+// here first); viewers refuse drops.
+window.addEventListener('dragenter', () => document.body.classList.add('os-drag'), true)
+window.addEventListener('dragleave', (e) => !e.relatedTarget && document.body.classList.remove('os-drag'), true)
+window.addEventListener('dragend', () => document.body.classList.remove('os-drag'), true)
 
 const tiles = document.getElementById('tiles')!
 const tileId = (el: Element | null) => (el?.closest('.tile') as HTMLElement | null)?.dataset.id

@@ -3,6 +3,7 @@
 import { S, tie } from './state'
 import { confirmDialog } from './dialog'
 import { pasteRisks, showControls } from '@core/paste'
+import { dropFiles } from './files'
 
 export interface PasteTarget {
   bracketed: boolean // program enabled bracketed paste (newlines won't run)
@@ -68,9 +69,14 @@ export function initPaste() {
   )
 }
 
-// OS drop on a tile: its kind decides (terminal: paths or text, guarded). Elsewhere: nothing.
+// OS drop on a tile that takes drops: its kind decides (terminal: paths or text, guarded).
+// Files anywhere else on the board or shelf: opened in their viewer there. Text elsewhere: nothing.
 // (Navigation-on-drop is already refused globally, main.ts.)
 export function dropOnTile(e: DragEvent) {
   const t = tileAt(e.target)
-  if (t && e.dataTransfer) t.surface.drop?.(e.dataTransfer)
+  const dt = e.dataTransfer
+  if (!dt) return
+  if (t?.surface.drop) return t.surface.drop(dt)
+  const paths = [...dt.files].map((f) => tie.pathForFile(f)).filter(Boolean) // only readable during the event
+  if (paths.length) void dropFiles(paths, e.clientX, e.clientY)
 }
