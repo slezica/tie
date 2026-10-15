@@ -13,6 +13,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 |---|---|
 | `tie list [--json]` | Tiles (+ tabs with `--json`) |
 | `tie open terminal [opts]` | Open, print id |
+| `tie open <path> [placement]` | Open a file in its viewer (`.md`, `.markdown` → markdown, `MARKDOWN.md`), print id |
 | `tie close [id]` | Close |
 | `tie move [id] --at <id> [--side s] \| --float \| --shelve` | Move |
 | `tie focus [id]` | Switch to its tab; expand + activate, or pin if shelved |
@@ -23,6 +24,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
 - `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`.
+- `open <arg>`: a registered kind name → that kind (`./terminal` for a file named so). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, no viewer → `No viewer for .ext` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
 - `--shelve` = `--shelved` (both commands).
 - `[id]` defaults to `$TIE_TILE`.
 - `title` / `icon` with 2+ args: first is `id`, rest joined (unquoted words ok).
@@ -47,7 +49,8 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - `id`, `kind`, `title`, `icon`, `state` (`slotted|floating|shelved`), `tab` (space id).
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
-- `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size.
+- `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
+- `doc: {path, rev, missing, history: {index, length}}` (markdown; null until open).
 - `rect`: window px, rounded; null if not rendered (background tab).
 
 ## Socket protocol
@@ -61,7 +64,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ← {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no such tile: t9"}}
 ```
 
-Methods = commands. Params: `open` {`kind`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
+Methods = commands. Params: `open` {`kind`, `path` (absolute), `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
 
 - `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`.
 
@@ -74,4 +77,4 @@ Methods = commands. Params: `open` {`kind`, `cmd`, `cwd`, `title`, `at`, `side`,
 
 - No auth: any local process of the user can connect.
 - No events; poll `list`.
-- No terminal I/O. Kinds: `terminal`; `probe` in dev builds.
+- No terminal I/O. Kinds: `terminal`, `markdown` (by path); `probe` in dev builds.

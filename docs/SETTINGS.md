@@ -15,7 +15,7 @@
 | `tabBar` | `top` | app | `top` \| `bottom` |
 | `shelfStyle` | `normal` | app | `normal` \| `compact` |
 | `fontFamily` | `''` | all tiles | `''` = default stack |
-| `fontSize` | 12 | all tiles | 8–32 px |
+| `fontSize` | 12 | all tiles | 8–32 px (markdown: base text size) |
 | `lineHeight` | 1.15 | all tiles | 1–2 |
 | `cellWidth` | 100 | all tiles | 70–150 % (kitty `cell_width`) |
 | `shell` | `''` | terminal kind | command line; `''` = login shell (`TERMINALS.md`) |
@@ -37,6 +37,7 @@
 ## Themes (`themes.ts`)
 
 - Theme = `{label, dark, accent, palette}` (xterm colors + 16 ANSI). Add one: entry in `THEMES`, nothing else.
+- Content viewers get the theme over their port (markdown: bg, fg, accent, ANSI → code tokens; fonts: UI font for text, tile font for code). `MARKDOWN.md`.
 
 ## Color tokens
 

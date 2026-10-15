@@ -1,8 +1,10 @@
 # Shelf
 
-Right-hand column per space: `#templates` (only `terminal`), `.sep`, `#items` (one `.item` per shelved tile, `S.shelf` order).
+Right-hand column per space: `#templates` (`terminal`, `markdown`), `.sep`, `#items` (one `.item` per shelved tile, `S.shelf` order).
 
 - Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto shelf → new shelved tile.
+- `markdown` template: the drop opens a file picker first (starts in the target tile's directory); cancel → no tile (`MARKDOWN.md`).
+- Finder drops of files on the board or shelf follow the same rules (`INPUT.md`).
 - Item: icon + label (`displayTitle`/`displayIcon`, `TERMINALS.md`), activity dot, ping dot, exit mark (`✓` green / `✗` red).
 - Right-click item: tile menu (`INPUT.md`).
 
@@ -35,5 +37,5 @@ Right-hand column per space: `#templates` (only `terminal`), `.sep`, `#items` (o
 
 ## Activity
 
-- `noteActivity()` on pty data: dot on shelved tiles not revealed or pinned.
+- `noteActivity()` on pty data (terminals) or file changes (markdown): dot on shelved tiles not revealed or pinned.
 - Cleared by hover, pin, re-shelve.

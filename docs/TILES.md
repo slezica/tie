@@ -27,29 +27,35 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 | `dir?()`, `cwd?()` | tab titles; new tiles split from it (`cwdOf`) |
 | `paste?(text)`, `drop?(dataTransfer)` | `paste.ts` routing |
 | `appearance?()` | settings changes (`appearance.ts`) |
-| `info?()` | extra `tie list --json` fields (terminal: `term`) |
+| `info?()` | extra `tie list --json` fields (terminal: `term`; markdown: `doc`) |
+| `history?(step)` | `cmd+[` / `cmd+]` (markdown) |
 
 ## Kinds (`renderer/kinds/`)
 
 | Kind | Realm | Notes |
 |---|---|---|
 | `terminal` | shell (trusted) | xterm + pty; the one exception to "content never in the shell realm" (`TERMINALS.md`) |
+| `markdown` | content frame | live file view, task toggles, links, history (`MARKDOWN.md`) |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - Registry: `KINDS` (`kinds/index.ts`), `registerKind()` for dev-only kinds. `tie open <kind>` accepts registered kinds.
+- `needsFile(kind)` (markdown): opened only with a path (`tie open <path>`, drops, template + picker); `cmd+D` on it splits a terminal.
 
 ## Content kinds: frame host (`renderer/frame.ts`)
 
-`frameSurface(host, {viewer, root, title, icon, handlers})`. A content kind gives only these.
+`frameSurface(host, {viewer, root, title, icon, handlers, onReady?})` → `FrameSurface` (= `Surface` + `post(msg)`, `setRoot(root)`). A content kind gives only these.
 
 1. `mount`: `tie.content.open(root, viewer)` → main registers `root` under a fresh token → `{token, url}` (or `{error}` → `host.error`).
 2. `<iframe class="content" sandbox="allow-scripts" allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
 3. On each `load`: new `MessageChannel`; `tie:init` + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
-4. Viewer answers `{verb: 'ready'}` within 5 s, else `host.error('Content did not load')`.
-5. Requests: port → `parseRequest` (`core/requests.ts`) → `handlers[verb]` → IPC → main (re-validates). Invalid or unhandled: dropped, `debug('security', ...)`.
-6. `dispose`: port closed, iframe removed, `tie.content.close(token)`.
+4. Viewer answers `{verb: 'ready'}` within 5 s, else `host.error('Content did not load')`. Each `ready` → `onReady()` (kind sends content).
+5. Requests: port → `parseRequest` (`core/requests.ts`) → gesture rule → `handlers[verb]` → IPC → main (re-validates). Invalid, unhandled or refused: dropped, `debug('security', ...)`.
+6. `post(msg)`: host → viewer over the port (dropped before the handshake).
+7. `setRoot(root)`: new token for another directory, same iframe (`src` changes; nav lock binds the new token to it), old token closed. Handshake again.
+8. `dispose`: port closed, iframe removed, `tie.content.close(token)`.
 
 - No window `message` listener in the shell: requests arrive over the port only.
+- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only.
 - Focus: a click in a frame gives the shell no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
 - Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
@@ -59,7 +65,9 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 | Verb | Args | Handled by |
 |---|---|---|
 | `ready` | — | host (clears load timer) |
-| `openLink` | `url` (string, ≤ 4096) | kind; probe → `tie.openExternal` (main: http(s) only) |
+| `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
+| `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | markdown: `classifyLink` → browser / this tile / new tile (`MARKDOWN.md`) |
+| `toggleTask` | `line` (int ≥ 0), `expected` (string, ≤ 10000), `rev` (16 hex); gesture | markdown → main `doc:toggle` (revision + line check) |
 
 - Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
 - New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.
@@ -86,9 +94,11 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 - `<kind>.html` (script tag with `nonce="%NONCE%"`) + `<kind>.ts` → `out/viewers/` (vite plugin in `electron.vite.config.ts`, built with main).
 - Classic IIFE: opaque-origin frames can't load module scripts or `fetch` from `tie-content:` (no CORS). Content text goes over the port.
 - `probe`: `window.probe = {port, received, inits}`; replies `ready` to `tie:init` from `parent`. Scenarios run code in it (`h.probeFrame`).
+- `markdown`: markdown-it + highlight.js + DOMPurify; `window.markdown` for the harness (`MARKDOWN.md`).
+- Styles: `<style nonce="%NONCE%">` in the page; values from the host via CSSOM (style attributes are blocked by the CSP).
 
 ## Limitations
 
 - Frame renderer crash: not detected (no per-frame crash event); tile stays blank.
 - OS drags entering straight over a frame go to the frame (a drop there can only try to navigate it: nav lock).
-- `openLink` has no user-gesture requirement yet (markdown phase decides link policy).
+- Gesture rule checks focus, not a fresh click: script in a focused frame could post at any time. Today only our viewers run script in frames.

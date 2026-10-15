@@ -1,6 +1,6 @@
 # Tie: Tiled Integrated Environment
 
-Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames) in a slot tree + floating, with a shelf for parking tiles, scriptable via the `tie` CLI.
+Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames: live markdown) in a slot tree + floating, with a shelf for parking tiles, scriptable via the `tie` CLI.
 
 ## Guides
 
@@ -11,6 +11,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
 - `docs/TILES.md`: tile host, kinds, `Surface`, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
+- `docs/MARKDOWN.md`: markdown kind: viewer pipeline, links, history, task toggles, watching, opening.
 - `docs/CLI.md`: `tie` CLI, socket protocol, placement.
 - `docs/SETTINGS.md`: settings, themes, tokens, fonts.
 - `docs/HARNESS.md`: `tie-dev`, scenarios, helpers, traces.
@@ -32,6 +33,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 - Electron 44 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
 - xterm.js 6 + fit addon; node-pty 1.1 (rebuilt for Electron on install).
+- Markdown viewer (bundled into its IIFE): markdown-it 15, DOMPurify 3, highlight.js 11 (core + common languages).
 - Vitest (unit), Playwright over CDP (scenarios = e2e).
 - No UI framework: plain objects + `render()`.
 - macOS only (harness uses `Electron.app` binary path, `-ApplePersistenceIgnoreState`).
@@ -44,16 +46,18 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/content.ts`: content URL/token/path checks, viewer files, content CSP (main). Tests: `content.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor`, `isQuitKey` (main + renderer). Tests: `keymap.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock), `keys.ts` (shortcuts in `before-input-event`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/core/markdown.ts`: `viewerFor`, `noViewer`, `classifyLink`, `toggleTaskLine`, `applyToggle` (main + renderer). Tests: `markdown.test.ts`.
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, task toggle write, picker), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
-- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `probe` only.
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `markdown`, `probe` (dev).
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, `Host` for kinds, mount/dispose, error state.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text), `probe.ts` (dev harness content kind).
-  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, focus).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text), `markdown.ts` (live file view: doc, links, history, toggles, theme), `probe.ts` (dev harness content kind).
+  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, `post`, `setRoot`).
+  - `files.ts`: OS file drops → viewer tiles.
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel): UI parts.
@@ -62,7 +66,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
   - `main.ts`: boot, delegated tile events.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`, `probeFrame`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `osDrop`, `pickNext`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -76,13 +80,14 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
-  - `id` (`t1`...), `kind` (`'terminal'`, dev `'probe'`), `customTitle`, `customIcon`.
+  - `id` (`t1`...), `kind` (`'terminal'`, `'markdown'`, dev `'probe'`), `customTitle`, `customIcon`.
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`.
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `history`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`.
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
+- Markdown state (kind-private, `MARKDOWN.md`): `doc {id, path, text, rev, missing}`, `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).
 
 ## Patterns
 
@@ -98,7 +103,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).
-- Content kinds: only via `frameSurface` (`TILES.md`); new frame verbs in `core/requests.ts`.
+- Content kinds: only via `frameSurface` (`TILES.md`); new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
+- Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.

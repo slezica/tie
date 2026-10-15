@@ -105,33 +105,6 @@ Steps:
 6. Remote images placeholder, scroll kept on reload, shelf activity on change.
 7. Scenarios per step; `sec-*` for 3 and 4 (stale write refused, gesture-less openLink refused).
 
-## Results`).
-2. `tie-content` scheme: privileged (`standard`, `secure`; no `corsEnabled`, no `bypassCSP`), token registry, handler, headers. Unit tests for path + token logic.
-3. `will-frame-navigate`: subframes only to registered `tie-content://<token>/`. Shell CSP `frame-src tie-content:`.
-4. Frame host: iframe, handshake, request registry (`core/requests.ts`), focus → activate, pointer shield during `track()` drags/resizes.
-5. Probe kind (dev only) + `sec-content-escape`. `tie-dev frames`.
-6. Docs: `SECURITY.md` (guards + tests), `ARCHITECTURE.md`, new `docs/TILES.md` (host, kinds, surface, requests).
-
-### Phase 3: shortcuts in main
-
-1. Check first: does CDP input (harness `page.keyboard`) reach `before-input-event`? If not, harness needs another input path before moving keys. Stop and report if unresolved.
-2. Keymap table to `core/keymap.ts`, shared by main and renderer.
-3. Main `before-input-event` (shell webContents; later guests): match, block, send `keys:action`. Keyup for hold keys (hold-⌘Q). Never swallow Esc or editing combos.
-4. Renderer dispatches actions; its own `keydown` path removed for those keys.
-5. Scenarios: existing `keys`/`quit-hold` green; shortcuts work with probe frame focused; synthetic `KeyboardEvent` in frame triggers nothing.
-6. Docs: `INPUT.md`, `SECURITY.md`.
-
-### Phase 4: markdown kind (blocked on decisions)
-
-Decisions first:
-- Raw HTML in markdown: sanitized or escaped.
-- Link clicks: plain or ⌘; relative `.md` in place or new tile.
-- Opening: `tie open <path>`, Finder drop on board, template + picker.
-- Style: monospace + dimmed markup, or proportional.
-- Code highlighting in v1.
-
-Then: viewer (markdown-it + DOMPurify in frame), file watch in main, `toggleTask(line, expected, rev)`, remote images blocked, scroll kept on reload, shelf activity on change.
-
 ## Results
 
 ### 2.1 Runtime checks (spike, 2026-10-15; Electron 44.7.2)
@@ -183,3 +156,17 @@ Design consequences:
 - Suspend: main skips the keymap while the renderer reports a focused text field or open modal (`keys:suspend`); the renderer also drops actions while a modal is open.
 - Main window `blur` cancels a hold (the shell page sees no blur while a frame has focus).
 - Scenarios pressing shortcuts now use `h.press` / `keyDown` / `keyUp` (through main); intent unchanged.
+
+### Phase 4 notes (implementation)
+
+- New verb `followLink {href, newTile}` (markdown) beside `openLink {url}` (probe): the host classifies the raw href (`classifyLink`), so the viewer never decides where a link goes.
+- Gesture rule in the frame host, for every kind: `gesture` flag per verb (`openLink`, `followLink`, `toggleTask`); accepted only while the tile's iframe is `document.activeElement`. Programmatic `iframe.focus()` from the shell sets it even offscreen (used by `sec-content-escape`); real clicks need `hiddenWindow`.
+- DOMPurify's default `ALLOWED_URI_REGEXP` strips `tie-content:` image URLs: own regexp (http(s), `tie-content://`, relative). `SANITIZE_NAMED_PROPS` prefixes ids `user-content-` (anchors look them up so).
+- Viewer CSS: nonce'd `<style>`; theme values via CSSOM `setProperty` (not blocked by the CSP).
+- Root change (another directory): same iframe, new `src`/token; the nav lock binds the new token to the same `frameTreeNodeId`. Old token closed after.
+- Watcher on real files (vitest, macOS): in place, temp + rename, backup rename + new (6 ms gap: never reported missing), delete/recreate, symlinked path, bursts (≤3 events for 20 writes), directory removed + recreated (re-armed by the poll).
+- Toggle refusals push the file as it is now (viewer re-renders from disk); writes go through `realpath` (symlink kept); non-UTF-8 files refused (text must round-trip).
+- Harness: CDP `Input.dispatchDragEvent` in offscreen mode reaches the shell even over a frame: the OS-drag frame shield (`body.os-drag`) is not exercised by `markdown-open`.
+- Package: viewer libraries were `dependencies` → copied into `app.asar` unused (17 MB). Now `devDependencies` (6.9 MB). Package smoke opens a markdown file.
+- `cmd+D` on a markdown tile splits a terminal in the file's directory (a markdown split would need a file).
+- Fixed: a garbled duplicate of the Phase 2–4 steps (from b58fb5a) removed from this record.

@@ -37,6 +37,8 @@ Idempotent:
 | `Resources/cli/tie.mjs` | CLI (`bin/tie`) |
 | `Resources/fingerprint` | input hash (idempotency) |
 
+- Bundled-only packages (xterm excepted, historical) are `devDependencies`: `dependencies` get copied into `app.asar` as `node_modules`. Viewer libraries (markdown-it, DOMPurify, highlight.js) live only in `out/viewers/*.js`.
+
 ## CLI launcher
 
 - Runs the CLI with Tie's Electron as Node (`ELECTRON_RUN_AS_NODE=1`). No system Node needed.
