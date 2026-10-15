@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 export interface Settings {
   shell: string
@@ -10,6 +10,8 @@ export interface Settings {
   borderless: boolean
   tabBar: 'top' | 'bottom'
   shelfStyle: 'normal' | 'compact'
+  warnPasteControl: boolean
+  warnPasteRun: boolean
 }
 
 type DataCb = (id: number, data: string) => void
@@ -23,6 +25,8 @@ const api = {
   quit: () => ipcRenderer.send('app:quit'),
   // Main validates the scheme (http/https only).
   openExternal: (url: string) => ipcRenderer.send('external:open', url),
+  // Absolute path of a dropped file ('' if not a real file).
+  pathForFile: (f: File): string => webUtils.getPathForFile(f),
   settings: {
     get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string; error: string | null }> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings | 'file'; message: string }[] }> =>

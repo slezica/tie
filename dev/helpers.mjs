@@ -155,3 +155,28 @@ export async function probe(ctx) {
 
 // App URL the shell must stay on (guards against navigation).
 export const shellUrl = (ctx) => ctx.page.evaluate(() => location.href)
+
+// Paste text into a terminal tile as the OS would (paste event on xterm's textarea).
+export async function paste(ctx, id, text) {
+  await ctx.page.evaluate(
+    ([id, text]) => {
+      const ta = document.querySelector(`.tile[data-id="${id}"] textarea`)
+      ta.focus()
+      const dt = new DataTransfer()
+      dt.setData('text/plain', text)
+      ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+    },
+    [id, text],
+  )
+  await ctx.sleep(400)
+}
+
+// Visible text of a terminal tile.
+export const screen = (ctx, id) => ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).textContent, id)
+
+// Open paste warning, or null: { warnings: ['control'|'run'], preview }.
+export const pasteWarning = (ctx) =>
+  ctx.page.evaluate(() => {
+    const d = document.querySelector('.dialog.paste-warning')
+    return d && { warnings: [...d.querySelectorAll('[data-warning]')].map((w) => w.dataset.warning), preview: d.querySelector('.preview').textContent }
+  })

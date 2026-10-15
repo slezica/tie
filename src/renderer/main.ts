@@ -11,6 +11,7 @@ import { initSettings } from './settings'
 import { applyAppearance } from './appearance'
 import { initKeys } from './keys'
 import { initTabs, setHome } from './tabs'
+import { initPaste, dropOnTerminal } from './paste'
 
 // SECURITY: native drops (from Finder, browsers) are no-ops. Unclaimed, the browser navigates the
 // window to a dropped link/file (and the preload would follow), and dropped text lands in xterm's
@@ -22,6 +23,7 @@ window.addEventListener(
   (e) => {
     e.preventDefault()
     e.stopPropagation()
+    dropOnTerminal(e) // on a terminal: paths/text through the paste guards (paste.ts)
   },
   true,
 )
@@ -85,6 +87,7 @@ async function boot() {
   )
   initShelf()
   initMenu()
+  initPaste()
   initDriver()
   initSettings()
   initKeys()

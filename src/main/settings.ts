@@ -14,9 +14,11 @@ export interface Settings {
   borderless: boolean // app-wide: hide window controls (kitty hide_window_decorations)
   tabBar: 'top' | 'bottom' // app-wide: tab bar position
   shelfStyle: 'normal' | 'compact' // app-wide: compact = narrow, icons only
+  warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
+  warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal' }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -69,6 +71,8 @@ function sanitize(s: Settings): Settings {
     borderless: typeof s.borderless === 'boolean' ? s.borderless : DEFAULTS.borderless,
     tabBar: s.tabBar === 'bottom' ? 'bottom' : 'top',
     shelfStyle: s.shelfStyle === 'compact' ? 'compact' : 'normal',
+    warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
+    warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,
   }
 }
 

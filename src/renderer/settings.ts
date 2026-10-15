@@ -79,6 +79,9 @@ export async function toggleSettings() {
           <label for="set-shell">Shell command</label>
           <input id="set-shell" spellcheck="false" />
           <p class="hint">Used for new terminals.</p>
+          <h3>Paste</h3>
+          <label class="check"><input id="set-warn-control" type="checkbox" /> Confirm control characters <span class="scope">pastes and drops</span></label>
+          <label class="check"><input id="set-warn-run" type="checkbox" /> Confirm pastes that would run commands <span class="scope">newlines, program without bracketed paste</span></label>
         </section>
         <div class="actions">
           <span class="status" title="${esc(path)}">${esc(path)}</span>
@@ -99,6 +102,8 @@ export async function toggleSettings() {
   const shelfStyle = $<HTMLSelectElement>('#set-shelf-style')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
+  const warnControl = $<HTMLInputElement>('#set-warn-control')
+  const warnRun = $<HTMLInputElement>('#set-warn-run')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
   // Font list arrives async (system font query can be slow); fields never wait on it.
@@ -117,6 +122,8 @@ export async function toggleSettings() {
   shelfStyle.value = settings.shelfStyle
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
+  warnControl.checked = settings.warnPasteControl
+  warnRun.checked = settings.warnPasteRun
   shell.placeholder = defaults.shell
 
   const swatches = () => {
@@ -133,6 +140,8 @@ export async function toggleSettings() {
     borderless: borderless.checked,
     tabBar: tabBar.value as 'top' | 'bottom',
     shelfStyle: shelfStyle.value as 'normal' | 'compact',
+    warnPasteControl: warnControl.checked,
+    warnPasteRun: warnRun.checked,
   })
   const preview = () => {
     swatches()
