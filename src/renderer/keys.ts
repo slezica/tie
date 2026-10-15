@@ -1,55 +1,41 @@
-// Keyboard shortcuts: keymap (@core/keymap) → actions, handled before terminals see the keys.
+// Keyboard shortcuts: actions from main (keymap: @core/keymap, matched in src/main/keys.ts).
 import type { Rect, Side, TileId } from '@core/layout'
-import { S, location, getTile, spaceOf, withSpace } from './state'
+import { S, tie, location, getTile, spaceOf, withSpace } from './state'
 import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
-import { DEFAULT_KEYMAP, actionFor, type Action, type KeyInput } from '@core/keymap'
-
-let keymap = DEFAULT_KEYMAP
-
-const keyInput = (e: KeyboardEvent): KeyInput => ({ key: e.key, meta: e.metaKey, control: e.ctrlKey, alt: e.altKey, shift: e.shiftKey })
+import type { Action } from '@core/keymap'
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
-function editingText(target: EventTarget | null): boolean {
+function editingText(target: Element | null): boolean {
   const el = target as HTMLElement | null
   if (!el || el.classList?.contains('xterm-helper-textarea')) return false
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
 }
 
-export function initKeys() {
-  // ⌘Q: hold to quit. Handled before anything else, everywhere (also in text fields and panels).
-  window.addEventListener(
-    'keydown',
-    (e) => {
-      if (!(e.metaKey && e.key.toLowerCase() === 'q')) return
-      e.preventDefault()
-      e.stopPropagation()
-      if (!e.repeat) quitPressed()
-    },
-    true,
-  )
-  window.addEventListener(
-    'keyup',
-    (e) => {
-      if (e.key.toLowerCase() === 'q' || e.key === 'Meta') quitReleased()
-    },
-    true,
-  )
-  window.addEventListener('blur', () => quitCancelled())
+const modalOpen = () => !!document.querySelector('.settings, .dialog-backdrop')
 
-  window.addEventListener(
-    'keydown',
-    (e) => {
-      if (editingText(e.target) || document.querySelector('.settings, .dialog-backdrop')) return
-      const action = actionFor(keyInput(e), keymap)
-      if (!action) return
-      e.preventDefault()
-      e.stopPropagation()
-      run(action)
-    },
-    true, // capture: before xterm
-  )
+// Shortcuts are matched and blocked in main (src/main/keys.ts); this side runs the actions. Main
+// skips the keymap (not ⌘Q) while a text field or modal has focus: told on every change.
+export function initKeys() {
+  let suspended = false
+  const sync = () => {
+    const on = editingText(document.activeElement) || modalOpen()
+    if (on !== suspended) tie.keys.suspend((suspended = on))
+  }
+  document.addEventListener('focusin', sync, true)
+  document.addEventListener('focusout', () => setTimeout(sync), true)
+  new MutationObserver(sync).observe(document.body, { childList: true })
+
+  tie.keys.onAction((a) => {
+    if (a === 'quit-press') return quitPressed()
+    if (a === 'quit-release') return quitReleased()
+    if (a === 'quit-cancel') return quitCancelled()
+    if (!modalOpen()) run(a as Action) // never act behind a modal, even if main's view lagged
+  })
+  window.addEventListener('blur', () => quitCancelled())
+  // ⌘Q reaches the page (main can't block it, see main/keys.ts): keep it from xterm.
+  window.addEventListener('keydown', (e) => e.metaKey && e.key.toLowerCase() === 'q' && (e.preventDefault(), e.stopPropagation()), true)
 }
 
 export function run(action: Action) {

@@ -41,6 +41,14 @@ const api = {
     open: (root: string, kind: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind),
     close: (token: string) => ipcRenderer.send('content:close', token),
   },
+  // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
+  // or modal has focus, its keys stay its own.
+  keys: {
+    onAction: (cb: (action: string) => void) => {
+      ipcRenderer.on('keys:action', (_e, action) => cb(action))
+    },
+    suspend: (on: boolean) => ipcRenderer.send('keys:suspend', on),
+  },
   log: (tag: string, ...args: unknown[]) => ipcRenderer.send('log', tag, ...args),
   pty: {
     spawn: (o: { cmd?: string; cwd?: string; cols: number; rows: number; env: Record<string, string> }): Promise<number | { error: string }> =>

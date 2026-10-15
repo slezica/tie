@@ -5,6 +5,7 @@ import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } fr
 import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
+import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, clearContent, serveContent } from './content'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
@@ -81,6 +82,7 @@ ipc.handle('settings:set', (_e, patch) => {
 })
 ipc.handle('content:open', (_e, root: unknown, kind: unknown) => openContent(root, kind))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
+ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('app:quit', () => app.quit())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
@@ -124,6 +126,7 @@ function createWindow() {
       pty.killAll()
     }
   })
+  initKeys(win, (action) => win?.webContents.send('keys:action', action))
   applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
   win.on('close', () => !quitting && app.quit())
