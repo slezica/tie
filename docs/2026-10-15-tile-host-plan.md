@@ -77,6 +77,50 @@
 5. Scenarios: existing `keys`/`quit-hold` green; shortcuts work with probe frame focused; synthetic `KeyboardEvent` in frame triggers nothing.
 6. Docs: `INPUT.md`, `SECURITY.md`.
 
+### Phase 4: markdown kind
+
+Decisions (2026-10-15):
+- Raw HTML: escaped (markdown-it `html: false`). Revisit if too restrictive. DOMPurify still on the final HTML.
+- Links: relative `.md` plain click = same tile, cmd-click = new tile. External http(s) = system browser.
+- History: back/forward in v1 (cmd+[ / cmd+]).
+- Opening: `tie open <path>`, Finder drop on the board, template + picker. No kind for the file: `tie open` errors (exit 1); board drop = modal "No viewer for .xyz". Terminal drops still paste paths.
+- Style: proportional, small size range (tiles are small).
+- Code highlighting: highlight.js (no wasm, CSP stays strict), token colors from the theme's ANSI palette.
+- File missing (deleted, renamed away): last render stays frozen; watching continues.
+
+Requirements from review (2026-10-15):
+- `openLink` only on a real click: the viewer posts it from its click handler only, and the host accepts it only while the frame is `document.activeElement` (VS Code's rule). Required before any kind whose content can run script.
+
+Watcher (research 2026-10-15, editors and agent tools, source-pinned):
+- Writers: in place (VS Code, Zed, nano, JetBrains, Codex, Aider, Cline, opencode); temp + rename (Claude Code, Gemini CLI, atomic-write libs); backup rename + new file, file missing ~5-6 ms (Vim, Neovim default, Helix, Emacs first save).
+- macOS: `fs.watch(file)` dies after a rename (kqueue on inode). `fs.watch(dir)` = FSEvents: 50 ms latency, eventType unreliable, overflows dropped silently.
+- Algorithm: watch the directory (plus the realpath's directory for symlinks); debounce 100 ms, max 500 ms; ENOENT: retry +100, +300 ms, then freeze; stat-read-stat (partial in-place writes); render on content hash change; backstop poll 2-3 s; re-arm if the directory vanishes.
+
+Steps:
+1. Kind + viewer: markdown-it (`html: false`) + DOMPurify + highlight.js in the frame; text over the port; theme tokens passed in.
+2. File watch in main (algorithm above), text + revision pushed to the tile.
+3. `toggleTask(line, expected, rev)`: request verb, main checks revision + line text, writes.
+4. Links + history: `openLink` (gesture rule), in-tile navigation with back/forward, cmd-click new tile.
+5. Opening paths: `tie open <path>`, board drop, template + picker; unsupported files fail visibly.
+6. Remote images placeholder, scroll kept on reload, shelf activity on change.
+7. Scenarios per step; `sec-*` for 3 and 4 (stale write refused, gesture-less openLink refused).
+
+## Results`).
+2. `tie-content` scheme: privileged (`standard`, `secure`; no `corsEnabled`, no `bypassCSP`), token registry, handler, headers. Unit tests for path + token logic.
+3. `will-frame-navigate`: subframes only to registered `tie-content://<token>/`. Shell CSP `frame-src tie-content:`.
+4. Frame host: iframe, handshake, request registry (`core/requests.ts`), focus → activate, pointer shield during `track()` drags/resizes.
+5. Probe kind (dev only) + `sec-content-escape`. `tie-dev frames`.
+6. Docs: `SECURITY.md` (guards + tests), `ARCHITECTURE.md`, new `docs/TILES.md` (host, kinds, surface, requests).
+
+### Phase 3: shortcuts in main
+
+1. Check first: does CDP input (harness `page.keyboard`) reach `before-input-event`? If not, harness needs another input path before moving keys. Stop and report if unresolved.
+2. Keymap table to `core/keymap.ts`, shared by main and renderer.
+3. Main `before-input-event` (shell webContents; later guests): match, block, send `keys:action`. Keyup for hold keys (hold-⌘Q). Never swallow Esc or editing combos.
+4. Renderer dispatches actions; its own `keydown` path removed for those keys.
+5. Scenarios: existing `keys`/`quit-hold` green; shortcuts work with probe frame focused; synthetic `KeyboardEvent` in frame triggers nothing.
+6. Docs: `INPUT.md`, `SECURITY.md`.
+
 ### Phase 4: markdown kind (blocked on decisions)
 
 Decisions first:
