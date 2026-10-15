@@ -180,3 +180,16 @@ export const pasteWarning = (ctx) =>
     const d = document.querySelector('.dialog.paste-warning')
     return d && { warnings: [...d.querySelectorAll('[data-warning]')].map((w) => w.dataset.warning), preview: d.querySelector('.preview').textContent }
   })
+
+// Content frames (probe kind): window frame tree from main (`tie frames`), and a probe tile's
+// Playwright frame (runs code inside the content frame: the untrusted side).
+export const frames = (ctx) => ctx.tie('frames')
+export async function probeFrame(ctx, id) {
+  for (let i = 0; i < 30; i++) {
+    const src = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`)?.src, id)
+    const f = src && ctx.page.frames().find((f) => f.url() === src)
+    if (f && (await f.evaluate(() => window.probe?.inits).catch(() => 0))) return f
+    await ctx.sleep(100)
+  }
+  throw new Error(`no probe frame for ${id}`)
+}

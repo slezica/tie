@@ -137,6 +137,14 @@ function createWindow() {
   }
 }
 
+// Dev (tie-dev frames): the window's frame tree; content frames should be out-of-process.
+function frameTree() {
+  const top = win?.webContents.mainFrame
+  if (!top) return []
+  return top.framesInSubtree.map((f) => ({ url: f.url, origin: f.origin, pid: f.osProcessId, outOfProcess: f.osProcessId !== top.osProcessId, depth: depth(f) }))
+}
+const depth = (f: Electron.WebFrameMain): number => (f.parent ? 1 + depth(f.parent) : 0)
+
 function setMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -173,7 +181,7 @@ app.whenReady().then(async () => {
   serveShell(join(import.meta.dirname, '../renderer'))
   serveContent()
   createWindow()
-  startSocket(socketPath, callRenderer)
+  startSocket(socketPath, (method, params) => (dev && method === 'frames' ? Promise.resolve(frameTree()) : callRenderer(method, params)))
   await ready
   writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }))
   log('app', 'ready', { instance, socketPath, debugPort })

@@ -22,6 +22,7 @@ Commands:
   test --e2e               Run every scenario in dev/scenarios on fresh instances
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
+  frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
   drive <scenario|-> [--attach] [--keep]
                            Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
@@ -149,6 +150,8 @@ case "$cmd" in
     exec node dev/layout.mjs "$@" ;;
   screenshot)
     exec node dev/screenshot.mjs "$@" ;;
+  frames)
+    exec node dev/frames.mjs ;;
   drive)
     if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
     node dev/drive.mjs "$@" ;;

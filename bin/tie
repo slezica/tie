@@ -114,6 +114,8 @@ async function main() {
       if (value === undefined) die(`${cmd} needs a value`)
       return printTile(await call(cmd, { id, text: value, emoji: value }))
     }
+    case 'frames': // dev: window frame tree (url, origin, pid, out-of-process)
+      return console.log(JSON.stringify(await call('frames'), null, 2))
     case 'state': // dev: internal state dump
       return console.log(JSON.stringify(await call('state'), null, 2))
     default:
