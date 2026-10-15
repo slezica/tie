@@ -4,6 +4,7 @@ import { log } from './env'
 import { pathToFileURL } from 'node:url'
 import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 import { CONTENT_SCHEME } from '../core/content'
+import { contentFrameAllowed } from './content'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
 let shellUrl = ''
@@ -39,8 +40,10 @@ function guard(wc: WebContents) {
   // shows. Any navigation away from the shell hands that power to foreign content. Only reloads of
   // the shell itself (dev HMR) pass; links, location changes, meta refresh, forms are refused.
   // `will-frame-navigate` covers the main frame and subframes; redirects are checked separately.
+  // Subframes: only content tiles' own viewers (nav lock: contentFrameAllowed, content.ts).
   wc.on('will-frame-navigate', (e) => {
     if (e.isMainFrame && sameDocument(e.url, shellUrl)) return
+    if (!e.isMainFrame && contentFrameAllowed(e.url, e.frame, wc.mainFrame)) return
     log('security', 'blocked navigation', e.isMainFrame ? 'main' : 'subframe', e.url)
     e.preventDefault()
   })

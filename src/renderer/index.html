@@ -2,12 +2,13 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <!-- SECURITY: shell CSP. Scripts only from the app; no frames, plugins, workers, forms, <base>
-         (content tiles will get their own origin, allowed in frame-src then). Inline styles stay:
-         xterm injects <style> elements and style attributes (truecolor), no nonce support. -->
+    <!-- SECURITY: shell CSP. Scripts only from the app (never tie-content:); no plugins, workers,
+         forms, <base>. Frames: only content tiles (tie-content:), and main's nav lock narrows that
+         to each tile's own viewer; frame-src also stops content frames navigating to other origins.
+         Inline styles stay: xterm injects <style> elements and style attributes, no nonce support. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src tie-content:; worker-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Tie</title>
     <link rel="stylesheet" href="./style.css" />

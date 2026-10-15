@@ -38,7 +38,10 @@ export function openContent(root: unknown, kind: unknown): { token: string; url:
   } catch {
     return { error: `Directory not found: ${String(root)}` }
   }
-  const token = randomBytes(16).toString('hex')
+  // All-digit hosts canonicalize as IPv4 (≈3e-7 odds): mint until the URL keeps the token.
+  let token: string
+  do token = randomBytes(16).toString('hex')
+  while (parseContentUrl(viewerUrl(token, kind))?.token !== token)
   entries.set(token, { root: real, kind, frame: null })
   log('content', 'open', kind, token.slice(0, 8), real)
   return { token, url: viewerUrl(token, kind) }
