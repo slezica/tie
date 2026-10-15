@@ -25,6 +25,14 @@
 - cwd not a directory → `{error}` (`Directory not found`).
 - Env added: `TIE_TILE`, `TIE_SOCKET`, `TIE_INSTANCE`, `PATH` with `bin/` prepended (`tie` available; `PACKAGING.md`), `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=tie`.
 
+## Paste (`paste.ts`)
+
+- cmd+V and drops go through `pasteInto()`, never straight to xterm (capture listener on `#tiles`).
+- Asks first (`confirmDialog`, preview with control chars as red `^X`):
+  - control characters (C0 except tab/LF/CR, DEL, C1): `warnPasteControl`.
+  - newlines while the program hasn't enabled bracketed paste (would run): `warnPasteRun`.
+- Cancel = nothing. "Paste anyway" or check off = raw text via `term.paste()`.
+
 ## Links
 
 - OSC 8 hyperlinks only (no plain-URL detection). Hover: `.link-tip` with the real URL (red if blocked).

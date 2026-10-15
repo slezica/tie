@@ -38,6 +38,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 
 - `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
+- `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
 - `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/renderer/`:
@@ -46,6 +47,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile element, xterm, pty wiring, titles, error state.
   - `drag.ts`: `track()`, drag/drop, border + float resize.
+  - `paste.ts`: guarded paste + OS drops into terminals.
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel): UI parts.
   - `keys.ts`: keymap, split, focus-direction. `quit.ts`: hold-⌘Q.
   - `driver.ts`: socket methods → ops.
@@ -86,7 +88,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).
-- Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
+- Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
 

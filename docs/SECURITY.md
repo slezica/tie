@@ -3,7 +3,7 @@
 ## Threat model
 
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
-- Untrusted input: terminal output (OSC 8 links, titles), dropped data, future content tiles (markdown, html, web).
+- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), future content tiles (markdown, html, web).
 - Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code.
 
 ## Rules
@@ -13,7 +13,7 @@
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
 - New IPC: `ipc.on` / `ipc.handle` (`shellIpc`), never `ipcMain` directly.
 - Opening URLs: only `openExternal` in `src/main/security.ts`.
-- Pure checks in `src/core/security.ts` (unit-tested).
+- Pure checks in `src/core/security.ts` (main) and `src/core/paste.ts` (renderer), unit-tested.
 
 ## Guards
 
@@ -25,7 +25,8 @@
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
 | Permissions: all denied, every session | `harden()` | `sec-permissions` |
 | Terminal links: hover shows URL, cmd-click only, http(s) only | `tile.ts` `linkHandler`, `openExternal` | `sec-links` |
-| Native drops: no-ops (capture phase) | `renderer/main.ts` | `sec-drop` |
+| Native drops: never navigate; on a terminal, quoted paths / text via guarded paste, else nothing | `renderer/main.ts`, `paste.ts` | `sec-drop` |
+| Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |
 | IPC: shell main frame of shell window only | `shellIpc`, `isShellSender` | unit |
 | Shell on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
 | Shell CSP: scripts from app only; no frames, objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp` |

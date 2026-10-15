@@ -19,6 +19,8 @@
 | `lineHeight` | 1.15 | all tiles | 1–2 |
 | `cellWidth` | 100 | all tiles | 70–150 % (kitty `cell_width`) |
 | `shell` | `''` | terminal kind | command line; `''` = login shell (`TERMINALS.md`) |
+| `warnPasteControl` | true | terminal kind | confirm pastes/drops with control characters |
+| `warnPasteRun` | true | terminal kind | confirm pastes that would run commands |
 
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
 - `shell` applies to new terminals only. Everything else applies live.

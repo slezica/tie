@@ -71,6 +71,7 @@ EOF
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid |
 | `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
+| `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie list --json` `term`.
 
