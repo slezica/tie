@@ -1,7 +1,8 @@
 // Security guards for every webContents. Threat model, research: docs/SECURITY.md.
-import { app, shell, ipcMain, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { app, shell, ipcMain, protocol, net, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { log } from './env'
-import { isShellSender, externalUrl, sameDocument } from '../core/security'
+import { pathToFileURL } from 'node:url'
+import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
 let shellUrl = ''
@@ -10,6 +11,8 @@ export function setShellUrl(url: string) {
 }
 
 export function harden() {
+  // Before ready: privileged schemes must be registered early.
+  protocol.registerSchemesAsPrivileged([{ scheme: 'tie', privileges: { standard: true, secure: true, supportFetchAPI: true } }])
   app.on('web-contents-created', (_e, wc) => guard(wc))
   // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
   // mic, geolocation, external protocol launch...). The shell needs none; content tiles get none.
@@ -75,4 +78,21 @@ export function shellIpc(win: () => BrowserWindow | null) {
     handle: (channel: string, fn: Handler<IpcMainInvokeEvent>) =>
       ipcMain.handle(channel, (e, ...a) => (trusted(e) ? fn(e, ...a) : Promise.reject(new Error('untrusted sender')))),
   }
+}
+
+// SECURITY: the shell is served from tie://app/, never file://. file:// pages get universal file
+// access (fuse grantFileProtocolExtraPrivileges, on by default: turned off when packaging), so any
+// script in a file:// shell could read every file on disk. tie://app serves only `root`
+// (out/renderer) through resolveInside (traversal-safe); other hosts are refused.
+export const SHELL_URL = 'tie://app/index.html'
+export function serveShell(root: string) {
+  protocol.handle('tie', async (req) => {
+    const u = new URL(req.url)
+    const file = u.host === 'app' ? resolveInside(root, u.pathname) : null
+    if (!file) {
+      log('security', 'refused', req.url)
+      return new Response('not found', { status: 404 })
+    }
+    return net.fetch(pathToFileURL(file).href).catch(() => new Response('not found', { status: 404 }))
+  })
 }

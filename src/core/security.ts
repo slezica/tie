@@ -1,4 +1,5 @@
 // Pure security checks (no Electron imports, unit-tested). Used by src/main/security.ts.
+import { resolve, sep } from 'node:path'
 
 // Normalized (URL parse: trailing slash, case), without fragment.
 function noHash(u: string): string {
@@ -31,4 +32,21 @@ export function externalUrl(url: unknown): string | null {
 
 export function sameDocument(a: string, b: string): boolean {
   return !!b && noHash(a) === noHash(b)
+}
+
+// SECURITY: maps a custom-protocol URL path to a file strictly inside `root`, or null. Custom
+// protocol handlers are a classic traversal hole (`..%2f`, `%2e%2e`, backslashes, double encoding).
+// Decodes once; refuses leftover `%`, backslashes, NUL; checks containment after resolving.
+export function resolveInside(root: string, urlPath: string): string | null {
+  let p: string
+  try {
+    p = decodeURIComponent(urlPath)
+  } catch {
+    return null
+  }
+  if (/[%\\\0]/.test(p)) return null
+  if (p === '/' || p === '') p = '/index.html'
+  const base = resolve(root)
+  const file = resolve(base, '.' + p)
+  return file.startsWith(base + sep) ? file : null
 }

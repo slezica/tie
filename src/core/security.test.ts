@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isShellSender, externalUrl } from './security'
+import { isShellSender, externalUrl, resolveInside } from './security'
 
 const shell = 'file:///Applications/Tie.app/Contents/Resources/app.asar/out/renderer/index.html'
 
@@ -27,5 +27,18 @@ describe('externalUrl', () => {
   it('refuses every other scheme and junk', () => {
     for (const u of ['file:///etc/hosts', 'smb://host/share', 'javascript:alert(1)', 'mailto:a@b', 'x-app://run?cmd=id', 'vscode://x', 'not a url', '', null, 42])
       expect(externalUrl(u)).toBe(null)
+  })
+})
+
+describe('resolveInside', () => {
+  const root = '/app/out/renderer'
+  it('resolves files under root', () => {
+    expect(resolveInside(root, '/index.html')).toBe('/app/out/renderer/index.html')
+    expect(resolveInside(root, '/assets/a%20b.js')).toBe('/app/out/renderer/assets/a b.js')
+    expect(resolveInside(root, '/')).toBe('/app/out/renderer/index.html')
+  })
+  it('refuses anything escaping root', () => {
+    for (const p of ['/../main/index.js', '/..%2f..%2fetc%2fhosts', '/%2e%2e/%2e%2e/etc/hosts', '/a/../../x', '/..%5c..%5cetc', '/%252e%252e/x', '/x%00.html', '/%E0%A4%A', '/../renderer-evil/x'])
+      expect(resolveInside(root, p), p).toBe(null)
   })
 })

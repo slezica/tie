@@ -1,11 +1,10 @@
 import { app, BrowserWindow, Menu, screen } from 'electron'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl, openExternal, shellIpc } from './security'
+import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -126,9 +125,8 @@ function createWindow() {
     setShellUrl(process.env.ELECTRON_RENDERER_URL)
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    const file = join(import.meta.dirname, '../renderer/index.html')
-    setShellUrl(pathToFileURL(file).href)
-    win.loadFile(file)
+    setShellUrl(SHELL_URL)
+    win.loadURL(SHELL_URL)
   }
 }
 
@@ -165,6 +163,7 @@ harden()
 app.whenReady().then(async () => {
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
+  serveShell(join(import.meta.dirname, '../renderer'))
   createWindow()
   startSocket(socketPath, callRenderer)
   await ready
