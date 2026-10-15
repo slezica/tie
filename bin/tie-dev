@@ -28,7 +28,8 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
-  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc)
+  package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
+  check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
@@ -164,7 +165,10 @@ case "$cmd" in
     mkdir -p out/package && echo "$fp" > out/package/fingerprint
     npx electron-builder --config electron-builder.yml >/dev/null
     codesign --force --deep --sign - "$APP_OUT" 2>/dev/null
+    node dev/package-check.mjs "$APP_OUT" >/dev/null || { node dev/package-check.mjs "$APP_OUT"; rm -rf "$APP_OUT"; echo "package check failed (package removed)"; exit 1; }
     echo "$APP_OUT ($version)" ;;
+  check-package)
+    node dev/package-check.mjs "${1:-$APP_OUT}" ;;
   release)
     [[ "${1:-}" == "--version" && -n "${2:-}" ]] || { echo "usage: tie-dev release --version X.Y.Z"; exit 1; }
     want="$2"

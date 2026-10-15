@@ -26,3 +26,13 @@ mac:
   icon: build/icon.icns
   category: public.app-category.developer-tools
   identity: null # signed ad hoc afterwards; no Apple developer identity
+# SECURITY: Electron fuses, baked into the binary. Checked after every package (dev/package-check.mjs).
+# runAsNode stays on: the CLI launcher runs Tie as Node (resources/bin/tie).
+electronFuses:
+  runAsNode: true
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false # NODE_OPTIONS=--require: code injection
+  enableNodeCliInspectArguments: false # --inspect / SIGUSR1: debugger attach = code injection
+  enableEmbeddedAsarIntegrityValidation: true # tampered app.asar refuses to load
+  onlyLoadAppFromAsar: true # no planted app/ folder
+  grantFileProtocolExtraPrivileges: false # file:// pages can't read other files (shell is on tie://)
