@@ -9,6 +9,7 @@ export type Side = 'l' | 'r' | 't' | 'b'
 export interface Leaf {
   type: 'leaf'
   id: TileId
+  donor?: TileId // the tile it took its space from (insert); gets it back on remove
 }
 
 export interface Split {
@@ -64,17 +65,19 @@ export function normalize(node: Node): Node {
   return { type: 'split', dir: node.dir, children, sizes: sizes.map((s) => s / total) }
 }
 
-// Insert newId next to targetId on given side; the new tile takes half the target's space.
+// Insert newId next to targetId on given side; the new tile takes half the target's space and
+// remembers the target as its donor.
 export function insert(root: Node | null, targetId: TileId | null, side: Side, newId: TileId): Node {
   if (!root) return leaf(newId)
   if (!targetId || !contains(root, targetId)) targetId = leaves(root)[0]
   const dir = sideDir(side)
   const before = sideBefore(side)
+  const added: Leaf = { type: 'leaf', id: newId, donor: targetId }
 
   const visit = (node: Node): Node => {
     if (node.type === 'leaf') {
       if (node.id !== targetId) return node
-      const pair = before ? [leaf(newId), node] : [node, leaf(newId)]
+      const pair = before ? [added, node] : [node, added]
       return { type: 'split', dir, children: pair, sizes: [0.5, 0.5] }
     }
     const idx = node.children.findIndex((c) => c.type === 'leaf' && c.id === targetId)
@@ -84,7 +87,7 @@ export function insert(root: Node | null, targetId: TileId | null, side: Side, n
       const half = sizes[idx] / 2
       sizes[idx] = half
       const at = before ? idx : idx + 1
-      children.splice(at, 0, leaf(newId))
+      children.splice(at, 0, added)
       sizes.splice(at, 0, half)
       return { ...node, children, sizes }
     }
@@ -93,20 +96,28 @@ export function insert(root: Node | null, targetId: TileId | null, side: Side, n
   return normalize(visit(root))
 }
 
-// Remove a leaf; its space goes to its siblings proportionally.
+// Remove a leaf. Its space goes back to its donor (the sibling subtree now holding it), so split
+// then close restores the sizes; no donor among the siblings: to all siblings proportionally.
 export function remove(root: Node | null, id: TileId): Node | null {
   if (!root || !contains(root, id)) return root // unchanged trees keep their identity
   if (root.type === 'leaf') return root.id === id ? null : root
   const children: Node[] = []
   const sizes: number[] = []
+  let freed = 0
+  let donor: TileId | undefined
   root.children.forEach((c, i) => {
     const n = remove(c, id)
     if (n) {
       children.push(n)
       sizes.push(root.sizes[i])
+    } else if (c.type === 'leaf') {
+      freed = root.sizes[i]
+      donor = c.donor
     }
   })
   if (children.length === 0) return null
+  const back = donor === undefined ? -1 : children.findIndex((c) => contains(c, donor!))
+  if (back >= 0) sizes[back] += freed
   const total = sizes.reduce((a, b) => a + b, 0)
   return normalize({ ...root, children, sizes: sizes.map((s) => s / total) })
 }

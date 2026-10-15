@@ -11,7 +11,7 @@ describe('insert', () => {
 
   it('splits a leaf in half', () => {
     const t = insert(leaf('a'), 'a', 'r', 'b')
-    expect(t).toEqual({ type: 'split', dir: 'row', children: [leaf('a'), leaf('b')], sizes: [0.5, 0.5] })
+    expect(t).toEqual({ type: 'split', dir: 'row', children: [leaf('a'), { ...leaf('b'), donor: 'a' }], sizes: [0.5, 0.5] })
   })
 
   it('inserts before on left/top', () => {
@@ -54,6 +54,34 @@ describe('remove', () => {
     const r = remove(t, 'c') as any
     expect(r.sizes[0]).toBeCloseTo(2 / 3)
     expect(r.sizes[1]).toBeCloseTo(1 / 3)
+  })
+
+  it('split then close restores sizes, every side', () => {
+    const t: Node = { type: 'split', dir: 'row', children: [leaf('a'), leaf('b'), leaf('c')], sizes: [0.5, 0.3, 0.2] }
+    for (const side of ['l', 'r', 't', 'b'] as const) {
+      const r = remove(insert(t, 'b', side, 'n'), 'n') as any
+      expect(leaves(r), side).toEqual(['a', 'b', 'c'])
+      r.sizes.forEach((s: number, i: number) => expect(s, `${side} ${i}`).toBeCloseTo(t.sizes[i]))
+    }
+  })
+
+  it('gives the space back to the subtree now holding the donor', () => {
+    // row[a, n] (n split from a), then a split down: row[col[a, d], n]. Close n: col gets it all.
+    let t: Node = { type: 'split', dir: 'row', children: [leaf('a'), leaf('b')], sizes: [0.6, 0.4] }
+    t = insert(t, 'a', 'r', 'n') // row[a .3, n .3, b .4]
+    t = insert(t, 'a', 'b', 'd')
+    const r = remove(t, 'n') as any
+    expect(r.sizes[0]).toBeCloseTo(0.6)
+    expect(r.sizes[1]).toBeCloseTo(0.4)
+  })
+
+  it('falls back to proportional when the donor is gone', () => {
+    let t: Node = { type: 'split', dir: 'row', children: [leaf('a'), leaf('b'), leaf('c')], sizes: [0.5, 0.25, 0.25] }
+    t = insert(t, 'a', 'r', 'n') // a .25, n .25, b .25, c .25
+    t = remove(t, 'a') as Node // donor of n gone: proportional, n b c = 1/3 each
+    const r = remove(t, 'n') as any // n's donor gone too: proportional
+    expect(r.sizes[0]).toBeCloseTo(0.5)
+    expect(r.sizes[1]).toBeCloseTo(0.5)
   })
 
   it('merges same-direction splits after removal', () => {
