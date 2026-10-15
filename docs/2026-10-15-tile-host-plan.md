@@ -90,4 +90,29 @@ Then: viewer (markdown-it + DOMPurify in frame), file watch in main, `toggleTask
 
 ## Results
 
-(filled during Phase 2.1 and 3.1)
+### 2.1 Runtime checks (spike, 2026-10-15; Electron 44.7.2)
+
+Setup: throwaway `tie-content://` handler, `frame-src tie-content:`, subframe nav allowed; `<iframe sandbox="allow-scripts">` in a tile body; ad-hoc scenarios.
+
+- Out-of-process: **yes**. Frame `osProcessId` ≠ shell's; CDP lists it as an `iframe` target. Origin `null` (opaque).
+- Loads from own `tie-content:` (opaque origin):
+  - classic `<script src>`: loads. `<img>`: loads.
+  - `<script type="module">`: never requested (CORS mode, scheme has no CORS).
+  - `fetch()`: `Failed to fetch`, never reaches the handler.
+  - → Viewers are classic (IIFE) bundles. Content text over the port (as planned). No `supportFetchAPI` needed.
+- `will-frame-navigate` fires for the iframe's initial `src` load (subframe): usable as the frame nav lock.
+- Input, harness default (offscreen, OSR): frames get **no** input at all. CDP clicks/keys land on the shell's main widget (shell sees `pointerdown` on the `<iframe>` element). OSR can't test frame input.
+- Input, hidden non-OSR window (never shown; spike flag): realistic routing.
+  - CDP click in frame: frame focused; shell gets **no** `pointerdown` (active tile unchanged), shell `window` gets `blur`, `document.activeElement` = `IFRAME`. → focus→activate needs `blur` + `activeElement`.
+  - CDP keys with frame focused: go to the frame; shell `keydown` never fires; ⌘D does nothing. → confirms Phase 3.
+  - Drag a title across the frame, no shield: frame swallowed the moves (pointer capture does **not** hold over an OOPIF), drop lost. With `body.dragging .body { pointer-events: none }`: drop correct, frame got 0 moves.
+  - Screenshots work.
+- `before-input-event` (main):
+  - CDP keys (`page.keyboard`): **never** fire it (OSR or hidden window).
+  - `webContents.sendInputEvent` keys: fire it (both modes), but always go to the main frame widget (not routed to a focused frame).
+  - Not runtime-verifiable here: OS keys routed to a focused OOPIF firing it. Source says yes (per-WebContents `PreHandleKeyboardEvent`, research "Keys and mouse").
+
+Design consequences:
+- Harness gets a hidden-window mode (`TIE_BACKGROUND=hidden`, scenario `export const hiddenWindow = true`) for frame input scenarios.
+- Shield in `track()` (all pointer drags, from pointerdown), not only after the drag threshold.
+- Phase 3 harness keys go through main (`sendInputEvent`, dev socket), not CDP.
