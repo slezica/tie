@@ -1,22 +1,26 @@
-// Guarded paste into terminal tiles: cmd+V / menu paste and OS drops (paths, text). SECURITY.md.
-import { S, tie, type Tile } from './state'
-import { activate } from './ops'
+// Guarded paste: cmd+V / menu paste and OS drops, routed to the tile's kind (Surface.paste/drop).
+// SECURITY.md.
+import { S, tie } from './state'
 import { confirmDialog } from './dialog'
-import { pasteRisks, showControls, shellQuote } from '@core/paste'
-import { terminalOf } from './kinds/terminal'
+import { pasteRisks, showControls } from '@core/paste'
+
+export interface PasteTarget {
+  bracketed: boolean // program enabled bracketed paste (newlines won't run)
+  alive(): boolean
+  write(text: string): void
+}
 
 // SECURITY: every paste into a terminal goes through here, never straight to xterm. Control
 // characters and would-run newlines ask first (settings can turn each check off: then raw).
 // "Paste anyway" sends the text unmodified.
-export async function pasteInto(t: Tile, text: string) {
-  const term = terminalOf(t.id)
-  if (!text || !term || term.pty === null) return
+export async function pasteInto(text: string, to: PasteTarget) {
+  if (!text) return
   const { settings } = await tie.settings.get()
-  const risks = pasteRisks(text, term.term.modes.bracketedPasteMode)
+  const risks = pasteRisks(text, to.bracketed)
   const warn = { control: risks.control && settings.warnPasteControl, run: risks.run && settings.warnPasteRun }
   if ((warn.control || warn.run) && !(await confirmPaste(text, warn))) return
-  if (S.tiles.get(t.id) !== t) return // closed while asking
-  term.term.paste(text)
+  if (!to.alive()) return // closed while asking
+  to.write(text)
 }
 
 function confirmPaste(text: string, warn: { control: boolean; run: boolean }): Promise<boolean> {
@@ -43,37 +47,30 @@ function confirmPaste(text: string, warn: { control: boolean; run: boolean }): P
   return confirmDialog({ cls: 'paste-warning', title: 'Paste into terminal?', body: [...warnings, preview], confirm: 'Paste anyway' })
 }
 
-const terminalAt = (target: EventTarget | null) => {
+const tileAt = (target: EventTarget | null) => {
   const id = (target as Element | null)?.closest?.('.tile')?.getAttribute('data-id')
-  const t = id ? S.tiles.get(id) : undefined
-  return t?.kind === 'terminal' ? t : undefined
+  return id ? S.tiles.get(id) : undefined
 }
 
 // SECURITY: capture phase on the tile layer: xterm's own paste handler (unguarded) never sees it.
+// Pastes on a tile go to its kind (nothing if it takes none).
 export function initPaste() {
   document.getElementById('tiles')!.addEventListener(
     'paste',
     (e) => {
-      const t = terminalAt(e.target)
+      const t = tileAt(e.target)
       if (!t) return
       e.preventDefault()
       e.stopPropagation()
-      pasteInto(t, e.clipboardData?.getData('text/plain') ?? '')
+      t.surface.paste?.(e.clipboardData?.getData('text/plain') ?? '')
     },
     true,
   )
 }
 
-// OS drop on a terminal: files → shell-quoted paths; else a link or text. Elsewhere: nothing.
+// OS drop on a tile: its kind decides (terminal: paths or text, guarded). Elsewhere: nothing.
 // (Navigation-on-drop is already refused globally, main.ts.)
-export function dropOnTerminal(e: DragEvent) {
-  const t = terminalAt(e.target)
-  const dt = e.dataTransfer
-  if (!t || !dt) return
-  const files = [...dt.files].map((f) => tie.pathForFile(f)).filter(Boolean)
-  const link = dt.getData('text/uri-list').split(/\r?\n/).find((l) => l && !l.startsWith('#'))
-  const text = files.length ? files.map(shellQuote).join(' ') + ' ' : link || dt.getData('text/plain')
-  if (!text) return
-  activate(t.id)
-  pasteInto(t, text)
+export function dropOnTile(e: DragEvent) {
+  const t = tileAt(e.target)
+  if (t && e.dataTransfer) t.surface.drop?.(e.dataTransfer)
 }

@@ -5,9 +5,12 @@ import { FitAddon } from '@xterm/addon-fit'
 import { iconFor, SHELLS } from '../icons'
 import { S, tie, debug } from '../state'
 import { termOptions } from '../appearance'
+import { activate } from '../ops'
+import { pasteInto } from '../paste'
+import { shellQuote } from '@core/paste'
 import type { Host, OpenOpts, Surface } from '.'
 
-// Per-terminal state, reached by pty id (events from main) and tile id.
+// Per-terminal state, reached by pty id (events from main).
 interface Term {
   host: Host
   term: Terminal
@@ -22,10 +25,6 @@ interface Term {
 }
 
 const byPty = new Map<number, Term>()
-const byTile = new Map<string, Term>()
-
-// Temporary (paste.ts): until paste goes through Surface.
-export const terminalOf = (id: string) => byTile.get(id)
 
 // SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
 // xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
@@ -62,7 +61,6 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
   const fit = new FitAddon()
   term.loadAddon(fit)
   const t: Term = { host, term, fit, pty: null, cmd: opts.cmd, cwd: opts.cwd }
-  byTile.set(host.id, t)
   term.onTitleChange((title) => {
     t.oscTitle = title
     host.changed()
@@ -76,7 +74,6 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
         tie.pty.kill(t.pty)
         byPty.delete(t.pty)
       }
-      byTile.delete(host.id)
       term.dispose()
     },
     focus: () => {
@@ -105,6 +102,14 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       term.options.fontSize = o.fontSize
       term.options.letterSpacing = o.letterSpacing
       if (term.element) fitTerm(t) // cell size changed
+    },
+    // SECURITY: pastes and drops reach the pty only through the paste guards (paste.ts).
+    paste: (text) => paste(t, text),
+    drop: (data) => {
+      const text = dropText(data)
+      if (!text) return
+      activate(host.id)
+      paste(t, text)
     },
     info: () => ({ term: { cols: term.cols, rows: term.rows, pty: t.ptySize ?? null } }), // mismatch = sizing bug
   }
@@ -135,6 +140,19 @@ async function start(t: Term) {
     tie.pty.resize(t.pty, term.cols, term.rows)
     t.ptySize = { cols: term.cols, rows: term.rows }
   }
+}
+
+function paste(t: Term, text: string) {
+  if (t.pty === null) return
+  pasteInto(text, { bracketed: t.term.modes.bracketedPasteMode, alive: t.host.alive, write: (s) => t.term.paste(s) })
+}
+
+// SECURITY: dropped file names are untrusted: shell-quoted (shellQuote), then the paste guards.
+// Files → quoted paths + space; else the first link; else plain text.
+function dropText(dt: DataTransfer): string {
+  const files = [...dt.files].map((f) => tie.pathForFile(f)).filter(Boolean)
+  const link = dt.getData('text/uri-list').split(/\r?\n/).find((l) => l && !l.startsWith('#'))
+  return files.length ? files.map(shellQuote).join(' ') + ' ' : link || dt.getData('text/plain')
 }
 
 function fitTerm(t: Term) {
