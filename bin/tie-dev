@@ -30,6 +30,7 @@ Commands:
   scenarios                List scenarios
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
+  electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
@@ -169,6 +170,8 @@ case "$cmd" in
     echo "$APP_OUT ($version)" ;;
   check-package)
     node dev/package-check.mjs "${1:-$APP_OUT}" ;;
+  electron-check)
+    node dev/electron-check.mjs ;;
   release)
     [[ "${1:-}" == "--version" && -n "${2:-}" ]] || { echo "usage: tie-dev release --version X.Y.Z"; exit 1; }
     want="$2"
@@ -185,6 +188,9 @@ case "$cmd" in
     cmp="$(node -e "const [a,b]=process.argv.slice(1).map(v=>v.split('.').map(Number));const d=a.map((x,i)=>x-b[i]).find(x=>x!==0)||0;console.log(Math.sign(d))" "$want" "$have")"
     [[ "$cmp" != "-1" ]] || { echo "version $want is lower than current $have"; exit 1; }
     echo "checks..."
+    ec="$(node dev/electron-check.mjs)" || { echo "$ec"; echo "electron behind its latest patch: bump first"; exit 1; }
+    echo "$ec" | grep -v '^warnings:\|^  ' | sed 's/^/  /'
+    warnings="$(echo "$ec" | sed -n '/^warnings:/,$p')"
     "$0" typecheck && "$0" test --unit >/dev/null && echo "  typecheck, unit ok" || { echo "checks failed"; exit 1; }
     e2e="$("$0" test --e2e)" || { echo "$e2e"; echo "e2e failed"; exit 1; }
     echo "  e2e ok ($(grep -c '^ok' <<<"$e2e") scenarios)"
@@ -195,7 +201,8 @@ case "$cmd" in
     fi
     git tag "v$want"
     "$0" package
-    echo "released v$want" ;;
+    echo "released v$want"
+    [[ -z "$warnings" ]] || echo "$warnings" ;;
   install)
     dest="${TIE_INSTALL_DIR:-/Applications}/Tie.app"
     "$0" package >/dev/null

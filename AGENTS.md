@@ -52,7 +52,7 @@ Full-screen Electron workspace: tabs of terminal tiles (slot tree + floating) wi
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
   - `main.ts`: boot, delegated tile events.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`), `package-check.mjs` (fuses + smoke), `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper), `helpers.mjs` (incl. `probe`), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -116,6 +116,7 @@ Commands:
   scenarios                List scenarios
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
+  electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)

@@ -21,9 +21,10 @@ Idempotent:
 
 1. Fails unless repo clean and `X.Y.Z` ≥ `package.json` version.
 2. Tag `vX.Y.Z` on HEAD with matching version: already released, just `package`. Tag elsewhere: fail.
-3. Typecheck, unit, e2e; any failure stops (nothing committed).
-4. Higher version: set it, commit `package: set version X.Y.Z`.
-5. Tag `vX.Y.Z`, package.
+3. `electron-check`: behind the latest patch of our Electron major = fail. Newer major: info. npm unreachable: warning, repeated at the end.
+4. Typecheck, unit, e2e; any failure stops (nothing committed).
+5. Higher version: set it, commit `package: set version X.Y.Z`.
+6. Tag `vX.Y.Z`, package.
 
 ## Bundle (`Tie.app/Contents`)
 
@@ -50,3 +51,9 @@ Idempotent:
 ## Signing
 
 Ad hoc (`codesign --sign -`), enough for self-built apps. No developer identity, no notarization (needed only to distribute).
+
+## Electron updates
+
+- `tie-dev electron-check`: pinned version (`package.json`, exact) vs npm dist-tags (`<major>-x-y`, `latest`).
+- Behind: bump (`npm install --save-exact electron@X`), run checks. Majors: our call (info only).
+- Binary: downloaded by `install-electron` in `postinstall` (the package no longer does it itself).
