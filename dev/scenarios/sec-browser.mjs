@@ -25,6 +25,7 @@ export default async (ctx, h) => {
 <a id="dl" href="/dl" style="margin:20px">download</a>
 <a id="mail" href="mailto:someone@example.com" style="margin:20px">mail</a>
 ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 300)</script>" : ''}`)
+    if (p === '/autodl') return page('AutoDl', `<script>setTimeout(() => { location.href = '/dl' }, 300)</script>`)
     if (p === '/dl') return { headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="../.evil.sh"' }, body: 'echo pwned\n' }
     if (p === '/redir-file') return { status: 302, headers: { location: 'file:///etc/hosts' } }
     if (p === '/redir-tie') return { status: 302, headers: { location: 'tie://app/index.html' } }
@@ -175,6 +176,12 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       h.assert(!existsSync(join(dl, '..', '.evil.sh')), 'no traversal')
       const realAfter = existsSync(real) ? statSync(real).mtimeMs : null
       h.assert(realAfter === realBefore && !(realAfter && realAfter > start), 'real ~/Downloads untouched')
+      // No input ever reached this guest: a download its script starts is blocked (nothing saved).
+      const auto = (await ctx.tie('open', s.url + '/autodl', '--at', t0, '--side', 'b')).id
+      await h.waitFor(ctx, async () => /blocked download .*\/dl since input never/.test(log()), 'script download without input blocked')
+      await ctx.sleep(500)
+      h.assert(files().length === 2, `nothing saved by it (${files().length} files)`)
+      await ctx.tie('close', auto)
     }
 
     // Permissions: denied in the guest (browser partition).

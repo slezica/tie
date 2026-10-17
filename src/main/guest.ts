@@ -7,9 +7,28 @@ import { join } from 'node:path'
 import { log } from './env'
 import { openExternal } from './security'
 import { watchKeys } from './keys'
-import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName } from '../core/guest'
+import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName, downloadVerdict } from '../core/guest'
 
 const guests = new Set<WebContents>()
+// Last real input (mouse button, key) main saw going into each guest (ms since epoch). The popup
+// and download rules read it: scripts alone open and download nothing.
+const lastInputs = new WeakMap<WebContents, number>()
+const sinceInput = (wc: WebContents | undefined): number | null => {
+  const t = wc && lastInputs.get(wc)
+  return t ? Date.now() - t : null
+}
+
+// SECURITY: device choosers. Web Bluetooth: Electron picks the first device found unless the event
+// is prevented (a page could pair with whatever is nearby after one click). Cancelled here, for
+// guests and the shell window alike. USB / HID / serial go through setDevicePermissionHandler
+// (harden(): denied).
+export function noDeviceChoosers(wc: WebContents) {
+  wc.on('select-bluetooth-device', (e, _devices, cb) => {
+    e.preventDefault()
+    log('security', 'cancelled bluetooth chooser', wc.getURL())
+    cb('')
+  })
+}
 
 // SECURITY: <webview> attach (will-attach-webview on the embedder). Only the shell window's page
 // may embed guests (Electron sets up the tag in main frames only; content frames are sandboxed,
@@ -80,16 +99,16 @@ export function guardGuest(guest: WebContents) {
   // Popups never open in Tie (a new window would be a new guest outside any tile). http(s) popups
   // go to the system browser only right after real input reached this guest (mouse button, key:
   // main sees it before the page does); scripts alone get nothing.
-  let lastInput = 0
   guest.on('input-event', (_e, i) => {
-    if (GESTURE_INPUTS.has(i.type)) lastInput = Date.now()
+    if (GESTURE_INPUTS.has(i.type)) lastInputs.set(guest, Date.now())
   })
   guest.setWindowOpenHandler((d) => {
-    const since = lastInput ? Date.now() - lastInput : null
+    const since = sinceInput(guest)
     if (popupVerdict(d.url, since) === 'external') openExternal(d.url)
     else log('security', 'blocked popup', d.url, 'since input', since ?? 'never')
     return { action: 'deny' }
   })
+  noDeviceChoosers(guest)
   // Shortcuts: the guest's own before-input-event (the window's never sees keys typed in a guest).
   watchKeys(guest)
   guest.on('render-process-gone', (_e, d) => log('guest', 'gone', guest.id, d.reason))
@@ -117,8 +136,14 @@ export function initBrowserSession(): Session {
   ses.setUserAgent(ses.getUserAgent().replace(/ (Electron|Tie)\/\S+/g, ''))
   const reserved = new Set<string>()
   // SECURITY: no save dialog, no opening: the file lands under a sanitized, unique name in the
-  // downloads folder and stays there. The site picks neither the folder nor what runs it.
-  ses.on('will-download', (_e, item) => {
+  // downloads folder and stays there. The site picks neither the folder nor what runs it. And only
+  // after real input in that guest (downloadVerdict: a script alone plants no files in ~/Downloads).
+  ses.on('will-download', (e, item, wc) => {
+    const since = sinceInput(wc)
+    if (downloadVerdict(since) === 'blocked') {
+      log('security', 'blocked download', item.getURL(), 'since input', since ?? 'never')
+      return e.preventDefault()
+    }
     const dir = downloadsDir()
     const name = uniqueName(downloadName(item.getFilename()), (n) => reserved.has(join(dir, n)) || existsSync(join(dir, n)))
     const path = join(dir, name)

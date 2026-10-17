@@ -78,7 +78,8 @@ TILE KINDS
              (shared by all browser tiles), no access to Tie, files or other tiles. Address bar:
              http(s) only, no search. Pages open in the tile; links that would open a new
              window go to the system browser (only right after a click; scripts alone can't).
-             Downloads are saved to ~/Downloads, never opened. Permissions (camera,
+             Downloads are saved to ~/Downloads (only after a click or key in that tile), never
+             opened. Permissions (camera,
              notifications, location...) are denied. Not live: it doesn't watch files; reload
              (cmd+R) after rebuilding. Other schemes (file:, mailto:...) are refused.
   Size limits: markdown 8 MB, text 10 MB, html 10 MB, hex 16 MB, image 50 MB (larger: tie open

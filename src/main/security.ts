@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 import { CONTENT_SCHEME } from '../core/content'
 import { contentFrameAllowed } from './content'
-import { attachGuest, guardGuest } from './guest'
+import { attachGuest, guardGuest, noDeviceChoosers } from './guest'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
 let shellUrl = ''
@@ -35,6 +35,14 @@ export function harden() {
     s.setPermissionCheckHandler(() => false)
     s.setDevicePermissionHandler(() => false)
   })
+  // SECURITY: a site asking for a client certificate gets none. Electron's default sends the first
+  // certificate in the keychain (the user's identity) without asking. Continuing without one is
+  // the browser's "cancel".
+  app.on('select-client-certificate', (e, wc, url, _certs, cb) => {
+    e.preventDefault()
+    log('security', 'refused client certificate', url, wc?.getURL?.() ?? '')
+    cb()
+  })
 }
 
 function guard(wc: WebContents) {
@@ -63,6 +71,7 @@ function guard(wc: WebContents) {
   // SECURITY: <webview> guests (browser tiles) only from the shell window's own page, prefs rebuilt
   // (attachGuest, guest.ts). Any other embedder: refused.
   wc.on('will-attach-webview', (e, prefs, params) => attachGuest(e, prefs, params, isShellContents(wc)))
+  noDeviceChoosers(wc)
 }
 
 // The shell window's page (offscreen in harness instances): the one webContents showing the shell.

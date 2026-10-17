@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { guestNavAllowed, guestSrc, locationUrl, popupVerdict, downloadName, uniqueName, pageTitle, POPUP_INPUT_MS, BROWSER_PARTITION } from './guest'
+import { guestNavAllowed, guestSrc, locationUrl, popupVerdict, downloadName, uniqueName, pageTitle, POPUP_INPUT_MS, BROWSER_PARTITION, downloadVerdict, DOWNLOAD_INPUT_MS } from './guest'
 
 describe('guestNavAllowed', () => {
   it('main frame: http(s) with a host, about:blank', () => {
@@ -78,6 +78,16 @@ describe('downloads', () => {
     expect(uniqueName('c.txt', (n) => taken.has(n))).toBe('c.txt')
     expect(uniqueName('a.txt', (n) => taken.has(n))).toBe('a (2).txt')
     expect(uniqueName('b', (n) => taken.has(n))).toBe('b (1)')
+  })
+})
+
+describe('downloadVerdict', () => {
+  it('saves only after recent real input in the guest', () => {
+    expect(downloadVerdict(null)).toBe('blocked')
+    expect(downloadVerdict(0)).toBe('saved')
+    expect(downloadVerdict(DOWNLOAD_INPUT_MS)).toBe('saved')
+    expect(downloadVerdict(DOWNLOAD_INPUT_MS + 1)).toBe('blocked')
+    expect(downloadVerdict(-5)).toBe('blocked')
   })
 })
 

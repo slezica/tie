@@ -6,8 +6,8 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 | Piece | Does |
 |---|---|
-| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupVerdict` (+ `POPUP_INPUT_MS`, `GESTURE_INPUTS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
-| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, shell loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (shell session), dev socket `guest` |
+| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupVerdict` (+ `POPUP_INPUT_MS`, `GESTURE_INPUTS`), `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
+| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, shell loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (shell session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
 | `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state); `initGuests` (hang reports) |
 | `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (shell page only) |
 | `main/keys.ts` | `watchKeys(wc)`: the shortcut matcher on each guest's own `before-input-event` |
@@ -29,7 +29,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Protocols: none of Tie's (`tie:`, `tie-content:` have no handler on this session: requests fail).
 - Permissions: denied (`harden`, every session, this one included: `sec-browser`).
 - User agent: Electron's own token removed (sites refuse or degrade "Electron").
-- Downloads (`will-download`): saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The shell session refuses downloads (`noDownloads`).
+- Downloads (`will-download`): only within 10 s of real input in that guest (`downloadVerdict`; a script alone plants nothing, logged `blocked download`); saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The shell session refuses downloads (`noDownloads`).
 
 ## Surface (`renderer/guest.ts`)
 
