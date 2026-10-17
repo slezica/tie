@@ -13,8 +13,8 @@
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
 - New IPC: `ipc.on` / `ipc.handle` (`shellIpc`), never `ipcMain` directly.
 - Opening URLs: only `openExternal` in `src/main/security.ts`.
-- Pure checks in `src/core/security.ts`, `src/core/content.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/markdown.ts` (renderer + main), unit-tested.
-- Content kinds only through the frame host (`TILES.md`): the baseline is not per kind.
+- Pure checks in `src/core/security.ts`, `src/core/content.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/links.ts`, `src/core/kinds.ts` (renderer + main), unit-tested.
+- Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (sandbox, CSP, nav rule, assets, payload, size cap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
 - Never add `tie-content:` to shell `script-src`; never `allow-same-origin` on content frames; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
 
 ## Guards
@@ -22,19 +22,20 @@
 | Guard | Where | Test |
 |---|---|---|
 | Navigation (all frames), redirects: only shell reloads pass; subframes only via the content nav lock | `security.ts` `guard()` | `sec-navigate`, `sec-content-nav` |
-| Content frame nav lock: exact viewer URL of a registered token, child of the shell, one frame per token | `content.ts` `contentFrameAllowed` | `sec-content-nav` |
-| Content frames: `sandbox="allow-scripts"` only (opaque origin), own process, no `window.tie`, no top nav/popups/storage | `frame.ts` | `sec-content-escape` |
+| Content frame nav lock: the kind's nav rule (`viewer-exact`: exact viewer URL) of a registered token, child of the shell, one frame per token | `content.ts` `contentFrameAllowed`, `@core/content` `navAllowed` | `sec-content-nav`, unit |
+| Content frames: sandbox from the policy table (every row `allow-scripts` only: opaque origin), own process, no `window.tie`, no top nav/popups/storage | `@core/policy`, `frame.ts` | `sec-content-escape`, unit |
 | `tie-content://`: privileges `standard`+`secure` only; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, unit |
-| Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
-| Markdown frame CSP: as above, but `style-src 'unsafe-inline'` (Mermaid SVG: `<style>`, style attributes). No nonce beside it (CSP3 would ignore `'unsafe-inline'`). Inline CSS only restyles the tile; no stylesheet hosts; url()s bound by img-src / font-src; scripts nonce-only | `contentCsp` (`INLINE_STYLES`) | `markdown-mermaid` (no violations), `sec-mermaid`, unit |
+| Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `@core/policy` `contentCsp`, `serveContent` | `sec-content-escape`, unit (exact strings) |
+| Markdown frame CSP: as above, but `style-src 'unsafe-inline'` (Mermaid SVG: `<style>`, style attributes). No nonce beside it (CSP3 would ignore `'unsafe-inline'`). Inline CSS only restyles the tile; no stylesheet hosts; url()s bound by img-src / font-src; scripts nonce-only | policy row `styles: 'inline'` | `markdown-mermaid` (no violations), `sec-mermaid`, unit |
 | Mermaid: lazy asset (markdown tokens only), strict, SVG-text labels, limits, `secure` keys (no `%%{init}%%` overrides), output re-sanitized (SVG profile, no `<image>`/`foreignObject`/`use`) | `viewers/mermaid.ts`, `viewerFile` | `sec-mermaid`, `sec-content-protocol`, unit |
 | Content watchdog: hung frame (no pong 5 s) → error, frame removed, its process killed if exclusive; crashed (port closed) → error; never reloads | `frame.ts`, `@core/watchdog`, `content.ts` `killContent` | `content-watchdog`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | Gesture rule: link opens (`openLink`, `followLink`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |
 | Markdown render: raw HTML escaped (`html: false`; also in footnotes, front matter), DOMPurify on the final HTML (after every plugin), remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |
-| Markdown links: anchors, http(s) (→ `openExternal`), markdown paths (main re-checks the file); other schemes refused | `@core/markdown` `classifyLink`, `kinds/markdown.ts` | `sec-markdown`, `markdown-links`, unit |
+| Viewer runtime: handshake only from `parent`, one port; link clicks never navigate (requests from the click handler only); drops / middle clicks refused; live diff never parses strings | `viewers/runtime.ts`, `live.ts` | `sec-markdown`, `markdown-links` |
+| File view links: anchors, http(s) (→ `openExternal`), paths (files of the tile's kind open; main re-checks the file); other schemes refused | `@core/links` `classifyLink`, `fileview.ts` | `sec-markdown`, `markdown-links`, unit |
 | Content tiles read-only: no request verb writes (write-shaped messages are unknown verbs, dropped); no doc write IPC or bridge method; task boxes display-only | `@core/requests`, `main/docs.ts`, `preload`, `viewers/markdown.ts` | `sec-markdown`, unit |
-| Opening files: main checks absolute, existing regular file, known viewer | `main/docs.ts` `fileViewer` | `markdown-open` |
+| Opening files: main checks absolute, existing regular file, known kind (`@core/kinds`), size cap (policy row) | `main/docs.ts` `fileViewer` | `markdown-open` |
 | OS drags: content frames ignore the pointer while one is over the window (drops land in the shell) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
 | Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |

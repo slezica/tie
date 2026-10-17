@@ -9,7 +9,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/SHELF.md`: templates, reveal/pin, activity.
 - `docs/TABS.md`: spaces, `withSpace`, tab bar.
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
-- `docs/TILES.md`: tile host, kinds, `Surface`, frame host, requests, `tie-content` protocol, viewers.
+- `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
 - `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, links, history, watching, opening.
 - `docs/CLI.md`: `tie` CLI, socket protocol, placement.
@@ -44,20 +44,24 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
-- `src/core/content.ts`: content URL/token/path checks, viewer files, content CSP (main). Tests: `content.test.ts`.
+- `src/core/policy.ts`: content kinds security table (sandbox, CSP, nav rule, assets, payload, cap, dev), `contentCsp` (main + renderer + build). Tests: `policy.test.ts`.
+- `src/core/kinds.ts`: file → kind by extension, `extsOf`, `noViewer`, `sniff` (main + renderer). Tests: `kinds.test.ts`.
+- `src/core/links.ts`: `classifyLink` for file views (main + renderer). Tests: `links.test.ts`.
+- `src/core/content.ts`: content URL/token/path checks, viewer files, nav rule `navAllowed` (main). Tests: `content.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor`, `isQuitKey` (main + renderer). Tests: `keymap.test.ts`.
-- `src/core/markdown.ts`: `viewerFor`, `noViewer`, `classifyLink` (main + renderer). Tests: `markdown.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`), `spike.ts` (dev-only runtime spike hooks, `TIE_SPIKE`).
 - `src/preload/index.ts`: `window.tie` bridge.
-- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `markdown` (+ `mermaid.ts`: diagrams, lazy library; `marks.ts`: change marks, edge markers, `n`), `probe` (dev). `markdown-it-plugins.d.ts`: plugin types.
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `probe` (dev, own minimal handshake). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
-  - `tile.ts`: tile host: element, title bar, `Host` for kinds, mount/dispose, error state.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text), `markdown.ts` (live read-only file view: doc, links, history, theme), `probe.ts` (dev harness content kind).
+  - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
+  - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `KindSpec` registry: `kindSpec`, `needsFile`, `templates`), `terminal.ts` (xterm, pty wiring, links, drop text), `markdown.ts` (file view + markdown viewer), `probe.ts` (dev harness content kind).
+  - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
   - `files.ts`: OS file drops → viewer tiles.
   - `drag.ts`: `track()`, drag/drop, border + float resize.
@@ -86,10 +90,12 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `history`.
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`).
+- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'`), `template?` (`{label, icon}`).
+- `ContentPolicy` (`core/policy.ts`, per content kind): `page`, `sandbox`, `styles`, `nav`, `assets`, `payload`, `maxBytes`, `dev`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`.
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
-- Markdown state (kind-private, `MARKDOWN.md`): `doc {id, path, text, rev, missing}`, `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).
+- File view state (private, `fileview.ts`): `doc {id, path, text, rev, missing}`, `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).
 
 ## Patterns
 
@@ -105,7 +111,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).
-- Content kinds: only via `frameSurface` (`TILES.md`); new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
+- Content kinds: only via `frameSurface` (`TILES.md`); what may differ per kind only in `core/policy.ts`; new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
+- New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + extensions (`core/kinds.ts`) + `fileView`.
 - Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.

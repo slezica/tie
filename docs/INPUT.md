@@ -5,6 +5,7 @@
 - Tile pointerdown: activate (not unpinned shelved tiles).
 - Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
 - Title buttons: collapse / zoom / close.
+- Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field.
 - Border between slotted tiles: drag resizes neighbors.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
 - Shelf: `SHELF.md`. Tabs: `TABS.md`.
@@ -39,7 +40,9 @@
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab (empty only) |
 | `cmd+1..8` / `cmd+9` | Tab by position / last |
-| `cmd+[` / `cmd+]` | Back / forward in the active tile (markdown; no-op elsewhere) |
+| `cmd+[` / `cmd+]` | Back / forward in the active tile (kinds with navigation; no-op elsewhere) |
+| `cmd+R` | Reload the active tile (kinds with navigation: markdown re-reads its file) |
+| `cmd+L` | Focus the active tile's location field (only if editable; no-op otherwise) |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
 | `cmd+Q` | Quit on release (`quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |
@@ -49,6 +52,7 @@
 - Never in the keymap: Esc, editing combos (cmd+C/V/X/A/Z). Synthetic `KeyboardEvent`s trigger nothing (they never reach main).
 - Blocked keydowns lose their keyup (Chromium suppresses it).
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
+- `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the shell by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. Markdown tile → terminal in the file's directory.
 - Quit: main reports `quit-press` (cmd+Q keydown, not repeats), `quit-release` (Q or ⌘ keyup), `quit-cancel` (window blur); never suspended. The keydown is not blocked (a blocked keydown loses its keyup, and the release is what quits); the renderer keeps it from xterm. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels (shell page `blur`, and main's window `blur` for when a frame has focus). Menu Quit by mouse is immediate.
 - Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.

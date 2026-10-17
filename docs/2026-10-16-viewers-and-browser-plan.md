@@ -206,3 +206,15 @@ Means for P4: the planned rule (popup → system browser only within ~1 s of rea
 
 - None contradicted: P1 touches neither popups, navigation to http, nor webviews.
 - Spike hooks stay dev-only (`spike.ts`, env-gated) for the P3/P4 scenarios to build on; remove or replace them there.
+
+### P1 notes (implementation)
+
+- Policy table (`core/policy.ts`): rows markdown, probe; fields `page`, `sandbox`, `styles`, `nav`, `assets`, `payload`, `maxBytes`, `dev`. Only values in use are typed (`page: 'viewer'`, `nav: 'viewer-exact'`, `payload: 'text' | 'none'`); P2/P3 widen them. CSP strings byte-for-byte as before (pinned in `policy.test.ts`). `CONTENT_SCHEME` moved here (renderer-safe); the vite build takes viewer kinds from the table.
+- Nav rule pure (`navAllowed`, `core/content.ts`); `contentFrameAllowed` keeps the parent + token binding.
+- `core/kinds.ts`: `fileKind` (extension), `extsOf` (picker filter; the picker now takes the kind), `noViewer`, `sniff(sample, size)` (not routed).
+- `core/links.ts`: `classifyLink` → `anchor | web | file {path, hash, kind} | refused` (kind null: no viewer). `core/markdown.ts` removed.
+- Viewers: `runtime.ts` / `live.ts` / `highlight.ts`; `marks.ts` kept (generic, owns its CSS). Shared CSS moved out of `markdown.html` into the modules (`style()`: nonce'd `<style>`). Markdown rendering pixel-identical before/after (screenshot diff, page + live update). Harness: `window.viewer` = `window.markdown` (same object); scenarios unchanged. Probe keeps its own handshake (attacker's seat).
+- File view: links to files of another kind are ignored for now (logged), not opened beside: cross-kind routing stays P5.
+- Keymap: `history-back/forward` renamed `nav-back/forward`; new `nav-reload` (cmd+R), `nav-location` (cmd+L). Reload = re-read + page render, scroll kept, no history entry; error dialog "Can't reload".
+- Harness gap found and closed: `sec-content-nav` navigated to `package.json` (served as `application/octet-stream` → a download, frame stayed put): a loosened nav lock still passed. Now targets a `text/plain` file; mutation (lock ignoring the URL) → red.
+- Flake seen once: `markdown-links` first click in the frame refused "without focus" (hidden window focus timing); passed on reruns.

@@ -1,21 +1,22 @@
 # Markdown
 
-Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`): renders in a sandboxed frame; main owns every read and watch. Nothing writes the file (edit it in an editor: `cmd+D`).
+Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "File view"): the shared file view + the markdown viewer pipeline; renders in a sandboxed frame; main owns every read and watch. Nothing writes the file (edit it in an editor: `cmd+D`).
 
 ## Parts
 
 | Part | Where | Does |
 |---|---|---|
-| Kind | `renderer/kinds/markdown.ts` | doc + frame per tile; links, history; theme to the viewer |
-| Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | markdown-it → highlight.js → DOMPurify → Mermaid (on demand); clicks → requests |
+| Kind | `renderer/kinds/markdown.ts` | `fileView` + viewer name + icon (one line) |
+| File view | `renderer/fileview.ts` | doc + frame per tile; links, history, nav, theme (`TILES.md`) |
+| Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | pipeline: markdown-it → highlight.js → DOMPurify → Mermaid (on demand); on `runtime.ts`, `live.ts`, `highlight.ts` |
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
-| Pure | `core/markdown.ts` | `viewerFor`, `noViewer`, `classifyLink` (unit-tested) |
+| Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind, `noViewer`; `classifyLink`; policy row (CSP, cap) |
 | Opening | `driver.ts` (`tie open`), `files.ts` (drops), `drag.ts` (template + picker) | |
 
 ## Flow
 
-1. Mount: `tie.doc.open(path)` → main checks (absolute, regular file, markdown extension), reads, watches → `{id, text, rev}`. Error → `showError`.
+1. Mount: `tie.doc.open(path)` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, text, rev}`. Error → `showError`.
 2. Frame: root = the file's directory (`tie.content.open`). On each handshake (`onReady`): theme, then doc.
 3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash}`, `{type: 'scroll', hash}`.
 4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
@@ -38,7 +39,7 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
 - Diagrams: ```` ```mermaid ```` fences → SVG ("Diagrams" below).
 - Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
-- Style: `<style nonce>` in `src/viewers/markdown.html` (the only place markdown styles live). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
+- Style: `<style nonce>` in `src/viewers/markdown.html` (markdown typography); shared parts injected by their modules (base colors, selection, focus: `runtime.ts`; marks: `marks.ts`; code tokens: `highlight.ts`). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
 - Scroll: live updates never move the view ("Live updates"); top on a new page; on back/forward restored if the frame didn't reload (same directory).
 - Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`, `sanitizeSvg`, `diagrams`, `marks()` → `{marked, unseen}`).
 
@@ -56,25 +57,25 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 - Links in diagrams (`click X href`): through `followLink` like any link (http(s) only).
 - Harness: `window.markdown.diagrams` (`loaded`, `renders`, `errors`, `config`), `sanitizeSvg`; app log `[content] viewer markdown-mermaid.js` per load.
 
-## Links (`classifyLink`, kind's `follow`)
+## Links (`core/links.ts` `classifyLink`, file view's `follow`)
 
 | href | Plain click | Cmd-click |
 |---|---|---|
 | `#anchor` | scroll (viewer) | same |
 | `http(s)://` | system browser (`openExternal`) | same |
 | relative / absolute path to `.md` / `.markdown` | open in this tile (history push) | new tile beside (`besidePlacement`) |
-| other local file | ignored (`debug markdown`) | same |
+| other local file | ignored (`debug markdown`; other kinds: P5) | same |
 | anything else (`file:`, `javascript:`, custom schemes, `//host`) | refused (`debug security`) | same |
 
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
 - Missing target: modal "Can't open link".
 - Another directory: frame reloads on a new token (`frameSurface.setRoot`).
 
-## Live updates (`viewers/markdown.ts` `show`/`place`, `marks.ts`)
+## Live updates (`viewers/markdown.ts` `show`, `live.ts` `place`, `marks.ts`)
 
 The file changed on disk (same document, `scroll: keep`): the view never moves.
 
-1. Build off-screen: sanitized HTML; each top-level block keyed `data-k` = hash of its HTML (diagram: of its source) + occurrence. Diagrams from a cache (same source + theme → same SVG); new ones rendered off-screen first, so a block changes once.
+1. Build off-screen: sanitized HTML; each top-level block keyed `data-k` = hash of its HTML (diagram: of its source; `blockHash`) + occurrence. Diagrams from a cache (same source + theme → same SVG); new ones rendered off-screen first, so a block changes once.
 2. Diff in (`morphdom` 2.7.8, keyed): same key = same content, block left alone (same node); new keys inserted; gone keys removed.
 3. Anchor: the first block on screen that survives keeps its on-screen position (`scrollBy` by its shift). Manual, `overflow-anchor: none`: native scroll anchoring didn't hold (`markdown-live`: content moved ~80 px on insert above, morphdom moves nodes) and never applies at scroll 0. Text inserted inside the view pushes what's below it; the top stays.
 4. Marks: blocks with new keys get a bar in the left margin (`--change`, from `--accent`). It fades 3 s after the block was seen (half of it on screen, or a third of the view for tall blocks; page visible), not after the render: off-screen changes stay marked. Deleted blocks: no mark.
@@ -84,11 +85,12 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 - Pages (open, links, back/forward) replace the document and clear marks; diagrams finishing later swap in by the same diff (anchored, unmarked). Theme change: same (diagrams re-render).
 - Limits: a shelved (hidden) tile's frame still reports visible: changes seen while shelved may fade unseen (activity dot still marks the tile). Identical blocks match by occurrence: duplicates may shift marks.
 
-## History
+## History and nav bar
 
 - Per tile: list + index. Push drops forward entries.
+- Nav bar (`TILES.md` "Navigation"): the file's path (not editable), back / forward, reload.
+- `cmd+[` / `cmd+]` (`nav-back` / `nav-forward`): history step; no-op at the ends. `cmd+R` (`nav-reload`): read the file again, render it as a page, scroll kept. `cmd+L`: nothing (location not editable).
 - Shift+Up / Shift+Down (viewer, frame focused): scroll a third of the tile height. Plain arrows: browser step.
-- `cmd+[` / `cmd+]` (`history-back` / `history-forward`, keymap in main): active tile's `Surface.history(step)`. No-op on other kinds and at the ends.
 
 ## Read-only
 
@@ -102,7 +104,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 - Missing: re-check at +100, +300 ms (backup-rename writers), then report missing once; keep watching. Last render stays (frozen). Back → reported even if unchanged.
 - Report only on hash change. Backstop poll 2.5 s (stat; full read if moved); re-arms watchers when a directory was replaced or removed.
 - FSEvents misses changes in the first moments after a watch starts: the poll catches those.
-- Max 8 MB.
+- Max: the kind's `maxBytes` (policy row; markdown 8 MB). Opening a larger file: error; growing past it: change ignored.
 
 ## Opening
 
