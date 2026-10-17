@@ -3,7 +3,7 @@
 ## Threat model
 
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
-- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html, web): any script inside their frame. Html pages run their own scripts (decision 2026-10-16: viewing is safe, running is a choice, content never reaches the shell): they must stay local (no network) and isolated (own origin, no shell, no other tile).
+- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html): any script inside their frame; browser tiles: any web site (its own webContents, `BROWSER.md`). Html pages run their own scripts (decision 2026-10-16: viewing is safe, running is a choice, content never reaches the shell): they must stay local (no network) and isolated (own origin, no shell, no other tile).
 - Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code.
 
 ## Rules
@@ -17,7 +17,8 @@
 - Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (page, sandbox, CSP, nav rule, assets, payload, size cap, bootstrap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
 - Never add `tie-content:` to shell `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
 - `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the shell's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
-- The shell window runs on an in-memory session (`SHELL_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. A kind needing the network gets its own partition (P4 browser).
+- The shell window runs on an in-memory session (`SHELL_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. The browser kind has its own partition (`persist:browser`, network, none of Tie's protocols).
+- Browser guests: only through `attachGuest` (prefs rebuilt, attributes dropped) and `guardGuest`; URL rules only in `core/guest.ts`.
 
 ## Guards
 
@@ -50,7 +51,15 @@
 | OS drags: content frames ignore the pointer while one is over the window (drops land in the shell) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
 | Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |
-| `<webview>` attach: denied until a kind needs it | `guard()` | — |
+| `<webview>` attach: shell page only; prefs rebuilt from nothing (no preload, no Node, sandbox, isolation, no nested webviews, web security, partition `persist:browser`); every attribute but `src` dropped; `src` http(s) / `about:blank` only | `main/guest.ts` `attachGuest`, `@core/guest` `guestSrc` | `sec-browser` (mutations: prefs kept → `persist:evil` partition; partition forced but prefs kept → `preload` gave the guest `window.tie`; bad src allowed → red; content frames can't create `<webview>`: no tag outside the shell's main frame) |
+| Guest navigation: main frame http(s) (+ `about:blank`), subframes also `about:`/`data:`/`blob:`; redirects same rule; never `file:`, `tie:`, `tie-content:`, `chrome:`, `mailto:`... | `guardGuest` (`will-frame-navigate`, `will-redirect`), `@core/guest` `guestNavAllowed` | `sec-browser` (mutation: guard off → red; Tie's schemes still fail: no handlers on the partition, second layer), unit |
+| Guest loads started by the shell (`src`, `loadURL`, back/forward; no `will-frame-navigate`): refused URL → stopped | `guardGuest` (`did-start-navigation`, deferred `stop()`) | `sec-browser` (mutation → `file:///etc/hosts` loaded) |
+| Location bar / CLI URLs: http(s) only, bare host → `https://`, no search | `@core/guest` `locationUrl`, `renderer/guest.ts`, `driver.ts` | `browser`, unit |
+| Guest popups: never a window; http(s) → system browser only within 1 s of real input (main `input-event`) in that guest; else blocked + logged | `guardGuest` (`setWindowOpenHandler`), `@core/guest` `popupVerdict` | `sec-browser` (mutation: always external → red), unit |
+| Downloads: `~/Downloads` (harness: `TIE_DOWNLOADS`), sanitized unique name, no dialog, never opened; the shell session refuses downloads | `initBrowserSession`, `noDownloads`, `@core/guest` `downloadName`, `uniqueName` | `sec-browser` (mutation: site's name as is → overwrite → red), unit |
+| Browser partition: permissions denied (as every session), network direct, shell session still dead-proxied | `harden()`, `noNetwork` (shell only) | `sec-browser` (mutations: permissions granted → red; dead proxy on the partition → red) |
+| Guest shortcuts: matched in each guest's own `before-input-event`, blocked before the page | `main/keys.ts` `watchKeys` | `browser` (mutation: not attached → red) |
+| Guest crash → tile error, guest removed, shell and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
 | Permissions: all denied, every session | `harden()` | `sec-permissions` |
 | Terminal links: hover shows URL, cmd-click only, http(s) only | `kinds/terminal.ts` `linkHandler`, `openExternal` | `sec-links` |
@@ -77,5 +86,5 @@
 - Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`.
 - Limits: no harness path sends a key that is both routed into a focused frame and seen by `before-input-event`; `sec-keys` covers each half (frame really focused via `hiddenWindow`; main handles keys whatever the focus). Real-hardware check: manual.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).
-- Spikes (`HARNESS.md`): dev builds with `TIE_SPIKE` relax guards on purpose (root html documents on probe tokens, `<webview>` attach). Never in packaged builds (`app.isPackaged`); never set outside spike scenarios.
+- Browser: `h.guestPage` = the guest's realm (what a site can do); `h.guestKey` / `h.guestClick` = input through main (gesture + shortcuts); dev socket `guest` (`list`, `crash`, `proxy`). Downloads go to `TIE_DOWNLOADS` (dev builds; every harness instance), never `~/Downloads`.
 - Html: `h.htmlFrame(ctx, id)` = the page's realm (what page scripts can do); `tie list --json` `page`. CSP violations observed in the page (`securitypolicyviolation`), so the CSP layer is tested even though the network kill-switch would also stop requests.

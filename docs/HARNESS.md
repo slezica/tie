@@ -19,7 +19,7 @@
 - `test --e2e`: each scenario on a fresh instance; trace folder per run (below).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `spike {action}` (spikes, below). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (shell vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -30,6 +30,7 @@
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
 | `TIE_SETTINGS` | `tmp/<instance>.settings.json`, deleted on stop |
+| `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |
 
@@ -43,13 +44,13 @@
 ```js
 export const settings = { theme: 'nord' }   // optional pre-seed (object or raw string)
 export const hiddenWindow = true            // optional: real never-shown window, not offscreen
-export const env = { TIE_SPIKE: 'webview' } // optional: extra environment for the instance
+export const env = { TIE_DEBUG: 'guest' }   // optional: extra environment for the instance
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
 `ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text).
 
-- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame input (`frame-input`).
+- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`frame-input`, `browser`, `sec-browser`).
 - Runs after first `.tile` + 500 ms. Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
 
@@ -81,23 +82,10 @@ EOF
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 | `contentFrame(id)`, `mdState(id)`, `clickIn(frame, selector, {meta})` | any content tile's Playwright frame, once its viewer has a port (`window.viewer`; re-found after reloads); markdown viewer state (`text`, `html`, `rev`, `key`, `renders`, `scrollY`); real click inside a frame (`hiddenWindow`) |
 | `htmlFrame(id)` | html tile's page frame (the page's realm), once ready; re-found after navigations (`tie list` `page.url`) |
+| `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
 | `tileOf(id)`, `waitFor(fn, what)`, `pickNext(path)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; next file picker answer (null = cancel); OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
 
-Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term` / `doc`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
-
-## Spikes (`src/main/spike.ts`, `dev/scenarios/spike-*.mjs`)
-
-Runtime facts the viewers plan builds on (`2026-10-16-viewers-and-browser-plan.md` "Results"). Dev builds only; each hook is on only when `TIE_SPIKE` (comma list) names it. Packaged builds never read it.
-
-| Spike | Hook | Scenarios |
-|---|---|---|
-| `html` | probe tokens: root `.html` served as a document (P3-like CSP); nav lock lets the token's frame load root `.html` files | `spike-html-origin`, `spike-html-fetch` (`supportFetchAPI` is now always on), `spike-frame-nav` |
-| `nav` | `[spike]` log: subframe `did-start-navigation` / `did-fail-*` / `did-frame-navigate`, `window.open` details | `spike-frame-popups`, `spike-frame-nav` |
-| `webview` | `webviewTag` on; `<webview>` attaches with rebuilt prefs (partition `persist:browser`); guests navigate http(s) only, popups denied; guest input/crash logged | `spike-webview`, `spike-guest-popups` |
-
-- Dev socket `spike {action}`: `guest` (last guest: id, url, partition, focused), `crash-guest`, `guest-key`, `guest-click {x, y}` (guest `sendInputEvent`).
-- Scenarios assert what was observed: a failure after an Electron upgrade = a changed fact (update Results).
-- `html` / `nav` spikes overlap the real html kind (P3) now; `webview` awaits P4. Remove at the end of P4 (plan).
+Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
 
 ## Traces (`out/log/`)
 
@@ -109,4 +97,4 @@ Runtime facts the viewers plan builds on (`2026-10-16-viewers-and-browser-plan.m
 ## Package check (`dev/package-check.mjs`)
 
 - `tie-dev check-package [app]`; also run by `tie-dev package` (failure removes the package).
-- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, an html page loads (bootstrap answers), a text file opens, no `[security]` log lines.
+- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, an html page loads (bootstrap answers), a text file opens, a browser tile loads a local http page (title), no `[security]` log lines.

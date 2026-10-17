@@ -34,8 +34,17 @@
 ## Security
 
 - `runAsNode` fuse on: CLI launcher runs Tie as Node. Signed binary usable as generic Node (Wave CVE-2025-12843 class). Fix: `Tie --cli` mode in main, then fuse off.
-- Opt-ins to revisit, each scoped and guarded: remote images per tile, `file://` links in terminals (open in Tie's viewer), OSC 52 write-only, raw HTML in markdown, popups for the browser tile (OAuth).
+- Opt-ins to revisit, each scoped and guarded: remote images per tile, `file://` links in terminals (open in Tie's viewer), OSC 52 write-only, raw HTML in markdown, popups for the browser tile (OAuth: today they go to the system browser).
 - Per-tile capabilities (shell without pty power): terminals as `<webview>`s with their own preload, not `nodeIntegrationInSubFrames`.
 - OS drag entering straight over a content frame goes to the frame (it can read dropped files; no way out but `openLink`). Mitigated: `body.os-drag` shield once the drag is over the shell; viewers refuse drops.
 - Gesture rule = frame focused, not a fresh user activation: script in a focused frame may post gesture verbs any time. Html pages do run scripts: mitigated by routing (confirm for the web, one new tile per second). Revisit (e.g. activation token from main's input events).
-- Html: persistent storage per file (opt-in), `<title>` as tile title, range requests (media seeking), subfolder watch.
+- Html: persistent storage per file (opt-in; today in memory, per open), range requests (media seeking), subfolder watch.
+
+## Browser
+
+- Favicon as the tile icon (needs a fetch on the browser partition, never the shell's).
+- Search from the location bar (today: http(s) and bare hosts only).
+- `mailto:` and other OS handlers (today refused): confirm → system handler?
+- Find in page, zoom, devtools for a guest.
+- Hung page: today error + renderer killed (same-site guests too). Option: "wait / close" like Chrome.
+- Per-tile profiles / private mode (one shared `persist:browser` today).

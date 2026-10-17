@@ -43,15 +43,15 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Kind registry (`renderer/kinds/index.ts`)
 
-`KindSpec {kind, factory, opens: 'bare' | 'file'}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`. Shelf templates: `TEMPLATES` (`terminal`, `file`; decision 2026-10-17: not one per kind).
+`KindSpec {kind, factory, opens: 'bare' | 'file' | 'url'}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`. Shelf templates: `TEMPLATES` (`terminal`, `file`, `browser`; decision 2026-10-17: not one per kind).
 
 | Reader | Uses |
 |---|---|
 | `tile.ts` | `factory` |
 | `shelf.ts` | `TEMPLATES` |
-| `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie open <path>" |
+| `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie open <path>"; `url` param → an `opens: 'url'` kind (`locationUrl`) |
 | `drag.ts` | template drop: `file` → picker (main, any file) → kind as `tie open` (`doc.viewer`); else the template's kind |
-| `keys.ts` | `cmd+D` on a `'file'` kind splits a terminal |
+| `keys.ts` | `cmd+D` on a kind that isn't `'bare'` splits a terminal |
 
 ## Kinds (`renderer/kinds/`)
 
@@ -61,6 +61,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `markdown` | content frame | file view + markdown viewer (`MARKDOWN.md`) |
 | `text`, `image`, `hex` | content frame | file view + viewer (`VIEWERS.md`) |
 | `html` | content frame, own origin | the file is the page (`kinds/html.ts` on the frame host; `VIEWERS.md` "Html") |
+| `browser` | `<webview>` guest, browser partition | remote web (`guest.ts`; `BROWSER.md`): no frame host, no requests, no channel to the shell |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view).
@@ -85,7 +86,20 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 - `contentCsp(policy, nonce, token)`: viewers: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms. Documents: `documentCsp()` (`VIEWERS.md` "Html": `'self'` + `data:`/`blob:`, inline/eval scripts, `connect-src 'self'`, nothing remote).
 - Unit tests pin every row and each CSP string exactly (`policy.test.ts`).
-- Later rows (plan): browser (P4: `<webview>`, not a frame).
+- Browser tiles are not frames: no row. Their rules: `core/guest.ts` (`BROWSER.md`).
+
+## Containers
+
+| | Content frame (`frame.ts`) | Guest (`guest.ts`) |
+|---|---|---|
+| Kinds | markdown, text, image, hex, html, probe | browser |
+| Element | `<iframe sandbox>` on `tie-content://<token>/` | `<webview>` (own webContents) |
+| Session | the shell's (in memory, no network) | `persist:browser` (network) |
+| Rules | policy table | `core/guest.ts`, `main/guest.ts` |
+| Channel to the shell | one port, typed requests | none |
+| Keys | main, window's `before-input-event` | main, the guest's own `before-input-event` |
+| Focus → activate | `initFrames` (blur, `activeElement` iframe) | same (`WEBVIEW`) |
+| Failure | watchdog (hung, crashed, no handshake) | `render-process-gone`, `unresponsive` |
 
 ## File view (`renderer/fileview.ts`)
 
