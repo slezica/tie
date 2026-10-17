@@ -3,7 +3,7 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROOT, sleep, infoPath } from './lib.mjs'
+import { ROOT, sleep, infoPath, userDataPath } from './lib.mjs'
 
 const app = process.argv[2] || join(ROOT, 'out/package/mac-arm64/Tie.app')
 let failed = false
@@ -81,6 +81,7 @@ try {
   child.kill('SIGTERM')
   for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
   rmSync(settings, { force: true })
+  rmSync(userDataPath(instance), { recursive: true, force: true })
   if (!failed) rmSync(log, { force: true })
   else console.log(`log: ${log}`)
 }

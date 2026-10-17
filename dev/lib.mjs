@@ -15,6 +15,9 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
 export const infoPath = (instance) => join(stateDir, `${instance}.json`)
+// Electron profile of an instance (main: app userData = <appData>/tie-<instance>). Fresh harness
+// instances remove theirs on stop.
+export const userDataPath = (instance) => join(homedir(), 'Library/Application Support', `tie-${instance}`)
 
 export function readInfo(instance) {
   const p = infoPath(instance)
@@ -140,6 +143,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
     if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
+    rmSync(userDataPath(instance), { recursive: true, force: true })
   }
   return { instance, stop }
 }
