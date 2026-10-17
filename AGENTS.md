@@ -27,6 +27,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-10-tabs-single-renderer.md`: tabs = spaces in one renderer.
 - `docs/2026-10-14-security-research.md`: prior art (Wave, VS Code, Joplin, Hyper/Tabby, Electron), methodology.
 - `docs/2026-10-15-tile-host-plan.md`: tile host, frame isolation, keys in main; phased plan.
+- `docs/2026-10-16-viewers-and-browser-plan.md`: text, image, hex, html, browser kinds; architecture, dependency graph.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
