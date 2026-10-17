@@ -16,7 +16,6 @@
 
 ## Tiles
 
-- Generic viewers when no specific kind exists: plain text, binary (hex). Until then: fail.
 - Kinds add custom title-bar buttons (first use: back/forward, maybe reload, beside hotkeys).
 - Visual feedback for a content tile whose file is missing (today: frozen last render; `tie list` `doc.missing`).
 - Markdown: images outside the file's folder (`../img.png`) never load (root = the file's directory). Option: root = repo / nearest common ancestor.

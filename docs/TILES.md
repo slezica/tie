@@ -59,38 +59,41 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 |---|---|---|
 | `terminal` | shell (trusted) | xterm + pty; the one exception to "content never in the shell realm" (`TERMINALS.md`) |
 | `markdown` | content frame | file view + markdown viewer (`MARKDOWN.md`) |
+| `text`, `image`, `hex` | content frame | file view + viewer (`VIEWERS.md`) |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
+- File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view + template).
 - `tie open <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie open <path>`, drops, template + picker).
-- Files → kinds (`core/kinds.ts`): by extension (`fileKind`; `.md`, `.markdown` → markdown); `extsOf(kind)` (picker filters). Sniff rule (`sniff`: first 8 KB UTF-8 without NUL → text, else binary) implemented and tested; not routed yet (P2): unknown files still error "No viewer for .x".
+- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `extsOf(kind)`: picker filters (none = any file). `canOpenAs`: which kinds a template may open a file as (own, hex, text if text-like).
 
 ## Policy table (`core/policy.ts`)
 
 The one reviewable security table for content kinds. Every frame-hosted kind has a row; nothing else decides these.
 
-| Field | markdown | probe (dev) | Read by |
-|---|---|---|---|
-| `page` | `viewer` | `viewer` | `viewerFile`, build (`viewerKinds`) |
-| `sandbox` | `allow-scripts` | `allow-scripts` | `frame.ts` |
-| `styles` (CSP `style-src`) | `inline` | `nonce` | `contentCsp` |
-| `nav` (nav lock) | `viewer-exact` | `viewer-exact` | `navAllowed` (`core/content.ts`) |
-| `assets` (`/_tie/`) | `markdown-mermaid.js` | — | `viewerFile` |
-| `payload` | `text` | `none` | `main/docs.ts` |
-| `maxBytes` | 8 MB | 0 | `main/docs.ts`, `watch.ts` |
-| `dev` | no | yes | `viewerKinds` (main serves dev rows in dev builds only) |
+| Field | markdown | text | image | hex | probe (dev) | Read by |
+|---|---|---|---|---|---|---|
+| `page` | `viewer` | `viewer` | `viewer` | `viewer` | `viewer` | `viewerFile`, build (`viewerKinds`) |
+| `sandbox` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `frame.ts` |
+| `styles` (CSP `style-src`) | `inline` | `nonce` | `nonce` | `nonce` | `nonce` | `contentCsp` |
+| `nav` (nav lock) | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `navAllowed` (`core/content.ts`) |
+| `assets` (`/_tie/`) | `markdown-mermaid.js` | — | — | — | — | `viewerFile` |
+| `payload` | `text` | `text` | `none` (`<img>` from its token) | `bytes` | `none` | `main/docs.ts`, `fileview.ts` |
+| `maxBytes` | 8 MB | 10 MB | 50 MB | 16 MB | 0 | `main/docs.ts`, `watch.ts` |
+| `dev` | no | no | no | no | yes | `viewerKinds` (main serves dev rows in dev builds only) |
 
 - `contentCsp(policy, nonce, token)`: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms.
 - Unit tests pin every row and each CSP string exactly (`policy.test.ts`).
-- Later rows (plan): text, image, hex (viewers), html (`page: 'document'`, `within-root`).
+- Later rows (plan): html (`page: 'document'`, `within-root`).
 
 ## File view (`renderer/fileview.ts`)
 
-`fileView(host, opts, {kind, icon})` → `Surface`. A file kind is this plus its viewer (`kinds/markdown.ts` is one line).
+`fileView(host, opts, {kind, icon})` → `Surface`. A file kind is this plus its viewer (one line in `kinds/index.ts`).
 
-- Doc: `tie.doc.open(path)` (main checks, reads, watches; payload + cap from the policy row) → `{id, text, rev}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, text, rev, scroll, hash}` + shelf activity; missing → last render frozen; close on dispose.
+- Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, text | bytes}` + shelf activity; missing → last render frozen; close on dispose.
+- Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token, = `/<name>`) itself (image).
 - Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme message, then the doc.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
-- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind → this tile (cmd: new tile beside); file without a viewer or of another kind → ignored (`debug <kind>`; cross-kind: P5); refused → `debug security`.
+- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → ignored (`debug <kind>`; cross-kind: P5); refused → `debug security`. Only viewers with `links` (markdown) send them.
 - Title = file name; `dir` / `cwd` = its directory; `info` → `doc {path, rev, missing, history}`.
 - Theme message (`themeMessage`): `--bg`, `--fg`, `--accent`, `--a0..15`, `--font`, `--mono`, `--size`, `dark`.
 
@@ -174,6 +177,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 - `probe`: own minimal handshake (no runtime: the attacker's seat). `window.probe = {port, received, inits}`. Scenarios run code in it (`h.probeFrame`).
 - `markdown`: pipeline only: markdown-it + DOMPurify; Mermaid on demand (`mermaid.ts` + asset `markdown-mermaid.js`, copied from `@mermaid-js/tiny`); `window.markdown` for the harness (`MARKDOWN.md`).
+- `text` (runtime + live + highlight), `image` (runtime), `hex` (runtime): `VIEWERS.md`; `window.text|image|hex`.
 - Styles: `<style nonce="%NONCE%">` in the page (kind typography) + shared modules' `style()`; values from the host via CSSOM (style attributes are blocked by the CSP).
 
 ## Limitations

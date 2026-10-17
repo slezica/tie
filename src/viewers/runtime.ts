@@ -1,4 +1,4 @@
-// Viewer runtime: what every Tie viewer (markdown; later text, image, hex) runs in its content
+// Viewer runtime: what every Tie viewer (markdown, text, image, hex) runs in its content
 // frame (sandboxed, opaque origin, strict CSP). Handshake with the host (one MessagePort per
 // document), watchdog pong, theme (CSS custom properties via CSSOM: the CSP blocks style
 // attributes), message dispatch, anchors, link clicks → requests (from the click handler only:

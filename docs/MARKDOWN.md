@@ -6,7 +6,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 | Part | Where | Does |
 |---|---|---|
-| Kind | `renderer/kinds/markdown.ts` | `fileView` + viewer name + icon (one line) |
+| Kind | `renderer/kinds/index.ts` | `fileKind('markdown', icon)`: file view + viewer name + icon (one line) |
 | File view | `renderer/fileview.ts` | doc + frame per tile; links, history, nav, theme (`TILES.md`) |
 | Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | pipeline: markdown-it → highlight.js → DOMPurify → Mermaid (on demand); on `runtime.ts`, `live.ts`, `highlight.ts` |
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
@@ -16,7 +16,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 ## Flow
 
-1. Mount: `tie.doc.open(path)` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, text, rev}`. Error → `showError`.
+1. Mount: `tie.doc.open(path, 'markdown')` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, kind, text, rev}`. Error → `showError`.
 2. Frame: root = the file's directory (`tie.content.open`). On each handshake (`onReady`): theme, then doc.
 3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash}`, `{type: 'scroll', hash}`.
 4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
@@ -64,7 +64,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 | `#anchor` | scroll (viewer) | same |
 | `http(s)://` | system browser (`openExternal`) | same |
 | relative / absolute path to `.md` / `.markdown` | open in this tile (history push) | new tile beside (`besidePlacement`) |
-| other local file | ignored (`debug markdown`; other kinds: P5) | same |
+| other local file (another kind, or kind by content) | ignored (`debug markdown`; cross-kind: P5) | same |
 | anything else (`file:`, `javascript:`, custom schemes, `//host`) | refused (`debug security`) | same |
 
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
@@ -110,8 +110,8 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 | How | Result |
 |---|---|
-| `tie open <path>` | `CLI.md`: path against the caller's cwd; no viewer / missing / folder → error, exit 1 |
-| Finder drop on board or shelf (not on a terminal) | like a template drop at that point; no viewer → modal "No viewer for .xyz" |
+| `tie open <path>` | `CLI.md`: path against the caller's cwd; missing / folder / too large → error, exit 1 |
+| Finder drop on board or shelf (not on a terminal) | like a template drop at that point; folder / too large → modal |
 | Shelf template `markdown` | dropped → file picker (main dialog, `.md`/`.markdown`); cancel → nothing |
 | `cmd+D` on a markdown tile | terminal in the file's directory |
 

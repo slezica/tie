@@ -1,4 +1,4 @@
-// Code highlighting for viewers (markdown fences; text files in P2): highlight.js core + common
+// Code highlighting for viewers (markdown fences, text files): highlight.js core + common
 // languages only (bundle size), no auto-detect. Token colors: the theme's ANSI palette
 // (--a0..--a15). docs/MARKDOWN.md "Rendering".
 import hljs from 'highlight.js/lib/core'

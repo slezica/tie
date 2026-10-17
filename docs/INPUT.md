@@ -69,7 +69,7 @@
 
 - Native drag-and-drop from other apps (Finder, browsers). Tie's own drags are pointer-based (above).
 - On a terminal: files → shell-quoted paths + space; else first `text/uri-list` link, else `text/plain`. Activates the tile, then the guarded paste.
-- Files anywhere else on the board or shelf (incl. content tiles): opened in their viewer, placed like a template dropped there (`placementAt`); outside board and shelf: beside the active tile. No viewer → modal "No viewer for .xyz" (`files.ts`, `MARKDOWN.md`).
+- Files anywhere else on the board or shelf (incl. content tiles): opened in their kind (by extension or content, `VIEWERS.md`), placed like a template dropped there (`placementAt`); outside board and shelf: beside the active tile. Folder, missing, too large → modal with the reason (`files.ts`).
 - Text anywhere else: nothing. Never navigates (`SECURITY.md`).
 - While an OS drag is over the window (`body.os-drag`): content frames ignore the pointer, so drops over them land in the shell. A drag entering straight over a frame goes to the frame (viewers refuse drops).
 

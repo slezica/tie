@@ -19,7 +19,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 |---|---|
 | `tie list [--json]` | Tiles (+ tabs with `--json`) |
 | `tie open terminal [opts]` | Open, print id |
-| `tie open <path> [placement]` | Open a file in its viewer (`.md`, `.markdown` → markdown, `MARKDOWN.md`), print id |
+| `tie open <path> [placement]` | Open a file in its kind (markdown, image by extension; else text or hex by content: `VIEWERS.md`), print id |
 | `tie close [id]` | Close |
 | `tie move [id] --at <id> [--side s] \| --float \| --shelve` | Move |
 | `tie focus [id]` | Switch to its tab; expand + activate, or pin if shelved |
@@ -30,7 +30,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
 - `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--focus`.
-- `open <arg>`: a registered kind name → that kind (`./terminal` for a file named so). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, no viewer → `No viewer for .ext` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
+- `open <arg>`: a registered kind name → that kind (`./terminal` for a file named so). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
 - `--shelve` = `--shelved` (both commands).
 - `[id]` defaults to `$TIE_TILE`.
 - `title` / `icon` with 2+ args: first is `id`, rest joined (unquoted words ok).
@@ -56,7 +56,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
-- `doc: {path, rev, missing, history: {index, length}}` (markdown; null until open).
+- `doc: {path, rev, missing, history: {index, length}}` (file kinds; null until open).
 - `rect`: window px, rounded; null if not rendered (background tab).
 
 ## Socket protocol
@@ -83,4 +83,5 @@ Methods = commands. Params: `open` {`kind`, `path` (absolute), `cmd`, `cwd`, `ti
 
 - No auth: any local process of the user can connect.
 - No events; poll `list`.
-- No terminal I/O. Kinds: `terminal`, `markdown` (by path); `probe` in dev builds.
+- No terminal I/O. Kinds: `terminal`; `markdown`, `text`, `image`, `hex` (by path); `probe` in dev builds.
+- No way to force a kind from the CLI (e.g. hex of a PNG): shelf templates only.

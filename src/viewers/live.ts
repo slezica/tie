@@ -1,4 +1,4 @@
-// Live updates for block viewers (markdown; text in P2): the file changed on disk, the document
+// Live updates for block viewers (markdown blocks, text lines): the file changed on disk, the document
 // is rebuilt off-screen and put on screen by a keyed DOM diff, so the view never moves. Blocks
 // whose key is new are the changes: marked (marks.ts). docs/MARKDOWN.md "Live updates".
 // SECURITY: the diff (morphdom) moves and copies nodes of the already-built tree, never parses

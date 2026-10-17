@@ -35,7 +35,10 @@
 | Viewer runtime: handshake only from `parent`, one port; link clicks never navigate (requests from the click handler only); drops / middle clicks refused; live diff never parses strings | `viewers/runtime.ts`, `live.ts` | `sec-markdown`, `markdown-links` |
 | File view links: anchors, http(s) (→ `openExternal`), paths (files of the tile's kind open; main re-checks the file); other schemes refused | `@core/links` `classifyLink`, `fileview.ts` | `sec-markdown`, `markdown-links`, unit |
 | Content tiles read-only: no request verb writes (write-shaped messages are unknown verbs, dropped); no doc write IPC or bridge method; task boxes display-only | `@core/requests`, `main/docs.ts`, `preload`, `viewers/markdown.ts` | `sec-markdown`, unit |
-| Opening files: main checks absolute, existing regular file, known kind (`@core/kinds`), size cap (policy row) | `main/docs.ts` `fileViewer` | `markdown-open` |
+| Text render: escaped text only (no markup from the file), control characters and bidi overrides made visible (never interpreted) | `viewers/text.ts` | `sec-viewers` (mutation: unescaped → red; controls raw → red) |
+| Images (SVG included) only as `<img>` from the tile's token: no scripts, handlers or external loads (image context; CSP `img-src` own token) | `viewers/image.ts`, policy row | `sec-viewers` (probe untouched) |
+| Hex: bytes rendered from fixed tables (hex, escaped ASCII): no byte is markup | `viewers/hex.ts` | `hex` |
+| Opening files: main checks absolute, existing regular file, kind (extension, else sniff: text / hex), requested kind allowed (`canOpenAs`), size cap (policy row) before any read; reads capped again | `main/docs.ts` `fileViewer`, `@core/kinds` | `markdown-open`, `sec-viewers` (mutation: cap check removed → red), unit |
 | OS drags: content frames ignore the pointer while one is over the window (drops land in the shell) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
 | Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |

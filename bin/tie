@@ -54,7 +54,16 @@ TILE KINDS
              - Links: relative .md opens in the same tile (cmd-click: new tile; cmd+[ / cmd+]
                back/forward); http(s) opens the browser; anything else is ignored.
              - A file that hangs or crashes the viewer leaves an error in the tile; reopen to retry.
-  Other file types have no viewer yet: tie open fails.
+  image      Files .png, .jpg, .jpeg, .gif, .webp, .avif, .svg, .ico, .bmp. Fit to the tile
+             (shrink only); click or z toggles actual size. Reloads when the file changes. SVG is
+             shown as an image: its scripts and links never run.
+  text       Any other file that is UTF-8 text (sniffed: no NUL bytes), whatever its name.
+             Line numbers; code highlighted by extension (files up to 512 KB). Live like
+             markdown (view stays still, changed lines marked, n jumps). Shown literally:
+             HTML is text, control characters and bidi overrides are visible. Links don't open.
+  hex        Any other file (binary): offset | bytes | ASCII. Live: changed rows highlighted.
+  Size limits: markdown 8 MB, text 10 MB, hex 16 MB, image 50 MB (larger: tie open fails).
+  Folders can't be opened. All file tiles are read-only and never reach the network.
 
 TILE IDS
   t1, t2, ... open (and every command acting on a tile) prints the id; --json prints full info.
@@ -78,7 +87,8 @@ BEHAVIOR
 
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
-  Errors go to stderr with exit status 1: unknown id, unsupported file, Tie not reachable.
+  Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
+  Tie not reachable.
 
 ENVIRONMENT
   TIE_TILE      Id of the tile this shell runs in. Set by Tie.
@@ -87,6 +97,7 @@ ENVIRONMENT
 
 EXAMPLES
   tie open docs/plan.md                       Show a document beside this terminal
+  tie open out/chart.png --float              Show an image (re-shown when rewritten)
   tie open terminal --cmd "npm run dev" --title dev --shelved
   tie title "migrating db"; tie icon 🛠️        Label this tile
   tie ping                                    Done: ask the user to look here
