@@ -22,7 +22,6 @@
 - Markdown: images outside the file's folder (`../img.png`) never load (root = the file's directory). Option: root = repo / nearest common ancestor.
 - Markdown: scroll memory lost across a frame reload (back/forward between directories → top). Option: viewer reports scroll on navigation.
 - Markdown: link target shown on hover (like terminal links), outline, search.
-- Content frame crash not detected: tile stays blank.
 
 ## CLI
 

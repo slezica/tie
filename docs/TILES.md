@@ -48,11 +48,26 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 1. `mount`: `tie.content.open(root, viewer)` → main registers `root` under a fresh token → `{token, url}` (or `{error}` → `host.error`).
 2. `<iframe class="content" sandbox="allow-scripts" allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
 3. On each `load`: new `MessageChannel`; `tie:init` + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
-4. Viewer answers `{verb: 'ready'}` within 5 s, else `host.error('Content did not load')`. Each `ready` → `onReady()` (kind sends content).
+4. Viewer answers `{verb: 'ready'}` within 5 s, else "Content did not load". Each `ready` → `onReady()` (kind sends content).
 5. Requests: port → `parseRequest` (`core/requests.ts`) → gesture rule → `handlers[verb]` → IPC → main (re-validates). Invalid, unhandled or refused: dropped, `debug('security', ...)`.
 6. `post(msg)`: host → viewer over the port (dropped before the handshake).
 7. `setRoot(root)`: new token for another directory, same iframe (`src` changes; nav lock binds the new token to it), old token closed. Handshake again.
 8. `dispose`: port closed, iframe removed, `tie.content.close(token)`.
+
+### Watchdog (`frame.ts`, timing in `core/watchdog.ts`)
+
+| Failure | Detected by | Tile shows |
+|---|---|---|
+| Hung (busy loop, runaway layout, OOM) | `{type: 'tie:ping', n}` every 1 s (one outstanding); no `pong {n}` within 5 s, and 10 s since the last `post` (render grace) | "Viewer stopped responding" |
+| Crashed (renderer process died) | port `close` event (the viewer's end went away) | "Viewer crashed" |
+| No handshake | no `ready` within 5 s | "Content did not load" |
+
+- Every viewer answers `tie:ping` with `pong` (same `n`) from its message handler.
+- On failure: watchdog stopped, port closed, iframe removed, error shown. Hung: `tie.content.kill(token)` first: main SIGKILLs the frame's process if it holds nothing else (not the shell's, not shared with another frame), then forgets the token. A stuck thread never handles the shutdown a removed frame would get: it would burn a core forever.
+- No automatic reload: a document that hung or crashed the viewer would do it again. The user reopens the tile.
+- Sleep / throttling: a tick > 3 s late (machine slept, hidden window throttled) restarts the ping, no verdict.
+- Own process per frame (`sec-content-escape`): the shell and other tiles keep running while one spins (`content-watchdog`).
+- A viewer paused in DevTools (breakpoint) for > 5 s counts as hung.
 
 - No window `message` listener in the shell: requests arrive over the port only.
 - Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only.
@@ -65,6 +80,7 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 | Verb | Args | Handled by |
 |---|---|---|
 | `ready` | — | host (clears load timer) |
+| `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | markdown: `classifyLink` → browser / this tile / new tile (`MARKDOWN.md`) |
 | `toggleTask` | `line` (int ≥ 0), `expected` (string, ≤ 10000), `rev` (16 hex); gesture | markdown → main `doc:toggle` (revision + line check) |
@@ -99,6 +115,5 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 
 ## Limitations
 
-- Frame renderer crash: not detected (no per-frame crash event); tile stays blank.
 - OS drags entering straight over a frame go to the frame (a drop there can only try to navigate it: nav lock).
 - Gesture rule checks focus, not a fresh click: script in a focused frame could post at any time. Today only our viewers run script in frames.

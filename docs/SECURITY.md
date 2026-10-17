@@ -26,6 +26,7 @@
 | Content frames: `sandbox="allow-scripts"` only (opaque origin), own process, no `window.tie`, no top nav/popups/storage | `frame.ts` | `sec-content-escape` |
 | `tie-content://`: privileges `standard`+`secure` only; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, unit |
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
+| Content watchdog: hung frame (no pong 5 s) → error, frame removed, its process killed if exclusive; crashed (port closed) → error; never reloads | `frame.ts`, `@core/watchdog`, `content.ts` `killContent` | `content-watchdog`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | Gesture rule: link opens and file writes (`openLink`, `followLink`, `toggleTask`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |
 | Markdown render: raw HTML escaped (`html: false`; also in footnotes, front matter), DOMPurify on the final HTML (after every plugin), remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |

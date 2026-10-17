@@ -4,6 +4,7 @@ import { parseRequest, needsGesture, type Verb } from './requests'
 describe('parseRequest', () => {
   it('accepts known verbs with valid args, as fresh objects', () => {
     expect(parseRequest({ verb: 'ready' })).toEqual({ verb: 'ready' })
+    expect(parseRequest({ verb: 'pong', n: 7 })).toEqual({ verb: 'pong', n: 7 })
     const m = { verb: 'openLink', url: 'https://example.com' }
     const r = parseRequest(m)
     expect(r).toEqual(m)
@@ -15,6 +16,10 @@ describe('parseRequest', () => {
       { verb: 'toString' },
       { verb: '__proto__' },
       { verb: 'ready', extra: 1 },
+      { verb: 'pong' },
+      { verb: 'pong', n: -1 },
+      { verb: 'pong', n: 1.5 },
+      { verb: 'pong', n: '1' },
       { verb: 'openLink' },
       { verb: 'openLink', url: 42 },
       { verb: 'openLink', url: 'https://x', cmd: 'id' },
@@ -48,6 +53,6 @@ describe('markdown verbs', () => {
     expect(parseRequest({ verb: 'toggleTask', line: 3, expected: '- [ ] a' })).toBe(null)
   })
   it('gesture verbs: link opens and file writes', () => {
-    expect(['ready', 'openLink', 'followLink', 'toggleTask'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink', 'toggleTask'])
+    expect(['ready', 'pong', 'openLink', 'followLink', 'toggleTask'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink', 'toggleTask'])
   })
 })

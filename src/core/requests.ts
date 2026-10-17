@@ -3,6 +3,7 @@
 
 export type Request =
   | { verb: 'ready' }
+  | { verb: 'pong'; n: number } // answer to the host's watchdog ping n (frame.ts)
   | { verb: 'openLink'; url: string } // external URL (probe)
   | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
   | { verb: 'toggleTask'; line: number; expected: string; rev: string } // task box: source line, its text, file revision
@@ -22,6 +23,7 @@ const rev = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{16}
 // while the frame has focus (the user just clicked in it).
 const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) => Extract<Request, { verb: V }> | null } } = {
   ready: { keys: [], build: () => ({ verb: 'ready' }) },
+  pong: { keys: ['n'], build: (d) => (int(d.n, Number.MAX_SAFE_INTEGER) ? { verb: 'pong', n: d.n } : null) },
   openLink: { keys: ['url'], gesture: true, build: (d) => (str(d.url, MAX_URL) ? { verb: 'openLink', url: d.url } : null) },
   followLink: {
     keys: ['href', 'newTile'],

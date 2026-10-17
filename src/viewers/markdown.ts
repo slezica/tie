@@ -167,9 +167,12 @@ type Msg =
   | { type: 'theme'; dark: boolean; vars: Record<string, string> }
   | { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string }
   | { type: 'scroll'; hash: string }
+  | { type: 'tie:ping'; n: number }
 
 function onMessage(m: Msg) {
-  if (m.type === 'theme') {
+  // Watchdog (frame.ts): answering proves this thread isn't stuck.
+  if (m.type === 'tie:ping') state.port?.postMessage({ verb: 'pong', n: m.n })
+  else if (m.type === 'theme') {
     const s = document.documentElement.style
     for (const [k, v] of Object.entries(m.vars)) if (/^--[a-z0-9-]+$/.test(k) && typeof v === 'string') s.setProperty(k, v)
     s.colorScheme = m.dark ? 'dark' : 'light'

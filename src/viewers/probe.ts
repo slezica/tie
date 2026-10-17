@@ -13,7 +13,11 @@ addEventListener('message', (e) => {
   if (e.source !== parent || (e.data as { type?: string })?.type !== 'tie:init' || !e.ports[0]) return
   probe.inits++
   probe.port = e.ports[0]
-  probe.port.onmessage = (m) => probe.received.push(m.data)
+  probe.port.onmessage = (m) => {
+    // Watchdog: answer the host's pings (frame.ts). Not recorded.
+    if (m.data?.type === 'tie:ping') return probe.port?.postMessage({ verb: 'pong', n: m.data.n })
+    probe.received.push(m.data)
+  }
   probe.port.postMessage({ verb: 'ready' })
 })
 

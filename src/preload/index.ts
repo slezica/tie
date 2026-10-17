@@ -40,6 +40,8 @@ const api = {
   content: {
     open: (root: string, kind: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind),
     close: (token: string) => ipcRenderer.send('content:close', token),
+    // Watchdog: frame stopped answering. Main kills its process (if it holds nothing else), then closes.
+    kill: (token: string) => ipcRenderer.send('content:kill', token),
   },
   // Files in viewer tiles (markdown). Main checks paths, reads, watches and writes.
   doc: {

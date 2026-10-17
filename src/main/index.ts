@@ -6,7 +6,7 @@ import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
 import { initKeys, setKeysSuspended } from './keys'
-import { openContent, closeContent, clearContent, serveContent } from './content'
+import { openContent, closeContent, killContent, clearContent, serveContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, toggleTask, pickFile, setNextPick, type DocPush } from './docs'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
@@ -83,6 +83,7 @@ ipc.handle('settings:set', (_e, patch) => {
 })
 ipc.handle('content:open', (_e, root: unknown, kind: unknown) => openContent(root, kind))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
+ipc.on('content:kill', (_e, token: unknown) => killContent(token, win?.webContents.mainFrame ?? null))
 const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed', id, p)
 ipc.handle('doc:viewer', (_e, path: unknown) => fileViewer(path))
 ipc.handle('doc:open', (_e, path: unknown) => openDoc(path, pushDoc))

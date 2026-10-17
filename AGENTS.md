@@ -45,9 +45,10 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
 - `src/core/content.ts`: content URL/token/path checks, viewer files, content CSP (main). Tests: `content.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
+- `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor`, `isQuitKey` (main + renderer). Tests: `keymap.test.ts`.
 - `src/core/markdown.ts`: `viewerFor`, `noViewer`, `classifyLink`, `toggleTaskLine`, `applyToggle` (main + renderer). Tests: `markdown.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, task toggle write, picker), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, task toggle write, picker), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `markdown`, `probe` (dev). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
@@ -56,7 +57,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, `Host` for kinds, mount/dispose, error state.
   - `kinds/`: `index.ts` (`Surface`, `Host`, registry), `terminal.ts` (xterm, pty wiring, links, drop text), `markdown.ts` (live file view: doc, links, history, toggles, theme), `probe.ts` (dev harness content kind).
-  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, `post`, `setRoot`).
+  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
   - `files.ts`: OS file drops → viewer tiles.
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.

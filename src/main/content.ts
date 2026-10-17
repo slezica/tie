@@ -51,6 +51,26 @@ export function closeContent(token: unknown) {
   if (typeof token === 'string' && entries.delete(token)) log('content', 'close', token.slice(0, 8))
 }
 
+// SECURITY: a content frame that stopped answering (frame.ts watchdog) keeps spinning in its
+// renderer even after the shell removes it (a stuck thread never handles the shutdown). Kill its
+// process, but only if that process holds nothing else: never the shell's, never one shared with
+// another frame. Then forget the token.
+export function killContent(token: unknown, shell: WebFrameMain | null) {
+  const e = typeof token === 'string' ? entries.get(token) : undefined
+  if (e && e.frame !== null && shell) {
+    const frames = shell.framesInSubtree
+    const f = frames.find((x) => x.frameTreeNodeId === e.frame)
+    const pid = f?.osProcessId
+    if (f && pid && pid !== shell.osProcessId && pid !== process.pid && frames.every((x) => x === f || x.osProcessId !== pid)) {
+      try {
+        process.kill(pid, 'SIGKILL')
+        log('content', 'killed', (token as string).slice(0, 8), pid)
+      } catch {}
+    } else log('content', 'not killed (shared or gone)', (token as string).slice(0, 8), pid)
+  }
+  closeContent(token)
+}
+
 // Shell reloaded: its content tiles are gone.
 export function clearContent() {
   entries.clear()
