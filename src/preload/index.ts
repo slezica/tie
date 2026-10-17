@@ -43,12 +43,12 @@ const api = {
     // Watchdog: frame stopped answering. Main kills its process (if it holds nothing else), then closes.
     kill: (token: string) => ipcRenderer.send('content:kill', token),
   },
-  // Files in viewer tiles (markdown). Main checks paths, reads and watches. Read-only: no writes.
+  // Files in viewer tiles (file view). Main checks paths, reads and watches. Read-only: no writes.
   doc: {
-    viewer: (path: string): Promise<{ kind: 'markdown'; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path),
+    viewer: (path: string): Promise<{ kind: string; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path),
     open: (path: string): Promise<{ id: number; text: string; rev: string } | { error: string }> => ipcRenderer.invoke('doc:open', path),
     close: (id: number) => ipcRenderer.send('doc:close', id),
-    pick: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('doc:pick', defaultPath),
+    pick: (defaultPath: string | undefined, kind: string): Promise<string | null> => ipcRenderer.invoke('doc:pick', defaultPath, kind),
     onChange: (cb: (id: number, p: { text: string; rev: string } | { missing: true }) => void) => {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
     },

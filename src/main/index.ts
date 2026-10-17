@@ -89,7 +89,7 @@ const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed',
 ipc.handle('doc:viewer', (_e, path: unknown) => fileViewer(path))
 ipc.handle('doc:open', (_e, path: unknown) => openDoc(path, pushDoc))
 ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
-ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
+ipc.handle('doc:pick', (_e, defaultPath: unknown, kind: unknown) => pickFile(win, defaultPath, kind))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('app:quit', () => app.quit())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))

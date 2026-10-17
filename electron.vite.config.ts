@@ -3,11 +3,13 @@ import { build, type Plugin } from 'vite'
 import { resolve } from 'node:path'
 import { copyFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { viewerKinds } from './src/core/policy'
 
 // Content viewers (src/viewers/<kind>.html|ts) → out/viewers, served by main under
 // tie-content://<token>/_tie/. Classic IIFE scripts: opaque-origin frames can't load modules from
-// tie-content (no CORS). Built with main, so `electron-vite dev` has them too.
-const VIEWERS = ['markdown', 'probe']
+// tie-content (no CORS). Built with main, so `electron-vite dev` has them too. Which: the policy
+// table's viewer kinds (dev-only ones too; main serves those in dev builds only).
+const VIEWERS = viewerKinds(true)
 // Prebuilt viewer assets, copied as-is (served only to their kind: viewerFile in core/content.ts).
 // Mermaid: the "tiny" IIFE (no mindmap, architecture, KaTeX), pinned in package.json.
 const require = createRequire(import.meta.url)

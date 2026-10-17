@@ -1,16 +1,18 @@
 // Frame host: content kinds render in a sandboxed iframe on their own tie-content://<token>/ origin.
-// The host applies the baseline (sandbox, port handshake, request checks, focus, pointer shield);
-// a kind supplies only its viewer name, root and request handlers. docs/TILES.md.
+// The host applies the baseline (sandbox from the policy table, port handshake, request checks,
+// focus, pointer shield); a kind supplies only its viewer name, root and request handlers.
+// docs/TILES.md.
 import { S, tie, location, debug } from './state'
 import { activate } from './ops'
 import { parseRequest, needsGesture, type Request, type Verb } from '@core/requests'
 import { watchdog, tick, pong, TICK_MS } from '@core/watchdog'
+import { policyOf } from '@core/policy'
 import type { Host, Surface } from './kinds'
 
 export type Handlers = { [V in Verb]?: (req: Extract<Request, { verb: V }>) => void }
 
 export interface FrameSpec {
-  viewer: string // viewer name: out/viewers/<viewer>.html|js
+  viewer: string // content kind (policy table row; viewer out/viewers/<viewer>.html|js)
   root: string // directory the frame may read files from
   title: string
   icon: string
@@ -119,15 +121,18 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
 
   const surface: FrameSurface = {
     mount: async () => {
+      const policy = policyOf(spec.viewer)
+      if (!policy) return host.error(`No policy for ${spec.viewer}`)
       const res = await tie.content.open(spec.root, spec.viewer).catch((e: Error) => ({ error: e.message }))
       if (!host.alive()) return void ('token' in res && tie.content.close(res.token))
       if ('error' in res) return host.error(res.error)
       token = res.token
       frame = document.createElement('iframe')
       frame.className = 'content'
-      // SECURITY: scripts only. No allow-same-origin (opaque origin: can't reach the shell or its
-      // storage), no popups, top navigation, forms, modals, downloads. No permissions, no referrer.
-      frame.setAttribute('sandbox', 'allow-scripts')
+      // SECURITY: sandbox from the policy table (viewers: scripts only. No allow-same-origin: opaque
+      // origin, can't reach the shell or its storage; no popups, top navigation, forms, modals,
+      // downloads). No permissions, no referrer.
+      frame.setAttribute('sandbox', policy.sandbox.join(' '))
       frame.setAttribute('allow', '')
       frame.referrerPolicy = 'no-referrer'
       frame.addEventListener('load', connect)

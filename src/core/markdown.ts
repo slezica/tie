@@ -1,23 +1,6 @@
-// Markdown files: which files have a viewer, link targets. Pure, renderer-safe,
-// unit-tested. docs/MARKDOWN.md.
-
-export const MARKDOWN_EXTS = ['.md', '.markdown']
-
-// '.md' (lowercase), or '' when the name has none (dotfiles count as none).
-export function extOf(path: string): string {
-  const name = path.slice(path.lastIndexOf('/') + 1)
-  const dot = name.lastIndexOf('.')
-  return dot > 0 ? name.slice(dot).toLowerCase() : ''
-}
-
-export function viewerFor(path: string): 'markdown' | null {
-  return MARKDOWN_EXTS.includes(extOf(path)) ? 'markdown' : null
-}
-
-export function noViewer(path: string): string {
-  const ext = extOf(path)
-  return ext ? `No viewer for ${ext}` : `No viewer for "${path.slice(path.lastIndexOf('/') + 1)}"`
-}
+// Markdown links: where a link in a document leads. Pure, renderer-safe, unit-tested.
+// docs/MARKDOWN.md.
+import { fileKind } from './kinds'
 
 export type Link =
   | { type: 'anchor'; hash: string } // same page
@@ -57,5 +40,5 @@ export function classifyLink(href: unknown, from: string): Link {
     return { type: 'refused', why: 'bad path' }
   }
   if (path.includes('\0')) return { type: 'refused', why: 'nul' }
-  return viewerFor(path) ? { type: 'markdown', path, hash } : { type: 'file', path }
+  return fileKind(path) === 'markdown' ? { type: 'markdown', path, hash } : { type: 'file', path }
 }

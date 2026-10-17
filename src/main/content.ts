@@ -7,7 +7,8 @@ import { realpathSync, statSync } from 'node:fs'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
 import { spikeFrameAllowed, spikeDocType, SPIKE_HTML_CSP } from './spike'
-import { CONTENT_SCHEME, routeContent, isInside, contentCsp, viewerUrl, parseContentUrl } from '../core/content'
+import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed } from '../core/content'
+import { policyOf, viewerKinds, contentCsp } from '../core/policy'
 
 interface Entry {
   root: string // real path
@@ -17,8 +18,9 @@ interface Entry {
 
 const entries = new Map<string, Entry>()
 
-// Kinds with a viewer (out/viewers/<kind>.html|js). The probe is a harness kind: dev builds only.
-const VIEWERS = new Set(app.isPackaged ? ['markdown'] : ['markdown', 'probe'])
+// Kinds with a viewer (out/viewers/<kind>.html|js), from the policy table. Dev-only rows (probe,
+// the harness kind) only in dev builds.
+const VIEWERS = new Set<string>(viewerKinds(!app.isPackaged))
 const viewersDir = join(import.meta.dirname, '../viewers')
 
 const TYPES: Record<string, string> = {
@@ -77,16 +79,17 @@ export function clearContent() {
   entries.clear()
 }
 
-// SECURITY: frame nav lock (with will-frame-navigate, security.ts). A subframe may load only the
-// exact viewer URL of a registered token, as a direct child of the shell, and each token binds to
-// the first frame that loads it: content can't navigate itself elsewhere (meta refresh, location,
-// links, drops) or into another tile's viewer. So the shell's port handshake (targetOrigin '*' to
-// an opaque origin) always reaches the tile's own viewer.
+// SECURITY: frame nav lock (with will-frame-navigate, security.ts). A subframe may load only what
+// its kind's nav rule allows (policy table; 'viewer-exact': the exact viewer URL) of a registered
+// token, as a direct child of the shell, and each token binds to the first frame that loads it:
+// content can't navigate itself elsewhere (meta refresh, location, links, drops) or into another
+// tile's viewer. So the shell's port handshake (targetOrigin '*' to an opaque origin) always
+// reaches the tile's own viewer.
 export function contentFrameAllowed(url: string, frame: WebFrameMain | null, shellFrame: WebFrameMain): boolean {
   const u = parseContentUrl(url)
   const e = u && entries.get(u.token)
-  if (u && e && frame?.parent === shellFrame && url !== viewerUrl(u.token, e.kind)) return spikeFrameAllowed(url, frame, e) // dev spike only
-  if (!u || !e || url !== viewerUrl(u.token, e.kind) || !frame || frame.parent !== shellFrame) return false
+  if (!u || !e || !frame || frame.parent !== shellFrame) return false
+  if (!navAllowed(e.kind, u.token, url)) return spikeFrameAllowed(url, frame, e) // false unless a dev spike
   e.frame ??= frame.frameTreeNodeId
   return e.frame === frame.frameTreeNodeId
 }
@@ -114,7 +117,7 @@ export function serveContent() {
       if (r.viewer.endsWith('.js')) return new Response(body, { headers: { ...HEADERS, 'Content-Type': 'text/javascript; charset=utf-8' } })
       const nonce = randomBytes(16).toString('base64')
       const html = body.toString('utf8').replaceAll('%NONCE%', nonce)
-      return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(nonce, token, r.entry.kind) } })
+      return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(policyOf(r.entry.kind)!, nonce, token) } })
     }
     // SECURITY: symlinks inside the root may point anywhere: the real path must stay inside too.
     const real = await realpath(r.file).catch(() => null)

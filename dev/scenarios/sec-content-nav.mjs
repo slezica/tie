@@ -1,10 +1,18 @@
 // Security: content frames load only their own viewer (registered token, exact URL, one frame each).
 // They can't navigate anywhere else; other frames can't load into the shell.
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+
 export default async (ctx, h) => {
   const p = await h.probe(ctx)
+  // A root with a file that renders as a document (text/plain): a json/binary one would download
+  // instead, and never show whether the lock let it through.
+  const root = join(process.cwd(), 'tmp', `content-nav-${process.pid}`)
+  mkdirSync(root, { recursive: true })
+  writeFileSync(join(root, 'note.txt'), 'note')
+  writeFileSync(join(root, 'package.json'), '{}')
   try {
     const page = ctx.page
-    const root = process.cwd()
     // Raw frame, no tile: the guards in main must hold on their own.
     const frame = (src) =>
       page.evaluate((src) => {
@@ -52,7 +60,7 @@ export default async (ctx, h) => {
     await tryIn('location', ({ u }) => (location.href = u + '/frame-location'))
     await tryIn('meta refresh', ({ u }) => document.head.insertAdjacentHTML('beforeend', `<meta http-equiv="refresh" content="0;url=${u}/frame-meta">`))
     await tryIn('link', ({ u }) => Object.assign(document.body.appendChild(document.createElement('a')), { href: u + '/frame-link' }).click())
-    await tryIn('own root file', ({ token }) => (location.href = `tie-content://${token}/package.json`))
+    await tryIn('own root file', ({ token }) => (location.href = `tie-content://${token}/note.txt`))
     await tryIn('other token', () => (location.href = `tie-content://${'e'.repeat(32)}/_tie/probe.html`))
     await p.assertUntouched('frame navigation')
 
@@ -63,5 +71,6 @@ export default async (ctx, h) => {
     h.assert(!page.frames().some((f) => f.url().startsWith('tie://app/index.html') && f !== page.mainFrame()), 'no tie://app frame')
   } finally {
     await p.close()
+    rmSync(root, { recursive: true, force: true })
   }
 }

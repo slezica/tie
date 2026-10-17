@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isToken, parseContentUrl, viewerUrl, viewerFile, contentFile, isInside, contentCsp, routeContent } from './content'
+import { isToken, parseContentUrl, viewerUrl, viewerFile, contentFile, isInside, routeContent, navAllowed } from './content'
 
 const tok = '0123456789abcdef0123456789abcdef'
 
@@ -40,6 +40,9 @@ describe('viewerFile', () => {
       expect(viewerFile('markdown', p)).toBe(null)
     for (const kind of ['probe', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '']) expect(viewerFile(kind, '/_tie/markdown-mermaid.js')).toBe(null)
   })
+  it('kinds without a policy row get nothing', () => {
+    for (const kind of ['text', 'constructor', '__proto__', '']) expect(viewerFile(kind, `/_tie/${kind}.html`)).toBe(null)
+  })
 })
 
 describe('contentFile', () => {
@@ -71,26 +74,15 @@ describe('isInside', () => {
   })
 })
 
-describe('contentCsp', () => {
-  const csp = contentCsp('N0NCE', tok)
-  it('denies by default; scripts only with the nonce', () => {
-    expect(csp).toContain("default-src 'none'")
-    expect(csp).toContain("script-src 'nonce-N0NCE'")
-    expect(csp).not.toMatch(/unsafe-inline|unsafe-eval|'self'|\*/)
+describe('navAllowed', () => {
+  it("viewer-exact: the kind's viewer page, exactly", () => {
+    for (const kind of ['markdown', 'probe']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(true)
   })
-  it('images only from its own token; no forms, base, frames', () => {
-    expect(csp).toContain(`img-src tie-content://${tok}`)
-    expect(csp).toContain("base-uri 'none'")
-    expect(csp).toContain("form-action 'none'")
-    expect(csp).toContain("frame-src 'none'")
-  })
-  it('markdown: inline styles too (Mermaid SVG); scripts still nonce-only; nothing remote', () => {
-    const md = contentCsp('N0NCE', tok, 'markdown')
-    expect(md).toContain("script-src 'nonce-N0NCE'")
-    expect(md).toMatch(/style-src [^;]*'unsafe-inline'/)
-    expect(md).not.toMatch(/unsafe-eval|wasm|'self'|\*|https?:|data:|blob:|strict-dynamic|worker-src|connect-src|font-src/)
-    expect(md.replace(/style-src [^;]*/, '')).toBe(csp.replace(/style-src [^;]*/, ''))
-    for (const kind of ['probe', '', 'constructor']) expect(contentCsp('N0NCE', tok, kind)).toBe(csp)
+  it('nothing else: other pages, tokens, kinds, root files, queries, unknown kinds', () => {
+    const other = '1'.repeat(32)
+    for (const u of [`tie-content://${tok}/_tie/markdown.html`, `tie-content://${other}/_tie/probe.html`, `tie-content://${tok}/_tie/probe.js`, `tie-content://${tok}/page.html`, `tie-content://${tok}/_tie/probe.html?x`, `tie-content://${tok}/_tie/probe.html#x`, 'http://x/'])
+      expect(navAllowed('probe', tok, u)).toBe(false)
+    for (const kind of ['', 'constructor', '__proto__', 'text']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(false)
   })
 })
 

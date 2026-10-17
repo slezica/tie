@@ -1,19 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extOf, viewerFor, noViewer, classifyLink } from './markdown'
-
-describe('viewerFor', () => {
-  it('maps markdown extensions, any case', () => {
-    for (const p of ['/a/b.md', '/a/B.MD', '/a/c.markdown', '/x y/z.Markdown']) expect(viewerFor(p)).toBe('markdown')
-  })
-  it('nothing else', () => {
-    for (const p of ['/a/b.txt', '/a/md', '/a/.md', '/a/b.md.bak', '/a/b.mdx', '/a/b']) expect(viewerFor(p)).toBe(null)
-  })
-  it('names the extension when refusing', () => {
-    expect(extOf('/a/b.TXT')).toBe('.txt')
-    expect(noViewer('/a/b.TXT')).toBe('No viewer for .txt')
-    expect(noViewer('/a/Makefile')).toBe('No viewer for "Makefile"')
-  })
-})
+import { classifyLink } from './markdown'
 
 describe('classifyLink', () => {
   const from = '/docs/my notes/plan.md'

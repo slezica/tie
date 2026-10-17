@@ -124,7 +124,7 @@ async function applyDrop(src: DragSource, t: Target) {
   if (at && !contains(S.tree, at)) return
   if (!needsFile(src.kind)) return void openTile(src.kind, t.placement, { cwd })
   // Kinds showing a file: pick one first (main's dialog); cancel = no tile.
-  const path = await tie.doc.pick(cwd ?? S.cwd)
+  const path = await tie.doc.pick(cwd ?? S.cwd, src.kind)
   if (!path || (at && !contains(S.tree, at))) return
   openTile(src.kind, t.placement, { path })
 }

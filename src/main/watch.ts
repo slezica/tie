@@ -13,7 +13,7 @@ import { readFile, stat, realpath } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { basename, dirname } from 'node:path'
 
-export const MAX_BYTES = 8 * 1024 * 1024
+export const MAX_BYTES = 8 * 1024 * 1024 // default cap; docs.ts passes the kind's (policy table)
 
 export function revision(data: Buffer | string): string {
   return createHash('sha256').update(data).digest('hex').slice(0, 16)
@@ -24,11 +24,11 @@ export type Read = { buf: Buffer; st: Stats } | { error: 'missing' | 'too large'
 const same = (a: Stats, b: Stats) => a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs
 
 // One consistent read: the file's stat is the same before and after (else 'unstable': retry).
-export async function readStable(path: string): Promise<Read> {
+export async function readStable(path: string, max = MAX_BYTES): Promise<Read> {
   try {
     const st = await stat(path)
     if (!st.isFile()) return { error: 'not a file' }
-    if (st.size > MAX_BYTES) return { error: 'too large' }
+    if (st.size > max) return { error: 'too large' }
     const buf = await readFile(path)
     const st2 = await stat(path)
     return same(st, st2) && buf.length === st2.size ? { buf, st: st2 } : { error: 'unstable' }
@@ -44,6 +44,7 @@ export interface WatchOpts {
   maxWait?: number
   poll?: number
   retries?: number[] // ENOENT re-checks (ms after the first miss)
+  maxBytes?: number // grown past it: change ignored (last content stays)
 }
 
 export interface Watch {
@@ -54,7 +55,7 @@ export interface Watch {
 
 // Watch `path`, whose current content has revision `rev`. Events only on real changes.
 export function watchFile(path: string, rev: string, onEvent: (e: WatchEvent) => void, opts: WatchOpts = {}): Watch {
-  const { debounce = 100, maxWait = 500, poll = 2500, retries = [100, 300] } = opts
+  const { debounce = 100, maxWait = 500, poll = 2500, retries = [100, 300], maxBytes = MAX_BYTES } = opts
   let closed = false
   let current = rev
   let missing = false
@@ -92,7 +93,7 @@ export function watchFile(path: string, rev: string, onEvent: (e: WatchEvent) =>
   }
 
   async function checkOnce(attempt = 0): Promise<void> {
-    const r = await readStable(path)
+    const r = await readStable(path, maxBytes)
     if (closed) return
     if ('error' in r) {
       if (r.error === 'missing' && attempt < retries.length) {
