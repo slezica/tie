@@ -2,14 +2,13 @@
 // other frame). The library (markdown-mermaid.js: @mermaid-js/tiny, pinned) is a separate viewer
 // asset, loaded only when a document has a diagram. docs/MARKDOWN.md "Diagrams".
 import DOMPurify from 'dompurify'
+import { NONCE } from './runtime'
+import { hash } from './live'
 
 interface Mermaid {
   initialize(config: Record<string, unknown>): void
   render(id: string, text: string): Promise<{ svg: string }>
 }
-
-// The page's script nonce: a script added later must carry it (CSP: scripts by nonce only).
-const NONCE = (document.currentScript as HTMLScriptElement | null)?.nonce ?? ''
 
 // SECURITY: settings a diagram can never change through `%%{init: ...}%%` directives (Mermaid's
 // `secure` list). strict: labels sanitized by Mermaid, no click callbacks, no javascript: links.
@@ -132,13 +131,6 @@ function config(vars: Vars, dark: boolean): Record<string, unknown> {
     darkMode: dark,
     secure: SECURE,
   }
-}
-
-// Short stable hash (FNV-1a, base 36): diagram ids and block keys.
-export function hash(s: string): string {
-  let h = 0x811c9dc5
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193)
-  return (h >>> 0).toString(36)
 }
 
 export const diagramSource = (block: Element) => block.querySelector('pre.diagram-src')?.textContent ?? ''

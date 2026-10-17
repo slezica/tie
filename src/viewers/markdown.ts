@@ -1,6 +1,5 @@
-// Markdown viewer: runs in the tile's sandboxed content frame (opaque origin, strict CSP). Text,
-// theme and scroll requests arrive over the host's port; links go back as requests, posted from the
-// click handler only (the host also requires frame focus). Read-only: nothing here can write.
+// Markdown viewer: the pipeline only (runtime.ts does the frame side: handshake, theme, links,
+// keys, guards; live.ts the live updates). Read-only: nothing here can write.
 // Pipeline: markdown-it (raw HTML escaped; footnotes, deflists, emoji, front matter) → highlight.js
 // → DOMPurify on the final HTML → ```mermaid diagrams (mermaid.ts, library loaded on demand).
 // docs/MARKDOWN.md.
@@ -9,42 +8,16 @@ import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import { full as emoji } from 'markdown-it-emoji'
 import DOMPurify from 'dompurify'
-import morphdom from 'morphdom'
-import { renderDiagrams, fillDiagrams, themeChanged, diagrams, sanitizeSvg, hash, diagramSource } from './mermaid'
-import * as marks from './marks'
-import hljs from 'highlight.js/lib/core'
-import bash from 'highlight.js/lib/languages/bash'
-import c from 'highlight.js/lib/languages/c'
-import cpp from 'highlight.js/lib/languages/cpp'
-import css from 'highlight.js/lib/languages/css'
-import diff from 'highlight.js/lib/languages/diff'
-import dockerfile from 'highlight.js/lib/languages/dockerfile'
-import go from 'highlight.js/lib/languages/go'
-import ini from 'highlight.js/lib/languages/ini'
-import java from 'highlight.js/lib/languages/java'
-import javascript from 'highlight.js/lib/languages/javascript'
-import json from 'highlight.js/lib/languages/json'
-import makefile from 'highlight.js/lib/languages/makefile'
-import markdown from 'highlight.js/lib/languages/markdown'
-import python from 'highlight.js/lib/languages/python'
-import ruby from 'highlight.js/lib/languages/ruby'
-import rust from 'highlight.js/lib/languages/rust'
-import shell from 'highlight.js/lib/languages/shell'
-import sql from 'highlight.js/lib/languages/sql'
-import swift from 'highlight.js/lib/languages/swift'
-import typescript from 'highlight.js/lib/languages/typescript'
-import xml from 'highlight.js/lib/languages/xml'
-import yaml from 'highlight.js/lib/languages/yaml'
-
-// Common languages only (bundle size); aliases come with each (js, ts, sh, py, html, toml...).
-const LANGS = { bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml }
-for (const [name, lang] of Object.entries(LANGS)) hljs.registerLanguage(name, lang)
+import { renderDiagrams, fillDiagrams, themeChanged, diagrams, sanitizeSvg, diagramSource } from './mermaid'
+import { startViewer, scrollToHash, type Message } from './runtime'
+import { createLive, hash, type How } from './live'
+import { highlight } from './highlight'
 
 // SECURITY: raw HTML in the document is escaped (html: false), never parsed as markup.
 const md = new MarkdownIt({
   html: false,
   linkify: true,
-  highlight: (code, lang) => (lang && hljs.getLanguage(lang) ? hljs.highlight(code, { language: lang, ignoreIllegals: true }).value : ''),
+  highlight,
 })
 // Footnote ids (fn1, fnref1) get DOMPurify's prefix like headings: scrollToHash finds them.
 // Emoji: :name: shortcodes only, no emoticons (`:)`, `:p`, `<3` stay text).
@@ -155,173 +128,90 @@ const PURIFY = {
   ALLOWED_URI_REGEXP: /^(?:https?:|tie-content:\/\/|#|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
 }
 
-// Harness view (scenarios read it, like the probe's). Nothing here is trusted by the host.
-const state = {
-  port: null as MessagePort | null,
-  rev: '',
-  key: '',
-  text: '',
-  renders: 0,
-  removed: 0,
-  scrolls: new Map<string, number>(),
-  md,
-  sanitize: (html: string) => DOMPurify.sanitize(html, PURIFY),
-  sanitizeSvg,
-  diagrams,
-  theme: { vars: {} as Record<string, string>, dark: true },
-  marks: marks.view,
-}
-;(window as unknown as { markdown: typeof state }).markdown = state
-
 const docEl = document.getElementById('doc')!
+const live = createLive(docEl, {
+  blockHash: (el) => (el.classList.contains('diagram') ? `d${hash(diagramSource(el))}` : hash(el.outerHTML)),
+  volatile: (el) => el.classList.contains('diagram'),
+})
 
-// The document, built off-screen: sanitized HTML, top-level blocks keyed by content (data-k: hash
-// of the block, or of a diagram's source, plus occurrence), diagrams filled from the cache.
-// SECURITY: the only markup entering the page is this sanitized tree (and sanitized SVG); the diff
-// (morphdom) moves and copies nodes, never parses strings.
+const sanitize = (html: string) => DOMPurify.sanitize(html, PURIFY)
+
+// Anchors: ids carry DOMPurify's prefix; GitHub slugs also match.
+const anchor = (id: string) => document.getElementById(`user-content-${id}`) ?? document.getElementById(`user-content-${slug(id)}`)
+
+// Harness view (window.markdown = window.viewer; scenarios read it). Nothing here is trusted by the host.
+const state = startViewer(
+  {
+    name: 'markdown',
+    onMessage,
+    onTheme: () => {
+      themeChanged() // diagrams carry their colors: render them again
+      if (docEl.querySelector('.diagram')) void show(state.text, 'quiet')
+    },
+    anchor,
+    links: true,
+    keys: { n: live.next },
+  },
+  {
+    rev: '',
+    key: '',
+    text: '',
+    get renders() {
+      return live.renders
+    },
+    removed: 0,
+    scrolls: new Map<string, number>(),
+    md,
+    sanitize,
+    sanitizeSvg,
+    diagrams,
+    marks: live.marks,
+  },
+)
+
+// The document, built off-screen: sanitized HTML, top-level blocks keyed (live.ts), diagrams filled
+// from the cache.
+// SECURITY: the only markup entering the page is this sanitized tree (and sanitized SVG).
 function build(text: string): { next: HTMLElement; pending: boolean } {
   const next = document.createElement('div')
-  next.innerHTML = state.sanitize(md.render(text))
+  next.innerHTML = sanitize(md.render(text))
   state.removed += DOMPurify.removed.length
-  const seen = new Map<string, number>()
-  for (const el of next.children) {
-    const h = el.classList.contains('diagram') ? `d${hash(diagramSource(el))}` : hash(el.outerHTML)
-    const n = seen.get(h) ?? 0
-    seen.set(h, n + 1)
-    el.setAttribute('data-k', n ? `${h}-${n}` : h)
-  }
+  live.key(next)
   return { next, pending: fillDiagrams(next) }
-}
-
-// Put `next` on screen.
-// - page: replace everything (new document, navigation); marks cleared.
-// - live: the file changed. DOM diff (morphdom, keyed by data-k): unchanged blocks stay; blocks
-//   with new keys are the changes: marked. The first block on screen that survives keeps its
-//   on-screen position (manual anchor; native scroll anchoring is off, see MARKDOWN.md).
-// - quiet: diff without marks (theme, diagrams finished rendering after a page).
-function place(next: HTMLElement, how: 'page' | 'live' | 'quiet') {
-  if (how === 'page') {
-    docEl.replaceChildren(...next.childNodes)
-    marks.clear()
-  } else {
-    const keyOf = (n: Node) => (n instanceof Element ? (n.getAttribute('data-k') ?? undefined) : undefined)
-    const before = new Set([...docEl.children].map(keyOf))
-    const kept = new Set([...next.children].map(keyOf))
-    // Anchor: the first block on screen that survives the change, and where it is now.
-    const anchor = [...docEl.children].find((el) => el.getBoundingClientRect().bottom > 0 && kept.has(keyOf(el)))
-    const key = anchor && keyOf(anchor)
-    const top = anchor?.getBoundingClientRect().top ?? 0
-    morphdom(docEl, next, {
-      childrenOnly: true,
-      getNodeKey: keyOf,
-      // Same key = same content: leave the block alone (keeps its mark). Diagrams are keyed by
-      // source: their SVG may differ (theme, rendered later), so they update, mark carried over.
-      onBeforeElUpdated: (from, to) => {
-        if (from.parentNode !== docEl) return true
-        if (!to.classList.contains('diagram')) return false
-        for (const c of ['changed', 'fading']) if (from.classList.contains(c)) to.classList.add(c)
-        return true
-      },
-    })
-    const now = key && [...docEl.children].find((el) => keyOf(el) === key)
-    if (now) scrollBy({ top: now.getBoundingClientRect().top - top, behavior: 'instant' })
-    if (how === 'live') marks.mark([...docEl.children].filter((el) => !before.has(keyOf(el))))
-  }
-  state.renders++
-  marks.refresh()
 }
 
 // Text → screen. Live updates wait for new diagrams (rendered off-screen) so a block changes once;
 // a page shows at once, diagrams as code, then swaps them in quietly. A newer call wins.
 let showing = 0
-async function show(text: string, how: 'page' | 'live' | 'quiet', position?: () => void) {
+async function show(text: string, how: How, position?: () => void) {
   const n = ++showing
   const { next, pending } = build(text)
   if (how === 'page') {
-    place(next.cloneNode(true) as HTMLElement, 'page')
+    live.place(next.cloneNode(true) as HTMLElement, 'page')
     position?.()
     if (!pending) return
     how = 'quiet'
   }
   if (pending) await renderDiagrams(next, state.theme.vars, state.theme.dark, () => n === showing)
-  if (n === showing) place(next, how)
+  if (n === showing) live.place(next, how)
 }
 
-function scrollToHash(hash: string) {
-  let id = hash.replace(/^#/, '')
-  try {
-    id = decodeURIComponent(id)
-  } catch {}
-  const el = document.getElementById(`user-content-${id}`) ?? document.getElementById(`user-content-${slug(id)}`)
-  el?.scrollIntoView()
+type Doc = { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string }
+
+function onMessage(msg: Message) {
+  if (msg.type !== 'doc') return
+  const m = msg as unknown as Doc
+  // Same document, changed on disk: live update, the view doesn't move. Else a page: scroll to the
+  // hash, the top, or where this document was (back/forward).
+  const isLive = m.key === state.key && m.scroll === 'keep' && !m.hash
+  if (state.key && !isLive) state.scrolls.set(state.key, scrollY)
+  state.key = m.key
+  state.text = m.text
+  state.rev = m.rev
+  if (isLive) void show(m.text, 'live')
+  else
+    void show(m.text, 'page', () => {
+      if (m.hash) scrollToHash(m.hash)
+      else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? 0) : 0)
+    })
 }
-
-type Msg =
-  | { type: 'theme'; dark: boolean; vars: Record<string, string> }
-  | { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string }
-  | { type: 'scroll'; hash: string }
-  | { type: 'tie:ping'; n: number }
-
-function onMessage(m: Msg) {
-  // Watchdog (frame.ts): answering proves this thread isn't stuck.
-  if (m.type === 'tie:ping') state.port?.postMessage({ verb: 'pong', n: m.n })
-  else if (m.type === 'theme') {
-    const s = document.documentElement.style
-    for (const [k, v] of Object.entries(m.vars)) if (/^--[a-z0-9-]+$/.test(k) && typeof v === 'string') s.setProperty(k, v)
-    s.colorScheme = m.dark ? 'dark' : 'light'
-    state.theme = { vars: { ...m.vars }, dark: m.dark }
-    themeChanged() // diagrams carry their colors: render them again
-    if (docEl.querySelector('.diagram')) void show(state.text, 'quiet')
-  } else if (m.type === 'doc') {
-    // Same document, changed on disk: live update, the view doesn't move. Else a page: scroll to
-    // the hash, the top, or where this document was (back/forward).
-    const live = m.key === state.key && m.scroll === 'keep' && !m.hash
-    if (state.key && !live) state.scrolls.set(state.key, scrollY)
-    state.key = m.key
-    state.text = m.text
-    state.rev = m.rev
-    if (live) void show(m.text, 'live')
-    else
-      void show(m.text, 'page', () => {
-        if (m.hash) scrollToHash(m.hash)
-        else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? 0) : 0)
-      })
-  } else if (m.type === 'scroll') scrollToHash(m.hash)
-}
-
-// Handshake: the host posts tie:init with one port after load; everything after goes over it.
-addEventListener('message', (e) => {
-  if (state.port || e.source !== parent || (e.data as { type?: string })?.type !== 'tie:init' || !e.ports[0]) return
-  state.port = e.ports[0]
-  state.port.onmessage = (m) => onMessage(m.data as Msg)
-  state.port.postMessage({ verb: 'ready' })
-})
-
-// Clicks: links become requests (only from here: a real click). Nothing navigates. SVG links in
-// diagrams may use xlink:href.
-addEventListener('click', (e) => {
-  const target = e.target as Element
-  const a = target.closest?.('a')
-  if (!a) return
-  e.preventDefault()
-  const href = a.getAttribute('href') ?? a.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ?? ''
-  if (!href) return
-  if (href.startsWith('#')) return scrollToHash(href)
-  state.port?.postMessage({ verb: 'followLink', href, newTile: e.metaKey })
-})
-// Shift+Up / Shift+Down: scroll a third of the tile's height (fast scanning). Plain arrows keep the
-// browser's small step. `n`: next change (marks.ts); the viewer has no text input to steal it from.
-addEventListener('keydown', (e) => {
-  if (e.key === 'n' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    e.preventDefault()
-    return marks.next()
-  }
-  if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
-  e.preventDefault()
-  scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'instant' })
-})
-
-// Middle clicks, drops: never navigate (the nav lock would refuse anyway).
-addEventListener('auxclick', (e) => (e.target as Element).closest?.('a') && e.preventDefault())
-addEventListener('dragover', (e) => e.preventDefault())
-addEventListener('drop', (e) => e.preventDefault())

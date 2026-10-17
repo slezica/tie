@@ -1,7 +1,8 @@
-// Change marks for live updates (markdown viewer): blocks an external write added or changed get a
-// margin bar; it fades SEEN_MS after the block was seen on screen (not after the render), so
-// off-screen changes stay marked until looked at. Unseen changes above / below the view show an
-// edge marker (click = jump there). `n` jumps to the newest unseen change. docs/MARKDOWN.md.
+// Change marks for live updates (live.ts): blocks an external write added or changed get a margin
+// bar; it fades SEEN_MS after the block was seen on screen (not after the render), so off-screen
+// changes stay marked until looked at. Unseen changes above / below the view show an edge marker
+// (click = jump there). `n` jumps to the newest unseen change. docs/MARKDOWN.md "Live updates".
+import { style } from './runtime'
 
 const SEEN_MS = 3000 // marked block visible this long → fade
 const FADE_MS = 1000 // fade duration (CSS transition)
@@ -14,6 +15,32 @@ interface Mark {
 }
 const marks = new Map<Element, Mark>()
 let seq = 0
+
+// Bar: two shadows (the bar, then a --bg strip between it and the block); shadows aren't clipped by
+// the block's own overflow, unlike a pseudo-element.
+style(`
+:root { --change: color-mix(in srgb, var(--accent) 75%, var(--bg)); }
+.live > * { transition: box-shadow 1s; }
+.live > .changed { box-shadow: -6px 0 0 0 var(--bg), -9px 0 0 0 var(--change); }
+.live > .changed.fading { box-shadow: -6px 0 0 0 var(--bg), -9px 0 0 0 transparent; }
+.edge-mark {
+  position: fixed;
+  left: 50%;
+  z-index: 1;
+  display: none;
+  transform: translateX(-50%);
+  padding: 1px 10px;
+  border: 1px solid var(--change);
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg));
+  color: var(--fg);
+  font-size: 0.85em;
+  cursor: pointer;
+  user-select: none;
+}
+.edge-mark.above { top: 0; border-top: 0; border-radius: 0 0 6px 6px; }
+.edge-mark.below { bottom: 0; border-bottom: 0; border-radius: 6px 6px 0 0; }
+.edge-mark.on { display: block; }
+`)
 
 // Edge markers: fixed at the top / bottom of the view, outside the document.
 const edge = (dir: 'above' | 'below', label: string) => {
