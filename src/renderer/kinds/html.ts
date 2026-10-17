@@ -10,6 +10,7 @@ import { openTile, besidePlacement } from '../ops'
 import { infoDialog, confirmDialog } from '../dialog'
 import { dirOf } from '../fileview'
 import { classifyLink } from '@core/links'
+import { pageTitle } from '@core/guest'
 import type { Host, OpenOpts, Surface } from '.'
 
 const ICON = '🌐'
@@ -28,6 +29,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   let asking = false // confirm dialog open: further external requests dropped
   let lastNewTile = 0
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
+  let docTitle = '' // the page's <title> (bootstrap request): untrusted text, bounded
 
   const inRoot = (p: string) => p.startsWith(root === '/' ? '/' : root + '/')
   const rel = (p: string) => p.slice(root === '/' ? 1 : root.length + 1)
@@ -38,7 +40,17 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     page: rel(path),
     title: 'html',
     icon: ICON,
-    handlers: { followLink: (r) => void follow(r.href, r.newTile) },
+    handlers: {
+      followLink: (r) => void follow(r.href, r.newTile),
+      // SECURITY: the page's own text (any script can set it): plain text, control characters out,
+      // bounded; shown only via textContent (title bar, shelf, tabs) and in tie list.
+      title: (r) => {
+        const t = pageTitle(r.text)
+        if (t === docTitle) return
+        docTitle = t
+        host.changed()
+      },
+    },
     onReady: () => {
       ready = true
       host.changed()
@@ -149,7 +161,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       if (reloadTimer) clearTimeout(reloadTimer)
       frame.dispose()
     },
-    title: () => nameOf(path),
+    title: () => docTitle || nameOf(path),
     icon: () => ICON,
     dir: () => root,
     cwd: async () => root,

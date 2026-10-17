@@ -52,7 +52,7 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 | No network | document CSP (`documentCsp`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers); scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'`; no frames, objects, forms, `<base>`. Plus the shell session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
 | Folder | root = the file's directory (token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
 | Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the shell CSP `frame-src` refuses → main reports `did-fail-provisional-load` → the tile reloads its page; > 3 in 10 s → error "Page keeps navigating away". Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
-| Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`). Page scripts share its realm: hostile by assumption |
+| Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `title` (`<title>`). Page scripts share its realm: hostile by assumption |
 | Popups | no `allow-popups`; `window.open` replaced by the bootstrap (request, returns `null`) |
 
 - Bootstrap: built ASCII-only (`esbuild charset ascii`), no `</script`/`<!--` (main refuses it otherwise), injected inline first in `<head>` (else after `<html>`, the doctype, a BOM: `bootstrapAt`). Header charset = the document's declared one (`htmlCharset`: the bootstrap can push `<meta charset>` past the 1024-byte prescan). Captures `addEventListener`, `postMessage`, `stopImmediatePropagation`... before page scripts run. Handshake listener: capture phase, first, stops propagation: the page never sees the port (tested).
@@ -66,7 +66,7 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
 - Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the shell's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
-- Title = file name; dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
+- Title = the page's `<title>` (bootstrap `title` request on each handshake and on `<head>` changes; untrusted text: control characters out, 200 chars, shown as text only), else the file name; dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
 
@@ -80,4 +80,4 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 - Text: no wrapping, no search; 10 MB × one element per line is slow-ish to diff (≈200k lines).
 - Hex: no selection across the virtualized edge; no editing, no search, no jump-to-offset.
 - Image: no zoom steps beyond fit / 100%; animated formats animate (browser default).
-- Html: no per-file persistent storage; no network, no server features (POST, routing); media without range requests (seeking may fail); subfolder changes don't reload; no title from `<title>`.
+- Html: no per-file persistent storage; no network, no server features (POST, routing); media without range requests (seeking may fail); subfolder changes don't reload.

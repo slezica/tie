@@ -54,6 +54,10 @@ describe('markdown verbs', () => {
       expect(parseRequest(m)).toBe(null)
   })
   it('gesture verbs: link opens', () => {
-    expect(['ready', 'pong', 'openLink', 'followLink'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
+    expect(['ready', 'pong', 'openLink', 'followLink', 'title'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
+  })
+  it('title: text, bounded', () => {
+    expect(parseRequest({ verb: 'title', text: 'Report' })).toEqual({ verb: 'title', text: 'Report' })
+    for (const m of [{ verb: 'title' }, { verb: 'title', text: 3 }, { verb: 'title', text: 'x'.repeat(1025) }, { verb: 'title', text: 'a', html: '<b>' }]) expect(parseRequest(m)).toBe(null)
   })
 })

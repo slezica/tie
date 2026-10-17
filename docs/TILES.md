@@ -155,6 +155,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `ready` | — | host (clears load timer) |
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
+| `title` | `text` (string, ≤ 1024) | html: tile title (`pageTitle`: no control characters, 200 chars; text only) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser / this tile / new tile ("File view"); html: same, web after a confirm, other kinds beside (`VIEWERS.md`) |
 
 - Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.

@@ -17,6 +17,8 @@
   const prevent = Event.prototype.preventDefault
   const closest = Element.prototype.closest
   const getAttr = Element.prototype.getAttribute
+  const getTitle = Object.getOwnPropertyDescriptor(Document.prototype, 'title')?.get
+  const Observer = MutationObserver
   let store: Storage | null = null
   try {
     store = window.sessionStorage
@@ -40,9 +42,27 @@
         if (m.data?.type === 'tie:ping') send({ verb: 'pong', n: m.data.n })
       }
       send({ verb: 'ready' })
+      sendTitle(true)
     }) as EventListener,
     true,
   )
+
+  // The page's <title> (tile title). Sent when it changes; bounded (the host trims it again).
+  let lastTitle = ''
+  const sendTitle = (force = false) => {
+    let t = ''
+    try {
+      t = String(getTitle?.call(document) ?? '').slice(0, 1024)
+    } catch {}
+    if (!force && t === lastTitle) return
+    lastTitle = t
+    send({ verb: 'title', text: t })
+  }
+  addEvent.call(document, 'DOMContentLoaded', () => {
+    try {
+      new Observer(() => sendTitle()).observe(document.head ?? document.documentElement, { subtree: true, childList: true, characterData: true })
+    } catch {}
+  })
 
   // Link clicks the page didn't handle: the host decides (no navigation from here). In-page anchors
   // and javascript: links stay the page's. target=_blank / cmd-click: a new tile (or the web).

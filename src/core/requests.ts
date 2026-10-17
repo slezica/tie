@@ -6,9 +6,11 @@ export type Request =
   | { verb: 'pong'; n: number } // answer to the host's watchdog ping n (frame.ts)
   | { verb: 'openLink'; url: string } // external URL (probe)
   | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
+  | { verb: 'title'; text: string } // the document's <title> (html): untrusted text, shown as text
 export type Verb = Request['verb']
 
 const MAX_URL = 4096
+const MAX_TITLE = 1024 // the host shows at most TITLE_MAX (core/guest pageTitle)
 
 type Data = Record<string, unknown>
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max
@@ -26,6 +28,7 @@ const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) =
     gesture: true,
     build: (d) => (str(d.href, MAX_URL) && typeof d.newTile === 'boolean' ? { verb: 'followLink', href: d.href, newTile: d.newTile } : null),
   },
+  title: { keys: ['text'], build: (d) => (str(d.text, MAX_TITLE) ? { verb: 'title', text: d.text } : null) },
 }
 
 // SECURITY: frame messages are untrusted (any script in the frame can post anything). Only plain
