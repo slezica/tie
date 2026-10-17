@@ -19,7 +19,7 @@
 - `test --e2e`: each scenario on a fresh instance; trace folder per run (below).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `spike {action}` (spikes, below). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -43,6 +43,7 @@
 ```js
 export const settings = { theme: 'nord' }   // optional pre-seed (object or raw string)
 export const hiddenWindow = true            // optional: real never-shown window, not offscreen
+export const env = { TIE_SPIKE: 'webview' } // optional: extra environment for the instance
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
@@ -82,6 +83,21 @@ EOF
 | `tileOf(id)`, `waitFor(fn, what)`, `pickNext(path)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; next file picker answer (null = cancel); OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term` / `doc`, viewer `window.markdown`, dev socket `pick`.
+
+## Spikes (`src/main/spike.ts`, `dev/scenarios/spike-*.mjs`)
+
+Runtime facts the viewers plan builds on (`2026-10-16-viewers-and-browser-plan.md` "Results"). Dev builds only; each hook is on only when `TIE_SPIKE` (comma list) names it. Packaged builds never read it.
+
+| Spike | Hook | Scenarios |
+|---|---|---|
+| `html` | root `.html` served as a document (P3-like CSP); nav lock lets the token's frame load root `.html` files | `spike-html-origin`, `spike-frame-nav` |
+| `fetch` | `tie-content` registered with `supportFetchAPI` | `spike-html-fetch` |
+| `nav` | `[spike]` log: subframe `did-start-navigation` / `did-fail-*` / `did-frame-navigate`, `window.open` details | `spike-frame-popups`, `spike-frame-nav` |
+| `webview` | `webviewTag` on; `<webview>` attaches with rebuilt prefs (partition `persist:browser`); guests navigate http(s) only, popups denied; guest input/crash logged | `spike-webview`, `spike-guest-popups` |
+
+- Dev socket `spike {action}`: `guest` (last guest: id, url, partition, focused), `crash-guest`, `guest-key`, `guest-click {x, y}` (guest `sendInputEvent`).
+- Scenarios assert what was observed: a failure after an Electron upgrade = a changed fact (update Results).
+- To be replaced by the real html / browser code in P3 / P4.
 
 ## Traces (`out/log/`)
 

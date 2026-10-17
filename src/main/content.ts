@@ -6,6 +6,7 @@ import { readFile, realpath, stat } from 'node:fs/promises'
 import { realpathSync, statSync } from 'node:fs'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
+import { spikeFrameAllowed, spikeDocType, SPIKE_HTML_CSP } from './spike'
 import { CONTENT_SCHEME, routeContent, isInside, contentCsp, viewerUrl, parseContentUrl } from '../core/content'
 
 interface Entry {
@@ -84,6 +85,7 @@ export function clearContent() {
 export function contentFrameAllowed(url: string, frame: WebFrameMain | null, shellFrame: WebFrameMain): boolean {
   const u = parseContentUrl(url)
   const e = u && entries.get(u.token)
+  if (u && e && frame?.parent === shellFrame && url !== viewerUrl(u.token, e.kind)) return spikeFrameAllowed(url, frame, e) // dev spike only
   if (!u || !e || url !== viewerUrl(u.token, e.kind) || !frame || frame.parent !== shellFrame) return false
   e.frame ??= frame.frameTreeNodeId
   return e.frame === frame.frameTreeNodeId
@@ -121,6 +123,8 @@ export function serveContent() {
     if (!st?.isFile()) return refuse(req.url, 'not a file')
     const body = await readFile(real).catch(() => null)
     if (!body) return refuse(req.url, 'unreadable')
+    const doc = spikeDocType(real) // dev spike only (TIE_SPIKE=html)
+    if (doc) return new Response(body, { headers: { ...HEADERS, 'Content-Type': doc, 'Content-Security-Policy': SPIKE_HTML_CSP } })
     const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'
     return new Response(body, { headers: { ...HEADERS, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
   })

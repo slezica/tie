@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 import { CONTENT_SCHEME } from '../core/content'
 import { contentFrameAllowed } from './content'
+import { spike, spikeNav, spikeWindowOpen, spikeAttach, spikeGuest } from './spike'
 
 // The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
 let shellUrl = ''
@@ -19,7 +20,7 @@ export function harden() {
   // Electron GHSA-v3j7, GHSA-j84w). Content text goes over the frame's port instead.
   protocol.registerSchemesAsPrivileged([
     { scheme: 'tie', privileges: { standard: true, secure: true, supportFetchAPI: true } },
-    { scheme: CONTENT_SCHEME, privileges: { standard: true, secure: true } },
+    { scheme: CONTENT_SCHEME, privileges: { standard: true, secure: true, ...(spike('fetch') && { supportFetchAPI: true }) } },
   ])
   app.on('web-contents-created', (_e, wc) => guard(wc))
   // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
@@ -36,6 +37,16 @@ export function harden() {
 }
 
 function guard(wc: WebContents) {
+  // Spike (dev, TIE_SPIKE=webview): guests navigate http(s) only; their popups: spikeGuest.
+  if (spike('webview') && wc.getType() === 'webview') {
+    wc.on('will-frame-navigate', (e) => {
+      const ok = /^https?:/.test(e.url)
+      log('spike', 'guest will-frame-navigate', e.isMainFrame ? 'main' : 'subframe', ok ? 'allowed' : 'blocked', e.url)
+      if (!ok) e.preventDefault()
+    })
+    return
+  }
+  spikeNav(wc)
   // SECURITY: the preload (`window.tie`, can spawn ptys) attaches to the main frame whatever URL it
   // shows. Any navigation away from the shell hands that power to foreign content. Only reloads of
   // the shell itself (dev HMR) pass; links, location changes, meta refresh, forms are refused.
@@ -52,15 +63,18 @@ function guard(wc: WebContents) {
     e.preventDefault()
   })
   // SECURITY: new windows inherit the opener's webPreferences, preload included. Never open any.
-  wc.setWindowOpenHandler(({ url }) => {
-    log('security', 'blocked window.open', url)
+  wc.setWindowOpenHandler((d) => {
+    spikeWindowOpen(wc, d)
+    log('security', 'blocked window.open', d.url)
     return { action: 'deny' }
   })
   // SECURITY: no <webview> guests until a tile kind needs one (then: no preload, own partition).
-  wc.on('will-attach-webview', (e) => {
+  wc.on('will-attach-webview', (e, prefs, params) => {
+    if (spikeAttach(e, prefs, params)) return
     log('security', 'blocked webview')
     e.preventDefault()
   })
+  wc.on('did-attach-webview', (_e, guest) => spikeGuest(guest))
 }
 
 // SECURITY: the only path from content to the OS's URL handlers (scheme check: externalUrl).

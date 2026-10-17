@@ -8,6 +8,7 @@ import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } fr
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
+import { spike, spikeMethod } from './spike'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -121,6 +122,7 @@ function createWindow() {
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
       offscreen: offscreen ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
       backgroundThrottling: !background,
+      webviewTag: spike('webview'), // dev spike only (TIE_SPIKE=webview); off otherwise
     },
   })
   // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys and content tokens.
@@ -151,11 +153,12 @@ function createWindow() {
 // Dev builds only, answered by main (harness): `frames` (tie-dev frames), `input`: a key or mouse
 // event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
 // real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
-// instances (null = cancel; docs.ts).
+// instances (null = cancel; docs.ts). `spike {action}`: runtime spikes (spike.ts).
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
+  spike: (params) => spikeMethod(params), // runtime spikes (spike.ts)
 }
 
 // The window's frame tree; content frames should be out-of-process.

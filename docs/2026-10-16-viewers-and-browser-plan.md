@@ -134,4 +134,75 @@ Order: P0 → P1 → P2 → P3 → P4 → P5. P0 de-risks P3/P4 designs. P1 befo
 
 ## Results
 
-(filled during execution)
+### P0 spikes (2026-10-16; Electron 44.7.2)
+
+Setup: dev-only hooks in `src/main/spike.ts`, on only for the spikes `TIE_SPIKE` lists (scenario `export const env`; packaged builds never read it). Raw frames / `<webview>`s created by the harness in the shell. Each spike = a scenario asserting what was observed (`HARNESS.md` "Spikes"): re-run after Electron upgrades.
+
+#### S1: html frame with its own origin (`spike-html-origin`, `spike-html-fetch`)
+
+Page = a root `.html` file on a token, P3-like CSP (`default-src 'self'`, inline scripts, `connect-src 'self'`).
+
+| | own origin (`allow-scripts allow-same-origin`) | opaque (`allow-scripts`) |
+|---|---|---|
+| process | own (≠ shell, ≠ other frames) | own |
+| origin | `tie-content://<token>` | `null` |
+| parent / top | SecurityError | SecurityError |
+| localStorage, IndexedDB | work | SecurityError |
+| cookies | silently empty | SecurityError |
+| classic `<script src>` | runs | runs |
+| `<script type=module src>`, `import()` | work | fail (CORS mode) |
+| inline module script | runs | runs |
+| XHR same-origin | works | fails |
+| `fetch` same-origin | fails ("Failed to fetch") | fails |
+| `fetch` with `supportFetchAPI` on the scheme | works; another token's origin refused | fails |
+| in-root navigation (`./sub.html`) | `will-frame-navigate` sees it; origin + storage kept | — |
+
+Means for P3:
+- html needs its own origin (modules, storage, XHR). Per-token origin keeps tiles apart and the shell cross-origin. Changes the `SECURITY.md` rule "never `allow-same-origin` on content frames": html only, own token.
+- Decision (user): register `supportFetchAPI` (no `corsEnabled`) so local pages can `fetch` siblings? Spike: cross-token reads still refused. Without it: `fetch` breaks, XHR works.
+- Storage lives in the default session per token origin, on disk: "storage cleared on close" is needed. A reopened file gets a new token: its storage starts empty (decision: acceptable?).
+- An own-origin page can XHR anything its token serves, `/_tie/` included: html tokens must serve only the bootstrap there.
+
+#### S2: popups from a frame with `allow-popups` (`spike-frame-popups`)
+
+- With `allow-popups`: `window.open` and `target=_blank` reach the shell's `setWindowOpenHandler` with the URL, **with or without** user activation (Electron has no popup blocker).
+- Handler details: `url`, `frameName`, `features`, `disposition` (`foreground-tab`), `referrer` (empty), `postBody`. No opener frame, no activation flag.
+- Without `allow-popups`: blocked inside the frame, never reaches the handler (gesture or not).
+
+Means for P3 (proposed change): main can't tell which tile opened a popup, nor whether the user did. So html frames get **no** `allow-popups`; the bootstrap turns `target=_blank` clicks and `window.open` into a port request (gesture rule + confirm dialog, as planned). Scripts then have no popup path at all.
+
+#### S3: same-tab navigation of a frame to http(s) (`spike-frame-nav`)
+
+- `location.href = http…` and link clicks (with gesture): `will-frame-navigate` **never fires**: the shell CSP `frame-src tie-content:` refuses first.
+- Main still sees the URL: `did-start-navigation`, then `did-fail-provisional-load` `-30 ERR_BLOCKED_BY_CSP`. The frame ends on `chrome-error://chromewebdata/` (document gone, its port closes).
+- In-root `tie-content:` navigation: `will-frame-navigate` fires (nav lock decides).
+
+Means for P3 (proposed change): no deny-then-redirect in main. External links: the bootstrap intercepts link clicks in the page (request → confirm → `openExternal`). Script-driven navigation away breaks only the frame: the host reloads the current page (or shows an error); main may log the URL from `did-fail-provisional-load`. Also: any html navigation (in-root too) closes the port; today's watchdog reads that as "Viewer crashed". P3 must tell navigation (a `load` follows) from a crash.
+
+#### S4: `<webview>` (`spike-webview`, hidden window)
+
+- Attaches and loads with `webviewTag` + an allowing `will-attach-webview`. The shell CSP `frame-src` does **not** apply to guests: the attach guard is the only gate.
+- Prefs rebuilt in the attach handler (no preload, sandbox, isolation, partition): guest has no `window.tie`, no `process`. Guest = own webContents, type `webview`.
+- Partition `persist:browser`: `<userData>/Partitions/browser`; localStorage and cookies survive a new `<webview>` on the same partition.
+- Harness reach: CDP target type `webview`; Playwright (`connectOverCDP`) lists it as a page (evaluate works). Not in `page.frames()`.
+- Keys: `guest.sendInputEvent` → the guest's `before-input-event` (not the shell's); CDP keys on the shell page miss the guest. Real OS keys into a focused guest: not reachable by the harness (same gap as frames); the guest's own `before-input-event` is where they show.
+- Mouse: main gets the guest's `input-event` (`mouseDown`/`mouseUp`) for real clicks (hidden window) and `sendInputEvent`.
+- Focus: a real click in the guest: shell window `blur`, no shell `pointerdown`, `document.activeElement` = `WEBVIEW`. `initFrames()` (iframe only) does not activate the tile. Guest `focus`/`blur` events didn't fire; `isFocused()` false.
+- Layering: the shell's tile menu paints over the guest (pixel check). DOM z-order holds.
+- Pointer shield: `pointer-events: none` on the `<webview>` → the shell gets the pointer.
+- Crash (`forcefullyCrashRenderer`): `<webview>` DOM event `render-process-gone` + main guest `render-process-gone` (`killed`); shell unaffected.
+- Not covered: offscreen (default harness) rendering of guests, `unresponsive`, whether `will-attach-webview` tells which frame asked (P4 "shell main frame only").
+
+Means for P4 (adds to the plan): guest keys via the guest's `before-input-event` (keys.ts per guest); `initFrames` also activates on `WEBVIEW`; shield selectors include `webview`; crash → host error from the DOM event; harness drives guests as Playwright pages.
+
+#### S5: guest popups (`spike-guest-popups`, hidden window)
+
+- The guest's `setWindowOpenHandler` fires for `window.open` without activation (page timer) and for clicks (button `onclick`, `target=_blank`). Same detail keys (no activation flag).
+- Main-side timing works: the guest's `input-event` arrives 2–4 ms before a click's popup (`sendInputEvent` and real clicks); none before the timer's.
+
+Means for P4: the planned rule (popup → system browser only within ~1 s of real input in that guest, else blocked + logged) is implementable with `input-event`. Harness clicks count as input (fine).
+
+#### P1 assumptions
+
+- None contradicted: P1 touches neither popups, navigation to http, nor webviews.
+- Spike hooks stay dev-only (`spike.ts`, env-gated) for the P3/P4 scenarios to build on; remove or replace them there.

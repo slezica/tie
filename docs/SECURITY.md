@@ -65,3 +65,4 @@
 - Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`.
 - Limits: no harness path sends a key that is both routed into a focused frame and seen by `before-input-event`; `sec-keys` covers each half (frame really focused via `hiddenWindow`; main handles keys whatever the focus). Real-hardware check: manual.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).
+- Spikes (`HARNESS.md`): dev builds with `TIE_SPIKE` relax guards on purpose (root html documents, `supportFetchAPI`, `<webview>` attach). Never in packaged builds (`app.isPackaged`); never set outside spike scenarios.
