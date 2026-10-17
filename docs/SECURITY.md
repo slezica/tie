@@ -4,7 +4,7 @@
 
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
 - Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html): any script inside their frame; browser tiles: any web site (its own webContents, `BROWSER.md`). Html pages run their own scripts (decision 2026-10-16: viewing is safe, running is a choice, content never reaches the shell): they must stay local (no network) and isolated (own origin, no shell, no other tile).
-- Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code.
+- Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code. Kept to them: the state dir is 0700 and the socket 0600 (other local accounts never reach it). Any process that can connect (incl. sandboxed agents inheriting `TIE_SOCKET`) has the user's full power (`tie open terminal --cmd`).
 
 ## Rules
 
@@ -40,6 +40,9 @@
 | Content watchdog: hung frame (no pong 5 s) → error, frame removed, its process killed if exclusive; crashed (port closed) → error; never reloads | `frame.ts`, `@core/watchdog`, `content.ts` `killContent` | `content-watchdog`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | Gesture rule: link opens (`openLink`, `followLink`) only while the frame is focused (or focused within 150 ms: focus lags a click's request across processes) | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown`, `sec-html` (mutation → red) |
+| Frames can't focus themselves: Blink refuses `window.focus()` / `el.focus()` from a content frame without transient user activation (permissions policy `focus-without-user-activation 'none'` on every content iframe + `BlockingFocusWithoutUserActivation` enabled in main). Without it a page's script on load passed the gesture rule (dialog with no click) and took the keyboard from a terminal | `frame.ts` `allow`, `main/index.ts` `app.commandLine` | `sec-focus` (red first; mutation: feature off → red) |
+| Frame message flood: > 1000 messages / s from one frame dropped unparsed | `frame.ts` `FLOOD_MAX` | — |
+| External-open confirm: Open disabled 600 ms after the dialog appears (no click-through under a click already in flight); site address emphasized; a long tail (> 200 chars after the origin) called out as data the page may be sending | `kinds/html.ts` `askExternal`, `dialog.ts` `arm` | `sec-focus` |
 | Markdown render: raw HTML escaped (`html: false`; also in footnotes, front matter), DOMPurify on the final HTML (after every plugin), remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |
 | Viewer runtime: handshake only from `parent`, one port; link clicks never navigate (requests from the click handler only); drops / middle clicks refused; live diff never parses strings | `viewers/runtime.ts`, `live.ts` | `sec-markdown`, `markdown-links` |
 | File view links: anchors, http(s) (→ `openExternal`), paths (files of the tile's kind open; main re-checks the file); other schemes refused | `@core/links` `classifyLink`, `fileview.ts` | `sec-markdown`, `markdown-links`, unit |
@@ -56,7 +59,10 @@
 | Guest loads started by the shell (`src`, `loadURL`, back/forward; no `will-frame-navigate`): refused URL → stopped | `guardGuest` (`did-start-navigation`, deferred `stop()`) | `sec-browser` (mutation → `file:///etc/hosts` loaded) |
 | Location bar / CLI URLs: http(s) only, bare host → `https://`, no search | `@core/guest` `locationUrl`, `renderer/guest.ts`, `driver.ts` | `browser`, unit |
 | Guest popups: never a window; http(s) → system browser only within 1 s of real input (main `input-event`) in that guest; else blocked + logged | `guardGuest` (`setWindowOpenHandler`), `@core/guest` `popupVerdict` | `sec-browser` (mutation: always external → red), unit |
-| Downloads: `~/Downloads` (harness: `TIE_DOWNLOADS`), sanitized unique name, no dialog, never opened; the shell session refuses downloads | `initBrowserSession`, `noDownloads`, `@core/guest` `downloadName`, `uniqueName` | `sec-browser` (mutation: site's name as is → overwrite → red), unit |
+| Downloads: only within 10 s of real input in that guest (scripts alone plant nothing); `~/Downloads` (harness: `TIE_DOWNLOADS`), sanitized unique name, no dialog, never opened; the shell session refuses downloads | `initBrowserSession`, `noDownloads`, `@core/guest` `downloadVerdict`, `downloadName`, `uniqueName` | `sec-browser` (red first: a page's script saved a file with no input; mutation: site's name as is → overwrite → red), unit |
+| Device choosers: Web Bluetooth chooser cancelled (Electron's default picks the first device found); USB / HID / serial denied (device permission handler); client certificates never sent (Electron's default sends the first in the keychain) | `guest.ts` `noDeviceChoosers`, `harden()` | — (no device in the harness) |
+| Content protocol memory: root files streamed (never read whole into main: a page naming a multi-GB file of its folder costs a stream); html documents of a root read whole only up to the kind's cap | `content.ts` `serveContent`, `streamFile` | `sec-html` (document over the cap → refused; large asset streams) |
+| State dir private: `~/.config/tie` 0700, sockets / info / logs / settings 0600 (fixed up at start for older files); socket request lines capped at 1 MB | `env.ts` `PRIVATE`, `socket.ts` | `sec-state` |
 | Browser partition: permissions denied (as every session), network direct, shell session still dead-proxied | `harden()`, `noNetwork` (shell only) | `sec-browser` (mutations: permissions granted → red; dead proxy on the partition → red) |
 | Guest shortcuts: matched in each guest's own `before-input-event`, blocked before the page | `main/keys.ts` `watchKeys` | `browser` (mutation: not attached → red) |
 | Guest crash → tile error, guest removed, shell and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
@@ -83,7 +89,7 @@
 - `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening, and never show the file picker (dev socket `pick` answers it).
 - Markdown: `h.contentFrame(ctx, id)` = the viewer's frame; `window.markdown.port` lets a scenario post requests as the frame (write-shaped messages, gesture-less links).
-- Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`.
+- Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`. Playwright's `evaluate` runs with a user gesture (CDP `userGesture`): it can't show what a page's own script may do without one (focus, popups); use the page's own timers for that (`sec-focus`).
 - Limits: no harness path sends a key that is both routed into a focused frame and seen by `before-input-event`; `sec-keys` covers each half (frame really focused via `hiddenWindow`; main handles keys whatever the focus). Real-hardware check: manual.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).
 - Browser: `h.guestPage` = the guest's realm (what a site can do); `h.guestKey` / `h.guestClick` = input through main (gesture + shortcuts); dev socket `guest` (`list`, `crash`, `proxy`). Downloads go to `TIE_DOWNLOADS` (dev builds; every harness instance), never `~/Downloads`.
