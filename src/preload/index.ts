@@ -40,14 +40,27 @@ const api = {
   },
   // Content tiles (sandboxed frames): main registers `root` under a fresh token, returns the frame URL.
   content: {
-    open: (root: string, kind: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind),
+    // Document kinds (html) also name the page (path relative to the root).
+    open: (root: string, kind: string, page?: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind, page),
     close: (token: string) => ipcRenderer.send('content:close', token),
     // Watchdog: frame stopped answering. Main kills its process (if it holds nothing else), then closes.
     kill: (token: string) => ipcRenderer.send('content:kill', token),
+    // Documents (main watches their frames and folders): committed navigation (URL path), failed
+    // navigation, folder changed.
+    onNavigated: (cb: (token: string, path: string) => void) => {
+      ipcRenderer.on('content:navigated', (_e, token, path) => cb(token, path))
+    },
+    onNavFailed: (cb: (token: string) => void) => {
+      ipcRenderer.on('content:navfailed', (_e, token) => cb(token))
+    },
+    onChanged: (cb: (token: string) => void) => {
+      ipcRenderer.on('content:changed', (_e, token) => cb(token))
+    },
   },
   // Files in viewer tiles (file view). Main checks paths, reads and watches. Read-only: no writes.
   doc: {
-    viewer: (path: string): Promise<{ kind: string; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path),
+    // Main: exists, regular file, its kind (or `kind`, if allowed), size cap.
+    viewer: (path: string, kind?: string): Promise<{ kind: string; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path, kind),
     // As `kind` (the tile's; main checks the file may be shown so). Body per the kind's payload.
     open: (path: string, kind: string): Promise<({ id: number; kind: string; rev: string } & DocBody) | { error: string }> => ipcRenderer.invoke('doc:open', path, kind),
     close: (id: number) => ipcRenderer.send('doc:close', id),

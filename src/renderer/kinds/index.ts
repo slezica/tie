@@ -6,6 +6,7 @@ import type { Kind } from '../state'
 import type { Nav } from '../nav'
 import { terminalKind } from './terminal'
 import { fileView } from '../fileview'
+import { htmlKind } from './html'
 
 export interface OpenOpts {
   title?: string
@@ -69,6 +70,7 @@ registerKind(fileKind('markdown', '📝')) // docs/MARKDOWN.md
 registerKind(fileKind('text', '📄')) // docs/VIEWERS.md
 registerKind(fileKind('image', '🖼️'))
 registerKind(fileKind('hex', '🔢'))
+registerKind({ kind: 'html', factory: htmlKind, opens: 'file', template: { label: 'html', icon: '🌐' } }) // docs/VIEWERS.md
 
 export const kindSpec = (kind: string): KindSpec | undefined => KINDS.get(kind)
 export const needsFile = (kind: string) => kindSpec(kind)?.opens === 'file'

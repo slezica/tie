@@ -1,10 +1,10 @@
-// Files → content kinds: which kind shows a file. By extension first (markdown, image); every other
+// Files → content kinds: which kind shows a file. By extension first (markdown, image, html); every other
 // file by content (sniff: text or hex). Which kinds a file may be opened as on request (templates).
 // Pure, renderer-safe, unit-tested. docs/TILES.md "Kinds", docs/VIEWERS.md.
 import type { ContentKind } from './policy'
 
 // Kinds that show a local file (policy rows with a file). Probe is not one.
-export const FILE_KINDS: readonly ContentKind[] = ['markdown', 'text', 'image', 'hex']
+export const FILE_KINDS: readonly ContentKind[] = ['markdown', 'text', 'image', 'hex', 'html']
 export const isFileKind = (k: unknown): k is ContentKind => typeof k === 'string' && (FILE_KINDS as readonly string[]).includes(k)
 
 // Kinds decided by extension (lowercase). Everything else: by content (sniffKind).
@@ -20,6 +20,8 @@ const BY_EXT: Record<string, ContentKind> = {
   '.svg': 'image',
   '.ico': 'image',
   '.bmp': 'image',
+  '.html': 'html',
+  '.htm': 'html',
 }
 
 // '.md' (lowercase), or '' when the name has none (dotfiles count as none).

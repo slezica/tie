@@ -1,7 +1,8 @@
 // Frame host: content kinds render in a sandboxed iframe on their own tie-content://<token>/ origin.
 // The host applies the baseline (sandbox from the policy table, port handshake, request checks,
-// focus, pointer shield); a kind supplies only its viewer name, root and request handlers.
-// docs/TILES.md.
+// focus, pointer shield, watchdog); a kind supplies only its viewer name, root and request
+// handlers. Document kinds (html: nav 'within-root') also name a page and may navigate: main
+// reports their navigations and folder changes; a navigation isn't a crash. docs/TILES.md.
 import { S, tie, location, debug } from './state'
 import { activate } from './ops'
 import { parseRequest, needsGesture, type Request, type Verb } from '@core/requests'
@@ -18,18 +19,31 @@ export interface FrameSpec {
   icon: string
   handlers: Handlers
   onReady?: () => void // viewer answered the handshake (each load): send it its content
+  page?: string // document kinds: the page to show, path relative to root (as on disk)
+  onNavigate?: (page: string) => void // document kinds: the frame now shows `page` (relative, decoded)
+  onChanged?: () => void // document kinds: something in the root folder changed
 }
 
 // What a content kind gets back: the Surface, plus messages to its viewer and root changes.
 export interface FrameSurface extends Surface {
   post(msg: unknown, transfer?: Transferable[]): void // to the viewer, over the port (dropped before the handshake)
-  setRoot(root: string): Promise<void> // new token for another directory; the viewer reloads
+  setRoot(root: string, page?: string): Promise<void> // new token for another directory; the viewer reloads
+  load(page: string): void // document kinds: show another page of the root (or reload this one)
+  origin(): string | null // the frame's tie-content://<token> (null before mount)
 }
+
+// Main's reports for document frames, by token (initFrames).
+const byToken = new Map<string, { navigated(path: string): void; failed(): void; changed(): void }>()
+const docUrl = (token: string, page: string) => `tie-content://${token}/${page.split('/').map(encodeURIComponent).join('/')}`
 
 // MessagePort's close event (Chromium): fires when the other end's document goes away.
 type Port = MessagePort & { onclose: ((e: Event) => void) | null }
 
 const READY_MS = 5000 // viewer must answer the handshake by then, else the tile shows an error
+const GESTURE_MS = 150 // an unfocused gesture request waits this long for the frame's focus
+const NAV_GRACE_MS = 5000 // documents: port closed, a load must follow by then (else crashed)
+const NAVFAIL_MAX = 3 // documents: failed navigations reloaded per NAVFAIL_MS, then an error
+const NAVFAIL_MS = 10_000
 
 // Watchdog (timing: core/watchdog.ts): the host pings the viewer over the port. No pong in time =
 // the viewer is stuck (busy loop, runaway layout, OOM); a closed port = its process died. Either
@@ -44,11 +58,17 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
   let dog = watchdog(Date.now())
   let ticker: ReturnType<typeof setInterval> | null = null
   let dead = false // failed: frame gone, error shown
+  const policy = policyOf(spec.viewer)
+  const navigates = policy?.nav === 'within-root' // documents navigate: a closed port may be a navigation
+  let page = spec.page ?? '' // documents: page shown now (relative to root, decoded)
+  let graceTimer: ReturnType<typeof setTimeout> | null = null
+  let navFails: number[] = []
 
   const stop = () => {
     if (readyTimer) clearTimeout(readyTimer)
     if (ticker) clearInterval(ticker)
-    readyTimer = ticker = null
+    if (graceTimer) clearTimeout(graceTimer)
+    readyTimer = ticker = graceTimer = null
     if (port) port.onmessage = port.onclose = null
     port?.close()
     port = null
@@ -63,6 +83,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     stop()
     // Hung: main kills the frame's process first (needs the frame still in the tree), then closes.
     if (token) (why === 'hung' ? tie.content.kill : tie.content.close)(token)
+    if (token) byToken.delete(token)
     token = null
     frame?.remove()
     frame = null
@@ -84,8 +105,19 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     if (!req) return debug('security', 'dropped request', host.id, safeJson(data))
     // SECURITY: verbs acting for the user (open a link, write a file) only while this frame has
     // focus: the user just clicked or typed in it (VS Code's rule). The viewer posts them from its
-    // click handler only; script running in the frame without a gesture gets nothing.
-    if (needsGesture(req.verb) && (!frame || document.activeElement !== frame)) return debug('security', 'refused request without focus', host.id, req.verb)
+    // click handler only; script running in the frame without a gesture gets nothing. A click into
+    // a frame that wasn't focused: its request can arrive (other process) before the shell sees the
+    // focus move, so an unfocused request waits GESTURE_MS for it, then is refused.
+    if (needsGesture(req.verb) && !focused()) {
+      const r = req
+      return void setTimeout(() => (focused() ? handle(r) : debug('security', 'refused request without focus', host.id, r.verb)), GESTURE_MS)
+    }
+    handle(req)
+  }
+  const focused = () => !!frame && document.activeElement === frame
+
+  const handle = (req: Request) => {
+    if (dead || !host.alive()) return
     if (req.verb === 'pong') return pong(dog, req.n)
     if (req.verb === 'ready') {
       if (readyTimer) clearTimeout(readyTimer)
@@ -112,30 +144,76 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     port = ch.port1 as Port
     port.onmessage = (e) => onRequest(e.data)
     // The viewer's end closes when its document goes away: navigation (we close ours first) or its
-    // renderer process dying.
-    port.onclose = () => fail('Viewer crashed', 'crashed')
+    // renderer process dying. Documents also navigate themselves: then a load follows (connect
+    // again); no load in time = crashed.
+    port.onclose = () => {
+      if (!navigates) return fail('Viewer crashed', 'crashed')
+      if (port) port.onmessage = port.onclose = null
+      port = null
+      ready = false
+      if (readyTimer) clearTimeout(readyTimer)
+      readyTimer = null
+      graceTimer ??= setTimeout(() => fail('Page crashed', 'crashed'), NAV_GRACE_MS)
+    }
     frame?.contentWindow?.postMessage({ type: 'tie:init' }, '*', [ch.port2])
     if (readyTimer) clearTimeout(readyTimer)
     readyTimer = setTimeout(() => fail('Content did not load', 'no ready'), READY_MS)
   }
 
+  // Documents: main's reports for this token.
+  const track = (t: string) =>
+    byToken.set(t, {
+      navigated: (path) => {
+        let p = path.replace(/^\//, '')
+        try {
+          p = decodeURIComponent(p)
+        } catch {}
+        if (p === page) return
+        page = p
+        spec.onNavigate?.(p)
+      },
+      // A navigation away failed (the shell CSP refused it): the frame shows an error page. Reload
+      // the page, unless it keeps doing it (meta refresh loops).
+      failed: () => {
+        const now = Date.now()
+        navFails = [...navFails.filter((t) => now - t < NAVFAIL_MS), now]
+        if (navFails.length > NAVFAIL_MAX) return fail('Page keeps navigating away', 'navigation loop')
+        debug('content', 'navigation failed, reloading', host.id, page)
+        surface.load(page)
+      },
+      changed: () => spec.onChanged?.(),
+    })
+
+  // Close our end before the host navigates the frame itself (not a crash, no grace needed).
+  const detach = () => {
+    if (port) port.onmessage = port.onclose = null
+    port?.close()
+    port = null
+    ready = false
+  }
+
   const surface: FrameSurface = {
     mount: async () => {
-      const policy = policyOf(spec.viewer)
       if (!policy) return host.error(`No policy for ${spec.viewer}`)
-      const res = await tie.content.open(spec.root, spec.viewer).catch((e: Error) => ({ error: e.message }))
+      const res = await tie.content.open(spec.root, spec.viewer, spec.page).catch((e: Error) => ({ error: e.message }))
       if (!host.alive()) return void ('token' in res && tie.content.close(res.token))
       if ('error' in res) return host.error(res.error)
       token = res.token
+      if (navigates) track(token)
       frame = document.createElement('iframe')
       frame.className = 'content'
       // SECURITY: sandbox from the policy table (viewers: scripts only. No allow-same-origin: opaque
-      // origin, can't reach the shell or its storage; no popups, top navigation, forms, modals,
-      // downloads). No permissions, no referrer.
+      // origin, can't reach the shell or its storage. Documents: allow-same-origin = their own
+      // token's origin, still cross-origin to the shell: they can't lift the sandbox. No popups, top
+      // navigation, forms, modals, downloads). No permissions, no referrer.
       frame.setAttribute('sandbox', policy.sandbox.join(' '))
       frame.setAttribute('allow', '')
       frame.referrerPolicy = 'no-referrer'
-      frame.addEventListener('load', connect)
+      frame.addEventListener('load', () => {
+        if (graceTimer) clearTimeout(graceTimer)
+        graceTimer = null
+        connect()
+      })
       frame.src = res.url
       host.body.appendChild(frame)
       debug('content', 'frame', host.id, spec.viewer)
@@ -145,6 +223,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       dead = true
       stop()
       frame?.remove()
+      if (token) byToken.delete(token)
       if (token) tie.content.close(token)
     },
     focus: () => {
@@ -159,19 +238,29 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       dog.lastPost = Date.now()
       port.postMessage(msg, transfer)
     },
-    setRoot: async (root) => {
-      const res = await tie.content.open(root, spec.viewer).catch((e: Error) => ({ error: e.message }))
+    setRoot: async (root, p) => {
+      const res = await tie.content.open(root, spec.viewer, p).catch((e: Error) => ({ error: e.message }))
       if (!host.alive() || !frame || dead) return void ('token' in res && tie.content.close(res.token))
       if ('error' in res) return host.error(res.error)
       const old = token
       token = res.token
-      if (port) port.onmessage = port.onclose = null
-      port?.close()
-      port = null
-      ready = false
+      if (navigates) track(token)
+      if (p !== undefined) page = p
+      detach()
       frame.src = res.url // same element: the nav lock binds the new token to this frame
+      if (old) byToken.delete(old)
       if (old) tie.content.close(old)
       debug('content', 'root', host.id, spec.viewer)
+    },
+    origin: () => (token ? `tie-content://${token}` : null),
+    load: (p) => {
+      if (!frame || !token || dead || !navigates) return
+      const [path, hash] = [p.replace(/#.*$/, ''), p.match(/#.*$/)?.[0] ?? '']
+      // Same page with a #fragment: an in-page scroll, the document (and its port) stays.
+      if (!(path === page && hash)) detach()
+      page = path
+      frame.src = docUrl(token, path) + hash // the nav lock: documents of this root only
+      debug('content', 'load', host.id, page)
     },
   }
   return surface
@@ -188,6 +277,9 @@ const safeJson = (v: unknown) => {
 // A click inside a frame never reaches the shell (no pointerdown): the shell window blurs and the
 // iframe becomes document.activeElement. Activate its tile, as a pointerdown would.
 export function initFrames() {
+  tie.content.onNavigated((token, path) => byToken.get(token)?.navigated(path))
+  tie.content.onNavFailed((token) => byToken.get(token)?.failed())
+  tie.content.onChanged((token) => byToken.get(token)?.changed())
   window.addEventListener('blur', () =>
     setTimeout(() => {
       const el = document.activeElement

@@ -1,20 +1,27 @@
-// Content protocol: tie-content://<token>/ serves one content tile (sandboxed frame, opaque origin).
-// Token → root registry, viewer files, root files. docs/TILES.md, docs/SECURITY.md.
-import { app, protocol, type WebFrameMain } from 'electron'
+// Content protocol: tie-content://<token>/ serves one content tile (sandboxed frame; viewers on an
+// opaque origin, html documents on the token's own). Token → root registry, viewer files, root
+// files, html documents (CSP + bootstrap), folder watch and navigation reports for documents.
+// docs/TILES.md, docs/VIEWERS.md "Html", docs/SECURITY.md.
+import { app, protocol, webFrameMain, type WebContents, type WebFrameMain } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { realpathSync, statSync } from 'node:fs'
+import { realpathSync, statSync, readFileSync, watch, type FSWatcher } from 'node:fs'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
 import { spikeFrameAllowed, spikeDocType, SPIKE_HTML_CSP } from './spike'
-import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed } from '../core/content'
-import { policyOf, viewerKinds, contentCsp } from '../core/policy'
+import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed, contentFile, documentUrl, isDocument, bootstrapAt, htmlCharset } from '../core/content'
+import { policyOf, viewerKinds, contentCsp, documentCsp } from '../core/policy'
 
 interface Entry {
   root: string // real path
   kind: string // viewer name
   frame: number | null // frameTreeNodeId of the one frame that may show it (bound on first load)
+  watcher?: FSWatcher // documents: the root folder (live reload)
 }
+
+// Main → shell pushes (index.ts sets it): document navigations, failed navigations, folder changes.
+type Send = (channel: string, ...args: unknown[]) => void
+let send: Send = () => {}
 
 const entries = new Map<string, Entry>()
 
@@ -28,11 +35,23 @@ const TYPES: Record<string, string> = {
   '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp',
   '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
 }
+// Files of an html document's folder (scripts, styles, data, fonts, media). Anything else:
+// application/octet-stream (never sniffed).
+const DOC_TYPES: Record<string, string> = {
+  ...TYPES,
+  '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json', '.map': 'application/json', '.wasm': 'application/wasm', '.xml': 'application/xml',
+  '.csv': 'text/csv; charset=utf-8', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+}
+
+const isDocKind = (kind: string) => policyOf(kind)?.page === 'document'
 
 // SECURITY: the shell (trusted) names the root; still checked: absolute, existing directory, real
-// path (symlinked roots resolve once, here). Returns the frame URL, never file paths.
-export function openContent(root: unknown, kind: unknown): { token: string; url: string } | { error: string } {
-  if (typeof kind !== 'string' || !VIEWERS.has(kind)) return { error: `unknown kind: ${String(kind)}` }
+// path (symlinked roots resolve once, here). Document kinds also name the page: a document inside
+// the root. Returns the frame URL, never file paths.
+export function openContent(root: unknown, kind: unknown, page?: unknown): { token: string; url: string } | { error: string } {
+  if (typeof kind !== 'string' || !(VIEWERS.has(kind) || isDocKind(kind))) return { error: `unknown kind: ${String(kind)}` }
   let real: string
   try {
     if (typeof root !== 'string' || !isAbsolute(root)) throw new Error()
@@ -45,13 +64,46 @@ export function openContent(root: unknown, kind: unknown): { token: string; url:
   let token: string
   do token = randomBytes(16).toString('hex')
   while (parseContentUrl(viewerUrl(token, kind))?.token !== token)
+  if (isDocKind(kind)) {
+    if (typeof page !== 'string' || !isDocument(page) || !contentFile(real, '/' + page.split('/').map(encodeURIComponent).join('/'))) return { error: `Not a page in ${real}: ${String(page)}` }
+  }
   entries.set(token, { root: real, kind, frame: null })
+  if (isDocKind(kind)) watchRoot(token)
   log('content', 'open', kind, token.slice(0, 8), real)
-  return { token, url: viewerUrl(token, kind) }
+  return { token, url: isDocKind(kind) ? documentUrl(token, page as string) : viewerUrl(token, kind) }
+}
+
+// Documents: any change in the root folder (non-recursive) → `content:changed` (debounced); the
+// tile reloads its page.
+function watchRoot(token: string) {
+  const e = entries.get(token)!
+  let timer: ReturnType<typeof setTimeout> | null = null
+  try {
+    e.watcher = watch(e.root, { persistent: false }, () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => entries.has(token) && send('content:changed', token), 150)
+    })
+    e.watcher.on('error', () => e.watcher?.close())
+  } catch {
+    log('content', 'watch failed', token.slice(0, 8), e.root)
+  }
+}
+
+// A document's storage (localStorage, IndexedDB, ...) lives in the shell's session under its token
+// origin (partitioned under tie://app), on disk. Not cleared on close: Chromium's data removal
+// (session.clearData / clearStorageData, any origin filter or none) skips the custom scheme
+// (verified 2026-10-17; plan Results). Unreachable after close (no frame gets that token again);
+// left on disk. docs/PENDING.md.
+function forget(_token: string, e: Entry) {
+  e.watcher?.close()
 }
 
 export function closeContent(token: unknown) {
-  if (typeof token === 'string' && entries.delete(token)) log('content', 'close', token.slice(0, 8))
+  const e = typeof token === 'string' ? entries.get(token) : undefined
+  if (!e) return
+  entries.delete(token as string)
+  forget(token as string, e)
+  log('content', 'close', (token as string).slice(0, 8))
 }
 
 // SECURITY: a content frame that stopped answering (frame.ts watchdog) keeps spinning in its
@@ -76,7 +128,37 @@ export function killContent(token: unknown, shell: WebFrameMain | null) {
 
 // Shell reloaded: its content tiles are gone.
 export function clearContent() {
+  for (const [token, e] of entries) forget(token, e)
   entries.clear()
+}
+
+// Document frames navigate themselves (links the page handled, scripts, the host's src changes).
+// Main sees every committed navigation of a frame bound to a document token: reported to the shell
+// (`content:navigated`, URL path), which follows it (location, history). A navigation that fails
+// (the shell CSP refuses http(s), file:, other schemes: the frame would end on an error page) is
+// reported too (`content:navfailed`): the tile reloads its page. Aborted ones (-3: the nav lock
+// cancelled it) leave the frame where it was: nothing to do.
+export function initContent(wc: WebContents, push: Send) {
+  send = push
+  const docOf = (procId: number, routingId: number) => {
+    const f = webFrameMain.fromId(procId, routingId)
+    if (!f || f.parent !== wc.mainFrame) return null
+    for (const [token, e] of entries) if (e.frame === f.frameTreeNodeId && isDocKind(e.kind)) return token
+    return null
+  }
+  wc.on('did-frame-navigate', (_e, url, _code, _status, isMain, procId, routingId) => {
+    if (isMain) return
+    const u = parseContentUrl(url)
+    const token = docOf(procId, routingId)
+    if (u && token && u.token === token) send('content:navigated', token, u.path)
+  })
+  wc.on('did-fail-provisional-load', (_e, code, desc, url, isMain, procId, routingId) => {
+    if (isMain || code === -3) return
+    const token = docOf(procId, routingId)
+    if (!token) return
+    log('security', 'document navigation failed', token.slice(0, 8), code, desc, url)
+    send('content:navfailed', token)
+  })
 }
 
 // SECURITY: frame nav lock (with will-frame-navigate, security.ts). A subframe may load only what
@@ -101,8 +183,34 @@ const refuse = (url: string, why: string) => {
 
 // SECURITY: content responses never sniff, never cache; root files are inert if ever opened as a
 // document (CSP sandbox, nothing loads). Viewer pages get contentCsp with a fresh nonce each time.
-// Files are read here (no net.fetch: no redirects, no file:// URL handling).
+// Document tokens (html): every file gets documentCsp (workers and pages alike); .html/.htm files
+// get the bootstrap first in <head>. Files are read here (no net.fetch: no redirects, no file://
+// URL handling).
 const HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' }
+
+// The bootstrap (out/viewers/html-bootstrap.js), read once. Refused if it could end its <script>.
+let bootstrapJs: string | null = null
+function bootstrap(): string | null {
+  if (bootstrapJs === null) {
+    try {
+      const js = readFileSync(join(viewersDir, 'html-bootstrap.js'), 'utf8')
+      bootstrapJs = /<\/script|<!--/i.test(js) || /[^\x00-\x7f]/.test(js) ? '' : js
+    } catch {
+      bootstrapJs = ''
+    }
+  }
+  return bootstrapJs || null
+}
+
+// An html document with the bootstrap injected (bytes, as stored, plus the script).
+function withBootstrap(body: Buffer): { body: Buffer; charset: string } | null {
+  const js = bootstrap()
+  if (!js) return null
+  const text = body.toString('latin1') // byte offsets = string offsets
+  const at = bootstrapAt(text)
+  const tag = Buffer.from(`<script>${js}</script>`, 'latin1')
+  return { body: Buffer.concat([body.subarray(0, at), tag, body.subarray(at)]), charset: htmlCharset(text) }
+}
 
 export function serveContent() {
   protocol.handle(CONTENT_SCHEME, async (req) => {
@@ -126,6 +234,13 @@ export function serveContent() {
     if (!st?.isFile()) return refuse(req.url, 'not a file')
     const body = await readFile(real).catch(() => null)
     if (!body) return refuse(req.url, 'unreadable')
+    if (isDocKind(r.entry.kind)) {
+      const csp = documentCsp()
+      if (!isDocument(real)) return new Response(body, { headers: { ...HEADERS, 'Content-Type': DOC_TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': csp } })
+      const page = withBootstrap(body)
+      if (!page) return refuse(req.url, 'bootstrap missing')
+      return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': csp } })
+    }
     const doc = spikeDocType(real) // dev spike only (TIE_SPIKE=html)
     if (doc) return new Response(body, { headers: { ...HEADERS, 'Content-Type': doc, 'Content-Security-Policy': SPIKE_HTML_CSP } })
     const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'

@@ -9,6 +9,10 @@ describe('fileKind', () => {
   it('maps image extensions, any case', () => {
     for (const e of ['png', 'jpg', 'JPEG', 'gif', 'webp', 'avif', 'svg', 'ico', 'bmp']) expect(fileKind(`/a/b.${e}`)).toBe('image')
   })
+  it('maps html extensions, any case', () => {
+    for (const p of ['/a/b.html', '/a/b.HTM']) expect(fileKind(p)).toBe('html')
+    expect(extsOf('html')).toEqual(['.html', '.htm'])
+  })
   it('everything else: decided by content (null)', () => {
     for (const p of ['/a/b.txt', '/a/md', '/a/.md', '/a/b.md.bak', '/a/b.mdx', '/a/b', '/a/Makefile', '/a/b.ts', '/a/b.constructor', '/a/b.__proto__', '/a/b.tiff']) expect(fileKind(p)).toBe(null)
   })
@@ -23,7 +27,7 @@ describe('fileKind', () => {
     for (const k of ['text', 'hex', 'probe']) expect(extsOf(k)).toEqual([])
   })
   it('file kinds: every one has a policy row with a size cap; probe is not one', () => {
-    expect(FILE_KINDS).toEqual(['markdown', 'text', 'image', 'hex'])
+    expect(FILE_KINDS).toEqual(['markdown', 'text', 'image', 'hex', 'html'])
     for (const k of FILE_KINDS) expect(policyOf(k)!.maxBytes).toBeGreaterThan(0)
     for (const k of ['probe', 'terminal', 'constructor', '', null]) expect(isFileKind(k)).toBe(false)
   })
@@ -68,5 +72,7 @@ describe('canOpenAs', () => {
     expect(canOpenAs('image', 'text', true)).toBe(false)
     expect(canOpenAs('markdown', 'text', true)).toBe(false)
     expect(canOpenAs('probe', 'text', true)).toBe(false)
+    expect(canOpenAs('html', 'text', true)).toBe(false)
+    expect(canOpenAs('html', 'html', true)).toBe(true)
   })
 })

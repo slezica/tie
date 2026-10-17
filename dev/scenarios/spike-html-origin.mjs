@@ -84,14 +84,14 @@ export default async (ctx, h) => {
     ctx.log(JSON.stringify(facts, null, 2))
 
     // Own origin: out of process, its token is the origin; storage, classic + module scripts work;
-    // parent still unreachable (cross-origin). fetch fails (scheme lacks supportFetchAPI), XHR
-    // works (same origin). Cookies: none (silently empty).
+    // parent still unreachable (cross-origin). fetch and XHR work (same origin; the scheme has
+    // supportFetchAPI since P3: spike-html-fetch). Cookies: none (silently empty).
     h.assert(facts.own.frame.outOfProcess && facts.own.frame.origin === `tie-content://${own.token}`, 'own: out of process, token origin')
     h.assert(ro.origin === `tie-content://${own.token}`, 'own: location.origin is the token')
     h.assert(ro.storage === 'v' && ro.idb === 'ok', `own: localStorage + IndexedDB work (${ro.storage}, ${ro.idb})`)
     h.assert(/^threw/.test(ro.parentDoc) && /^threw/.test(ro.parentTie) && /^threw/.test(ro.topLocation), 'own: parent unreachable')
     h.assert(ro.classic === 'ran' && ro.moduleInline === 'ran' && ro.moduleSrc === 'ran' && ro.importDyn === 'ok 7', `own: module scripts load (${ro.moduleSrc}, ${ro.importDyn})`)
-    h.assert(/^threw/.test(ro.fetch) && ro.xhr === 'ok 200', `own: fetch fails without supportFetchAPI, XHR works (${ro.fetch}, ${ro.xhr})`)
+    h.assert(ro.fetch === 'ok 42' && ro.xhr === 'ok 200', `own: fetch (supportFetchAPI) and XHR work (${ro.fetch}, ${ro.xhr})`)
     h.assert(ro.cookie === '', `own: no cookies (${ro.cookie})`)
 
     // Opaque: no storage, no modules from tie-content, no fetch/XHR; classic scripts only.

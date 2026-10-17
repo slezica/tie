@@ -247,6 +247,23 @@ body.dragging-tab .tab {
 .dialog.paste-warning {
   width: min(560px, calc(100vw - 32px));
 }
+/* Html page asking for the web (kinds/html.ts): the full URL, as text, wrapped anywhere. */
+.dialog.external-open {
+  width: min(560px, calc(100vw - 32px));
+}
+.dialog.external-open .dialog-body p.url {
+  max-height: 30vh;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--fg-a);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: 12px var(--tile-font);
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+}
 .dialog button {
   padding: 6px 16px;
   border-radius: 6px;

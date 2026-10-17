@@ -1,5 +1,5 @@
 // Security guards for every webContents. Threat model, research: docs/SECURITY.md.
-import { app, shell, ipcMain, protocol, net, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { app, shell, ipcMain, protocol, net, type Session, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { log } from './env'
 import { pathToFileURL } from 'node:url'
 import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
@@ -15,12 +15,13 @@ export function setShellUrl(url: string) {
 
 export function harden() {
   // Before ready: privileged schemes must be registered early.
-  // SECURITY: tie-content (content tiles): `standard` (per-token origins, relative URLs) and
-  // `secure` only. Never `bypassCSP`; no `corsEnabled` / `supportFetchAPI` (cross-origin reads:
-  // Electron GHSA-v3j7, GHSA-j84w). Content text goes over the frame's port instead.
+  // SECURITY: tie-content (content tiles): `standard` (per-token origins, relative URLs), `secure`,
+  // `supportFetchAPI` (html documents fetch files of their own folder, same origin). Never
+  // `bypassCSP`, never `corsEnabled` (cross-origin reads: Electron GHSA-v3j7, GHSA-j84w): another
+  // token's files stay unreadable, and opaque viewer frames still can't fetch (sec-html).
   protocol.registerSchemesAsPrivileged([
     { scheme: 'tie', privileges: { standard: true, secure: true, supportFetchAPI: true } },
-    { scheme: CONTENT_SCHEME, privileges: { standard: true, secure: true, ...(spike('fetch') && { supportFetchAPI: true }) } },
+    { scheme: CONTENT_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
   ])
   app.on('web-contents-created', (_e, wc) => guard(wc))
   // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
@@ -75,6 +76,21 @@ function guard(wc: WebContents) {
     e.preventDefault()
   })
   wc.on('did-attach-webview', (_e, guest) => spikeGuest(guest))
+}
+
+// SECURITY: the shell's session (the shell and every content frame) needs no network: Tie's own
+// pages come from tie:// and tie-content://, which no proxy touches. CSPs keep content off the
+// network, but WebRTC isn't covered by any CSP directive Chromium enforces (STUN over UDP, TURN over
+// TCP reached local probes from an html page: sec-html). So: WebRTC may not use UDP unless
+// proxied, and everything proxied (loopback included) goes to a closed local port: no connection
+// leaves. External links go through the OS (openExternal), not this session. The browser tile (P4)
+// gets its own partition.
+export const DEAD_PROXY = '127.0.0.1:1'
+export async function noNetwork(ses: Session) {
+  await ses.setProxy({ mode: 'fixed_servers', proxyRules: `http=${DEAD_PROXY};https=${DEAD_PROXY};socks=${DEAD_PROXY}`, proxyBypassRules: '<-loopback>' })
+}
+export function noWebRtcUdp(wc: WebContents) {
+  wc.setWebRTCIPHandlingPolicy('disable_non_proxied_udp')
 }
 
 // SECURITY: the only path from content to the OS's URL handlers (scheme check: externalUrl).

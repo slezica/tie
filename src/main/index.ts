@@ -1,12 +1,12 @@
-import { app, BrowserWindow, Menu, screen } from 'electron'
+import { app, BrowserWindow, Menu, screen, session } from 'electron'
 import { join } from 'node:path'
 import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
+import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, noNetwork, noWebRtcUdp } from './security'
 import { initKeys, setKeysSuspended } from './keys'
-import { openContent, closeContent, killContent, clearContent, serveContent } from './content'
+import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
 import { spike, spikeMethod } from './spike'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
@@ -82,11 +82,11 @@ ipc.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
-ipc.handle('content:open', (_e, root: unknown, kind: unknown) => openContent(root, kind))
+ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
 ipc.on('content:kill', (_e, token: unknown) => killContent(token, win?.webContents.mainFrame ?? null))
 const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed', id, p)
-ipc.handle('doc:viewer', (_e, path: unknown) => fileViewer(path))
+ipc.handle('doc:viewer', (_e, path: unknown, kind: unknown) => fileViewer(path, kind ?? undefined))
 ipc.handle('doc:open', (_e, path: unknown, kind: unknown) => openDoc(path, kind, pushDoc))
 ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
 ipc.handle('doc:pick', (_e, defaultPath: unknown, kind: unknown) => pickFile(win, defaultPath, kind))
@@ -136,7 +136,9 @@ function createWindow() {
       pty.killAll()
     }
   })
+  noWebRtcUdp(win.webContents)
   initKeys(win, (action) => win?.webContents.send('keys:action', action))
+  initContent(win.webContents, (channel, ...args) => win?.webContents.send(channel, ...args))
   applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
   win.on('close', () => !quitting && app.quit())
@@ -204,6 +206,7 @@ app.whenReady().then(async () => {
   setMenu()
   serveShell(join(import.meta.dirname, '../renderer'))
   serveContent()
+  await noNetwork(session.defaultSession)
   createWindow()
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready

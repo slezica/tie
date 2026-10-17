@@ -14,6 +14,9 @@ const VIEWERS = viewerKinds(true)
 // Mermaid: the "tiny" IIFE (no mindmap, architecture, KaTeX), pinned in package.json.
 const require = createRequire(import.meta.url)
 const ASSETS = { 'markdown-mermaid.js': require.resolve('@mermaid-js/tiny') }
+// Html bootstrap: built like a viewer script, but main inlines it into html documents (content.ts),
+// never served as a file. ASCII-only output (inserted into documents of any charset).
+const BOOTSTRAP = 'html-bootstrap'
 function viewers(): Plugin {
   return {
     name: 'tie-viewers',
@@ -32,6 +35,16 @@ function viewers(): Plugin {
         copyFileSync(`src/viewers/${kind}.html`, `out/viewers/${kind}.html`)
       }
       for (const [name, from] of Object.entries(ASSETS)) copyFileSync(from, `out/viewers/${name}`)
+      await build({
+        configFile: false,
+        logLevel: 'warn',
+        esbuild: { charset: 'ascii' },
+        build: {
+          outDir: 'out/viewers',
+          emptyOutDir: false,
+          lib: { entry: resolve(`src/viewers/${BOOTSTRAP}.ts`), formats: ['iife'], name: 'tieBootstrap', fileName: () => `${BOOTSTRAP}.js` },
+        },
+      })
     },
   }
 }

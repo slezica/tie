@@ -1,9 +1,10 @@
 // Spike S1b (P0, viewers plan): as spike-html-origin, with tie-content registered
-// `supportFetchAPI`. Same-origin fetch/XHR, cross-token reads, opaque frames. Records facts.
+// `supportFetchAPI` (always, since P3). Same-origin fetch/XHR, cross-token reads, opaque frames.
+// Records facts.
 import { rmSync } from 'node:fs'
 import { setup, frameOn, results } from './spike-html-origin.mjs'
 
-export const env = { TIE_SPIKE: 'html,fetch' }
+export const env = { TIE_SPIKE: 'html' }
 
 export default async (ctx, h) => {
   const root = await setup(ctx)

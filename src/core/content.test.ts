@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isToken, parseContentUrl, viewerUrl, viewerFile, contentFile, isInside, routeContent, navAllowed } from './content'
+import { isToken, parseContentUrl, viewerUrl, viewerFile, contentFile, isInside, routeContent, navAllowed, documentUrl, isDocument, bootstrapAt, htmlCharset } from './content'
 
 const tok = '0123456789abcdef0123456789abcdef'
 
@@ -83,6 +83,50 @@ describe('navAllowed', () => {
     for (const u of [`tie-content://${tok}/_tie/markdown.html`, `tie-content://${other}/_tie/probe.html`, `tie-content://${tok}/_tie/probe.js`, `tie-content://${tok}/page.html`, `tie-content://${tok}/_tie/probe.html?x`, `tie-content://${tok}/_tie/probe.html#x`, 'http://x/'])
       expect(navAllowed('probe', tok, u)).toBe(false)
     for (const kind of ['', 'constructor', '__proto__', 'nope']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(false)
+  })
+})
+
+describe('navAllowed within-root (html)', () => {
+  const other = '1'.repeat(32)
+  it('html documents of its own root, any depth', () => {
+    for (const p of ['index.html', 'a%20b.HTM', 'sub/x.html', 'x.html?q=1', 'x.html#h']) expect(navAllowed('html', tok, `tie-content://${tok}/${p}`)).toBe(true)
+  })
+  it('nothing else: other tokens, /_tie/, root, non-documents, other schemes', () => {
+    for (const u of [`tie-content://${other}/index.html`, `tie-content://${tok}/_tie/html-bootstrap.js`, `tie-content://${tok}/_tie/markdown.html`, `tie-content://${tok}/`, `tie-content://${tok}/data.json`, `tie-content://${tok}/x.svg`, `tie-content://${tok}/x.html.txt`, 'http://x/index.html', `tie://app/index.html`])
+      expect(navAllowed('html', tok, u)).toBe(false)
+  })
+  it('html has no viewer files', () => {
+    for (const p of ['/_tie/html.html', '/_tie/html.js', '/_tie/html-bootstrap.js']) expect(viewerFile('html', p)).toBe(null)
+  })
+  it('document URLs: segments encoded', () => {
+    expect(documentUrl(tok, 'my dir/a#b.html')).toBe(`tie-content://${tok}/my%20dir/a%23b.html`)
+    expect(isDocument('/a/b.HTML') && isDocument('x.htm') && !isDocument('x.html.md')).toBe(true)
+  })
+})
+
+describe('bootstrapAt', () => {
+  const at = (s: string) => s.slice(0, bootstrapAt(s)) + '|'
+  it('after <head>, else <html>, else the doctype, else the start (after a BOM)', () => {
+    expect(at('<!doctype html><html lang=en><HEAD data-x="1"><title>')).toBe('<!doctype html><html lang=en><HEAD data-x="1">|')
+    expect(at('<!DOCTYPE html><html><body>')).toBe('<!DOCTYPE html><html>|')
+    expect(at('<!doctype html>\n<p>x')).toBe('<!doctype html>|')
+    expect(at('<p>x')).toBe('|')
+    expect(at('\xef\xbb\xbf<p>x')).toBe('\xef\xbb\xbf|')
+  })
+  it('not fooled by <header>, <htmlx>', () => {
+    expect(at('<html><header>a</header><head>')).toBe('<html><header>a</header><head>|')
+    expect(at('<htmlx><p>')).toBe('|')
+  })
+})
+
+describe('htmlCharset', () => {
+  it('declared charset (first 1024 bytes), plain labels only; default utf-8', () => {
+    expect(htmlCharset('<meta charset="Shift_JIS">')).toBe('shift_jis')
+    expect(htmlCharset('<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">')).toBe('iso-8859-1')
+    expect(htmlCharset('<p>no meta')).toBe('utf-8')
+    expect(htmlCharset(' '.repeat(1100) + '<meta charset="latin1">')).toBe('utf-8')
+    expect(htmlCharset('<meta charset="utf-8\r\nX-Evil: 1">')).toBe('utf-8')
+    expect(htmlCharset('<meta charset="a;b">')).toBe('a')
   })
 })
 

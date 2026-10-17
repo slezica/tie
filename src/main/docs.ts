@@ -67,6 +67,7 @@ export async function openDoc(path: unknown, want: unknown, push: (id: number, p
   const v = await fileViewer(path, want ?? undefined)
   if ('error' in v) return v
   const p = policyOf(v.kind)!
+  if (p.page !== 'viewer') return { error: `Not a viewer kind: ${v.kind}` } // documents: served by the protocol
   let r = await readStable(v.path, p.maxBytes)
   for (let i = 0; i < 5 && 'error' in r && r.error === 'unstable'; i++) r = await readStable(v.path, p.maxBytes)
   if ('error' in r) return { error: r.error === 'too large' ? tooLarge(v.path, p) : `Can't read ${v.path} (${r.error})` }

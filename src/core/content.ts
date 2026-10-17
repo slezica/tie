@@ -29,11 +29,24 @@ export function viewerUrl(token: string, kind: string): string {
   return `${CONTENT_SCHEME}://${token}${VIEWER_DIR}${kind}.html`
 }
 
-// SECURITY: the nav rule (policy table): the one URL a content frame of `kind` on `token` may
-// load. 'viewer-exact': the kind's viewer page, exactly. Unknown kinds: nothing.
+// Documents (html kind): pages a frame may show, by name.
+export const isDocument = (path: string) => /\.html?$/i.test(path)
+
+// The URL of a document (path relative to the root, as on disk) on a token: each segment encoded.
+export function documentUrl(token: string, page: string): string {
+  return `${CONTENT_SCHEME}://${token}/${page.split('/').map(encodeURIComponent).join('/')}`
+}
+
+// SECURITY: the nav rule (policy table): what a content frame of `kind` on `token` may load.
+// 'viewer-exact': the kind's viewer page, exactly. 'within-root': an .html/.htm document of the
+// token's own root (never /_tie/, never another token; main re-checks the file when serving it).
+// Unknown kinds: nothing.
 export function navAllowed(kind: string, token: string, url: string): boolean {
   const p = policyOf(kind)
-  return !!p && p.nav === 'viewer-exact' && url === viewerUrl(token, kind)
+  if (!p) return false
+  if (p.nav === 'viewer-exact') return url === viewerUrl(token, kind)
+  const u = parseContentUrl(url)
+  return !!u && u.token === token && !u.path.startsWith(VIEWER_DIR) && u.path !== '/' && isDocument(u.path)
 }
 
 // SECURITY: /_tie/ serves only the tile kind's own viewer page and script (built by Tie), plus the
@@ -82,4 +95,25 @@ export function routeContent<E extends { root: string; kind: string }>(
   if (viewer) return { viewer, entry }
   const file = contentFile(entry.root, u.path)
   return file ? { file, entry } : null
+}
+
+// Where the bootstrap goes in an html document (`text`: the bytes as latin1, so offsets are byte
+// offsets): right after <head ...>, else after <html ...>, else after the doctype, else at the
+// start. First in <head>: it runs before any script of the page. Not a security boundary (page
+// scripts share its realm); a misplaced bootstrap only breaks that page's handshake.
+export function bootstrapAt(text: string): number {
+  for (const re of [/<head(?:\s[^>]*)?>/i, /<html(?:\s[^>]*)?>/i, /<!doctype[^>]*>/i]) {
+    const m = re.exec(text)
+    if (m) return m.index + m[0].length
+  }
+  return text.charCodeAt(0) === 0xef && text.charCodeAt(1) === 0xbb && text.charCodeAt(2) === 0xbf ? 3 : 0 // after a UTF-8 BOM
+}
+
+// The document's declared charset (<meta charset> or http-equiv, first 1024 bytes), for the
+// Content-Type header (the bootstrap may push the declaration past the parser's prescan). Only
+// plain labels; default utf-8.
+export function htmlCharset(text: string): string {
+  const head = text.slice(0, 1024)
+  const m = /<meta[^>]+charset\s*=\s*["']?\s*([a-z0-9_.:-]{1,40})/i.exec(head)
+  return m ? m[1].toLowerCase() : 'utf-8'
 }

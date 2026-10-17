@@ -239,6 +239,19 @@ export async function contentFrame(ctx, id, ms = 5000) {
   throw new Error(`no content frame for ${id}`)
 }
 
+// Html tile's frame (the page's realm: what page scripts can do), once its bootstrap answered the
+// handshake. Found by the page URL main reports (`tie list --json` page.url); re-found after
+// navigations.
+export async function htmlFrame(ctx, id, ms = 5000) {
+  for (let t = 0; t < ms; t += 100) {
+    const p = (await tileOf(ctx, id))?.page
+    const f = p?.ready && ctx.page.frames().find((f) => f.url().split('#')[0] === p.url)
+    if (f) return f
+    await ctx.sleep(100)
+  }
+  throw new Error(`no html frame for ${id}`)
+}
+
 // Markdown tile as its viewer shows it: rendered text, revision, scroll, renders, source key.
 export async function mdState(ctx, id) {
   const f = await contentFrame(ctx, id)

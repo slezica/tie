@@ -5,7 +5,6 @@
 //
 // - html: root .html files of a content token served as documents (P3-like CSP), the nav lock lets
 //   the token's frame load them (S1, S3).
-// - fetch: tie-content registered with supportFetchAPI (S1 variant).
 // - nav: subframe navigation events and window.open details logged (S2, S3).
 // - webview: webviewTag on; guests attach with rebuilt prefs; guest events logged (S4, S5).
 import { app, type WebContents, type WebFrameMain } from 'electron'
@@ -14,7 +13,7 @@ import { log } from './env'
 import { parseContentUrl } from '../core/content'
 
 const SPIKES = new Set(app.isPackaged ? [] : (process.env.TIE_SPIKE ?? '').split(',').filter(Boolean))
-export const spike = (name: 'html' | 'fetch' | 'nav' | 'webview') => SPIKES.has(name)
+export const spike = (name: 'html' | 'nav' | 'webview') => SPIKES.has(name)
 
 // html: what a document file of the root is served as.
 const DOC_TYPES: Record<string, string> = {
