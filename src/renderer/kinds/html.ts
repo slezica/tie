@@ -16,6 +16,8 @@ import type { Host, OpenOpts, Surface } from '.'
 const ICON = '🌐'
 const RELOAD_MS = 100 // folder change → reload (main already debounced)
 const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (scripts can call window.open)
+const CONFIRM_ARM_MS = 600 // the confirm dialog's Open button is disabled this long after it appears
+const LONG_LINK = 200 // characters after the site address that make a link "long" (data riding on it)
 
 const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/')
@@ -127,13 +129,20 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   }
 
   // SECURITY: the page asked for the web (link, target=_blank, window.open). Never without the user:
-  // a dialog showing the full URL, Cancel focused (Enter cancels). One at a time; requests while it
-  // is open are dropped.
+  // a dialog showing the full URL (site address emphasized; a long tail is called out: the only way
+  // data leaves a page is a link the user opens), Cancel focused (Enter cancels), Open disabled for
+  // a moment (no click-through). One at a time; requests while it is open are dropped.
   async function askExternal(url: string) {
     if (asking) return debug('security', 'external request dropped (dialog open)', host.id, url)
     asking = true
     const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
-    const ok = await confirmDialog({ cls: 'external-open', title: 'Open in browser?', body: [p(`${nameOf(path)} wants to open:`), p(url, 'url')], confirm: 'Open' })
+    const origin = new URL(url).origin
+    const shown = p('', 'url')
+    shown.append(Object.assign(document.createElement('b'), { className: 'host', textContent: origin }), url.slice(origin.length))
+    const body = [p(`${nameOf(path)} wants to open:`), shown]
+    const tail = url.length - origin.length
+    if (tail > LONG_LINK) body.push(p(`Long link: ${tail} characters after the site address. The page can read files under ${root}; a link you open is the only way it can send anything out.`, 'warn'))
+    const ok = await confirmDialog({ cls: 'external-open', title: 'Open in browser?', body, confirm: 'Open', arm: CONFIRM_ARM_MS })
     asking = false
     debug('html', ok ? 'external confirmed' : 'external cancelled', host.id, url)
     if (ok && host.alive()) tie.openExternal(url)

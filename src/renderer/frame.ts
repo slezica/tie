@@ -44,6 +44,14 @@ const GESTURE_MS = 150 // an unfocused gesture request waits this long for the f
 const NAV_GRACE_MS = 5000 // documents: port closed, a load must follow by then (else crashed)
 const NAVFAIL_MAX = 3 // documents: failed navigations reloaded per NAVFAIL_MS, then an error
 const NAVFAIL_MS = 10_000
+const FLOOD_MAX = 1000 // frame messages handled per second; the rest dropped (a flooding page can't jank the shell)
+
+// SECURITY: focus. A cross-origin iframe could call window.focus() / el.focus() at any time and
+// become document.activeElement (the gesture rule's signal; and the keyboard would follow). Blink
+// refuses such calls from a frame without transient user activation when the frame's permissions
+// policy denies `focus-without-user-activation` (`allow` below; feature enabled in main/index.ts):
+// a frame is focused only by a click / Tab into it, the shell focusing it, or a script within a
+// few seconds of the user's last click in it (sec-focus).
 
 // Watchdog (timing: core/watchdog.ts): the host pings the viewer over the port. No pong in time =
 // the viewer is stuck (busy loop, runaway layout, OOM); a closed port = its process died. Either
@@ -100,14 +108,20 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
 
   // SECURITY: frame messages are untrusted: parseRequest (shape) first, then the kind's handler
   // for that verb, if any. Everything else is dropped and logged, never thrown into the frame.
+  // Beyond FLOOD_MAX a second: dropped unparsed (a tight postMessage loop costs the shell nothing).
+  let msgs = 0
+  let msgsAt = 0
   const onRequest = (data: unknown) => {
+    const now = Date.now()
+    if (now - msgsAt > 1000) (msgsAt = now), (msgs = 0)
+    if (++msgs > FLOOD_MAX) return void (msgs === FLOOD_MAX + 1 && debug('security', 'message flood, dropping', host.id))
     const req = parseRequest(data)
     if (!req) return debug('security', 'dropped request', host.id, safeJson(data))
     // SECURITY: verbs acting for the user (open a link, write a file) only while this frame has
-    // focus: the user just clicked or typed in it (VS Code's rule). The viewer posts them from its
-    // click handler only; script running in the frame without a gesture gets nothing. A click into
-    // a frame that wasn't focused: its request can arrive (other process) before the shell sees the
-    // focus move, so an unfocused request waits GESTURE_MS for it, then is refused.
+    // focus: the user clicked or typed in it (VS Code's rule; a script can't take focus by itself:
+    // see "focus" above). The viewer posts them from its click handler only. A click into a frame
+    // that wasn't focused: its request can arrive (other process) before the shell sees the focus
+    // move, so an unfocused request waits GESTURE_MS for it, then is refused.
     if (needsGesture(req.verb) && !focused()) {
       const r = req
       return void setTimeout(() => (focused() ? handle(r) : debug('security', 'refused request without focus', host.id, r.verb)), GESTURE_MS)
@@ -208,7 +222,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       // token's origin, still cross-origin to the shell: they can't lift the sandbox. No popups, top
       // navigation, forms, modals, downloads). No permissions, no referrer.
       frame.setAttribute('sandbox', policy.sandbox.join(' '))
-      frame.setAttribute('allow', '')
+      frame.setAttribute('allow', "focus-without-user-activation 'none'") // Blink refuses focus() from the frame without a user gesture (main/index.ts)
       frame.referrerPolicy = 'no-referrer'
       frame.addEventListener('load', () => {
         if (graceTimer) clearTimeout(graceTimer)
@@ -277,7 +291,7 @@ const safeJson = (v: unknown) => {
 
 // A click inside a frame (or a browser guest) never reaches the shell (no pointerdown): the shell
 // window blurs and the iframe (webview) becomes document.activeElement. Activate its tile, as a
-// pointerdown would.
+// pointerdown would. (Frames can't focus themselves by script: "focus" above.)
 export function initFrames() {
   tie.content.onNavigated((token, path) => byToken.get(token)?.navigated(path))
   tie.content.onNavFailed((token) => byToken.get(token)?.failed())

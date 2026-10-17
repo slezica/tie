@@ -75,7 +75,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
   - `main.ts`: boot, delegated tile events.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -122,7 +122,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
-- Harness shortcuts: `h.press(ctx, 'Meta+d')` (through main); `ctx.page.keyboard` only for typing. Frame and guest input (real clicks): `export const hiddenWindow = true`. Guest keys: `h.guestKey(ctx, id, 'Meta+d')`.
+- Harness shortcuts: `h.press(ctx, 'Meta+d')` (through main); `ctx.page.keyboard` only for typing. Frame and guest input (real clicks): `export const hiddenWindow = true`. Clicks into content frames: `h.clickIn` (Playwright `evaluate` carries a user gesture: test gesture-less script behaviour from page timers). Guest keys: `h.guestKey(ctx, id, 'Meta+d')`.
 
 ## Toolkit
 

@@ -144,7 +144,9 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 - No window `message` listener in the shell: requests arrive over the port only.
 - Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the shell's focus update), then is refused.
+- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the shell's `activeElement` (`sec-focus`). Main's `input-event` can't serve as the signal: with out-of-process frames it sees only input to the main frame.
 - Focus: a click in a frame gives the shell no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
+- Message flood: a frame posting more than 1000 messages a second has the rest dropped unparsed (`FLOOD_MAX`).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
 - Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
 
@@ -202,4 +204,4 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 ## Limitations
 
 - OS drags entering straight over a frame go to the frame (a drop there can only try to navigate it: nav lock).
-- Gesture rule checks focus, not a fresh click: script in a focused frame can post at any time. Html pages run their own scripts: their requests are routed as hostile (confirm for the web, one new tile per second).
+- Gesture rule checks focus, not a fresh click: once the user clicked into a frame, script in it can post gesture verbs until focus leaves (and a script may refocus the frame within Chromium's transient activation window, a few seconds after that click). Html pages run their own scripts: their requests are routed as hostile (confirm for the web, Open disabled for 600 ms, one new tile per second).

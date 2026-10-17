@@ -265,6 +265,16 @@ body.dragging-tab .tab {
   user-select: text;
   -webkit-user-select: text;
 }
+.dialog.external-open .dialog-body p.url .host {
+  font-weight: 700;
+}
+.dialog .dialog-body p.warn {
+  color: var(--text);
+}
+.dialog button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .dialog button {
   padding: 6px 16px;
   border-radius: 6px;
