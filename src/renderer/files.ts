@@ -1,5 +1,5 @@
-// Files from outside (Finder drops on the board): opened in their viewer where they land, like a
-// template dropped there. No viewer: a modal says so (failures stay visible). docs/MARKDOWN.md.
+// Files from outside (Finder drops on the board): opened in their kind where they land, like a
+// template dropped there. No viewer: a modal says so (failures stay visible). docs/INPUT.md.
 import { S, tie, debug, type Kind } from './state'
 import { openTile, besidePlacement } from './ops'
 import { placementAt } from './drag'
@@ -13,7 +13,7 @@ export async function dropFiles(paths: string[], x: number, y: number) {
       failed.push(v.error)
       continue
     }
-    debug('markdown', 'drop', v.path)
+    debug('files', 'drop', v.kind, v.path)
     openTile(v.kind as Kind, placementAt(x, y) ?? besidePlacement(S.active), { path: v.path })
   }
   if (failed.length) await infoDialog("Can't open", [...new Set(failed)].join('\n'))

@@ -1,5 +1,6 @@
-// Tile kinds. The host (tile.ts) owns the element, title bar and error state; a kind supplies a
-// Surface for the tile's body. docs/TILES.md.
+// Tile kinds. The host (tile.ts) owns the element, title bar and error state; a kind
+// supplies a Surface for the tile's body. Registry: one KindSpec per kind (how it opens, its
+// shelf template). docs/TILES.md.
 import type { TileId } from '@core/layout'
 import type { Kind } from '../state'
 import { terminalKind } from './terminal'
@@ -9,7 +10,7 @@ export interface OpenOpts {
   title?: string
   cwd?: string // start directory
   cmd?: string
-  path?: string // file to view (kinds in NEEDS_FILE)
+  path?: string // file to view (kinds that open 'file')
   hash?: string // anchor to show first (#part)
 }
 
@@ -43,17 +44,25 @@ export interface Surface {
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 
-const KINDS: Partial<Record<Kind, KindFactory>> = { terminal: terminalKind, markdown: markdownKind }
+export interface KindSpec {
+  kind: Kind
+  factory: KindFactory
+  // How it opens: 'bare' (tie open <kind>, template drop), 'file' (with a path only: tie open
+  // <path>, drops, template + picker). `cmd+D` on a 'file' kind splits a terminal.
+  opens: 'bare' | 'file'
+  template?: { label: string; icon: string } // shelf template (drop: open; 'file': picker first)
+}
 
-// Kinds that show a file: opened with a path (tie open <path>, drops, template + picker), never bare.
-const NEEDS_FILE = new Set<string>(['markdown'])
-export const needsFile = (kind: string) => NEEDS_FILE.has(kind)
+const KINDS = new Map<string, KindSpec>()
 
 // Dev builds add the harness probe (boot).
-export function registerKind(kind: Kind, factory: KindFactory) {
-  KINDS[kind] = factory
+export function registerKind(spec: KindSpec) {
+  KINDS.set(spec.kind, spec)
 }
 
-export function kindFactory(kind: string): KindFactory | undefined {
-  return Object.hasOwn(KINDS, kind) ? KINDS[kind as Kind] : undefined
-}
+registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare', template: { label: 'terminal', icon: '' } })
+registerKind({ kind: 'markdown', factory: markdownKind, opens: 'file', template: { label: 'markdown', icon: '📝' } })
+
+export const kindSpec = (kind: string): KindSpec | undefined => KINDS.get(kind)
+export const needsFile = (kind: string) => kindSpec(kind)?.opens === 'file'
+export const templates = () => [...KINDS.values()].filter((k) => k.template)

@@ -2,7 +2,7 @@
 // (kinds/). Elements live in one layer and are never re-parented.
 import { ICON } from './icons'
 import { S, type Tile, type Kind, newId, debug } from './state'
-import { kindFactory, type Host, type OpenOpts } from './kinds'
+import { kindSpec, type Host, type OpenOpts } from './kinds'
 import { noteActivity } from './shelf'
 import { closeTile } from './ops'
 
@@ -21,7 +21,7 @@ export function iconHtml(icon: string): string {
 }
 
 export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
-  const factory = kindFactory(kind)
+  const factory = kindSpec(kind)?.factory
   if (!factory) throw new Error(`unknown kind: ${kind}`)
   const id = newId()
   const el = document.createElement('div')

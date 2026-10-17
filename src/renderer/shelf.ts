@@ -1,29 +1,26 @@
 // Shelf column: templates on top, shelved tile items below.
 import type { TileId } from '@core/layout'
-import { S, location, debug, type Kind } from './state'
+import { S, location, debug } from './state'
 import { displayIcon, displayTitle, iconHtml } from './tile'
 import { pin } from './ops'
 import { render } from './render'
 import { startDrag, isDragging } from './drag'
 import { showTileMenu } from './menu'
+import { templates } from './kinds'
 
 const items = new Map<TileId, HTMLElement>()
 
-const TEMPLATES: { kind: Kind; label: string; icon: string }[] = [
-  { kind: 'terminal', label: 'terminal', icon: '' },
-  { kind: 'markdown', label: 'markdown', icon: '📝' }, // drop → file picker
-]
-
 export function initShelf() {
   const tpl = document.getElementById('templates')!
-  for (const t of TEMPLATES) {
+  // Kinds with a template (registry); 'file' kinds pick a file on drop.
+  for (const { kind, template: t } of templates()) {
     const el = document.createElement('div')
     el.className = 'template'
-    el.dataset.kind = t.kind
-    el.innerHTML = `<div class="ico">${iconHtml(t.icon)}</div><div class="lbl">${t.label}</div>`
+    el.dataset.kind = kind
+    el.innerHTML = `<div class="ico">${iconHtml(t!.icon)}</div><div class="lbl">${t!.label}</div>`
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
-      startDrag(e, { type: 'template', kind: t.kind, label: t.label })
+      startDrag(e, { type: 'template', kind, label: t!.label })
     })
     tpl.appendChild(el)
   }

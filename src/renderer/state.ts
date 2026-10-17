@@ -2,6 +2,7 @@
 import { contains, type Node, type Rect, type TileId } from '@core/layout'
 import type { TieApi } from '../preload'
 import type { Surface } from './kinds'
+import type { ContentKind } from '@core/policy'
 
 declare global {
   interface Window {
@@ -36,7 +37,8 @@ export function readGeometry() {
   PEAK = px('--peak', PEAK)
 }
 
-export type Kind = 'terminal' | 'markdown' | 'probe'
+// Tile kinds: the terminal (shell realm) and the content kinds (policy table, core/policy).
+export type Kind = 'terminal' | ContentKind
 
 // Common to every kind; kind state lives behind `surface` (kinds/).
 export interface Tile {

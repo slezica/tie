@@ -95,7 +95,7 @@ async function boot() {
   initTerminals()
   initFileViews()
   initFrames()
-  if (info.dev) registerKind('probe', probeKind)
+  if (info.dev) registerKind({ kind: 'probe', factory: probeKind, opens: 'bare' })
   initShelf()
   initMenu()
   initPaste()

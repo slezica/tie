@@ -4,7 +4,7 @@ import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type K
 import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
-import { kindFactory, needsFile } from './kinds'
+import { kindSpec } from './kinds'
 
 interface Params {
   id?: TileId
@@ -79,7 +79,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   // Kind (resolved by resolveOpen): a kind name, or a file's viewer.
   open: (p) => {
     const kind = p.kind ?? 'terminal'
-    if (!kindFactory(kind)) throw new Error(`unknown kind: ${kind}`)
+    if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
     // Input moves to the new tile only with --focus: a script showing something never redirects typing.
     const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path }, { activate: !!p.focus })
     return tileInfo(id)
@@ -142,8 +142,9 @@ const methods: Record<string, (p: Params) => unknown> = {
 // can't be opened bare.
 async function resolveOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
-  if (kindFactory(kind)) {
-    if (needsFile(kind)) throw new Error(`${kind} shows a file: tie open <path>`)
+  const spec = kindSpec(kind)
+  if (spec) {
+    if (spec.opens === 'file') throw new Error(`${kind} shows a file: tie open <path>`)
     delete p.path
     return
   }
