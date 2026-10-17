@@ -6,21 +6,21 @@ import { pin } from './ops'
 import { render } from './render'
 import { startDrag, isDragging } from './drag'
 import { showTileMenu } from './menu'
-import { templates } from './kinds'
+import { TEMPLATES } from './kinds'
 
 const items = new Map<TileId, HTMLElement>()
 
 export function initShelf() {
   const tpl = document.getElementById('templates')!
-  // Kinds with a template (registry); 'file' kinds pick a file on drop.
-  for (const { kind, template: t } of templates()) {
+  // Templates (kinds/index.ts): the file template picks a file on drop.
+  for (const t of TEMPLATES) {
     const el = document.createElement('div')
     el.className = 'template'
-    el.dataset.kind = kind
-    el.innerHTML = `<div class="ico">${iconHtml(t!.icon)}</div><div class="lbl">${t!.label}</div>`
+    el.dataset.kind = t.id
+    el.innerHTML = `<div class="ico">${iconHtml(t.icon)}</div><div class="lbl">${t.label}</div>`
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
-      startDrag(e, { type: 'template', kind, label: t!.label })
+      startDrag(e, { type: 'template', template: t.id, label: t.label })
     })
     tpl.appendChild(el)
   }

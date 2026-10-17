@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extOf, fileKind, extsOf, sniff, sniffKind, canOpenAs, isFileKind, FILE_KINDS, SNIFF_BYTES } from './kinds'
+import { extOf, fileKind, sniff, sniffKind, canOpenAs, isFileKind, FILE_KINDS, SNIFF_BYTES } from './kinds'
 import { policyOf } from './policy'
 
 describe('fileKind', () => {
@@ -11,7 +11,6 @@ describe('fileKind', () => {
   })
   it('maps html extensions, any case', () => {
     for (const p of ['/a/b.html', '/a/b.HTM']) expect(fileKind(p)).toBe('html')
-    expect(extsOf('html')).toEqual(['.html', '.htm'])
   })
   it('everything else: decided by content (null)', () => {
     for (const p of ['/a/b.txt', '/a/md', '/a/.md', '/a/b.md.bak', '/a/b.mdx', '/a/b', '/a/Makefile', '/a/b.ts', '/a/b.constructor', '/a/b.__proto__', '/a/b.tiff']) expect(fileKind(p)).toBe(null)
@@ -20,11 +19,6 @@ describe('fileKind', () => {
     expect(extOf('/a/b.TXT')).toBe('.txt')
     expect(extOf('/a/.bashrc')).toBe('')
     expect(extOf('/a.b/c')).toBe('')
-  })
-  it('extensions per kind (picker filters; none = any file)', () => {
-    expect(extsOf('markdown')).toEqual(['.md', '.markdown'])
-    expect(extsOf('image')).toEqual(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg', '.ico', '.bmp'])
-    for (const k of ['text', 'hex', 'probe']) expect(extsOf(k)).toEqual([])
   })
   it('file kinds: every one has a policy row with a size cap; probe is not one', () => {
     expect(FILE_KINDS).toEqual(['markdown', 'text', 'image', 'hex', 'html'])

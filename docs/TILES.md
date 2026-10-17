@@ -43,14 +43,14 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Kind registry (`renderer/kinds/index.ts`)
 
-`KindSpec {kind, factory, opens: 'bare' | 'file', template?: {label, icon}}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`, `templates()`.
+`KindSpec {kind, factory, opens: 'bare' | 'file'}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`. Shelf templates: `TEMPLATES` (`terminal`, `file`; decision 2026-10-17: not one per kind).
 
 | Reader | Uses |
 |---|---|
 | `tile.ts` | `factory` |
-| `shelf.ts` | `template` (shelf templates, registry order) |
+| `shelf.ts` | `TEMPLATES` |
 | `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie open <path>" |
-| `drag.ts` | template drop: `'file'` → picker (main, filtered by the kind's extensions) |
+| `drag.ts` | template drop: `file` → picker (main, any file) → kind as `tie open` (`doc.viewer`); else the template's kind |
 | `keys.ts` | `cmd+D` on a `'file'` kind splits a terminal |
 
 ## Kinds (`renderer/kinds/`)
@@ -63,9 +63,9 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `html` | content frame, own origin | the file is the page (`kinds/html.ts` on the frame host; `VIEWERS.md` "Html") |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
-- File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view + template).
-- `tie open <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie open <path>`, drops, template + picker).
-- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image, html), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `extsOf(kind)`: picker filters (none = any file). `canOpenAs`: which kinds a template may open a file as (own, hex, text if text-like).
+- File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view).
+- `tie open <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie open <path>`, drops, file template + picker).
+- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image, html), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `canOpenAs`: which kinds main lets a tile show a file as (own, hex, text if text-like); no UI asks for another kind today (defense: `sec-viewers`).
 
 ## Policy table (`core/policy.ts`)
 

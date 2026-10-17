@@ -9,8 +9,8 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 
 - Folders, missing files: error (`tie open` exit 1; drops: modal). No "No viewer" for files any more.
 - Size caps (policy `maxBytes`): markdown 8 MB, text 10 MB, html 10 MB (the page; its folder's files: none), hex 16 MB, image 50 MB. Over: "File too large: <path> (max N MB)" (CLI, drops, picker); a file growing past it: change ignored.
-- Opening as a kind (shelf template + picker; main `canOpenAs`): the file's own kind; hex for any file; text for any file that sniffs as text (e.g. markdown or SVG source). Else tile error "Can't open as <kind>".
-- Picker filters: the kind's extensions (markdown, image); text and hex: any file.
+- Opening as a kind (main `canOpenAs`, checked on every `doc.open`): the file's own kind; hex for any file; text for any file that sniffs as text (e.g. markdown or SVG source). Else "Can't open as <kind>". Every UI path (CLI, drops, the `file` template) uses the file's own kind.
+- File template picker: any file.
 - Links in documents (`classifyLink`): kind by extension only; files whose kind is decided by content stay ignored by markdown links until cross-kind routing (P5).
 
 ## Text (`viewers/text.ts`)
@@ -39,7 +39,7 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 - Rows: `offset  16 bytes (8 + 8)  ASCII`. Zero bytes dim; non-printables `.` (dim); printable ASCII escaped. No ligatures.
 - Virtualized: a full-height spacer, only rows in view ±10 in the DOM, redrawn on scroll/resize/theme. Row height = root line height rounded to px (`--rh`), so computed positions match layout. Above 16 M px: scroll position maps proportionally. `overflow-anchor: none`.
 - Live: redrawn in place (scroll kept); rows whose bytes changed highlighted for 4 s.
-- Empty file: "(empty file)" (note: an empty file sniffs as text, so it opens as text unless picked with the hex template).
+- Empty file: "(empty file)" (note: an empty file sniffs as text, so it opens as text).
 - Harness: `window.hex` (`rev`, `size`, `first`, `drawn`, `rowH`, `changed`, `draws`).
 
 ## Html (`renderer/kinds/html.ts`, `viewers/html-bootstrap.ts`, `main/content.ts`)
@@ -70,8 +70,8 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 
 ## Scenarios
 
-- `text`, `image`, `hex`: functional (kinds by content, highlighting, live, keys, fit/actual, virtualization, templates).
-- `sec-viewers`: hostile text literal (HTML, escapes, bidi), SVG with scripts/handlers/external refs inert (no probe hit), caps (CLI errors), templates refusing other kinds.
+- `text`, `image`, `hex`: functional (kinds by content, highlighting, live, keys, fit/actual, virtualization, file template).
+- `sec-viewers`: hostile text literal (HTML, escapes, bidi), SVG with scripts/handlers/external refs inert (no probe hit), caps (CLI errors), main refusing files as other kinds.
 - `html`: siblings (scripts, modules, CSS, fetch, XHR), in-folder / subfolder / other-folder navigation, back/forward, script navigation followed, other kinds beside, web confirm (Cancel / Open), anchors, live reload (page, sibling) with scroll kept, cmd+R, fresh storage on reopen.
 - `sec-html`: exfiltration (CSP violation per vector + probes untouched, WebRTC STUN/TURN), confirm paths, gesture, shell/port/other tokens/traversal/`/_tie/`, navigation away and loops, opaque frames can't fetch.
 

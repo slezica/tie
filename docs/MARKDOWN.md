@@ -12,7 +12,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
 | Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind, `noViewer`; `classifyLink`; policy row (CSP, cap) |
-| Opening | `driver.ts` (`tie open`), `files.ts` (drops), `drag.ts` (template + picker) | |
+| Opening | `driver.ts` (`tie open`), `files.ts` (drops), `drag.ts` (file template + picker) | |
 
 ## Flow
 
@@ -112,7 +112,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 |---|---|
 | `tie open <path>` | `CLI.md`: path against the caller's cwd; missing / folder / too large → error, exit 1 |
 | Finder drop on board or shelf (not on a terminal) | like a template drop at that point; folder / too large → modal |
-| Shelf template `markdown` | dropped → file picker (main dialog, `.md`/`.markdown`); cancel → nothing |
+| Shelf template `file` | dropped → file picker (main dialog, any file; markdown by extension); cancel → nothing |
 | `cmd+D` on a markdown tile | terminal in the file's directory |
 
 - Harness: picker answered by the dev socket method `pick {path|null}` (`h.pickNext`), never a dialog (`TIE_BACKGROUND`).

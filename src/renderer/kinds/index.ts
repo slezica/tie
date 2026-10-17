@@ -49,11 +49,22 @@ export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 export interface KindSpec {
   kind: Kind
   factory: KindFactory
-  // How it opens: 'bare' (tie open <kind>, template drop), 'file' (with a path only: tie open
-  // <path>, drops, template + picker). `cmd+D` on a 'file' kind splits a terminal.
+  // How it opens: 'bare' (tie open <kind>, its template), 'file' (with a path only: tie open
+  // <path>, drops, the file template). `cmd+D` on a 'file' kind splits a terminal.
   opens: 'bare' | 'file'
-  template?: { label: string; icon: string } // shelf template (drop: open; 'file': picker first)
 }
+
+// Shelf templates (decision 2026-10-17): a terminal; a file (picker: any file, its kind decided as
+// for tie open: extension, else content); not one per kind.
+export interface Template {
+  id: 'terminal' | 'file'
+  label: string
+  icon: string
+}
+export const TEMPLATES: readonly Template[] = [
+  { id: 'terminal', label: 'terminal', icon: '' },
+  { id: 'file', label: 'file', icon: '📂' },
+]
 
 const KINDS = new Map<string, KindSpec>()
 
@@ -63,15 +74,14 @@ export function registerKind(spec: KindSpec) {
 }
 
 // File kinds: the file view (fileview.ts) + the kind's viewer (src/viewers/<kind>.ts). One line each.
-const fileKind = (kind: Kind, icon: string): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file', template: { label: kind, icon } })
+const fileKind = (kind: Kind, icon: string): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file' })
 
-registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare', template: { label: 'terminal', icon: '' } })
+registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare' })
 registerKind(fileKind('markdown', '📝')) // docs/MARKDOWN.md
 registerKind(fileKind('text', '📄')) // docs/VIEWERS.md
 registerKind(fileKind('image', '🖼️'))
 registerKind(fileKind('hex', '🔢'))
-registerKind({ kind: 'html', factory: htmlKind, opens: 'file', template: { label: 'html', icon: '🌐' } }) // docs/VIEWERS.md
+registerKind({ kind: 'html', factory: htmlKind, opens: 'file' }) // docs/VIEWERS.md
 
 export const kindSpec = (kind: string): KindSpec | undefined => KINDS.get(kind)
 export const needsFile = (kind: string) => kindSpec(kind)?.opens === 'file'
-export const templates = () => [...KINDS.values()].filter((k) => k.template)

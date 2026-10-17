@@ -87,14 +87,14 @@ export default async (ctx, h) => {
     h.assert((await h.screen(ctx, z)).includes(`'${md}'`) && (await tiles()).length === before, 'terminal drop pastes the path')
     await ctx.tie('close', z)
 
-    // Template + picker: answered → tile there; cancelled → nothing.
+    // File template + picker: answered → tile there (markdown by extension); cancelled → nothing.
     const n = (await tiles()).length
     await h.pickNext(ctx, md2)
-    await h.drag(ctx, await h.template(ctx, 'markdown'), await h.sidePoint(ctx, m.id, 'l'))
+    await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
     const picked = await h.waitFor(ctx, async () => (await tiles()).length === n + 1 && (await mdTiles()).find((t) => t.active), 'picked file opens')
     await shows(picked.id, 'Other')
     await h.pickNext(ctx, null)
-    await h.drag(ctx, await h.template(ctx, 'markdown'), await h.sidePoint(ctx, m.id, 'l'))
+    await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
     await ctx.sleep(500)
     h.assert((await tiles()).length === n + 1 && ctx.appLog().includes('picker (harness) cancel'), 'cancel: no tile')
     await ctx.shot('opened')

@@ -5,9 +5,10 @@ import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, typ
 import { render } from './render'
 import { shelfItemEl } from './shelf'
 import { displayIcon, displayTitle, iconHtml } from './tile'
-import { needsFile } from './kinds'
+import type { Template } from './kinds'
+import { infoDialog } from './dialog'
 
-export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; kind: Kind; label: string }
+export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; template: Template['id']; label: string }
 
 const THRESHOLD = 4
 
@@ -122,16 +123,20 @@ async function applyDrop(src: DragSource, t: Target) {
   const at = t.placement.type === 'slot' ? t.placement.at : null
   const cwd = at ? await cwdOf(at) : undefined
   if (at && !contains(S.tree, at)) return
-  if (!needsFile(src.kind)) return void openTile(src.kind, t.placement, { cwd })
-  // Kinds showing a file: pick one first (main's dialog); cancel = no tile.
-  const path = await tie.doc.pick(cwd ?? S.cwd, src.kind)
+  if (src.template !== 'file') return void openTile(src.template, t.placement, { cwd })
+  // File: pick one first (main's dialog, any file); cancel = no tile. Its kind as for tie open
+  // (main: extension, else content); not openable (too large...): a modal says why.
+  const path = await tie.doc.pick(cwd ?? S.cwd)
   if (!path || (at && !contains(S.tree, at))) return
-  openTile(src.kind, t.placement, { path })
+  const v = await tie.doc.viewer(path)
+  if ('error' in v) return void infoDialog("Can't open", v.error)
+  if (at && !contains(S.tree, at)) return
+  openTile(v.kind as Kind, t.placement, { path: v.path })
 }
 
 // Where a template dropped at (x, y) would land (OS file drops use the same rules).
 export function placementAt(x: number, y: number): Placement | null {
-  return computeTarget({ type: 'template', kind: 'terminal', label: '' }, x, y, false, { dx: 120, dy: 14 })?.placement ?? null
+  return computeTarget({ type: 'template', template: 'terminal', label: '' }, x, y, false, { dx: 120, dy: 14 })?.placement ?? null
 }
 
 // Pointer-down on a draggable: becomes a drag past THRESHOLD, otherwise a click.

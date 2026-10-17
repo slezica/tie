@@ -1,7 +1,7 @@
 // Hex tiles: binary files (by content) as offset | bytes | ASCII; virtualized rows (a 4 MB file keeps
 // a few dozen rows in the DOM; scrolling to the end shows the last offset); live changes redrawn in
 // place with changed rows highlighted; empty file; the hex template opens any file (a PNG too).
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export default async (ctx, h) => {
@@ -54,14 +54,15 @@ export default async (ctx, h) => {
     h.assert(v.rows.some((r) => r.startsWith(last)), `last row ${last} drawn: ${v.rows.at(-1)}`)
     await ctx.shot('hex')
 
-    // Empty file (no extension → text) and the hex template on a PNG (any file).
+    // Empty file (no extension → text); the file template on a binary file → hex.
     writeFileSync(join(dir, 'empty'), '')
     const e = (await ctx.tie('open', join(dir, 'empty'), '--at', b)).id
     h.assert((await h.tileOf(ctx, e)).kind === 'text', 'empty file: text')
     const n = (await h.list(ctx)).tiles.length
-    await h.pickNext(ctx, join(process.cwd(), 'build/icon.png'))
-    await h.drag(ctx, await h.template(ctx, 'hex'), await h.sidePoint(ctx, t0, 'b'))
-    const p = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((x) => x.kind === 'hex' && x.title === 'icon.png'), 'hex template opens a png')
+    writeFileSync(join(dir, 'png-bytes'), readFileSync(join(process.cwd(), 'build/icon.png')))
+    await h.pickNext(ctx, join(dir, 'png-bytes'))
+    await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, t0, 'b'))
+    const p = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((x) => x.kind === 'hex' && x.title === 'png-bytes'), 'file template opens a binary as hex')
     h.assert((await view(p.id)).rows[0].startsWith('00000000  89 50 4e 47') && (await h.list(ctx)).tiles.length === n + 1, 'PNG bytes')
   } finally {
     rmSync(dir, { recursive: true, force: true })

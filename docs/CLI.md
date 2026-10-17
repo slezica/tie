@@ -85,4 +85,4 @@ Methods = commands. Params: `open` {`kind`, `path` (absolute), `cmd`, `cwd`, `ti
 - No auth: any local process of the user can connect.
 - No events; poll `list`.
 - No terminal I/O. Kinds: `terminal`; `markdown`, `text`, `image`, `hex`, `html` (by path); `probe` in dev builds.
-- No way to force a kind from the CLI (e.g. hex of a PNG): shelf templates only.
+- No way to force a kind (e.g. hex of a PNG): the kind is the file's (extension, else content), from the CLI, drops and the file template alike.

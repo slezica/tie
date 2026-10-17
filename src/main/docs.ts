@@ -7,7 +7,7 @@ import { open, stat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { log } from './env'
 import { watchFile, readStable, revision, type Watch } from './watch'
-import { fileKind, extsOf, sniff, sniffKind, canOpenAs, isFileKind, SNIFF_BYTES } from '../core/kinds'
+import { fileKind, sniff, sniffKind, canOpenAs, isFileKind, SNIFF_BYTES } from '../core/kinds'
 import { policyOf, type ContentKind, type ContentPolicy } from '../core/policy'
 
 // What a viewer gets from the file (policy payload): text, bytes, or nothing (loads it by URL).
@@ -102,14 +102,14 @@ export function clearDocs() {
   docs.clear()
 }
 
-// File picker for a kind's template (filter: the kind's extensions). Harness instances
+// File picker for the file template (any file; the kind is decided after). Harness instances
 // (TIE_BACKGROUND) never show a dialog: they answer with the path set by the dev socket method
 // `pick` (once), else cancel.
 let nextPick: string | null = null
 export function setNextPick(path: unknown) {
   nextPick = typeof path === 'string' ? path : null
 }
-export async function pickFile(win: BrowserWindow | null, defaultPath: unknown, kind: unknown): Promise<string | null> {
+export async function pickFile(win: BrowserWindow | null, defaultPath: unknown): Promise<string | null> {
   if (process.env.TIE_BACKGROUND) {
     const p = nextPick
     nextPick = null
@@ -117,12 +117,6 @@ export async function pickFile(win: BrowserWindow | null, defaultPath: unknown, 
     return p
   }
   if (!win) return null
-  const name = typeof kind === 'string' ? kind : ''
-  const exts = extsOf(name).map((e) => e.slice(1))
-  const r = await dialog.showOpenDialog(win, {
-    properties: ['openFile'],
-    defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined,
-    filters: exts.length ? [{ name: name.charAt(0).toUpperCase() + name.slice(1), extensions: exts }] : [],
-  })
+  const r = await dialog.showOpenDialog(win, { properties: ['openFile'], defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined })
   return r.canceled ? null : (r.filePaths[0] ?? null)
 }

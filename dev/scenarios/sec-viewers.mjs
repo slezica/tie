@@ -1,7 +1,7 @@
 // Security: text, image and hex viewers. Hostile text (HTML, scripts, escape sequences, bidi
 // overrides) shown literally, nothing runs; SVG with scripts, event handlers and external refs shown
 // as an inert image, no request leaves; size caps per kind (text 10 MB, hex 16 MB, image 50 MB:
-// CLI error, no tile); templates refuse files of another kind (image tile ← text, text tile ← binary).
+// CLI error, no tile); main refuses files as another kind (image ← text, text ← binary).
 import { mkdirSync, writeFileSync, rmSync, openSync, ftruncateSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
@@ -100,18 +100,16 @@ export default async (ctx, h) => {
     h.assert(!(await h.tileOf(ctx, ok.out)).error, 'big text: no error')
     await ctx.tie('close', ok.out)
 
-    // Templates: a file of another kind is refused by main (tile error), never shown as that kind.
+    // Main never shows a file as another kind than allowed (canOpenAs), whatever the shell asks:
+    // the doc bridge, called as a tile of that kind would.
     for (const [kind, file, err] of [
       ['image', join(dir, 'hostile.txt'), 'open as image'],
       ['text', join(dir, 'big.bin'), 'open as text'], // binary
       ['hex', join(dir, 'big.png'), 'File too large'], // hex takes any file, within its own cap
       ['text', join(process.cwd(), 'build/icon.png'), 'open as text'],
     ]) {
-      await h.pickNext(ctx, file)
-      await h.drag(ctx, await h.template(ctx, kind), await h.sidePoint(ctx, t0, 'b'))
-      const t = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((x) => x.kind === kind && x.error), `${kind} ← ${file}: error`)
-      h.assert(t.error.includes(err), `${kind} ← ${file}: ${t.error}`)
-      await ctx.tie('close', t.id)
+      const r = await ctx.page.evaluate(([f, k]) => window.tie.doc.open(f, k), [file, kind])
+      h.assert(r.error?.includes(err), `${kind} ← ${file}: ${JSON.stringify(r).slice(0, 120)}`)
     }
   } finally {
     await p.close()

@@ -37,11 +37,6 @@ export function fileKind(path: string): ContentKind | null {
   return Object.hasOwn(BY_EXT, ext) ? BY_EXT[ext] : null
 }
 
-// Extensions of a kind (file picker filters). Kinds decided by content (text, hex): none (any file).
-export function extsOf(kind: string): string[] {
-  return Object.keys(BY_EXT).filter((e) => BY_EXT[e] === kind)
-}
-
 // Sniff rule (decided 2026-10-16): the first SNIFF_BYTES are UTF-8 without NUL → text, else binary.
 // `size`: the whole file's; when the sample is only a prefix, a multi-byte sequence cut at its end
 // still counts as text.
