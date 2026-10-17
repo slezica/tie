@@ -69,6 +69,8 @@ try {
     const xid = tie('open', txt).id
     let ht, xt
     for (let i = 0; i < 50 && !(ht?.page?.ready && xt?.doc); i++) (await sleep(100), (ht = tie('list').tiles.find((x) => x.id === hid)), (xt = tie('list').tiles.find((x) => x.id === xid)))
+    // Close before removing: the html tile watches its folder (a reload of a removed page logs a refusal).
+    for (const id of [hid, xid]) execFileSync(join(app, 'Contents/Resources/bin/tie'), ['close', id], { env })
     rmSync(html, { force: true })
     rmSync(txt, { force: true })
     if (ht?.page?.ready && !ht.error) console.log('ok   smoke: html page loads (bootstrap answered)')
