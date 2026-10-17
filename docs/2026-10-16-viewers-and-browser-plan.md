@@ -132,6 +132,18 @@ Order: P0 → P1 → P2 → P3 → P4 → P5. P0 de-risks P3/P4 designs. P1 befo
 1. Cross-kind link routing (markdown → html/text/image; html → markdown).
 2. Docs: `TILES.md`, `SECURITY.md` rows, new `VIEWERS.md` (or per kind), `CLI.md`, help; `PENDING.md` cleanup.
 
+## P3 decisions (after P0/P1 review, 2026-10-17)
+
+- Origin: html frames get `allow-scripts allow-same-origin` on their own `tie-content://<token>` (S1). Still a different origin from the shell, its own process; parent unreachable. Updates the SECURITY rule: same-origin only for document kinds, never same as the shell.
+- `supportFetchAPI` on `tie-content`: yes (html fetches sibling files). Tests: other tokens refused; opaque viewer frames still can't fetch.
+- html CSP: scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'` (scripts on, isolated: eval adds nothing); styles/images/fonts/media `'self' data: blob:`; `connect-src 'self'`; `worker-src 'self' blob:`; `frame-src 'none'`; `object-src 'none'`; `form-action 'none'`; `base-uri 'none'`. No remote sources anywhere.
+- Bootstrap (injected first in `<head>` by main): handshake, pong, link-click interception, `window.open` / `target=_blank` → request. No `allow-popups`.
+- Links: every link click → `followLink` → host routing (same as file view): same folder/kind → in-tile with host history; other kind → new tile; http(s) → confirm dialog → system browser. Script-driven navigation within the folder: allowed by the nav lock; host location follows (main reports frame navigations). Script-driven navigation outside: CSP blocks (no request leaves), frame breaks → host reloads the document.
+- Watchdog: a frame navigation (port closes, then the frame loads) is not a crash.
+- Live reload: watch the page's folder (non-recursive); any change → reload the page (debounced). Bootstrap keeps scroll across reloads (sessionStorage).
+- Storage: ephemeral per open, cleared on close. Persistence per file → PENDING.
+- Spike hooks (`src/main/spike.ts`, `TIE_SPIKE`): remove once P3/P4 replace them (end of P4).
+
 ## Results
 
 ### P0 spikes (2026-10-16; Electron 44.7.2)
