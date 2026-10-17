@@ -5,7 +5,7 @@ import { openTile, activate, closeTile, cwdOf } from './ops'
 import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
 import type { Action } from '@core/keymap'
-import { needsFile } from './kinds'
+import { kindSpec } from './kinds'
 import { navAction, focusLocation } from './nav'
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
@@ -80,14 +80,14 @@ export function run(action: Action) {
 }
 
 // New tile of the active tile's kind, as if its template were dropped on that edge. Slotted only.
-// The new terminal starts where the source shell is now. Kinds showing a file split into a
-// terminal in the file's directory.
+// The new terminal starts where the source shell is now. Kinds showing a file (or a page) split
+// into a terminal in the file's directory (browser: the default directory).
 async function splitActive(side: Side) {
   if (!S.tree) return void openTile('terminal', { type: 'slot', at: null, side })
   const src = S.active
   if (!src || location(src) !== 'slotted') return
   const own = getTile(src).kind
-  const kind = needsFile(own) ? 'terminal' : own
+  const kind = kindSpec(own)?.opens === 'bare' ? own : 'terminal'
   const cwd = await cwdOf(src)
   if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved meanwhile
   withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))

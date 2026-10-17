@@ -70,6 +70,12 @@ const api = {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
     },
   },
+  // Browser tiles: main's reports about guests (by guest webContents id).
+  guest: {
+    onUnresponsive: (cb: (id: number) => void) => {
+      ipcRenderer.on('guest:unresponsive', (_e, id) => cb(id))
+    },
+  },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
   // or modal has focus, its keys stay its own.
   keys: {

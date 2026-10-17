@@ -275,8 +275,9 @@ const safeJson = (v: unknown) => {
   }
 }
 
-// A click inside a frame never reaches the shell (no pointerdown): the shell window blurs and the
-// iframe becomes document.activeElement. Activate its tile, as a pointerdown would.
+// A click inside a frame (or a browser guest) never reaches the shell (no pointerdown): the shell
+// window blurs and the iframe (webview) becomes document.activeElement. Activate its tile, as a
+// pointerdown would.
 export function initFrames() {
   tie.content.onNavigated((token, path) => byToken.get(token)?.navigated(path))
   tie.content.onNavFailed((token) => byToken.get(token)?.failed())
@@ -284,7 +285,7 @@ export function initFrames() {
   window.addEventListener('blur', () =>
     setTimeout(() => {
       const el = document.activeElement
-      if (!(el instanceof HTMLIFrameElement)) return
+      if (!(el instanceof HTMLIFrameElement) && el?.tagName !== 'WEBVIEW') return
       const id = (el.closest('.tile') as HTMLElement | null)?.dataset.id
       if (!id || !S.tiles.has(id) || S.active === id) return
       if (location(id) === 'shelved' && S.pinned !== id) return

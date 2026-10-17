@@ -78,7 +78,7 @@ export default async (ctx, h) => {
   {
     const help = execFileSync(join(ROOT, 'bin/tie'), ['--help']).toString()
     const want = ['USAGE', 'DESCRIPTION', 'TILE KINDS', 'TILE IDS', 'PLACEMENT', 'BEHAVIOR', 'OUTPUT AND EXIT STATUS', 'ENVIRONMENT', 'EXAMPLES']
-    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
+    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'browser', 'tie open <url>', 'tie open browser', 'http(s)', 'Downloads', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
       h.assert(help.includes(w), `help mentions ${w}`)
   }
 }

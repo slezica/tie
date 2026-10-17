@@ -1,6 +1,6 @@
 // Shortcuts in main. before-input-event sees every real key for the window's webContents (keys
 // typed into content frames included) before any page does. docs/INPUT.md.
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, WebContents } from 'electron'
 import { actionFor, isQuitKey, type Action, type KeyInput } from '../core/keymap'
 import { log } from './env'
 
@@ -13,37 +13,47 @@ export function setKeysSuspended(on: unknown) {
 }
 
 // SECURITY: shortcuts act only on real input (synthetic KeyboardEvents never reach main) and are
-// blocked here, so neither the shell page nor a content frame ever sees them: content can't
-// swallow, fake or observe them. Esc and editing combos are never in the keymap (they pass).
-// ⌘Q (hold to quit): reported on press, release (q or ⌘ up) and window blur. Its keydown is not
-// blocked: Chromium then drops the matching keyup, and the release is what quits.
-export function initKeys(win: BrowserWindow, send: (action: KeyAction) => void) {
-  let quitHeld = false
-  win.webContents.on('before-input-event', (e, input) => {
-    const k: KeyInput = { key: input.key, meta: input.meta, control: input.control, alt: input.alt, shift: input.shift }
-    if (input.type === 'keyUp') {
-      if (quitHeld && (input.key.toLowerCase() === 'q' || input.key === 'Meta')) {
-        quitHeld = false
-        send('quit-release')
-      }
-      return
+// blocked here, so neither the shell page, a content frame nor a browser guest ever sees them:
+// content can't swallow, fake or observe them. Esc and editing combos are never in the keymap (they
+// pass). ⌘Q (hold to quit): reported on press, release (q or ⌘ up) and window blur. Its keydown is
+// not blocked: Chromium then drops the matching keyup, and the release is what quits.
+// Guests (<webview>) are their own webContents: keys typed there reach only their own
+// before-input-event, so each guest gets the same matcher (watchKeys, main/guest.ts).
+let send: (action: KeyAction) => void = () => {}
+let quitHeld = false
+function onInput(e: Electron.Event, input: Electron.Input) {
+  const k: KeyInput = { key: input.key, meta: input.meta, control: input.control, alt: input.alt, shift: input.shift }
+  if (input.type === 'keyUp') {
+    if (quitHeld && (input.key.toLowerCase() === 'q' || input.key === 'Meta')) {
+      quitHeld = false
+      send('quit-release')
     }
-    if (input.type !== 'keyDown') return
-    if (isQuitKey(k)) {
-      if (!input.isAutoRepeat) {
-        quitHeld = true
-        send('quit-press')
-      }
-      return
+    return
+  }
+  if (input.type !== 'keyDown') return
+  if (isQuitKey(k)) {
+    if (!input.isAutoRepeat) {
+      quitHeld = true
+      send('quit-press')
     }
-    if (suspended) return
-    const action = actionFor(k)
-    if (!action) return
-    e.preventDefault()
-    log('keys', action)
-    send(action)
-  })
-  // Focus may sit in a content frame, where the shell page sees no blur: cancel from here too.
+    return
+  }
+  if (suspended) return
+  const action = actionFor(k)
+  if (!action) return
+  e.preventDefault()
+  log('keys', action)
+  send(action)
+}
+
+export function watchKeys(wc: WebContents) {
+  wc.on('before-input-event', onInput)
+}
+
+export function initKeys(win: BrowserWindow, push: (action: KeyAction) => void) {
+  send = push
+  watchKeys(win.webContents)
+  // Focus may sit in a content frame or guest, where the shell page sees no blur: cancel from here too.
   win.on('blur', () => {
     if (!quitHeld) return
     quitHeld = false

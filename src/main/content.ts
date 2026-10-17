@@ -8,7 +8,6 @@ import { readFile, realpath, stat } from 'node:fs/promises'
 import { realpathSync, statSync, readFileSync, watch, type FSWatcher } from 'node:fs'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
-import { spikeFrameAllowed, spikeDocType, SPIKE_HTML_CSP } from './spike'
 import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed, contentFile, documentUrl, isDocument, bootstrapAt, htmlCharset } from '../core/content'
 import { policyOf, viewerKinds, contentCsp, documentCsp } from '../core/policy'
 
@@ -169,7 +168,7 @@ export function contentFrameAllowed(url: string, frame: WebFrameMain | null, she
   const u = parseContentUrl(url)
   const e = u && entries.get(u.token)
   if (!u || !e || !frame || frame.parent !== shellFrame) return false
-  if (!navAllowed(e.kind, u.token, url)) return spikeFrameAllowed(url, frame, e) // false unless a dev spike
+  if (!navAllowed(e.kind, u.token, url)) return false
   e.frame ??= frame.frameTreeNodeId
   return e.frame === frame.frameTreeNodeId
 }
@@ -239,8 +238,6 @@ export function serveContent(ses: Session) {
       if (!page) return refuse(req.url, 'bootstrap missing')
       return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': csp } })
     }
-    const doc = spikeDocType(real) // dev spike only (TIE_SPIKE=html)
-    if (doc) return new Response(body, { headers: { ...HEADERS, 'Content-Type': doc, 'Content-Security-Policy': SPIKE_HTML_CSP } })
     const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'
     return new Response(body, { headers: { ...HEADERS, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
   })

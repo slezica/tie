@@ -23,6 +23,7 @@
   --panel: color-mix(in srgb, var(--text) 7%, var(--bg));
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --shadow: rgba(0, 0, 0, 0.6);
+  --web-canvas: #fff; /* browser tiles: the web's default page background (not themed: pages expect it) */
   /* Effective bar heights (derived from settings classes; layout code reads these). */
   --top-h: var(--top-bar);
   --bottom-h: 0px;
@@ -439,7 +440,8 @@ body.dragging-tab .tab {
 .tile.collapsed-v .navbar {
   display: none;
 }
-/* Content frame (frame.ts): fills the body, edge to edge. */
+/* Content frame (frame.ts) and browser guest (guest.ts): fill the body, edge to edge. */
+.body webview.guest,
 .body iframe.content {
   position: absolute;
   inset: 0;
@@ -447,6 +449,9 @@ body.dragging-tab .tab {
   height: 100%;
   border: 0;
   background: var(--tile-bg);
+}
+.body webview.guest {
+  background: var(--web-canvas);
 }
 .tile-error {
   position: absolute;
@@ -578,12 +583,15 @@ body.resizing-col .border.col:hover::after {
 .border.row:hover::after { left: 2px; right: 2px; top: 0; bottom: 0; }
 .border.col:hover::after { top: 2px; bottom: 2px; left: 0; right: 0; }
 
-/* Drag shield: tile content ignores the pointer during any drag. Content frames from pointerdown
-   on (track()): they'd swallow moves and the release. OS drags (main.ts): drops land in the shell. */
+/* Drag shield: tile content ignores the pointer during any drag. Content frames and guests from
+   pointerdown on (track()): they'd swallow moves and the release. OS drags (main.ts): drops land in
+   the shell. */
 body.dragging .body,
 body.dragging .tile.shelved.revealed,
 body.tracking .body iframe,
-body.os-drag .body iframe {
+body.tracking .body webview,
+body.os-drag .body iframe,
+body.os-drag .body webview {
   pointer-events: none;
 }
 body.dragging {

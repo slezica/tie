@@ -299,3 +299,47 @@ export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
   if (meta) await ctx.page.keyboard.up('Meta')
   await ctx.sleep(300)
 }
+
+// Local web site for browser tiles: `route(path, req)` → string (html) | {status, headers, body} |
+// null (404). Every request recorded in `hits` (path). Always `await site.close()` (try/finally).
+export async function site(ctx, route) {
+  const { createServer } = await import('node:http')
+  const hits = []
+  const srv = createServer((req, res) => {
+    hits.push(req.url)
+    const r = route(req.url, req)
+    if (r === null || r === undefined) return void ((res.statusCode = 404), res.end('not found'))
+    const o = typeof r === 'string' ? { body: r } : r
+    res.statusCode = o.status ?? 200
+    res.setHeader('content-type', 'text/html; charset=utf-8')
+    for (const [k, v] of Object.entries(o.headers ?? {})) res.setHeader(k, v)
+    res.end(o.body ?? '')
+  })
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r))
+  return { url: `http://127.0.0.1:${srv.address().port}`, hits, close: () => new Promise((r) => (srv.closeAllConnections?.(), srv.close(r))) }
+}
+
+// Browser tile's guest as a Playwright page (CDP target type webview), found by the tile's URL
+// (`tie list --json` web.url), once its page has loaded.
+export async function guestPage(ctx, id, ms = 5000) {
+  for (let t = 0; t < ms; t += 100) {
+    const w = (await tileOf(ctx, id))?.web
+    const p = w?.ready && ctx.page.context().browser().contexts().flatMap((c) => c.pages()).find((p) => p.url() === w.url)
+    if (p && (await p.evaluate(() => document.readyState === 'complete').catch(() => false))) return p
+    await ctx.sleep(100)
+  }
+  throw new Error(`no guest page for ${id}`)
+}
+
+// Input sent to a browser tile's guest by main (sendInputEvent): passes the guest's own
+// before-input-event (shortcuts) and input-event (popup gesture), like real input. Chord: 'Meta+d'.
+export async function guestKey(ctx, id, chord) {
+  const parts = chord.split('+')
+  const key = parts.pop()
+  const guest = (await tileOf(ctx, id)).web.guest
+  await rpc(ctx.instance, 'guest', { action: 'key', id: guest, keyCode: keyCode(key), modifiers: parts.map((m) => MODS[m]) })
+}
+export async function guestClick(ctx, id, x, y) {
+  const guest = (await tileOf(ctx, id)).web.guest
+  await rpc(ctx.instance, 'guest', { action: 'click', id: guest, x, y })
+}

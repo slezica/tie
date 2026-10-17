@@ -7,6 +7,7 @@ import { initFileViews } from './fileview'
 import { registerKind } from './kinds'
 import { probeKind } from './kinds/probe'
 import { initFrames } from './frame'
+import { initGuests } from './guest'
 import { initShelf } from './shelf'
 import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
@@ -95,6 +96,7 @@ async function boot() {
   initTerminals()
   initFileViews()
   initFrames()
+  initGuests()
   if (info.dev) registerKind({ kind: 'probe', factory: probeKind, opens: 'bare' })
   initShelf()
   initMenu()

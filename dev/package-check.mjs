@@ -3,6 +3,7 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createServer } from 'node:http'
 import { ROOT, sleep, infoPath, userDataPath } from './lib.mjs'
 
 const app = process.argv[2] || join(ROOT, 'out/package/mac-arm64/Tie.app')
@@ -28,7 +29,7 @@ for (const [k, v] of Object.entries(EXPECTED)) {
 }
 
 // Smoke: packaged app boots in the background and answers the bundled CLI; markdown (+ diagram
-// library), html and text tiles open.
+// library), html and text tiles open; a browser tile loads a local page.
 const instance = `pkg-${process.pid}`
 const settings = join(ROOT, 'tmp', `${instance}.settings.json`)
 const log = join(ROOT, 'tmp', `${instance}.log`)
@@ -74,6 +75,19 @@ try {
     else fail(`smoke: html tile ${JSON.stringify(ht)}`)
     if (xt?.kind === 'text' && xt.doc && !xt.error) console.log('ok   smoke: text file opens')
     else fail(`smoke: text tile ${JSON.stringify(xt)}`)
+    // Browser: a guest attaches (packaged attach guard) and loads a local http page (title).
+    const srv = createServer((_q, r) => (r.setHeader('content-type', 'text/html'), r.end('<!doctype html><title>smoke web</title><p>web')))
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r))
+    try {
+      const bid = tie('open', `http://127.0.0.1:${srv.address().port}/`).id
+      let bt = null
+      for (let i = 0; i < 50 && bt?.title !== 'smoke web'; i++) (await sleep(100), (bt = tie('list').tiles.find((x) => x.id === bid)))
+      if (bt?.kind === 'browser' && bt.title === 'smoke web' && !bt.error) console.log('ok   smoke: browser tile loads a local page')
+      else fail(`smoke: browser tile ${JSON.stringify(bt)}`)
+    } finally {
+      srv.closeAllConnections?.()
+      srv.close()
+    }
     const refused = (existsSync(log) ? readFileSync(log, 'utf8') : '').match(/\[security\].*/g) || []
     if (refused.length) fail(`smoke: security log not empty:\n  ${refused.join('\n  ')}`)
   }

@@ -8,7 +8,7 @@ import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, SHE
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
-import { spike, spikeMethod } from './spike'
+import { initBrowserSession, noDownloads, guestMethod } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -123,7 +123,7 @@ function createWindow(ses: Electron.Session) {
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
       offscreen: offscreen ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
       backgroundThrottling: !background,
-      webviewTag: spike('webview'), // dev spike only (TIE_SPIKE=webview); off otherwise
+      webviewTag: true, // browser tiles: guests attach only through attachGuest (guest.ts)
     },
   })
   // A (re)load (e.g. dev HMR) starts a fresh UI with no tiles: drop the old ptys and content tokens.
@@ -156,13 +156,14 @@ function createWindow(ses: Electron.Session) {
 // Dev builds only, answered by main (harness): `frames` (tie-dev frames), `input`: a key or mouse
 // event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
 // real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
-// instances (null = cancel; docs.ts). `spike {action}`: runtime spikes (spike.ts).
+// instances (null = cancel; docs.ts). `guest {action}`: browser guests (guest.ts).
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
-  spike: (params) => spikeMethod(params), // runtime spikes (spike.ts)
+  guest: (params) => guestMethod(params, shellSession), // browser guests (guest.ts)
 }
+let shellSession: Electron.Session | null = null
 
 // The window's frame tree; content frames should be out-of-process.
 function frameTree() {
@@ -209,6 +210,9 @@ app.whenReady().then(async () => {
   serveShell(ses, join(import.meta.dirname, '../renderer'))
   serveContent(ses)
   await noNetwork(ses, dev ? process.env.ELECTRON_RENDERER_URL : undefined)
+  noDownloads(ses)
+  shellSession = ses
+  initBrowserSession()
   createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready

@@ -5,6 +5,7 @@ import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
 import { displayTitle, displayIcon } from './tile'
 import { kindSpec } from './kinds'
+import { locationUrl } from '@core/guest'
 
 interface Params {
   id?: TileId
@@ -13,6 +14,7 @@ interface Params {
   cmd?: string
   cwd?: string
   path?: string // `tie open <path>`: absolute, resolved against the caller's cwd
+  url?: string // `tie open <url>`, `tie open browser [url]`
   title?: string
   text?: string
   emoji?: string
@@ -81,7 +83,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     const kind = p.kind ?? 'terminal'
     if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
     // Input moves to the new tile only with --focus: a script showing something never redirects typing.
-    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path }, { activate: !!p.focus })
+    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url }, { activate: !!p.focus })
     return tileInfo(id)
   },
   close: (p) => {
@@ -137,10 +139,20 @@ const methods: Record<string, (p: Params) => unknown> = {
   }),
 }
 
-// `tie open <arg>`: a known kind name opens that kind (today's behavior). Otherwise <arg> is a file
-// (main checks: exists, regular file, has a viewer) → its viewer kind. Kinds that show a file
-// can't be opened bare.
+// `tie open <arg>`: a known kind name opens that kind (today's behavior). An http(s) URL (`url`,
+// kind unset or 'browser') → a browser tile. Otherwise <arg> is a file (main checks: exists, regular
+// file, has a viewer) → its viewer kind. Kinds that show a file can't be opened bare.
 async function resolveOpen(p: Params) {
+  if (p.url !== undefined) {
+    // SECURITY: only http(s) (bare host → https://, as the location bar); the tile checks again.
+    const u = typeof p.url === 'string' ? locationUrl(p.url) : null
+    if (!u) throw new Error(`Not a web address: ${String(p.url)} (http(s) only)`)
+    p.kind ??= 'browser'
+    if (kindSpec(p.kind)?.opens !== 'url') throw new Error(`${p.kind} doesn't open a URL`)
+    p.url = u
+    delete p.path
+    return
+  }
   const kind = p.kind ?? 'terminal'
   const spec = kindSpec(kind)
   if (spec) {

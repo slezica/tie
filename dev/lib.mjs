@@ -18,6 +18,9 @@ export const infoPath = (instance) => join(stateDir, `${instance}.json`)
 // Electron profile of an instance (main: app userData = <appData>/tie-<instance>). Fresh harness
 // instances remove theirs on stop.
 export const userDataPath = (instance) => join(homedir(), 'Library/Application Support', `tie-${instance}`)
+// Browser downloads of a fresh harness instance (TIE_DOWNLOADS, dev builds only): never the user's
+// ~/Downloads. Removed on stop.
+export const downloadsPath = (instance) => join(ROOT, 'tmp', `${instance}.downloads`)
 
 export function readInfo(instance) {
   const p = infoPath(instance)
@@ -96,7 +99,7 @@ function freePort() {
 
 // opts.settings: pre-seed the instance's settings file (object, or raw string e.g. malformed JSON).
 // opts.hiddenWindow: never-shown real window instead of offscreen (input reaches content frames).
-// opts.env: extra environment (scenario `export const env`, e.g. TIE_SPIKE for runtime spikes).
+// opts.env: extra environment (scenario `export const env`).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
   // Own settings file: tests never see (or touch) the user's settings.
@@ -106,6 +109,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     TIE_BACKGROUND: opts.hiddenWindow ? 'hidden' : '1',
     TIE_CWD: ROOT,
     TIE_SETTINGS: join(ROOT, 'tmp', `${instance}.settings.json`),
+    TIE_DOWNLOADS: downloadsPath(instance),
     TIE_DEBUG_PORT: String(await freePort()),
     TIE_SCALE: process.env.TIE_SCALE || '2', // like a retina Mac
     ...opts.env,
@@ -143,6 +147,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
     if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
+    rmSync(env.TIE_DOWNLOADS, { recursive: true, force: true })
     rmSync(userDataPath(instance), { recursive: true, force: true })
   }
   return { instance, stop }

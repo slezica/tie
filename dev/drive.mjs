@@ -33,7 +33,7 @@ if (spec === '-') {
 }
 
 // Scenario modules may export `settings` to pre-seed a fresh instance, `hiddenWindow` for a real
-// (never shown) window instead of offscreen, `env` for extra environment (e.g. TIE_SPIKE).
+// (never shown) window instead of offscreen, `env` for extra environment.
 let mod
 try {
   mod = await import(pathToFileURL(file).href)

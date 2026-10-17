@@ -10,6 +10,8 @@ USAGE
   tie list [--json]                       List tiles
   tie open terminal [options]             Open a terminal tile, prints its id
   tie open <file> [placement]             Open a file in its viewer, prints its id
+  tie open <url> [placement]              Open an http(s) URL in a browser tile, prints its id
+  tie open browser [url] [placement]      Open a browser tile (empty: address field focused)
       --cmd <command>                     Run command instead of interactive shell
       --cwd <dir>                         Working directory (default: current)
       --title <text>                      Custom title
@@ -25,7 +27,7 @@ USAGE
   tie icon [id] <emoji>                   Set icon ("" = automatic)
 
 DESCRIPTION
-  Tie is the user's full-screen workspace: tabs of tiles (terminals, file viewers) laid out
+  Tie is the user's full-screen workspace: tabs of tiles (terminals, file viewers, web pages) laid out
   side by side, floating, or parked on a shelf at the right edge. Shells running in Tie can drive
   it with this command. Changes appear on the user's screen immediately.
 
@@ -34,6 +36,7 @@ DESCRIPTION
     the file changes, so writing the file updates what the user sees.
   - Run something the user should watch or answer in its own terminal (servers, tests, prompts):
     tie open terminal --cmd "npm test".
+  - Show a web page or a local dev server: tie open http://localhost:3000.
   - Ask for attention without interrupting: tie ping.
   - Keep the workspace tidy: title, move, shelve or close the tiles you opened.
 
@@ -69,6 +72,14 @@ TILE KINDS
              markdown (view stays still, changed lines marked, n jumps). Shown literally:
              HTML is text, control characters and bidi overrides are visible. Links don't open.
   hex        Any other file (binary): offset | bytes | ASCII. Live: changed rows highlighted.
+  browser    Web pages: tie open <http(s) URL>, tie open browser [url] (a bare host[:port][/path]
+             gets https://). A regular browser with the network, logins kept across restarts
+             (shared by all browser tiles), no access to Tie, files or other tiles. Address bar:
+             http(s) only, no search. Pages open in the tile; links that would open a new
+             window go to the system browser (only right after a click; scripts alone can't).
+             Downloads are saved to ~/Downloads, never opened. Permissions (camera,
+             notifications, location...) are denied. Not live: it doesn't watch files; reload
+             (cmd+R) after rebuilding. Other schemes (file:, mailto:...) are refused.
   Size limits: markdown 8 MB, text 10 MB, html 10 MB, hex 16 MB, image 50 MB (larger: tie open
   fails).
   Folders can't be opened. File tiles never write files and never reach the network.
@@ -92,11 +103,13 @@ BEHAVIOR
   - close kills a terminal's processes. The user can close or move your tiles at any time:
     re-check with tie list before acting on an old id.
   - Tiles persist until closed; Tie does not restore them after a restart.
+  - Keys: cmd+[ / cmd+] back/forward, cmd+R reload, cmd+L address field (browser, file tiles)
+    work while a page has focus; pages never see Tie's shortcuts.
 
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
   Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
-  Tie not reachable.
+  not a web address (tie open browser <url>), Tie not reachable.
 
 ENVIRONMENT
   TIE_TILE      Id of the tile this shell runs in. Set by Tie.
@@ -107,6 +120,7 @@ EXAMPLES
   tie open docs/plan.md                       Show a document beside this terminal
   tie open out/chart.png --float              Show an image (re-shown when rewritten)
   tie open report/index.html                  Show a local page (reloads when report/ changes)
+  tie open http://localhost:5173 --shelved    Park a dev server's page on the shelf
   tie open terminal --cmd "npm run dev" --title dev --shelved
   tie title "migrating db"; tie icon 🛠️        Label this tile
   tie ping                                    Done: ask the user to look here
@@ -182,10 +196,14 @@ async function main() {
       return
     }
     case 'open': {
-      // A kind name, else a file path (resolved here, against the caller's cwd).
+      // An http(s) URL (browser), a kind name (browser takes a URL after it), else a file path
+      // (resolved here, against the caller's cwd).
+      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }
+      if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await call('open', { url: rest[0], ...common }))
+      if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await call('open', { kind: 'browser', url: rest[1], ...common }))
       const kind = rest[0] || 'terminal'
       const path = rest[0] ? resolve(rest[0]) : undefined
-      return printTile(await call('open', { kind, path, cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }))
+      return printTile(await call('open', { kind, path, ...common }))
     }
     case 'close':
       return void (await call('close', { id: rest[0] }))

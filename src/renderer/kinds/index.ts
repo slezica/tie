@@ -7,12 +7,14 @@ import type { Nav } from '../nav'
 import { terminalKind } from './terminal'
 import { fileView } from '../fileview'
 import { htmlKind } from './html'
+import { browserKind } from '../guest'
 
 export interface OpenOpts {
   title?: string
   cwd?: string // start directory
   cmd?: string
   path?: string // file to view (kinds that open 'file')
+  url?: string // page to load (kinds that open 'url': http(s), checked by the kind)
   hash?: string // anchor to show first (#part)
 }
 
@@ -50,20 +52,22 @@ export interface KindSpec {
   kind: Kind
   factory: KindFactory
   // How it opens: 'bare' (tie open <kind>, its template), 'file' (with a path only: tie open
-  // <path>, drops, the file template). `cmd+D` on a 'file' kind splits a terminal.
-  opens: 'bare' | 'file'
+  // <path>, drops, the file template), 'url' (an optional URL: tie open <url>, tie open <kind>
+  // [url], its template). `cmd+D` on a kind that isn't 'bare' splits a terminal.
+  opens: 'bare' | 'file' | 'url'
 }
 
 // Shelf templates (decision 2026-10-17): a terminal; a file (picker: any file, its kind decided as
-// for tie open: extension, else content); not one per kind.
+// for tie open: extension, else content); a browser (empty, location focused). Not one per kind.
 export interface Template {
-  id: 'terminal' | 'file'
+  id: 'terminal' | 'file' | 'browser'
   label: string
   icon: string
 }
 export const TEMPLATES: readonly Template[] = [
   { id: 'terminal', label: 'terminal', icon: '' },
   { id: 'file', label: 'file', icon: '📂' },
+  { id: 'browser', label: 'browser', icon: '🧭' },
 ]
 
 const KINDS = new Map<string, KindSpec>()
@@ -82,6 +86,7 @@ registerKind(fileKind('text', '📄')) // docs/VIEWERS.md
 registerKind(fileKind('image', '🖼️'))
 registerKind(fileKind('hex', '🔢'))
 registerKind({ kind: 'html', factory: htmlKind, opens: 'file' }) // docs/VIEWERS.md
+registerKind({ kind: 'browser', factory: browserKind, opens: 'url' }) // docs/BROWSER.md
 
 export const kindSpec = (kind: string): KindSpec | undefined => KINDS.get(kind)
 export const needsFile = (kind: string) => kindSpec(kind)?.opens === 'file'

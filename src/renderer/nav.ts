@@ -44,7 +44,9 @@ export function createNavBar(t: Tile) {
   const input = bar.querySelector('.location') as HTMLInputElement
   input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== 'Escape') return
+    e.preventDefault() // this Enter must not also press a dialog's button opened by go()
     if (e.key === 'Enter' && nav.go && nav.state().editable) nav.go(input.value)
+    if (document.querySelector('.dialog-backdrop')) return // go() refused: its dialog keeps the focus
     input.blur()
     refocus()
   })
