@@ -5,7 +5,8 @@
 import { app, webFrameMain, type Session, type WebContents, type WebFrameMain } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { realpathSync, statSync, readFileSync, watch, type FSWatcher } from 'node:fs'
+import { realpathSync, statSync, readFileSync, createReadStream, watch, type FSWatcher } from 'node:fs'
+import { Readable } from 'node:stream'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
 import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed, contentFile, documentUrl, isDocument, bootstrapAt, htmlCharset } from '../core/content'
@@ -229,16 +230,37 @@ export function serveContent(ses: Session) {
     if (!real || !isInside(r.entry.root, real)) return refuse(req.url, 'outside root')
     const st = await stat(real).catch(() => null)
     if (!st?.isFile()) return refuse(req.url, 'not a file')
-    const body = await readFile(real).catch(() => null)
-    if (!body) return refuse(req.url, 'unreadable')
-    if (isDocKind(r.entry.kind)) {
-      const csp = documentCsp()
-      if (!isDocument(real)) return new Response(body, { headers: { ...HEADERS, 'Content-Type': DOC_TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': csp } })
+    const doc = isDocKind(r.entry.kind)
+    if (doc && isDocument(real)) {
+      // Documents are read whole (the bootstrap goes into them): bounded by the kind's cap, like the
+      // page the tile opened (a page can't make main load a huge .html of its folder).
+      const cap = policyOf(r.entry.kind)!.maxBytes
+      if (cap && st.size > cap) return refuse(req.url, 'document too large')
+      const body = await readFile(real).catch(() => null)
+      if (!body) return refuse(req.url, 'unreadable')
       const page = withBootstrap(body)
       if (!page) return refuse(req.url, 'bootstrap missing')
-      return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': csp } })
+      return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': documentCsp() } })
     }
+    // SECURITY: every other root file (images, scripts, data, media) is streamed, never read into
+    // memory whole: content choosing a multi-GB file of its folder (<img>, fetch, <video>) costs
+    // main nothing but a stream.
+    const body = streamFile(real)
+    if (!body) return refuse(req.url, 'unreadable')
+    const headers = { ...HEADERS, 'Content-Length': String(st.size) }
+    if (doc) return new Response(body, { headers: { ...headers, 'Content-Type': DOC_TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': documentCsp() } })
     const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'
-    return new Response(body, { headers: { ...HEADERS, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
+    return new Response(body, { headers: { ...headers, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
   })
+}
+
+// A file as a web stream for a protocol Response (errors end the stream; the frame sees a failed load).
+function streamFile(path: string): ReadableStream<Uint8Array> | null {
+  try {
+    const s = createReadStream(path)
+    s.on('error', (e) => log('content', 'stream error', path, String(e)))
+    return Readable.toWeb(s) as ReadableStream<Uint8Array>
+  } catch {
+    return null
+  }
 }

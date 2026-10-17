@@ -34,6 +34,10 @@ export default async (ctx, h) => {
   writeFileSync(join(base, 'secret.txt'), 'SECRET')
   symlinkSync(join(base, 'secret.txt'), join(dir, 'link.txt'))
   writeFileSync(join(dir, 'data.json'), '{"v": 1}')
+  // Over the html cap (10 MB): a document of the folder main must not read whole; a large asset
+  // is streamed (never read whole either) and arrives intact.
+  writeFileSync(join(dir, 'big.html'), Buffer.alloc(10 * 1024 * 1024 + 1, 0x61))
+  writeFileSync(join(dir, 'big.bin'), Buffer.alloc(12 * 1024 * 1024, 0x62))
   // The page records any message event carrying ports (the handshake must never reach it).
   const page = `<!doctype html><html><head><meta charset="utf-8"><title>Evil</title>
 <script>window.__ports = 0; addEventListener('message', (e) => { if (e.ports.length) window.__ports++ }, true); document.addEventListener('message', () => {}, true)</script></head>
@@ -160,9 +164,13 @@ export default async (ctx, h) => {
         tie: await tryFetch('/_tie/markdown.js'),
         tieBoot: await tryFetch('/_tie/html-bootstrap.js'),
         root: await tryFetch('/'),
+        bigDoc: await tryFetch('big.html'),
+        bigAsset: await fetch('big.bin').then(async (r) => (r.ok ? (await r.arrayBuffer()).byteLength : 'status ' + r.status), () => 'threw'),
       }
     }, { own: token, other: otherToken })
     h.assert(reads.own === 'ok', `own folder readable: ${JSON.stringify(reads)}`)
+    h.assert(reads.bigDoc === 'status 404' && /refused content document too large/.test(ctx.appLog()), `document over the cap refused: ${reads.bigDoc}`)
+    h.assert(reads.bigAsset === 12 * 1024 * 1024, `large asset streamed whole: ${reads.bigAsset}`)
     for (const k of ['otherFetch', 'otherXhr', 'otherImg', 'up', 'upEnc', 'upEnc2', 'link', 'tie', 'tieBoot', 'root']) h.assert(reads[k] !== 'ok' && reads[k] !== 'load', `${k} refused: ${JSON.stringify(reads)}`)
     h.assert(/refused content outside root tie-content:\/\/\w+\/link\.txt/.test(ctx.appLog()), 'symlink out refused by main')
     await ctx.tie('close', other)
