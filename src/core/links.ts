@@ -1,12 +1,12 @@
-// Markdown links: where a link in a document leads. Pure, renderer-safe, unit-tested.
-// docs/MARKDOWN.md.
+// Links in file views: where a link written in a document leads. Pure, renderer-safe,
+// unit-tested. Used by every file kind (fileview.ts). docs/TILES.md "File view".
 import { fileKind } from './kinds'
+import type { ContentKind } from './policy'
 
 export type Link =
   | { type: 'anchor'; hash: string } // same page
-  | { type: 'external'; url: string } // system browser
-  | { type: 'markdown'; path: string; hash: string } // in Tie
-  | { type: 'file'; path: string } // other local file: no viewer yet
+  | { type: 'web'; url: string } // system browser (main re-checks)
+  | { type: 'file'; path: string; hash: string; kind: ContentKind | null } // local file; kind null: no viewer
   | { type: 'refused'; why: string }
 
 // SECURITY: link hrefs come from untrusted documents. Only three kinds lead anywhere: in-page
@@ -22,7 +22,7 @@ export function classifyLink(href: unknown, from: string): Link {
     if (scheme !== 'http' && scheme !== 'https') return { type: 'refused', why: `scheme ${scheme}` }
     try {
       const u = new URL(h)
-      return u.host ? { type: 'external', url: u.href } : { type: 'refused', why: 'no host' }
+      return u.host ? { type: 'web', url: u.href } : { type: 'refused', why: 'no host' }
     } catch {
       return { type: 'refused', why: 'bad url' }
     }
@@ -40,5 +40,5 @@ export function classifyLink(href: unknown, from: string): Link {
     return { type: 'refused', why: 'bad path' }
   }
   if (path.includes('\0')) return { type: 'refused', why: 'nul' }
-  return fileKind(path) === 'markdown' ? { type: 'markdown', path, hash } : { type: 'file', path }
+  return { type: 'file', path, hash, kind: fileKind(path) }
 }
