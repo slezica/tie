@@ -144,6 +144,13 @@ Order: P0 → P1 → P2 → P3 → P4 → P5. P0 de-risks P3/P4 designs. P1 befo
 - Storage: ephemeral per open, cleared on close. Persistence per file → PENDING.
 - Spike hooks (`src/main/spike.ts`, `TIE_SPIKE`): remove once P3/P4 replace them (end of P4).
 
+## Decisions after P2/P3 review (2026-10-17)
+
+- Content storage: shell window on an in-memory session (option a): nothing content stores reaches disk. Protocols, permission handlers and the no-network guard move to / apply on that session. Replaces "clear on close" (infeasible: Chromium won't clear custom-scheme storage).
+- Shelf templates: terminal, file (picker → kind by registry/sniff), browser. Not one per kind.
+- Dev server exempt from the no-network proxy, exactly its host:port (`<-loopback>` first, then the exemption; reversed order didn't apply). Fixed in review (`24fc420`).
+- Harness: instances remove their Electron profile on stop (2,271 leftover profiles deleted). Fixed in review (`4b775db`).
+
 ## Results
 
 ### P0 spikes (2026-10-16; Electron 44.7.2)
