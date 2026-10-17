@@ -64,7 +64,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 | `#anchor` | scroll (viewer) | same |
 | `http(s)://` | system browser (`openExternal`) | same |
 | relative / absolute path to `.md` / `.markdown` | open in this tile (history push) | new tile beside (`besidePlacement`) |
-| other local file (another kind, or kind by content) | ignored (`debug markdown`; cross-kind: P5) | same |
+| other local file (another kind, or kind by content) | new tile beside, in its kind (main decides: `doc.viewer`); not openable → dialog | same |
 | anything else (`file:`, `javascript:`, custom schemes, `//host`) | refused (`debug security`) | same |
 
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
@@ -119,7 +119,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 ## Logs
 
-- `docs` (main): open, change, missing, close, picker. `markdown` (renderer): navigation, ignored links, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
+- `docs` (main): open, change, missing, close, picker. `markdown` (renderer): navigation, links opened beside, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
 
 ## Limitations
 

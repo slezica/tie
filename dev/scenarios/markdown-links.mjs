@@ -1,6 +1,7 @@
 // Markdown links: plain click navigates in the tile (other directories too), cmd+[ / cmd+] go back
 // and forward, cmd-click opens a new tile beside, anchors scroll, http(s) goes to the system
-// browser, other files are ignored, missing targets say so. Keyboard scrolls the focused frame.
+// browser, files of other kinds open beside in their kind (text by content, html; and html → markdown
+// back), missing targets say so. Keyboard scrolls the focused frame.
 // Hidden window: real clicks into the frame.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,11 +12,12 @@ export default async (ctx, h) => {
   const dir = join(process.cwd(), 'tmp', `mdlinks-${process.pid}`)
   mkdirSync(join(dir, 'sub'), { recursive: true })
   const filler = Array.from({ length: 80 }, (_, i) => `Line ${i}.`).join('\n\n')
-  writeFileSync(join(dir, 'a.md'), `# A\n\n[to b](b.md) [to c](sub/c.md#part) [jump](#far) [web](https://example.com/ext) [script](run.sh) [gone](nope.md)\n\n${filler}\n\n## Far\n\nend\n`)
+  writeFileSync(join(dir, 'a.md'), `# A\n\n[to b](b.md) [to c](sub/c.md#part) [jump](#far) [web](https://example.com/ext) [script](run.sh) [page](page.html) [gone](nope.md)\n\n${filler}\n\n## Far\n\nend\n`)
   writeFileSync(join(dir, 'b.md'), '# B\n\n[back to a](a.md)\n')
   writeFileSync(join(dir, 'sub', 'c.md'), `# C\n\n![dot](dot.svg)\n\n${filler}\n\n## Part\n\nhere\n`)
   writeFileSync(join(dir, 'sub', 'dot.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>')
   writeFileSync(join(dir, 'run.sh'), 'echo hi\n')
+  writeFileSync(join(dir, 'page.html'), '<!doctype html><title>page</title><a id="md" href="b.md" style="display:block;padding:20px">to b.md</a>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const id = (await ctx.tie('open', join(dir, 'a.md'), '--at', t0, '--side', 'r')).id
@@ -68,11 +70,9 @@ export default async (ctx, h) => {
     h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame')
     await (await fr()).evaluate(() => scrollTo(0, 0))
 
-    // External: system browser (harness: logged). Non-markdown file: ignored. Missing: modal.
+    // External: system browser (harness: logged). Missing: modal.
     await h.clickIn(ctx, await fr(), 'a >> text=web')
     await h.waitFor(ctx, async () => ctx.appLog().includes('external open https://example.com/ext'), 'external open')
-    await h.clickIn(ctx, await fr(), 'a >> text=script')
-    await h.waitFor(ctx, async () => /ignored link \(kind by content\) t\d+ \S+run\.sh/.test(ctx.appLog()), 'non-md ignored')
     await h.clickIn(ctx, await fr(), 'a >> text=gone')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'missing target: modal')
     h.assert((await ctx.page.textContent('.dialog p')).includes('No such file'), 'says why')
@@ -86,6 +86,25 @@ export default async (ctx, h) => {
     h.assert(nt.state === 'slotted' && (await doc()).path.endsWith('/a.md'), 'beside, original unchanged')
     const tree = (await ctx.tie('state')).tree
     h.assert(JSON.stringify(tree).includes(nt.id), 'slotted in the tree')
+
+    // Other kinds: beside, in their kind (text by content; html), this tile stays. Html → markdown
+    // back: beside too.
+    await ctx.tie('focus', id)
+    await h.clickIn(ctx, await fr(), 'a >> text=script')
+    const txt = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'text' && t.title === 'run.sh'), 'run.sh opens as text beside')
+    h.assert(txt.state === 'slotted' && (await doc()).path.endsWith('/a.md'), 'text beside, markdown unchanged')
+    await ctx.tie('close', txt.id)
+    await ctx.tie('focus', id)
+    await h.clickIn(ctx, await fr(), 'a >> text=page')
+    const pg = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'html'), 'page.html opens as html beside')
+    const hf = await h.htmlFrame(ctx, pg.id)
+    const n0 = (await h.list(ctx)).tiles.filter((t) => t.kind === 'markdown').length
+    await h.clickIn(ctx, hf, '#md')
+    const back = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((t) => t.kind === 'markdown').length === n0 + 1 && (await h.list(ctx)).tiles.at(-1), 'html → markdown beside')
+    await h.waitFor(ctx, () => h.mdState(ctx, back.id).then((s) => s.text.startsWith('B')), 'shows b.md')
+    h.assert((await h.tileOf(ctx, pg.id)).page.path.endsWith('/page.html'), 'html tile stays')
+    await ctx.tie('close', back.id)
+    await ctx.tie('close', pg.id)
 
     // History keys on a terminal: nothing.
     await ctx.tie('focus', t0)

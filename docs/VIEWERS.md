@@ -11,7 +11,7 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 - Size caps (policy `maxBytes`): markdown 8 MB, text 10 MB, html 10 MB (the page; its folder's files: none), hex 16 MB, image 50 MB. Over: "File too large: <path> (max N MB)" (CLI, drops, picker); a file growing past it: change ignored.
 - Opening as a kind (main `canOpenAs`, checked on every `doc.open`): the file's own kind; hex for any file; text for any file that sniffs as text (e.g. markdown or SVG source). Else "Can't open as <kind>". Every UI path (CLI, drops, the `file` template) uses the file's own kind.
 - File template picker: any file.
-- Links in documents (`classifyLink`): kind by extension only; files whose kind is decided by content stay ignored by markdown links until cross-kind routing (P5).
+- Links in documents (`classifyLink`): same kind (by extension) → in the tile; any other file → beside, in the kind main decides (extension, else content). Html ↔ markdown both ways (`markdown-links`).
 
 ## Text (`viewers/text.ts`)
 

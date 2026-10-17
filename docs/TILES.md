@@ -109,7 +109,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token, = `/<name>`) itself (image).
 - Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme message, then the doc.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
-- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → ignored (`debug <kind>`; cross-kind: P5); refused → `debug security`. Only viewers with `links` (markdown) send them.
+- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
 - Title = file name; `dir` / `cwd` = its directory; `info` → `doc {path, rev, missing, history}`.
 - Theme message (`themeMessage`): `--bg`, `--fg`, `--accent`, `--a0..15`, `--font`, `--mono`, `--size`, `dark`.
 

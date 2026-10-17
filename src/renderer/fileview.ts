@@ -134,15 +134,15 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
 
   // SECURITY: hrefs come from the document. classifyLink allows anchors, http(s) (main re-checks)
   // and local files (main re-checks: absolute, existing, its kind). Files of this kind (by
-  // extension) open here (cmd: a new tile beside); other files are ignored for now (another kind,
-  // or decided by content: P5); everything else refused.
+  // extension) open here (cmd: a new tile beside); files of another kind (or decided by content)
+  // open beside, in their kind (main decides); everything else refused.
   function follow(href: string, newTile: boolean) {
     if (!doc) return
     const l = classifyLink(href, doc.path)
     if (l.type === 'web') return tie.openExternal(l.url)
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
-    if (l.kind !== kind) return debug(kind, `ignored link (${l.kind ?? 'kind by content'})`, host.id, l.path)
+    if (l.kind !== kind) return void beside(l.path, l.hash)
     if (newTile) {
       const sp = spaceOf(host.id)
       const open = () => openTile(kind, besidePlacement(host.id), { path: l.path, hash: l.hash })
@@ -150,6 +150,18 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     }
     if (l.path === doc.path) return frame.post({ type: 'scroll', hash: l.hash })
     void go(l.path, 'push', l.hash)
+  }
+
+  // A file of another kind: a new tile beside this one, in the kind main decides (extension, else
+  // content); not openable → dialog.
+  async function beside(path: string, hash: string) {
+    const v = await tie.doc.viewer(path)
+    if (!host.alive()) return
+    if ('error' in v) return void infoDialog("Can't open link", v.error)
+    debug(kind, 'open beside', host.id, v.kind, v.path)
+    const sp = spaceOf(host.id)
+    const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash })
+    sp ? withSpace(sp.id, open) : open()
   }
 
   const path = () => doc?.path ?? opts.path

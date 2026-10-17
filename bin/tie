@@ -55,7 +55,8 @@ TILE KINDS
              - Raw HTML in the file is shown as text, never rendered.
              - Images: relative paths in the file's folder load; remote images are not loaded.
              - Links: relative .md opens in the same tile (cmd-click: new tile; cmd+[ / cmd+]
-               back/forward); http(s) opens the browser; anything else is ignored.
+               back/forward); other local files open beside, in their kind; http(s) opens
+               the system browser; other schemes are ignored.
              - A file that hangs or crashes the viewer leaves an error in the tile; reopen to retry.
   image      Files .png, .jpg, .jpeg, .gif, .webp, .avif, .svg, .ico, .bmp. Fit to the tile
              (shrink only); click or z toggles actual size. Reloads when the file changes. SVG is
