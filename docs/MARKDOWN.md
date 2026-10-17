@@ -7,7 +7,7 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 | Part | Where | Does |
 |---|---|---|
 | Kind | `renderer/kinds/markdown.ts` | doc + frame per tile; links, history; theme to the viewer |
-| Viewer | `src/viewers/markdown.html\|ts` | markdown-it → highlight.js → DOMPurify; clicks → requests |
+| Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | markdown-it → highlight.js → DOMPurify → Mermaid (on demand); clicks → requests |
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
 | Pure | `core/markdown.ts` | `viewerFor`, `noViewer`, `classifyLink` (unit-tested) |
@@ -36,10 +36,25 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 - No typographer: quotes and dashes as typed.
 - Plugins: markdown-it org only, exact versions, bundled into the viewer; output still goes through DOMPurify.
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
+- Diagrams: ```` ```mermaid ```` fences → SVG ("Diagrams" below).
 - Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
 - Style: `<style nonce>` in `src/viewers/markdown.html` (the only place markdown styles live). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
 - Scroll: kept on reload; top on a new page; on back/forward restored if the frame didn't reload (same directory).
 - Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`).
+
+## Diagrams (`viewers/mermaid.ts`)
+
+- Fence ```` ```mermaid ```` → `<div class="diagram"><pre class="diagram-src">source</pre></div>` (escaped, sanitized with the page). After the page is in place, each block renders in this frame (no other frame).
+- Library: `@mermaid-js/tiny` 12.2.0 (exact pin, devDependency): flowchart, sequence, class, state, ER, gantt, pie, gitGraph and the rest, minus mindmap, architecture, KaTeX. Copied as-is to `out/viewers/markdown-mermaid.js` (2.8 MB, 0.75 MB gzip). Loaded lazily: only when a document has a diagram, as `<script nonce>` (page nonce, read from `document.currentScript`). Served from `/_tie/` to markdown tokens only (`viewerFile`).
+- Config: `startOnLoad: false`, `securityLevel: 'strict'`, `htmlLabels: false` (+ `flowchart.htmlLabels`), `suppressErrorRendering`, `deterministicIds`, `theme: 'base'` + `themeVariables` from the tile theme (hex mixed in JS: Mermaid computes shades; ANSI palette for pie / gitGraph / scales).
+- `secure` (no `%%{init}%%` override): `securityLevel`, `startOnLoad`, `maxTextSize`, `maxEdges`, `suppressErrorRendering`, `htmlLabels`, `flowchart`, `theme`, `themeVariables`, `themeCSS`, `fontFamily`, `altFontFamily`, `fontSize`, `darkMode`, `deterministicIds(Seed)`, `arrowMarkerAbsolute`.
+- Limits: `maxTextSize` 50 000 chars (Mermaid draws a "Maximum text size" notice), `maxEdges` 500 (error). Anything slower: the frame watchdog (`TILES.md`): tile error "Viewer stopped responding".
+- Output: DOMPurify again (SVG + filters profile; no HTML, `foreignObject`, `use`, `<image>`; links http(s)/relative). `<style>` kept: the diagram's colors (scoped to its id). Needs inline styles: markdown frame CSP `style-src 'unsafe-inline'` (`SECURITY.md`).
+- Error: source stays as code, plus one line `Diagram error: <first line> <last line>` (theme red).
+- Theme change: every diagram re-renders. A newer render (doc change, theme) stops older ones.
+- Image shapes (`@{ img: ... }`): the CSP blocks the image (never requested) → error line.
+- Links in diagrams (`click X href`): through `followLink` like any link (http(s) only).
+- Harness: `window.markdown.diagrams` (`loaded`, `renders`, `errors`, `config`), `sanitizeSvg`; app log `[content] viewer markdown-mermaid.js` per load.
 
 ## Links (`classifyLink`, kind's `follow`)
 
@@ -93,6 +108,8 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 ## Limitations
 
 - Images outside the file's folder (`../img.png`) never load (root = the file's directory).
+- Diagram SVG ids aren't prefixed (Mermaid's CSS and markers reference them): they could shadow undefined `window` names. The viewer reads no such globals (`window.mermaid` is set before any diagram exists).
+- Mermaid's "neo" drop shadows use its own gray, not the theme.
 - Missing file: no visual mark yet (frozen render).
 - Scroll memory lost when the frame reloads (history across directories → top).
 - No search, no outline, no edit, by design (open an editor next to it: `cmd+D`).

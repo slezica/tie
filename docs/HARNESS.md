@@ -93,4 +93,4 @@ Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), 
 ## Package check (`dev/package-check.mjs`)
 
 - `tie-dev check-package [app]`; also run by `tie-dev package` (failure removes the package).
-- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` opens without error, no `[security]` log lines.
+- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, no `[security]` log lines.

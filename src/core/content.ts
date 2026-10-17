@@ -28,12 +28,19 @@ export function viewerUrl(token: string, kind: string): string {
   return `${CONTENT_SCHEME}://${token}${VIEWER_DIR}${kind}.html`
 }
 
-// SECURITY: /_tie/ serves only the tile kind's own viewer page and script (built by Tie), by exact
-// name. Anything else under /_tie/ is refused, and root files never shadow it (contentFile).
+// Extra viewer assets per kind, loaded by the viewer on demand (out/viewers/<name>).
+const VIEWER_ASSETS: Record<string, readonly string[]> = {
+  markdown: ['markdown-mermaid.js'], // diagrams, only for documents with a ```mermaid fence
+}
+
+// SECURITY: /_tie/ serves only the tile kind's own viewer page and script (built by Tie), plus the
+// kind's listed assets, by exact name. Anything else under /_tie/ is refused, and root files never
+// shadow it (contentFile).
 export function viewerFile(kind: string, path: string): string | null {
   if (!path.startsWith(VIEWER_DIR)) return null
   const name = path.slice(VIEWER_DIR.length)
-  return name === `${kind}.html` || name === `${kind}.js` ? name : null
+  const assets = Object.hasOwn(VIEWER_ASSETS, kind) ? VIEWER_ASSETS[kind] : []
+  return name === `${kind}.html` || name === `${kind}.js` || assets.includes(name) ? name : null
 }
 
 // SECURITY: maps a URL path to a file strictly inside `root`, or null. Decodes once; refuses
@@ -59,15 +66,24 @@ export function isInside(root: string, file: string): boolean {
   return file.startsWith(root.endsWith(sep) ? root : root + sep) && file.length > root.length + 1
 }
 
+// Kinds whose viewer needs inline styles (markdown: Mermaid's SVG carries <style> and style
+// attributes).
+const INLINE_STYLES = new Set(['markdown'])
+
 // SECURITY: content documents load nothing by default. Scripts: only the viewer's own, by a nonce
 // minted per response (root files can never run as scripts, even with an injected <script>).
 // Images: only from the tile's own token (no remote: tracking, LAN requests). No frames, forms,
 // <base>, plugins, workers, connections.
-export function contentCsp(nonce: string, token: string): string {
+// Styles: by nonce. Kinds in INLINE_STYLES: any inline CSS (`<style>` elements, style attributes)
+// instead, never a stylesheet from anywhere (no host sources: no network). No nonce there: next to
+// a nonce, 'unsafe-inline' is ignored (CSP3), for elements and attributes alike. Acceptable: inline
+// CSS can only restyle the tile; its url()s are still bound by img-src (own token) and font-src
+// (none); scripts stay nonce-only.
+export function contentCsp(nonce: string, token: string, kind = ''): string {
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
-    `style-src 'nonce-${nonce}'`,
+    INLINE_STYLES.has(kind) ? "style-src 'unsafe-inline'" : `style-src 'nonce-${nonce}'`,
     `img-src ${CONTENT_SCHEME}://${token}`,
     "frame-src 'none'",
     "object-src 'none'",

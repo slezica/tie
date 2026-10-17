@@ -31,7 +31,7 @@ for (const [k, v] of Object.entries(EXPECTED)) {
 const instance = `pkg-${process.pid}`
 const settings = join(ROOT, 'tmp', `${instance}.settings.json`)
 const log = join(ROOT, 'tmp', `${instance}.log`)
-const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_SETTINGS: settings, TIE_LOG: log, TIE_DEBUG: 'security,app' }
+const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_SETTINGS: settings, TIE_LOG: log, TIE_DEBUG: 'security,app,content' }
 delete env.TIE_SOCKET
 delete env.TIE_TILE
 delete env.ELECTRON_RUN_AS_NODE
@@ -45,14 +45,19 @@ try {
     else fail(`smoke: unexpected list ${JSON.stringify(list)}`)
     // Markdown viewer is packaged (not a dev-only viewer): a file opens without error.
     const md = join(ROOT, 'tmp', `${instance}.md`)
-    writeFileSync(md, '# smoke\n')
+    writeFileSync(md, '# smoke\n\n```mermaid\nflowchart LR\n  A --> B\n```\n')
     const tie = (...a) => JSON.parse(execFileSync(join(app, 'Contents/Resources/bin/tie'), [...a, '--json'], { env, encoding: 'utf8' }))
     const id = tie('open', md).id
     let t
     for (let i = 0; i < 30 && !t?.doc; i++) (await sleep(100), (t = tie('list').tiles.find((x) => x.id === id)))
-    rmSync(md, { force: true })
     if (t?.doc && !t.error) console.log('ok   smoke: markdown opens')
     else fail(`smoke: markdown tile ${JSON.stringify(t)}`)
+    // Diagram library packaged and served (lazy: requested only for a document with a diagram).
+    const appLog = () => (existsSync(log) ? readFileSync(log, 'utf8') : '')
+    for (let i = 0; i < 50 && !/\[content\] viewer markdown-mermaid\.js/.test(appLog()); i++) await sleep(100)
+    rmSync(md, { force: true })
+    if (/\[content\] viewer markdown-mermaid\.js/.test(appLog())) console.log('ok   smoke: diagram library served')
+    else fail('smoke: diagram library not requested')
     const refused = (existsSync(log) ? readFileSync(log, 'utf8') : '').match(/\[security\].*/g) || []
     if (refused.length) fail(`smoke: security log not empty:\n  ${refused.join('\n  ')}`)
   }

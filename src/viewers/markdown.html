@@ -86,6 +86,15 @@
       section.footnotes ol { padding-left: 1.5em; }
       .footnote-item p { margin-bottom: 0.3em; }
 
+      /* Diagrams (```mermaid): source as code until rendered (and on error); the SVG carries its own
+         colors (theme passed to Mermaid). */
+      .diagram { margin: 0 0 0.7em; }
+      .diagram > pre.diagram-src { margin: 0; }
+      .diagram.rendered > pre.diagram-src { display: none; }
+      .diagram-svg { overflow-x: auto; }
+      .diagram-svg > svg { display: block; margin: 0 auto; height: auto; }
+      .diagram-error { margin-top: 0.3em; color: var(--a1); font-size: 0.9em; }
+
       /* Remote (or out-of-folder) image: never requested; alt text / URL instead. */
       .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 3px; color: var(--muted); font-size: 0.9em; }
 

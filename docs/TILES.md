@@ -95,12 +95,13 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 |---|---|
 | `/_tie/<kind>.html` | viewer page; `%NONCE%` replaced per response; CSP `contentCsp` |
 | `/_tie/<kind>.js` | viewer script (IIFE bundle) |
+| `/_tie/<asset>` | the kind's listed assets only (`VIEWER_ASSETS`: markdown → `markdown-mermaid.js`) |
 | other | file inside the root (`contentFile`, then real path inside real root) |
 
 - Token: 128-bit random hex, minted so the URL keeps it (all-digit hosts become IPv4). Registry: token → `{root (real path), kind, frame}`.
-- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's, traversal/encodings, symlinks out, non-files.
+- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out, non-files.
 - Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
-- Viewer CSP: `default-src 'none'`, scripts/styles by nonce, images from own token only, no frames/objects/forms/`<base>`.
+- Viewer CSP: `default-src 'none'`, scripts/styles by nonce, images from own token only, no frames/objects/forms/`<base>`. Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
 - Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): exact viewer URL of a registered token, direct child of the shell, first frame binds the token.
 - Closed tile / shell reload: token forgotten.
 
@@ -109,7 +110,7 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 - `<kind>.html` (script tag with `nonce="%NONCE%"`) + `<kind>.ts` → `out/viewers/` (vite plugin in `electron.vite.config.ts`, built with main).
 - Classic IIFE: opaque-origin frames can't load module scripts or `fetch` from `tie-content:` (no CORS). Content text goes over the port.
 - `probe`: `window.probe = {port, received, inits}`; replies `ready` to `tie:init` from `parent`. Scenarios run code in it (`h.probeFrame`).
-- `markdown`: markdown-it + highlight.js + DOMPurify; `window.markdown` for the harness (`MARKDOWN.md`).
+- `markdown`: markdown-it + highlight.js + DOMPurify; Mermaid on demand (`mermaid.ts` + asset `markdown-mermaid.js`, copied from `@mermaid-js/tiny`); `window.markdown` for the harness (`MARKDOWN.md`).
 - Styles: `<style nonce="%NONCE%">` in the page; values from the host via CSSOM (style attributes are blocked by the CSP).
 
 ## Limitations

@@ -26,6 +26,8 @@
 | Content frames: `sandbox="allow-scripts"` only (opaque origin), own process, no `window.tie`, no top nav/popups/storage | `frame.ts` | `sec-content-escape` |
 | `tie-content://`: privileges `standard`+`secure` only; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, unit |
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
+| Markdown frame CSP: as above, but `style-src 'unsafe-inline'` (Mermaid SVG: `<style>`, style attributes). No nonce beside it (CSP3 would ignore `'unsafe-inline'`). Inline CSS only restyles the tile; no stylesheet hosts; url()s bound by img-src / font-src; scripts nonce-only | `contentCsp` (`INLINE_STYLES`) | `markdown-mermaid` (no violations), `sec-mermaid`, unit |
+| Mermaid: lazy asset (markdown tokens only), strict, SVG-text labels, limits, `secure` keys (no `%%{init}%%` overrides), output re-sanitized (SVG profile, no `<image>`/`foreignObject`/`use`) | `viewers/mermaid.ts`, `viewerFile` | `sec-mermaid`, `sec-content-protocol`, unit |
 | Content watchdog: hung frame (no pong 5 s) → error, frame removed, its process killed if exclusive; crashed (port closed) → error; never reloads | `frame.ts`, `@core/watchdog`, `content.ts` `killContent` | `content-watchdog`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
 | Gesture rule: link opens (`openLink`, `followLink`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |

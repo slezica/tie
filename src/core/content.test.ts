@@ -31,8 +31,14 @@ describe('viewerFile', () => {
     expect(viewerFile('probe', '/_tie/probe.js')).toBe('probe.js')
   })
   it('refuses other kinds, other names, traversal, non-viewer paths', () => {
-    for (const p of ['/_tie/markdown.js', '/_tie/probe.css', '/_tie/../probe.js', '/_tie/%2e%2e/probe.js', '/_tie/probe.html/', '/_tie/sub/probe.js', '/probe.js', '/_tie/', '/_tie'])
+    for (const p of ['/_tie/markdown.js', '/_tie/markdown-mermaid.js', '/_tie/probe.css', '/_tie/../probe.js', '/_tie/%2e%2e/probe.js', '/_tie/probe.html/', '/_tie/sub/probe.js', '/probe.js', '/_tie/', '/_tie'])
       expect(viewerFile('probe', p)).toBe(null)
+  })
+  it("serves a kind's listed assets to that kind only", () => {
+    expect(viewerFile('markdown', '/_tie/markdown-mermaid.js')).toBe('markdown-mermaid.js')
+    for (const p of ['/_tie/probe.js', '/_tie/markdown-mermaid.js/', '/_tie/markdown-mermaid.js.map', '/_tie/mermaid.js', '/_tie/markdown-mermaid.css', '/_tie/MARKDOWN-MERMAID.JS'])
+      expect(viewerFile('markdown', p)).toBe(null)
+    for (const kind of ['probe', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '']) expect(viewerFile(kind, '/_tie/markdown-mermaid.js')).toBe(null)
   })
 })
 
@@ -77,6 +83,14 @@ describe('contentCsp', () => {
     expect(csp).toContain("base-uri 'none'")
     expect(csp).toContain("form-action 'none'")
     expect(csp).toContain("frame-src 'none'")
+  })
+  it('markdown: inline styles too (Mermaid SVG); scripts still nonce-only; nothing remote', () => {
+    const md = contentCsp('N0NCE', tok, 'markdown')
+    expect(md).toContain("script-src 'nonce-N0NCE'")
+    expect(md).toMatch(/style-src [^;]*'unsafe-inline'/)
+    expect(md).not.toMatch(/unsafe-eval|wasm|'self'|\*|https?:|data:|blob:|strict-dynamic|worker-src|connect-src|font-src/)
+    expect(md.replace(/style-src [^;]*/, '')).toBe(csp.replace(/style-src [^;]*/, ''))
+    for (const kind of ['probe', '', 'constructor']) expect(contentCsp('N0NCE', tok, kind)).toBe(csp)
   })
 })
 

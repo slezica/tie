@@ -2,13 +2,14 @@
 // theme and scroll requests arrive over the host's port; links go back as requests, posted from the
 // click handler only (the host also requires frame focus). Read-only: nothing here can write.
 // Pipeline: markdown-it (raw HTML escaped; footnotes, deflists, emoji, front matter) → highlight.js
-// → DOMPurify on the final HTML.
+// → DOMPurify on the final HTML → ```mermaid diagrams (mermaid.ts, library loaded on demand).
 // docs/MARKDOWN.md.
 import MarkdownIt from 'markdown-it'
 import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import { full as emoji } from 'markdown-it-emoji'
 import DOMPurify from 'dompurify'
+import { renderDiagrams, diagrams, sanitizeSvg } from './mermaid'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
 import c from 'highlight.js/lib/languages/c'
@@ -63,6 +64,15 @@ md.block.ruler.before('table', 'front_matter', (state, start, end, silent) => {
   }
   return false
 })
+// ```mermaid fences: a diagram block holding its source (escaped text). mermaid.ts renders it after
+// the page is in place; until then, or on error, the source shows as code.
+const fence = md.renderer.rules.fence!
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const t = tokens[idx]
+  if (t.info.trim().split(/\s+/)[0].toLowerCase() !== 'mermaid') return fence(tokens, idx, options, env, self)
+  return `<div class="diagram"><pre class="diagram-src"><code>${md.utils.escapeHtml(t.content)}</code></pre></div>\n`
+}
+
 md.renderer.rules.front_matter = (tokens, idx) => `<pre class="front-matter"><code>${md.utils.escapeHtml(tokens[idx].content)}</code></pre>\n`
 
 // Task list items (`- [ ] x`): a display-only checkbox (disabled: not clickable, not focusable).
@@ -144,7 +154,20 @@ const PURIFY = {
 }
 
 // Harness view (scenarios read it, like the probe's). Nothing here is trusted by the host.
-const state = { port: null as MessagePort | null, rev: '', key: '', text: '', renders: 0, removed: 0, scrolls: new Map<string, number>(), md, sanitize: (html: string) => DOMPurify.sanitize(html, PURIFY) }
+const state = {
+  port: null as MessagePort | null,
+  rev: '',
+  key: '',
+  text: '',
+  renders: 0,
+  removed: 0,
+  scrolls: new Map<string, number>(),
+  md,
+  sanitize: (html: string) => DOMPurify.sanitize(html, PURIFY),
+  sanitizeSvg,
+  diagrams,
+  theme: { vars: {} as Record<string, string>, dark: true },
+}
 ;(window as unknown as { markdown: typeof state }).markdown = state
 
 const docEl = document.getElementById('doc')!
@@ -153,6 +176,7 @@ function render(text: string) {
   docEl.innerHTML = state.sanitize(md.render(text))
   state.removed += DOMPurify.removed.length
   state.renders++
+  void renderDiagrams(docEl, state.theme.vars, state.theme.dark)
 }
 
 function scrollToHash(hash: string) {
@@ -177,6 +201,8 @@ function onMessage(m: Msg) {
     const s = document.documentElement.style
     for (const [k, v] of Object.entries(m.vars)) if (/^--[a-z0-9-]+$/.test(k) && typeof v === 'string') s.setProperty(k, v)
     s.colorScheme = m.dark ? 'dark' : 'light'
+    state.theme = { vars: { ...m.vars }, dark: m.dark }
+    void renderDiagrams(docEl, state.theme.vars, state.theme.dark) // diagrams carry their colors
   } else if (m.type === 'doc') {
     if (state.key) state.scrolls.set(state.key, scrollY)
     const keep = m.key === state.key && m.scroll === 'keep' ? scrollY : null
@@ -198,13 +224,15 @@ addEventListener('message', (e) => {
   state.port.postMessage({ verb: 'ready' })
 })
 
-// Clicks: links become requests (only from here: a real click). Nothing navigates.
+// Clicks: links become requests (only from here: a real click). Nothing navigates. SVG links in
+// diagrams may use xlink:href.
 addEventListener('click', (e) => {
   const target = e.target as Element
-  const a = target.closest?.('a[href]')
+  const a = target.closest?.('a')
   if (!a) return
   e.preventDefault()
-  const href = a.getAttribute('href') ?? ''
+  const href = a.getAttribute('href') ?? a.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ?? ''
+  if (!href) return
   if (href.startsWith('#')) return scrollToHash(href)
   state.port?.postMessage({ verb: 'followLink', href, newTile: e.metaKey })
 })

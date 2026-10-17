@@ -21,7 +21,7 @@ export default async (ctx, h) => {
     const img = (path) => f.evaluate((src) => new Promise((r) => Object.assign(new Image(), { onload: () => r('load'), onerror: () => r('error'), src })), `tie-content://${token}${path}`)
 
     for (const p of ['/ok.svg', '/sub/ok.svg', '/sub/../ok.svg', '/inner-link.svg']) h.assert((await img(p)) === 'load', `inside root loads: ${p}`)
-    const refused = ['/../outside.svg', '/..%2foutside.svg', '/%2e%2e/outside.svg', '/sub/..%2f..%2foutside.svg', '/%252e%252e/outside.svg', '/..%5coutside.svg', '/link.svg', '/dirlink/outside.svg', '/', '/_tie/markdown.js', '/_tie/../outside.svg']
+    const refused = ['/../outside.svg', '/..%2foutside.svg', '/%2e%2e/outside.svg', '/sub/..%2f..%2foutside.svg', '/%252e%252e/outside.svg', '/..%5coutside.svg', '/link.svg', '/dirlink/outside.svg', '/', '/_tie/markdown.js', '/_tie/markdown-mermaid.js', '/_tie/../outside.svg']
     for (const p of refused) h.assert((await img(p)) === 'error', `refused: ${p}`)
     const log = ctx.appLog()
     h.assert(/refused content outside root .*\/link\.svg/.test(log) && /refused content outside root .*\/dirlink\/outside\.svg/.test(log), 'symlinks out of root refused (real path check)')

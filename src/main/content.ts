@@ -108,10 +108,11 @@ export function serveContent() {
     if ('viewer' in r) {
       const body = await readFile(join(viewersDir, r.viewer)).catch(() => null)
       if (!body) return refuse(req.url, 'viewer missing')
+      log('content', 'viewer', r.viewer, token.slice(0, 8))
       if (r.viewer.endsWith('.js')) return new Response(body, { headers: { ...HEADERS, 'Content-Type': 'text/javascript; charset=utf-8' } })
       const nonce = randomBytes(16).toString('base64')
       const html = body.toString('utf8').replaceAll('%NONCE%', nonce)
-      return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(nonce, token) } })
+      return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(nonce, token, r.entry.kind) } })
     }
     // SECURITY: symlinks inside the root may point anywhere: the real path must stay inside too.
     const real = await realpath(r.file).catch(() => null)
