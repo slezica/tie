@@ -45,7 +45,9 @@ TILE KINDS
              pie, gitGraph), task boxes, footnotes, definition lists, :emoji: shortcodes; a
              leading --- front matter block is shown as-is (not parsed). Read-only: Tie never
              writes the file; task boxes (- [ ]) are display-only (edit the file to change them).
-             - Live: re-renders on every save (any editor or tool), keeping the scroll position.
+             - Live: re-renders on every save (any editor or tool). What the user is looking at
+               stays still, even when text is added above; changed blocks get a margin mark
+               (n in the tile jumps to the newest change).
                Deleted file: last view stays.
              - Raw HTML in the file is shown as text, never rendered.
              - Images: relative paths in the file's folder load; remote images are not loaded.

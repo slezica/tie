@@ -19,7 +19,7 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 2. Frame: root = the file's directory (`tie.content.open`). On each handshake (`onReady`): theme, then doc.
 3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash}`, `{type: 'scroll', hash}`.
 4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
-5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer (scroll kept). Shelved tile: activity dot.
+5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer: live update ("Live updates" below). Shelved tile: activity dot.
 6. Close: `tie.doc.close(id)` (watch stops), frame disposed (token forgotten).
 
 - Revision: first 16 hex of the SHA-256 of the file's bytes.
@@ -39,8 +39,8 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 - Diagrams: ```` ```mermaid ```` fences → SVG ("Diagrams" below).
 - Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
 - Style: `<style nonce>` in `src/viewers/markdown.html` (the only place markdown styles live). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = shell's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → ANSI palette. Headings 1–1.35em.
-- Scroll: kept on reload; top on a new page; on back/forward restored if the frame didn't reload (same directory).
-- Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`).
+- Scroll: live updates never move the view ("Live updates"); top on a new page; on back/forward restored if the frame didn't reload (same directory).
+- Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`, `sanitizeSvg`, `diagrams`, `marks()` → `{marked, unseen}`).
 
 ## Diagrams (`viewers/mermaid.ts`)
 
@@ -69,6 +69,20 @@ Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`):
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
 - Missing target: modal "Can't open link".
 - Another directory: frame reloads on a new token (`frameSurface.setRoot`).
+
+## Live updates (`viewers/markdown.ts` `show`/`place`, `marks.ts`)
+
+The file changed on disk (same document, `scroll: keep`): the view never moves.
+
+1. Build off-screen: sanitized HTML; each top-level block keyed `data-k` = hash of its HTML (diagram: of its source) + occurrence. Diagrams from a cache (same source + theme → same SVG); new ones rendered off-screen first, so a block changes once.
+2. Diff in (`morphdom` 2.7.8, keyed): same key = same content, block left alone (same node); new keys inserted; gone keys removed.
+3. Anchor: the first block on screen that survives keeps its on-screen position (`scrollBy` by its shift). Manual, `overflow-anchor: none`: native scroll anchoring didn't hold (`markdown-live`: content moved ~80 px on insert above, morphdom moves nodes) and never applies at scroll 0. Text inserted inside the view pushes what's below it; the top stays.
+4. Marks: blocks with new keys get a bar in the left margin (`--change`, from `--accent`). It fades 3 s after the block was seen (half of it on screen, or a third of the view for tall blocks; page visible), not after the render: off-screen changes stay marked. Deleted blocks: no mark.
+5. Edge markers: "▲ changed above" / "▼ changed below" while unseen changes exist that way. Click: jump to the nearest one.
+6. `n` (frame focused, no modifiers): newest unseen change to a third from the top (page ends clamp). Each jump marks it seen: repeated `n` walks unseen changes, newest update first, document order within one. None unseen: the newest still-marked one.
+
+- Pages (open, links, back/forward) replace the document and clear marks; diagrams finishing later swap in by the same diff (anchored, unmarked). Theme change: same (diagrams re-render).
+- Limits: a shelved (hidden) tile's frame still reports visible: changes seen while shelved may fade unseen (activity dot still marks the tile). Identical blocks match by occurrence: duplicates may shift marks.
 
 ## History
 

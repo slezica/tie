@@ -134,51 +134,95 @@ function config(vars: Vars, dark: boolean): Record<string, unknown> {
   }
 }
 
-// Render every diagram block in `root` (<div class="diagram"><pre><code>source</code></pre></div>,
-// from the fence rule). Rendered: SVG shown, source hidden. Error: source stays, plus one line.
-// A newer call (new document, theme) makes older ones stop.
-let gen = 0
-export async function renderDiagrams(root: HTMLElement, vars: Vars, dark: boolean) {
-  const g = ++gen
-  const blocks = [...root.querySelectorAll<HTMLElement>('div.diagram')]
-  if (!blocks.length) return
+// Short stable hash (FNV-1a, base 36): diagram ids and block keys.
+export function hash(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193)
+  return (h >>> 0).toString(36)
+}
+
+export const diagramSource = (block: Element) => block.querySelector('pre.diagram-src')?.textContent ?? ''
+
+// Results by render id: same source (and occurrence, theme) → same id → same SVG, so an unchanged
+// diagram is byte-identical across live updates (the DOM diff keeps it). Errors are cached too.
+type Result = { svg: string } | { error: string }
+const cache = new Map<string, Result>()
+let themeGen = 0
+export function themeChanged() {
+  themeGen++
+  cache.clear()
+}
+
+function blocksOf(root: HTMLElement) {
+  const seen = new Map<string, number>()
+  return [...root.querySelectorAll<HTMLElement>('div.diagram')].map((block) => {
+    const src = diagramSource(block)
+    const h = hash(src)
+    const n = seen.get(h) ?? 0
+    seen.set(h, n + 1)
+    return { block, src, id: `d${h}${n ? `-${n}` : ''}t${themeGen}` }
+  })
+}
+
+// Fill diagram blocks in `root` (usually off-document) from the cache. True if some still need
+// Mermaid. Drops cache entries the document no longer uses.
+export function fillDiagrams(root: HTMLElement): boolean {
+  const all = blocksOf(root)
+  const used = new Set(all.map((d) => d.id))
+  for (const id of cache.keys()) if (!used.has(id)) cache.delete(id)
+  let pending = false
+  for (const d of all) {
+    const r = cache.get(d.id)
+    if (r) show(d.block, r)
+    else pending = true
+  }
+  return pending
+}
+
+// Render the blocks the cache didn't fill. `current()` false: superseded (newer document or theme),
+// stop. Mermaid draws in its own scratch element; `root` may be off-document.
+export async function renderDiagrams(root: HTMLElement, vars: Vars, dark: boolean, current: () => boolean) {
+  const todo = blocksOf(root).filter((d) => !cache.has(d.id))
+  if (!todo.length) return
   let m: Mermaid
   try {
     m = await load()
   } catch (e) {
-    if (g === gen) blocks.forEach((b) => fail(b, e))
+    if (current()) todo.forEach((d) => show(d.block, { error: message(e) }))
     return
   }
-  if (g !== gen) return
+  if (!current()) return
   diagrams.config = config(vars, dark)
   m.initialize(diagrams.config)
-  for (const [i, block] of blocks.entries()) {
-    const src = block.querySelector('pre.diagram-src')?.textContent ?? ''
+  for (const d of todo) {
+    let r: Result
     try {
-      const { svg } = await m.render(`diagram-${g}-${i}`, src)
-      if (g !== gen) return
-      let out = block.querySelector<HTMLElement>('.diagram-svg')
-      if (!out) block.append((out = Object.assign(document.createElement('div'), { className: 'diagram-svg' })))
-      out.innerHTML = sanitizeSvg(svg)
-      block.querySelector('.diagram-error')?.remove()
-      block.classList.add('rendered')
+      r = { svg: sanitizeSvg((await m.render(d.id, d.src)).svg) }
       diagrams.renders++
     } catch (e) {
-      if (g !== gen) return
-      fail(block, e)
+      r = { error: message(e) }
+      diagrams.errors++
     }
+    if (!current()) return
+    cache.set(d.id, r)
+    show(d.block, r)
   }
 }
 
-// Short error line under the source: first line of Mermaid's message, plus its last (the
-// "Expecting ..." part of parse errors).
-function fail(block: HTMLElement, e: unknown) {
-  diagrams.errors++
-  const lines = String((e as Error)?.message ?? e).split('\n').map((l) => l.trim()).filter(Boolean)
-  const msg = (lines.length > 1 ? `${lines[0]} ${lines[lines.length - 1]}` : (lines[0] ?? 'unknown error')).slice(0, 240)
-  block.classList.remove('rendered')
+// Rendered: SVG shown, source hidden. Error: source stays, plus one line under it.
+function show(block: HTMLElement, r: Result) {
   block.querySelector('.diagram-svg')?.remove()
-  let line = block.querySelector('.diagram-error')
-  if (!line) block.append((line = Object.assign(document.createElement('div'), { className: 'diagram-error' })))
-  line.textContent = `Diagram error: ${msg}`
+  block.querySelector('.diagram-error')?.remove()
+  block.classList.toggle('rendered', 'svg' in r)
+  if ('svg' in r) {
+    const out = Object.assign(document.createElement('div'), { className: 'diagram-svg' })
+    out.innerHTML = r.svg // sanitized (sanitizeSvg)
+    block.append(out)
+  } else block.append(Object.assign(document.createElement('div'), { className: 'diagram-error', textContent: `Diagram error: ${r.error}` }))
+}
+
+// First line of Mermaid's message, plus its last (the "Expecting ..." part of parse errors).
+function message(e: unknown): string {
+  const lines = String((e as Error)?.message ?? e).split('\n').map((l) => l.trim()).filter(Boolean)
+  return (lines.length > 1 ? `${lines[0]} ${lines[lines.length - 1]}` : (lines[0] ?? 'unknown error')).slice(0, 240)
 }

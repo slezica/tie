@@ -33,7 +33,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 - Electron 44 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
 - xterm.js 6 + fit addon; node-pty 1.1 (rebuilt for Electron on install).
-- Markdown viewer (bundled into its IIFE): markdown-it 15 (+ footnote, deflist, emoji plugins), DOMPurify 3, highlight.js 11 (core + common languages). Diagrams: `@mermaid-js/tiny` 12.2.0 (pinned; separate asset, loaded on demand).
+- Markdown viewer (bundled into its IIFE): markdown-it 15 (+ footnote, deflist, emoji plugins), DOMPurify 3, highlight.js 11 (core + common languages). Diagrams: `@mermaid-js/tiny` 12.2.0 (pinned; separate asset, loaded on demand). Live updates: morphdom 2.7.8 (keyed DOM diff).
 - Vitest (unit), Playwright over CDP (scenarios = e2e).
 - No UI framework: plain objects + `render()`.
 - macOS only (harness uses `Electron.app` binary path, `-ApplePersistenceIgnoreState`).
@@ -50,7 +50,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/markdown.ts`: `viewerFor`, `noViewer`, `classifyLink` (main + renderer). Tests: `markdown.test.ts`.
 - `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
-- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `markdown` (+ `mermaid.ts`: diagrams, lazy library), `probe` (dev). `markdown-it-plugins.d.ts`: plugin types.
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. `markdown` (+ `mermaid.ts`: diagrams, lazy library; `marks.ts`: change marks, edge markers, `n`), `probe` (dev). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.

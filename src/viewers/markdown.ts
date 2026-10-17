@@ -9,7 +9,9 @@ import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import { full as emoji } from 'markdown-it-emoji'
 import DOMPurify from 'dompurify'
-import { renderDiagrams, diagrams, sanitizeSvg } from './mermaid'
+import morphdom from 'morphdom'
+import { renderDiagrams, fillDiagrams, themeChanged, diagrams, sanitizeSvg, hash, diagramSource } from './mermaid'
+import * as marks from './marks'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
 import c from 'highlight.js/lib/languages/c'
@@ -167,16 +169,82 @@ const state = {
   sanitizeSvg,
   diagrams,
   theme: { vars: {} as Record<string, string>, dark: true },
+  marks: marks.view,
 }
 ;(window as unknown as { markdown: typeof state }).markdown = state
 
 const docEl = document.getElementById('doc')!
 
-function render(text: string) {
-  docEl.innerHTML = state.sanitize(md.render(text))
+// The document, built off-screen: sanitized HTML, top-level blocks keyed by content (data-k: hash
+// of the block, or of a diagram's source, plus occurrence), diagrams filled from the cache.
+// SECURITY: the only markup entering the page is this sanitized tree (and sanitized SVG); the diff
+// (morphdom) moves and copies nodes, never parses strings.
+function build(text: string): { next: HTMLElement; pending: boolean } {
+  const next = document.createElement('div')
+  next.innerHTML = state.sanitize(md.render(text))
   state.removed += DOMPurify.removed.length
+  const seen = new Map<string, number>()
+  for (const el of next.children) {
+    const h = el.classList.contains('diagram') ? `d${hash(diagramSource(el))}` : hash(el.outerHTML)
+    const n = seen.get(h) ?? 0
+    seen.set(h, n + 1)
+    el.setAttribute('data-k', n ? `${h}-${n}` : h)
+  }
+  return { next, pending: fillDiagrams(next) }
+}
+
+// Put `next` on screen.
+// - page: replace everything (new document, navigation); marks cleared.
+// - live: the file changed. DOM diff (morphdom, keyed by data-k): unchanged blocks stay; blocks
+//   with new keys are the changes: marked. The first block on screen that survives keeps its
+//   on-screen position (manual anchor; native scroll anchoring is off, see MARKDOWN.md).
+// - quiet: diff without marks (theme, diagrams finished rendering after a page).
+function place(next: HTMLElement, how: 'page' | 'live' | 'quiet') {
+  if (how === 'page') {
+    docEl.replaceChildren(...next.childNodes)
+    marks.clear()
+  } else {
+    const keyOf = (n: Node) => (n instanceof Element ? (n.getAttribute('data-k') ?? undefined) : undefined)
+    const before = new Set([...docEl.children].map(keyOf))
+    const kept = new Set([...next.children].map(keyOf))
+    // Anchor: the first block on screen that survives the change, and where it is now.
+    const anchor = [...docEl.children].find((el) => el.getBoundingClientRect().bottom > 0 && kept.has(keyOf(el)))
+    const key = anchor && keyOf(anchor)
+    const top = anchor?.getBoundingClientRect().top ?? 0
+    morphdom(docEl, next, {
+      childrenOnly: true,
+      getNodeKey: keyOf,
+      // Same key = same content: leave the block alone (keeps its mark). Diagrams are keyed by
+      // source: their SVG may differ (theme, rendered later), so they update, mark carried over.
+      onBeforeElUpdated: (from, to) => {
+        if (from.parentNode !== docEl) return true
+        if (!to.classList.contains('diagram')) return false
+        for (const c of ['changed', 'fading']) if (from.classList.contains(c)) to.classList.add(c)
+        return true
+      },
+    })
+    const now = key && [...docEl.children].find((el) => keyOf(el) === key)
+    if (now) scrollBy({ top: now.getBoundingClientRect().top - top, behavior: 'instant' })
+    if (how === 'live') marks.mark([...docEl.children].filter((el) => !before.has(keyOf(el))))
+  }
   state.renders++
-  void renderDiagrams(docEl, state.theme.vars, state.theme.dark)
+  marks.refresh()
+}
+
+// Text → screen. Live updates wait for new diagrams (rendered off-screen) so a block changes once;
+// a page shows at once, diagrams as code, then swaps them in quietly. A newer call wins.
+let showing = 0
+async function show(text: string, how: 'page' | 'live' | 'quiet', position?: () => void) {
+  const n = ++showing
+  const { next, pending } = build(text)
+  if (how === 'page') {
+    place(next.cloneNode(true) as HTMLElement, 'page')
+    position?.()
+    if (!pending) return
+    how = 'quiet'
+  }
+  if (pending) await renderDiagrams(next, state.theme.vars, state.theme.dark, () => n === showing)
+  if (n === showing) place(next, how)
 }
 
 function scrollToHash(hash: string) {
@@ -202,17 +270,22 @@ function onMessage(m: Msg) {
     for (const [k, v] of Object.entries(m.vars)) if (/^--[a-z0-9-]+$/.test(k) && typeof v === 'string') s.setProperty(k, v)
     s.colorScheme = m.dark ? 'dark' : 'light'
     state.theme = { vars: { ...m.vars }, dark: m.dark }
-    void renderDiagrams(docEl, state.theme.vars, state.theme.dark) // diagrams carry their colors
+    themeChanged() // diagrams carry their colors: render them again
+    if (docEl.querySelector('.diagram')) void show(state.text, 'quiet')
   } else if (m.type === 'doc') {
-    if (state.key) state.scrolls.set(state.key, scrollY)
-    const keep = m.key === state.key && m.scroll === 'keep' ? scrollY : null
+    // Same document, changed on disk: live update, the view doesn't move. Else a page: scroll to
+    // the hash, the top, or where this document was (back/forward).
+    const live = m.key === state.key && m.scroll === 'keep' && !m.hash
+    if (state.key && !live) state.scrolls.set(state.key, scrollY)
     state.key = m.key
     state.text = m.text
     state.rev = m.rev
-    render(m.text)
-    if (m.hash) scrollToHash(m.hash)
-    else if (keep !== null) scrollTo(0, keep)
-    else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? 0) : 0)
+    if (live) void show(m.text, 'live')
+    else
+      void show(m.text, 'page', () => {
+        if (m.hash) scrollToHash(m.hash)
+        else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? 0) : 0)
+      })
   } else if (m.type === 'scroll') scrollToHash(m.hash)
 }
 
@@ -237,8 +310,12 @@ addEventListener('click', (e) => {
   state.port?.postMessage({ verb: 'followLink', href, newTile: e.metaKey })
 })
 // Shift+Up / Shift+Down: scroll a third of the tile's height (fast scanning). Plain arrows keep the
-// browser's small step.
+// browser's small step. `n`: next change (marks.ts); the viewer has no text input to steal it from.
 addEventListener('keydown', (e) => {
+  if (e.key === 'n' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault()
+    return marks.next()
+  }
   if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
   e.preventDefault()
   scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'instant' })
