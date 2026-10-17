@@ -41,7 +41,7 @@
 | `cmd+shift+W` | Close tab (empty only) |
 | `cmd+1..8` / `cmd+9` | Tab by position / last |
 | `cmd+[` / `cmd+]` | Back / forward in the active tile (kinds with navigation; no-op elsewhere) |
-| `cmd+R` | Reload the active tile (kinds with navigation: markdown re-reads its file) |
+| `cmd+R` | Reload the active tile (kinds with navigation: file views re-read their file; html reloads the page, scroll kept) |
 | `cmd+L` | Focus the active tile's location field (only if editable; no-op otherwise) |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
 | `cmd+Q` | Quit on release (`quit.ts`) |

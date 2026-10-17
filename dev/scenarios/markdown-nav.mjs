@@ -55,7 +55,7 @@ export default async (ctx, h) => {
     const fr = await h.contentFrame(ctx, id)
     await fr.evaluate(() => scrollTo(0, 600))
     await ctx.sleep(200)
-    const opens = () => (ctx.appLog().match(/\[docs\] open \d+ \S+\/a\.md/g) ?? []).length
+    const opens = () => (ctx.appLog().match(/\[docs\] open \d+ markdown \S+\/a\.md/g) ?? []).length
     const n0 = opens()
     const r0 = (await h.mdState(ctx, id)).renders
     await page.click(`.tile[data-id="${id}"] [data-nav="reload"]`)

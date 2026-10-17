@@ -12,7 +12,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
 - `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, links, history, watching, opening.
-- `docs/VIEWERS.md`: text, image, hex kinds: kind by extension or content, caps, viewers.
+- `docs/VIEWERS.md`: text, image, hex, html kinds: kind by extension or content, caps, viewers; html isolation, bootstrap, routing.
 - `docs/CLI.md`: `tie` CLI, socket protocol, placement.
 - `docs/SETTINGS.md`: settings, themes, tokens, fonts.
 - `docs/HARNESS.md`: `tie-dev`, scenarios, helpers, traces.
@@ -45,23 +45,23 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
-- `src/core/policy.ts`: content kinds security table (sandbox, CSP, nav rule, assets, payload, cap, dev), `contentCsp` (main + renderer + build). Tests: `policy.test.ts`.
+- `src/core/policy.ts`: content kinds security table (page, sandbox, CSP, nav rule, assets, payload, cap, bootstrap, dev), `contentCsp`, `documentCsp` (main + renderer + build). Tests: `policy.test.ts`.
 - `src/core/kinds.ts`: file → kind by extension (`fileKind`), else content (`sniff`, `sniffKind`: text/hex), `canOpenAs`, `extsOf`, `FILE_KINDS` (main + renderer). Tests: `kinds.test.ts`.
 - `src/core/links.ts`: `classifyLink` for file views (main + renderer). Tests: `links.test.ts`.
-- `src/core/content.ts`: content URL/token/path checks, viewer files, nav rule `navAllowed` (main). Tests: `content.test.ts`.
+- `src/core/content.ts`: content URL/token/path checks, viewer files, nav rules `navAllowed` (viewer-exact, within-root), `documentUrl`, `bootstrapAt`, `htmlCharset` (main). Tests: `content.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor`, `isQuitKey` (main + renderer). Tests: `keymap.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`), `spike.ts` (dev-only runtime spike hooks, `TIE_SPIKE`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol, `noNetwork`), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`), `spike.ts` (dev-only runtime spike hooks, `TIE_SPIKE`).
 - `src/preload/index.ts`: `window.tie` bridge.
-- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `markdown-it-plugins.d.ts`: plugin types.
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, link/window.open requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, `KindSpec` registry: `kindSpec`, `needsFile`, `templates`), `terminal.ts` (xterm, pty wiring, links, drop text), `probe.ts` (dev harness content kind). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `KindSpec` registry: `kindSpec`, `needsFile`, `templates`), `terminal.ts` (xterm, pty wiring, links, drop text), `html.ts` (html page: routing, history, live reload, web confirm), `probe.ts` (dev harness content kind). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
   - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
   - `files.ts`: OS file drops → viewer tiles.
@@ -93,7 +93,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `el`, `body`, `surface`.
 - `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`).
 - `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'`), `template?` (`{label, icon}`).
-- `ContentPolicy` (`core/policy.ts`, per content kind): `page`, `sandbox`, `styles`, `nav`, `assets`, `payload`, `maxBytes`, `dev`.
+- `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`.
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
 - File view state (private, `fileview.ts`): `doc {id, path, rev, text?, bytes?, missing}` (payload per policy), `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).

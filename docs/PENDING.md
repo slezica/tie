@@ -37,4 +37,6 @@
 - Opt-ins to revisit, each scoped and guarded: remote images per tile, `file://` links in terminals (open in Tie's viewer), OSC 52 write-only, raw HTML in markdown, popups for the browser tile (OAuth).
 - Per-tile capabilities (shell without pty power): terminals as `<webview>`s with their own preload, not `nodeIntegrationInSubFrames`.
 - OS drag entering straight over a content frame goes to the frame (it can read dropped files; no way out but `openLink`). Mitigated: `body.os-drag` shield once the drag is over the shell; viewers refuse drops.
-- Gesture rule = frame focused, not a fresh user activation: script in a focused frame may post gesture verbs any time. Fine while only our viewers run script; revisit for html/agent pages (e.g. activation token from the frame host).
+- Gesture rule = frame focused, not a fresh user activation: script in a focused frame may post gesture verbs any time. Html pages do run scripts: mitigated by routing (confirm for the web, one new tile per second). Revisit (e.g. activation token from main's input events).
+- Html storage left on disk after close (Chromium's data removal skips `tie-content`). Options: (a) shell window on an in-memory partition (never on disk; protocols re-registered on it), (b) bootstrap clears storage on host request before close (cooperative) + wipe the profile's storage folders at launch (the shell stores nothing there), (c) launch-time wipe only.
+- Html: persistent storage per file (opt-in), `<title>` as tile title, range requests (media seeking), subfolder watch.

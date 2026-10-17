@@ -132,9 +132,10 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     else if (req.verb !== 'ready') debug('security', 'unhandled request', host.id, req.verb)
   }
 
-  // SECURITY: one MessagePort per loaded document, posted to the exact contentWindow. The frame's
-  // origin is opaque, so targetOrigin must be '*'; safe because the frame can only ever show this
-  // tile's viewer (nav lock in main). No window `message` listener: requests come over the port only.
+  // SECURITY: one MessagePort per loaded document, posted to the exact contentWindow. Viewer
+  // frames' origin is opaque, so targetOrigin must be '*'; safe because the frame can only ever show
+  // this tile's viewer, or (documents) its token's own pages (nav lock in main). No window `message`
+  // listener: requests come over the port only.
   const connect = () => {
     if (dead) return
     if (port) port.onmessage = port.onclose = null

@@ -19,7 +19,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 |---|---|
 | `tie list [--json]` | Tiles (+ tabs with `--json`) |
 | `tie open terminal [opts]` | Open, print id |
-| `tie open <path> [placement]` | Open a file in its kind (markdown, image by extension; else text or hex by content: `VIEWERS.md`), print id |
+| `tie open <path> [placement]` | Open a file in its kind (markdown, image, html by extension; else text or hex by content: `VIEWERS.md`), print id |
 | `tie close [id]` | Close |
 | `tie move [id] --at <id> [--side s] \| --float \| --shelve` | Move |
 | `tie focus [id]` | Switch to its tab; expand + activate, or pin if shelved |
@@ -56,7 +56,8 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
-- `doc: {path, rev, missing, history: {index, length}}` (file kinds; null until open).
+- `doc: {path, rev, missing, history: {index, length}}` (file view kinds; null until open).
+- `page: {path, url, ready, reloads, history: {index, length}}` (html).
 - `rect`: window px, rounded; null if not rendered (background tab).
 
 ## Socket protocol
@@ -83,5 +84,5 @@ Methods = commands. Params: `open` {`kind`, `path` (absolute), `cmd`, `cwd`, `ti
 
 - No auth: any local process of the user can connect.
 - No events; poll `list`.
-- No terminal I/O. Kinds: `terminal`; `markdown`, `text`, `image`, `hex` (by path); `probe` in dev builds.
+- No terminal I/O. Kinds: `terminal`; `markdown`, `text`, `image`, `hex`, `html` (by path); `probe` in dev builds.
 - No way to force a kind from the CLI (e.g. hex of a PNG): shelf templates only.

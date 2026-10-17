@@ -230,3 +230,25 @@ Means for P4: the planned rule (popup → system browser only within ~1 s of rea
 - Keymap: `history-back/forward` renamed `nav-back/forward`; new `nav-reload` (cmd+R), `nav-location` (cmd+L). Reload = re-read + page render, scroll kept, no history entry; error dialog "Can't reload".
 - Harness gap found and closed: `sec-content-nav` navigated to `package.json` (served as `application/octet-stream` → a download, frame stayed put): a loosened nav lock still passed. Now targets a `text/plain` file; mutation (lock ignoring the URL) → red.
 - Flake seen once: `markdown-links` first click in the frame refused "without focus" (hidden window focus timing); passed on reruns.
+
+### P2 notes (implementation, 2026-10-17)
+
+- Kinds: policy rows text (10 MB, text), image (50 MB, payload `none`: `<img>` from its token), hex (16 MB, `bytes`). Payload widened to `text | bytes | none`; bytes: IPC `Uint8Array` → file view keeps it → a copy posted with its buffer transferred (`FrameSurface.post(msg, transfer)`, boundary change).
+- Routing: extension first (markdown, image; html in P3), else sniff (main reads 8 KB) → text / hex. "No viewer" gone; errors left: missing, folder, too large (CLI exit 1, drop modal), "Can't open as <kind>" (template on a file of another kind: `canOpenAs`, own / hex for anything / text if text-like).
+- Boundary changes: `tie.doc.open(path, kind)` (main checks the tile's kind may show the file), `doc:viewer(path, kind?)`, doc message gains `src` (file's path on the token), `kinds/markdown.ts` replaced by a one-line `fileKind(kind, icon)` registration per file kind. File view link routing unchanged (other kinds ignored: P5).
+- Text: one element per line + one-text-node gutter; highlight only ≤ 512 KB (cost); controls → Control Pictures, bidi → `⟨U+XXXX⟩` (Trojan Source visible). `n` order: newest update first, document order within it (as markdown).
+- Hex: row height must be computed, not measured from a probe element (probe and rows rounded differently: 17 vs 18 px, drift); `overflow-anchor: none` needed on `:root` (redrawn rows moved the view). Ligatures off.
+- Shelf: templates for every file kind (6 with html): picker filter per kind (text / hex: any file).
+- Evidence: `sec-viewers` red with escaping removed, controls raw, cap check removed. SVG inertness: by image context (no single mutation reaches it without replacing `<img>` and the CSP): regression check only.
+
+### P3 notes (implementation, 2026-10-17)
+
+- As decided: own token origin, document CSP, `supportFetchAPI`, bootstrap (inline, first in `<head>`), followLink routing, confirm for the web, nav reports from main, navigation ≠ crash (5 s grace for a `load`), folder live reload, scroll kept (sessionStorage).
+- Infeasible: **storage cleared on close**. `session.clearData` (any `originMatchingMode`, with origins, excluded origins, or none at all) and `clearStorageData` leave `tie-content` storage untouched (checked: quota DB rows, IndexedDB files, and in-page reads). Storage key is partitioned: `tie-content://<token>/^0tie://app`. Not implemented; options in `PENDING.md`. Isolation still holds (random tokens, never reused; a reopened file starts empty: tested).
+- Found: **WebRTC escapes the document CSP**: STUN (UDP) and TURN (TCP) reached local probes from the page; Chromium ignores CSP `webrtc 'block'`. Fix (new guard): the shell session has no network (proxy to `127.0.0.1:1`, loopback included; WebRTC `disable_non_proxied_udp`). The browser tile (P4) must use its own partition (it does by plan).
+- CSP made observable separately: with the kill-switch, a loosened CSP still sent nothing; `sec-html` asserts a `securitypolicyviolation` per vector. Not CSP: forms (sandbox, no `allow-forms`), cross-origin `new Worker(url)` (same-origin rule).
+- Preconnect / dns-prefetch: no TCP connection observed (blocked).
+- Gesture race: a click into an unfocused frame posts its request before the shell's `activeElement` moves (cross-process): the known `markdown-links` flake, reproducible in `html` after focus moved to a new tile. Fix (boundary change, `frame.ts`): unfocused gesture requests wait 150 ms for focus, then are refused.
+- Main reports via `did-frame-navigate` / `did-fail-provisional-load` (`webFrameMain.fromId` → `frameTreeNodeId` = the token's bound frame). Aborted (-3, nav lock) ignored. Meta-refresh-away loops end in "Page keeps navigating away" (> 3 per 10 s).
+- Spikes: `fetch` spike removed (always on); `spike-html-origin` now expects fetch to work. html/nav spikes overlap the real kind; remove with the webview spike at the end of P4.
+- Evidence (`sec-html`, mutation → red): `connect-src *`; network kill-switch removed (TURN TCP reached); confirm skipped; gesture rule off; `/_tie/` allowed by the nav lock; loop guard removed; bootstrap not stopping the handshake event (page saw the port). Opaque viewer fetch: red only when both the probe's opaque origin and its CSP are loosened (two layers).

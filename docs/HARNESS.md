@@ -80,6 +80,7 @@ EOF
 | `press(chord)`, `keyDown(key)`, `keyUp(key)` | keys through main (dev socket `input` → `sendInputEvent`): pass `before-input-event` like real keys. Use for shortcuts; CDP `ctx.page.keyboard` skips it (fine for typing) |
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
 | `contentFrame(id)`, `mdState(id)`, `clickIn(frame, selector, {meta})` | any content tile's Playwright frame, once its viewer has a port (`window.viewer`; re-found after reloads); markdown viewer state (`text`, `html`, `rev`, `key`, `renders`, `scrollY`); real click inside a frame (`hiddenWindow`) |
+| `htmlFrame(id)` | html tile's page frame (the page's realm), once ready; re-found after navigations (`tie list` `page.url`) |
 | `tileOf(id)`, `waitFor(fn, what)`, `pickNext(path)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; next file picker answer (null = cancel); OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term` / `doc`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
@@ -90,14 +91,13 @@ Runtime facts the viewers plan builds on (`2026-10-16-viewers-and-browser-plan.m
 
 | Spike | Hook | Scenarios |
 |---|---|---|
-| `html` | root `.html` served as a document (P3-like CSP); nav lock lets the token's frame load root `.html` files | `spike-html-origin`, `spike-frame-nav` |
-| `fetch` | `tie-content` registered with `supportFetchAPI` | `spike-html-fetch` |
+| `html` | probe tokens: root `.html` served as a document (P3-like CSP); nav lock lets the token's frame load root `.html` files | `spike-html-origin`, `spike-html-fetch` (`supportFetchAPI` is now always on), `spike-frame-nav` |
 | `nav` | `[spike]` log: subframe `did-start-navigation` / `did-fail-*` / `did-frame-navigate`, `window.open` details | `spike-frame-popups`, `spike-frame-nav` |
 | `webview` | `webviewTag` on; `<webview>` attaches with rebuilt prefs (partition `persist:browser`); guests navigate http(s) only, popups denied; guest input/crash logged | `spike-webview`, `spike-guest-popups` |
 
 - Dev socket `spike {action}`: `guest` (last guest: id, url, partition, focused), `crash-guest`, `guest-key`, `guest-click {x, y}` (guest `sendInputEvent`).
 - Scenarios assert what was observed: a failure after an Electron upgrade = a changed fact (update Results).
-- To be replaced by the real html / browser code in P3 / P4.
+- `html` / `nav` spikes overlap the real html kind (P3) now; `webview` awaits P4. Remove at the end of P4 (plan).
 
 ## Traces (`out/log/`)
 
@@ -109,4 +109,4 @@ Runtime facts the viewers plan builds on (`2026-10-16-viewers-and-browser-plan.m
 ## Package check (`dev/package-check.mjs`)
 
 - `tie-dev check-package [app]`; also run by `tie-dev package` (failure removes the package).
-- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, no `[security]` log lines.
+- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, an html page loads (bootstrap answers), a text file opens, no `[security]` log lines.

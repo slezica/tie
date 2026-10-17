@@ -27,7 +27,8 @@ for (const [k, v] of Object.entries(EXPECTED)) {
   else fail(`fuse ${k}: ${actual[k]} (want ${v})`)
 }
 
-// Smoke: packaged app boots in the background and answers the bundled CLI.
+// Smoke: packaged app boots in the background and answers the bundled CLI; markdown (+ diagram
+// library), html and text tiles open.
 const instance = `pkg-${process.pid}`
 const settings = join(ROOT, 'tmp', `${instance}.settings.json`)
 const log = join(ROOT, 'tmp', `${instance}.log`)
@@ -58,6 +59,21 @@ try {
     rmSync(md, { force: true })
     if (/\[content\] viewer markdown-mermaid\.js/.test(appLog())) console.log('ok   smoke: diagram library served')
     else fail('smoke: diagram library not requested')
+    // Html (document serving, bootstrap inlined from the packaged viewers) and text (sniffed).
+    const html = join(ROOT, 'tmp', `${instance}.html`)
+    const txt = join(ROOT, 'tmp', `${instance}-plain`)
+    writeFileSync(html, '<!doctype html><title>smoke</title><p>smoke</p>')
+    writeFileSync(txt, 'plain\n')
+    const hid = tie('open', html).id
+    const xid = tie('open', txt).id
+    let ht, xt
+    for (let i = 0; i < 50 && !(ht?.page?.ready && xt?.doc); i++) (await sleep(100), (ht = tie('list').tiles.find((x) => x.id === hid)), (xt = tie('list').tiles.find((x) => x.id === xid)))
+    rmSync(html, { force: true })
+    rmSync(txt, { force: true })
+    if (ht?.page?.ready && !ht.error) console.log('ok   smoke: html page loads (bootstrap answered)')
+    else fail(`smoke: html tile ${JSON.stringify(ht)}`)
+    if (xt?.kind === 'text' && xt.doc && !xt.error) console.log('ok   smoke: text file opens')
+    else fail(`smoke: text tile ${JSON.stringify(xt)}`)
     const refused = (existsSync(log) ? readFileSync(log, 'utf8') : '').match(/\[security\].*/g) || []
     if (refused.length) fail(`smoke: security log not empty:\n  ${refused.join('\n  ')}`)
   }

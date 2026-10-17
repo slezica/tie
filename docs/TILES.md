@@ -60,30 +60,32 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `terminal` | shell (trusted) | xterm + pty; the one exception to "content never in the shell realm" (`TERMINALS.md`) |
 | `markdown` | content frame | file view + markdown viewer (`MARKDOWN.md`) |
 | `text`, `image`, `hex` | content frame | file view + viewer (`VIEWERS.md`) |
+| `html` | content frame, own origin | the file is the page (`kinds/html.ts` on the frame host; `VIEWERS.md` "Html") |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view + template).
 - `tie open <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie open <path>`, drops, template + picker).
-- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `extsOf(kind)`: picker filters (none = any file). `canOpenAs`: which kinds a template may open a file as (own, hex, text if text-like).
+- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image, html), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `extsOf(kind)`: picker filters (none = any file). `canOpenAs`: which kinds a template may open a file as (own, hex, text if text-like).
 
 ## Policy table (`core/policy.ts`)
 
 The one reviewable security table for content kinds. Every frame-hosted kind has a row; nothing else decides these.
 
-| Field | markdown | text | image | hex | probe (dev) | Read by |
-|---|---|---|---|---|---|---|
-| `page` | `viewer` | `viewer` | `viewer` | `viewer` | `viewer` | `viewerFile`, build (`viewerKinds`) |
-| `sandbox` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `frame.ts` |
-| `styles` (CSP `style-src`) | `inline` | `nonce` | `nonce` | `nonce` | `nonce` | `contentCsp` |
-| `nav` (nav lock) | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `navAllowed` (`core/content.ts`) |
-| `assets` (`/_tie/`) | `markdown-mermaid.js` | — | — | — | — | `viewerFile` |
-| `payload` | `text` | `text` | `none` (`<img>` from its token) | `bytes` | `none` | `main/docs.ts`, `fileview.ts` |
-| `maxBytes` | 8 MB | 10 MB | 50 MB | 16 MB | 0 | `main/docs.ts`, `watch.ts` |
-| `dev` | no | no | no | no | yes | `viewerKinds` (main serves dev rows in dev builds only) |
+| Field | markdown | text | image | hex | html | probe (dev) | Read by |
+|---|---|---|---|---|---|---|---|
+| `page` | `viewer` | `viewer` | `viewer` | `viewer` | `document` (the file) | `viewer` | `viewerFile`, `contentCsp`, `content.ts`, build (`viewerKinds`) |
+| `sandbox` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts allow-same-origin` | `allow-scripts` | `frame.ts` |
+| `styles` (CSP `style-src`) | `inline` | `nonce` | `nonce` | `nonce` | (document CSP) | `nonce` | `contentCsp` |
+| `nav` (nav lock) | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `within-root` | `viewer-exact` | `navAllowed` (`core/content.ts`), `frame.ts` |
+| `assets` (`/_tie/`) | `markdown-mermaid.js` | — | — | — | — | — | `viewerFile` |
+| `payload` | `text` | `text` | `none` (`<img>` from its token) | `bytes` | `none` (served by the protocol) | `none` | `main/docs.ts`, `fileview.ts` |
+| `maxBytes` | 8 MB | 10 MB | 50 MB | 16 MB | 10 MB (the page) | 0 | `main/docs.ts`, `watch.ts` |
+| `bootstrap` | no | no | no | no | yes | no | `content.ts` (injected into html documents) |
+| `dev` | no | no | no | no | no | yes | `viewerKinds` (main serves dev rows in dev builds only) |
 
-- `contentCsp(policy, nonce, token)`: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms.
+- `contentCsp(policy, nonce, token)`: viewers: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms. Documents: `documentCsp()` (`VIEWERS.md` "Html": `'self'` + `data:`/`blob:`, inline/eval scripts, `connect-src 'self'`, nothing remote).
 - Unit tests pin every row and each CSP string exactly (`policy.test.ts`).
-- Later rows (plan): html (`page: 'document'`, `within-root`).
+- Later rows (plan): browser (P4: `<webview>`, not a frame).
 
 ## File view (`renderer/fileview.ts`)
 
@@ -99,23 +101,24 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 ## Content kinds: frame host (`renderer/frame.ts`)
 
-`frameSurface(host, {viewer, root, title, icon, handlers, onReady?})` → `FrameSurface` (= `Surface` + `post(msg)`, `setRoot(root)`). A content kind gives only these.
+`frameSurface(host, {viewer, root, title, icon, handlers, onReady?, page?, onNavigate?, onChanged?})` → `FrameSurface` (= `Surface` + `post(msg, transfer?)`, `setRoot(root, page?)`, `load(page)`, `origin()`). A content kind gives only these.
 
-1. `mount`: `tie.content.open(root, viewer)` → main registers `root` under a fresh token → `{token, url}` (or `{error}` → `host.error`).
-2. `<iframe class="content" sandbox="allow-scripts" allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
+1. `mount`: `tie.content.open(root, viewer, page?)` → main registers `root` under a fresh token → `{token, url}` (viewers: the viewer page; documents: `page` in the root) (or `{error}` → `host.error`).
+2. `<iframe class="content" sandbox=<policy> allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
 3. On each `load`: new `MessageChannel`; `tie:init` + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
 4. Viewer answers `{verb: 'ready'}` within 5 s, else "Content did not load". Each `ready` → `onReady()` (kind sends content).
 5. Requests: port → `parseRequest` (`core/requests.ts`) → gesture rule → `handlers[verb]` → IPC → main (re-validates). Invalid, unhandled or refused: dropped, `debug('security', ...)`.
 6. `post(msg)`: host → viewer over the port (dropped before the handshake).
 7. `setRoot(root)`: new token for another directory, same iframe (`src` changes; nav lock binds the new token to it), old token closed. Handshake again.
 8. `dispose`: port closed, iframe removed, `tie.content.close(token)`.
+9. Documents (`nav: 'within-root'`): `load(page)` navigates the frame within the root (port closed first; same page + `#hash`: in-page, port kept); main reports the frame's own navigations (`content:navigated` → `onNavigate`), failed ones (`content:navfailed` → reload the page; > 3 per 10 s → "Page keeps navigating away"), folder changes (`content:changed` → `onChanged`). Routed by token (`initFrames`).
 
 ### Watchdog (`frame.ts`, timing in `core/watchdog.ts`)
 
 | Failure | Detected by | Tile shows |
 |---|---|---|
 | Hung (busy loop, runaway layout, OOM) | `{type: 'tie:ping', n}` every 1 s (one outstanding); no `pong {n}` within 5 s, and 10 s since the last `post` (render grace) | "Viewer stopped responding" |
-| Crashed (renderer process died) | port `close` event (the viewer's end went away) | "Viewer crashed" |
+| Crashed (renderer process died) | port `close` event (the viewer's end went away); documents: and no frame `load` within 5 s (else it was a navigation: handshake again) | "Viewer crashed" / "Page crashed" |
 | No handshake | no `ready` within 5 s | "Content did not load" |
 
 - Every viewer answers `tie:ping` with `pong` (same `n`) from its message handler.
@@ -126,7 +129,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - A viewer paused in DevTools (breakpoint) for > 5 s counts as hung.
 
 - No window `message` listener in the shell: requests arrive over the port only.
-- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only.
+- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the shell's focus update), then is refused.
 - Focus: a click in a frame gives the shell no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
 - Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
@@ -138,27 +141,28 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `ready` | — | host (clears load timer) |
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
-| `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser / this tile / new tile ("File view") |
+| `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser / this tile / new tile ("File view"); html: same, web after a confirm, other kinds beside (`VIEWERS.md`) |
 
 - Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
 - New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.
 
 ## Content protocol (`main/content.ts`, `core/content.ts`)
 
-`tie-content://<token>/`: `standard`, `secure`; no `corsEnabled`, `supportFetchAPI`, `bypassCSP`.
+`tie-content://<token>/`: `standard`, `secure`, `supportFetchAPI` (html pages fetch their folder's files); no `corsEnabled`, `bypassCSP`. Opaque viewer frames still can't fetch (no CORS; and their CSP has no `connect-src`).
 
 | Path | Serves |
 |---|---|
 | `/_tie/<kind>.html` | viewer page; `%NONCE%` replaced per response; CSP `contentCsp` (policy row) |
 | `/_tie/<kind>.js` | viewer script (IIFE bundle) |
 | `/_tie/<asset>` | the kind's listed assets only (policy `assets`: markdown → `markdown-mermaid.js`) |
-| other | file inside the root (`contentFile`, then real path inside real root) |
+| other | file inside the root (`contentFile`, then real path inside real root). Document tokens (html): `.html`/`.htm` with the bootstrap injected, every file with `documentCsp` (`DOC_TYPES`) |
 
 - Token: 128-bit random hex, minted so the URL keeps it (all-digit hosts become IPv4). Registry: token → `{root (real path), kind, frame}`.
 - Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out, non-files.
 - Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
 - Viewer CSP: from the policy row (above). Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
-- Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL) of a registered token, direct child of the shell, first frame binds the token.
+- Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the shell, first frame binds the token.
+- Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the shell. Storage per token origin, not cleared on close (`VIEWERS.md` Limitations).
 - Served viewer kinds: `viewerKinds(dev)` (dev-only rows in dev builds only).
 - Closed tile / shell reload: token forgotten.
 
@@ -183,4 +187,4 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 ## Limitations
 
 - OS drags entering straight over a frame go to the frame (a drop there can only try to navigate it: nav lock).
-- Gesture rule checks focus, not a fresh click: script in a focused frame could post at any time. Today only our viewers run script in frames.
+- Gesture rule checks focus, not a fresh click: script in a focused frame can post at any time. Html pages run their own scripts: their requests are routed as hostile (confirm for the web, one new tile per second).
