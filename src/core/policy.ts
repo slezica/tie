@@ -6,7 +6,7 @@
 
 export const CONTENT_SCHEME = 'tie-content'
 
-export type ContentKind = 'markdown' | 'probe' // later: text, image, hex (viewers), html (document)
+export type ContentKind = 'markdown' | 'text' | 'image' | 'hex' | 'probe' // later: html (document)
 
 export interface ContentPolicy {
   // Who makes the page: a Tie viewer (out/viewers/<kind>.html|js, our code, nonce'd). P3 adds
@@ -22,8 +22,9 @@ export interface ContentPolicy {
   nav: 'viewer-exact'
   // Extra viewer files served under /_tie/ to this kind only (out/viewers/<name>).
   assets: readonly string[]
-  // What the host sends the viewer from the file: 'text' (UTF-8), or nothing ('none'). P2 adds 'bytes'.
-  payload: 'text' | 'none'
+  // What the host sends the viewer from the file over the port: 'text' (UTF-8), 'bytes' (raw,
+  // transferred), or nothing ('none': the viewer loads the file from its own token, e.g. <img>).
+  payload: 'text' | 'bytes' | 'none'
   // Largest file the kind opens (main/docs.ts; over it: error). 0 for kinds without a file.
   maxBytes: number
   // Dev builds only (harness kinds).
@@ -39,6 +40,13 @@ export const POLICY: { readonly [K in ContentKind]: ContentPolicy } = {
   // Markdown: inline styles for Mermaid's SVG (<style>, style attributes; docs/MARKDOWN.md
   // "Diagrams"). The diagram library is a lazy asset.
   markdown: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'inline', nav: 'viewer-exact', assets: ['markdown-mermaid.js'], payload: 'text', maxBytes: 8 * MB, dev: false },
+  // Text: any UTF-8 file (sniffed), highlighted by extension, shown literally (docs/VIEWERS.md).
+  text: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'text', maxBytes: 10 * MB, dev: false },
+  // Image: the viewer shows the file as an <img> from its own token (img-src); SVG stays inert
+  // (images never run scripts or load anything).
+  image: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 50 * MB, dev: false },
+  // Hex: any file, bytes transferred over the port (no copy into strings).
+  hex: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'bytes', maxBytes: 16 * MB, dev: false },
   // Probe: harness kind (escape tests, sec-content-escape). Dev builds only.
   probe: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 0, dev: true },
 }

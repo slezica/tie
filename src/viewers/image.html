@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>image</title>
+    <!-- Nonce placeholders are replaced per response by main (content.ts): only tagged styles and
+         scripts apply. Colors and fonts arrive from the host (theme message) as custom properties. -->
+    <style nonce="%NONCE%">
+      /* Image: centered on a checkerboard (transparency), fit to the tile (shrink only) or actual
+         size (scrolls). The flex stage + auto margins center small images and keep large ones
+         reachable from their top-left corner. */
+      :root {
+        --check: color-mix(in srgb, var(--fg) 9%, var(--bg));
+        font: 12px / 1.4 var(--font);
+      }
+      body {
+        margin: 0;
+      }
+      #stage {
+        display: flex;
+        box-sizing: border-box;
+        min-width: 100vw;
+        min-height: 100vh;
+        width: max-content;
+        padding: 8px;
+      }
+      #img {
+        display: block;
+        margin: auto;
+        background: repeating-conic-gradient(var(--check) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px;
+        cursor: zoom-in;
+      }
+      #img:not([src]),
+      #img.broken {
+        display: none;
+      }
+      body.fit #stage {
+        width: 100vw;
+      }
+      body.fit #img {
+        max-width: 100%;
+        max-height: calc(100vh - 16px);
+        object-fit: contain;
+      }
+      body.actual #img {
+        cursor: zoom-out;
+      }
+      #info {
+        position: fixed;
+        right: 6px;
+        bottom: 4px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+        color: var(--muted);
+        pointer-events: none;
+      }
+      #msg {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: center;
+        color: var(--muted);
+      }
+      #msg.on {
+        display: grid;
+      }
+    </style>
+  </head>
+  <body class="fit">
+    <div id="stage"><img id="img" alt="" draggable="false" /></div>
+    <div id="info"></div>
+    <div id="msg">Can't show this image</div>
+    <script nonce="%NONCE%" src="./image.js"></script>
+  </body>
+</html>

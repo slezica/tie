@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>text</title>
+    <!-- Nonce placeholders are replaced per response by main (content.ts): only tagged styles and
+         scripts apply. Colors and fonts arrive from the host (theme message) as custom properties. -->
+    <style nonce="%NONCE%">
+      /* Text layout: line numbers (one text node, sticky on horizontal scroll) beside the lines (one
+         element each: the live diff's blocks). No wrapping: both columns share the line height.
+         Shared parts come from the viewer modules: base colors (runtime.ts), change marks
+         (marks.ts), code tokens (highlight.ts). */
+      :root {
+        font: var(--size) / 1.45 var(--mono);
+        tab-size: 4;
+      }
+      body {
+        margin: 0;
+      }
+      #wrap {
+        display: flex;
+        width: max-content;
+        min-width: 100%;
+        padding: 4px 0 24px;
+      }
+      #gutter {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        margin: 0;
+        padding: 0 4px 0 10px;
+        font: inherit;
+        text-align: right;
+        color: color-mix(in srgb, var(--fg) 38%, var(--bg));
+        background: var(--bg);
+        user-select: none;
+      }
+      #lines {
+        flex: 1;
+        padding: 0 16px 0 14px;
+        white-space: pre;
+      }
+      #lines > div {
+        min-height: 1lh;
+      }
+      /* Control characters and bidi overrides, made visible (never interpreted). */
+      .ctl {
+        color: var(--a1);
+      }
+      #empty {
+        padding: 8px 14px;
+        color: var(--muted);
+        font-family: var(--font);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap"><pre id="gutter"></pre><div id="lines"></div></div>
+    <script nonce="%NONCE%" src="./text.js"></script>
+  </body>
+</html>

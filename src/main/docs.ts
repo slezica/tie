@@ -1,16 +1,18 @@
 // Files open in viewer tiles: open + watch, push changes, file picker. Read-only: no path here
-// writes a file. The renderer names files; main checks them (absolute, existing file, has a kind:
-// core/kinds) and owns every read. Payload and size cap per kind: policy table (core/policy).
-// docs/TILES.md "File view".
+// writes a file. The renderer names files; main checks them (absolute, existing regular file, its
+// kind: core/kinds, by extension or content; size cap) and owns every read. Payload (text, bytes or
+// nothing) and size cap per kind: policy table (core/policy). docs/TILES.md "File view".
 import { dialog, type BrowserWindow } from 'electron'
-import { stat } from 'node:fs/promises'
+import { open, stat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { log } from './env'
 import { watchFile, readStable, revision, type Watch } from './watch'
-import { fileKind, extsOf, noViewer } from '../core/kinds'
-import { policyOf, type ContentKind } from '../core/policy'
+import { fileKind, extsOf, sniff, sniffKind, canOpenAs, isFileKind, SNIFF_BYTES } from '../core/kinds'
+import { policyOf, type ContentKind, type ContentPolicy } from '../core/policy'
 
-export type DocPush = { text: string; rev: string } | { missing: true }
+// What a viewer gets from the file (policy payload): text, bytes, or nothing (loads it by URL).
+export type Body = { text?: string; bytes?: Uint8Array }
+export type DocPush = ({ rev: string } & Body) | { missing: true }
 
 interface Doc {
   path: string // as opened (may be a symlink)
@@ -20,24 +22,54 @@ interface Doc {
 const docs = new Map<number, Doc>()
 let seq = 0
 
-// Which kind opens `path`: absolute, existing regular file, known extension.
-export async function fileViewer(path: unknown): Promise<{ kind: ContentKind; path: string } | { error: string }> {
+const MB = 1024 * 1024
+const tooLarge = (path: string, p: ContentPolicy) => `File too large: ${path} (max ${p.maxBytes / MB} MB)`
+
+async function head(path: string): Promise<Uint8Array> {
+  const f = await open(path, 'r')
+  try {
+    const buf = new Uint8Array(SNIFF_BYTES)
+    const { bytesRead } = await f.read(buf, 0, SNIFF_BYTES, 0)
+    return buf.subarray(0, bytesRead)
+  } finally {
+    await f.close()
+  }
+}
+
+// SECURITY: the renderer (or a drop, or the CLI) names the file; main decides what it is. Absolute,
+// existing regular file; kind by extension, else by content (text or hex); `want` (a template's
+// kind) only where canOpenAs allows it; size within the kind's cap.
+export async function fileViewer(path: unknown, want?: unknown): Promise<{ kind: ContentKind; path: string } | { error: string }> {
   if (typeof path !== 'string' || !isAbsolute(path) || path.includes('\0')) return { error: `Bad path: ${String(path)}` }
+  if (want !== undefined && !isFileKind(want)) return { error: `Not a file kind: ${String(want)}` }
   const st = await stat(path).catch(() => null)
   if (!st) return { error: `No such file: ${path}` }
   if (!st.isFile()) return { error: `Not a file: ${path}` }
-  const kind = fileKind(path)
-  return kind && policyOf(kind)?.payload !== 'none' ? { kind, path } : { error: noViewer(path) }
+  let kind = fileKind(path)
+  if (!kind || (want && want !== kind)) {
+    const sample = await head(path).catch(() => null)
+    if (!sample) return { error: `Can't read ${path}` }
+    const textLike = sniff(sample, st.size) === 'text'
+    kind ??= sniffKind(sample, st.size)
+    if (want && !canOpenAs(want, kind, textLike)) return { error: `Can't open as ${want}: ${path}` }
+    if (want) kind = want
+  }
+  const p = policyOf(kind)!
+  if (p.maxBytes && st.size > p.maxBytes) return { error: tooLarge(path, p) }
+  return { kind, path }
 }
 
-// Open + watch. Every later change (or disappearance) is pushed as doc:changed(id, DocPush).
-export async function openDoc(path: unknown, push: (id: number, p: DocPush) => void): Promise<{ id: number; text: string; rev: string } | { error: string }> {
-  const v = await fileViewer(path)
+const bodyOf = (p: ContentPolicy, buf: Buffer): Body => (p.payload === 'text' ? { text: buf.toString('utf8') } : p.payload === 'bytes' ? { bytes: buf } : {})
+
+// Open + watch, as `want` (the tile's kind; default: the file's own). Every later change (or
+// disappearance) is pushed as doc:changed(id, DocPush).
+export async function openDoc(path: unknown, want: unknown, push: (id: number, p: DocPush) => void): Promise<({ id: number; kind: ContentKind; rev: string } & Body) | { error: string }> {
+  const v = await fileViewer(path, want ?? undefined)
   if ('error' in v) return v
-  const max = policyOf(v.kind)!.maxBytes
-  let r = await readStable(v.path, max)
-  for (let i = 0; i < 5 && 'error' in r && r.error === 'unstable'; i++) r = await readStable(v.path, max)
-  if ('error' in r) return { error: r.error === 'too large' ? `File too large: ${v.path}` : `Can't read ${v.path} (${r.error})` }
+  const p = policyOf(v.kind)!
+  let r = await readStable(v.path, p.maxBytes)
+  for (let i = 0; i < 5 && 'error' in r && r.error === 'unstable'; i++) r = await readStable(v.path, p.maxBytes)
+  if ('error' in r) return { error: r.error === 'too large' ? tooLarge(v.path, p) : `Can't read ${v.path} (${r.error})` }
   const id = ++seq
   const rev = revision(r.buf)
   const watch = watchFile(
@@ -46,13 +78,13 @@ export async function openDoc(path: unknown, push: (id: number, p: DocPush) => v
     (e) => {
       if (!docs.has(id)) return
       log('docs', e.type, id, e.type === 'change' ? e.rev : '')
-      push(id, e.type === 'change' ? { text: e.buf.toString('utf8'), rev: e.rev } : { missing: true })
+      push(id, e.type === 'change' ? { rev: e.rev, ...bodyOf(p, e.buf) } : { missing: true })
     },
-    { maxBytes: max },
+    { maxBytes: p.maxBytes },
   )
   docs.set(id, { path: v.path, watch })
-  log('docs', 'open', id, v.path, rev)
-  return { id, text: r.buf.toString('utf8'), rev }
+  log('docs', 'open', id, v.kind, v.path, rev)
+  return { id, kind: v.kind, rev, ...bodyOf(p, r.buf) }
 }
 
 export function closeDoc(id: unknown) {

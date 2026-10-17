@@ -6,7 +6,7 @@ import type { ContentKind } from './policy'
 export type Link =
   | { type: 'anchor'; hash: string } // same page
   | { type: 'web'; url: string } // system browser (main re-checks)
-  | { type: 'file'; path: string; hash: string; kind: ContentKind | null } // local file; kind null: no viewer
+  | { type: 'file'; path: string; hash: string; kind: ContentKind | null } // local file; kind by extension (null: decided by content, main)
   | { type: 'refused'; why: string }
 
 // SECURITY: link hrefs come from untrusted documents. Only three kinds lead anywhere: in-page

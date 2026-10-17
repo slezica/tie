@@ -17,6 +17,8 @@ export interface Settings {
 type DataCb = (id: number, data: string) => void
 type ExitCb = (id: number, code: number) => void
 type ProcCb = (id: number, name: string) => void
+// File content for a viewer (policy payload): text, bytes, or nothing (the viewer loads it by URL).
+export type DocBody = { text?: string; bytes?: Uint8Array }
 type RpcCb = (reqId: number, method: string, params: unknown) => void
 
 const api = {
@@ -46,10 +48,11 @@ const api = {
   // Files in viewer tiles (file view). Main checks paths, reads and watches. Read-only: no writes.
   doc: {
     viewer: (path: string): Promise<{ kind: string; path: string } | { error: string }> => ipcRenderer.invoke('doc:viewer', path),
-    open: (path: string): Promise<{ id: number; text: string; rev: string } | { error: string }> => ipcRenderer.invoke('doc:open', path),
+    // As `kind` (the tile's; main checks the file may be shown so). Body per the kind's payload.
+    open: (path: string, kind: string): Promise<({ id: number; kind: string; rev: string } & DocBody) | { error: string }> => ipcRenderer.invoke('doc:open', path, kind),
     close: (id: number) => ipcRenderer.send('doc:close', id),
     pick: (defaultPath: string | undefined, kind: string): Promise<string | null> => ipcRenderer.invoke('doc:pick', defaultPath, kind),
-    onChange: (cb: (id: number, p: { text: string; rev: string } | { missing: true }) => void) => {
+    onChange: (cb: (id: number, p: ({ rev: string } & DocBody) | { missing: true }) => void) => {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
     },
   },

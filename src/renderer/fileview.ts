@@ -1,6 +1,8 @@
 // File view: a tile showing a local file in a Tie viewer (content frame). Shared by every file
-// kind: the kind gives its name and icon, nothing else. Main reads and watches the file (docs.ts)
-// and pushes changes; the viewer (src/viewers/<kind>.ts) renders it. Here: the doc's lifecycle
+// kind (markdown, text, image, hex): the kind gives its name and icon, nothing else. Main reads and
+// watches the file (docs.ts) and pushes changes; the viewer (src/viewers/<kind>.ts) renders it.
+// What the viewer gets from the file is the kind's payload (policy table): text, bytes
+// (transferred), or nothing (it loads `src` from its own token). Here: the doc's lifecycle
 // (open, live changes, missing → frozen, close), navigation (history, reload; the host's nav bar)
 // and folder (token) switching, link routing, title / dir / cwd, activity, the theme message.
 // docs/TILES.md "File view".
@@ -12,12 +14,12 @@ import { openTile, besidePlacement } from './ops'
 import { infoDialog } from './dialog'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from './kinds'
+import type { DocBody } from '../preload'
 
-type Push = { text: string; rev: string } | { missing: true }
-interface Doc {
+type Push = ({ rev: string } & DocBody) | { missing: true }
+interface Doc extends DocBody {
   id: number
   path: string
-  text: string
   rev: string
   missing: boolean
 }
@@ -64,13 +66,20 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   let view: { scroll: 'keep' | 'top' | 'restore'; hash: string } = { scroll: 'top', hash: opts.hash ?? '' }
   let seq = 0 // latest navigation wins
 
+  // To the viewer: the doc (key = path), its revision, `src` (the file's URL path on the frame's
+  // token: root = its directory), and the payload. Bytes go as a transferred copy (the tile keeps its
+  // own for the next handshake).
   const sendDoc = () => {
     if (!doc) return
-    frame.post({ type: 'doc', key: doc.path, text: doc.text, rev: doc.rev, scroll: view.scroll, hash: view.hash })
+    const msg = { type: 'doc', key: doc.path, rev: doc.rev, src: '/' + encodeURIComponent(nameOf(doc.path)), scroll: view.scroll, hash: view.hash }
+    if (doc.bytes) {
+      const bytes = doc.bytes.slice()
+      frame.post({ ...msg, bytes }, [bytes.buffer])
+    } else frame.post({ ...msg, text: doc.text })
     view = { scroll: 'keep', hash: '' }
   }
 
-  const setDoc = (r: { id: number; text: string; rev: string }, path: string) => {
+  const setDoc = (r: { id: number; rev: string } & DocBody, path: string) => {
     if (doc) {
       byDoc.delete(doc.id)
       tie.doc.close(doc.id)
@@ -83,6 +92,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
         return
       }
       d.text = p.text
+      d.bytes = p.bytes
       d.rev = p.rev
       d.missing = false
       sendDoc()
@@ -107,7 +117,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   // Open `path` in this tile. Another directory: the frame reloads with a root (token) for it.
   async function go(path: string, how: 'push' | 'back' | 'forward' | 'reload', hash = '') {
     const n = ++seq
-    const r = await tie.doc.open(path)
+    const r = await tie.doc.open(path, kind)
     if (!host.alive() || n !== seq) return void ('id' in r && tie.doc.close(r.id))
     if ('error' in r) return void infoDialog(how === 'reload' ? "Can't reload" : "Can't open link", r.error)
     setDoc(r, path)
@@ -123,16 +133,16 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   }
 
   // SECURITY: hrefs come from the document. classifyLink allows anchors, http(s) (main re-checks)
-  // and local files (main re-checks: absolute, existing, has a kind). Files of this kind open here
-  // (cmd: a new tile beside); other files are ignored for now (no viewer, or another kind: P5);
-  // everything else refused.
+  // and local files (main re-checks: absolute, existing, its kind). Files of this kind (by
+  // extension) open here (cmd: a new tile beside); other files are ignored for now (another kind,
+  // or decided by content: P5); everything else refused.
   function follow(href: string, newTile: boolean) {
     if (!doc) return
     const l = classifyLink(href, doc.path)
     if (l.type === 'web') return tie.openExternal(l.url)
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
-    if (l.kind !== kind) return debug(kind, l.kind ? `ignored link (${l.kind})` : 'ignored link (no viewer)', host.id, l.path)
+    if (l.kind !== kind) return debug(kind, `ignored link (${l.kind ?? 'kind by content'})`, host.id, l.path)
     if (newTile) {
       const sp = spaceOf(host.id)
       const open = () => openTile(kind, besidePlacement(host.id), { path: l.path, hash: l.hash })
@@ -154,7 +164,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     ...frame,
     mount: async () => {
       if (!opts.path) return host.error('No file to show')
-      const r = await tie.doc.open(opts.path)
+      const r = await tie.doc.open(opts.path, kind)
       if (!host.alive()) return void ('id' in r && tie.doc.close(r.id))
       if ('error' in r) return host.error(r.error)
       setDoc(r, opts.path)

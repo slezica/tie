@@ -25,7 +25,7 @@ const viewersDir = join(import.meta.dirname, '../viewers')
 
 const TYPES: Record<string, string> = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
-  '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp',
   '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
 }
 

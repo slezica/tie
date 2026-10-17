@@ -1,5 +1,6 @@
 // Files from outside (Finder drops on the board): opened in their kind where they land, like a
-// template dropped there. No viewer: a modal says so (failures stay visible). docs/INPUT.md.
+// template dropped there. Not openable (folder, too large...): a modal says so (failures stay
+// visible). docs/INPUT.md.
 import { S, tie, debug, type Kind } from './state'
 import { openTile, besidePlacement } from './ops'
 import { placementAt } from './drag'
@@ -8,7 +9,7 @@ import { infoDialog } from './dialog'
 export async function dropFiles(paths: string[], x: number, y: number) {
   const failed: string[] = []
   for (const path of paths) {
-    const v = await tie.doc.viewer(path) // main: exists, regular file, has a viewer
+    const v = await tie.doc.viewer(path) // main: exists, regular file, its kind, size cap
     if ('error' in v) {
       failed.push(v.error)
       continue

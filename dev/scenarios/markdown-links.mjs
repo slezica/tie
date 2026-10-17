@@ -72,7 +72,7 @@ export default async (ctx, h) => {
     await h.clickIn(ctx, await fr(), 'a >> text=web')
     await h.waitFor(ctx, async () => ctx.appLog().includes('external open https://example.com/ext'), 'external open')
     await h.clickIn(ctx, await fr(), 'a >> text=script')
-    await h.waitFor(ctx, async () => /ignored link \(no viewer\) t\d+ \S+run\.sh/.test(ctx.appLog()), 'non-md ignored')
+    await h.waitFor(ctx, async () => /ignored link \(kind by content\) t\d+ \S+run\.sh/.test(ctx.appLog()), 'non-md ignored')
     await h.clickIn(ctx, await fr(), 'a >> text=gone')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'missing target: modal')
     h.assert((await ctx.page.textContent('.dialog p')).includes('No such file'), 'says why')

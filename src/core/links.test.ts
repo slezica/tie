@@ -20,7 +20,8 @@ describe('classifyLink', () => {
   it('special characters in the current path do not leak into the result', () => {
     expect(classifyLink('b.md', '/d/a#1?x%41.md')).toEqual({ type: 'file', path: '/d/b.md', hash: '', kind: 'markdown' })
   })
-  it('other files: no kind (no viewer yet)', () => {
+  it('other files: kind by extension, else null (decided by content)', () => {
+    expect(classifyLink('img/a.PNG', from)).toEqual({ type: 'file', path: '/docs/my notes/img/a.PNG', hash: '', kind: 'image' })
     expect(classifyLink('script.sh', from)).toEqual({ type: 'file', path: '/docs/my notes/script.sh', hash: '', kind: null })
     expect(classifyLink('img/', from)).toEqual({ type: 'file', path: '/docs/my notes/img/', hash: '', kind: null })
   })

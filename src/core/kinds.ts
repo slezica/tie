@@ -1,11 +1,25 @@
-// Files → content kinds: which kind shows a file (by extension), and the sniff rule for files
-// without one (text or binary). Pure, renderer-safe, unit-tested. docs/TILES.md "Kinds".
+// Files → content kinds: which kind shows a file. By extension first (markdown, image); every other
+// file by content (sniff: text or hex). Which kinds a file may be opened as on request (templates).
+// Pure, renderer-safe, unit-tested. docs/TILES.md "Kinds", docs/VIEWERS.md.
 import type { ContentKind } from './policy'
 
-// Kinds that show a local file, by lowercase extension.
+// Kinds that show a local file (policy rows with a file). Probe is not one.
+export const FILE_KINDS: readonly ContentKind[] = ['markdown', 'text', 'image', 'hex']
+export const isFileKind = (k: unknown): k is ContentKind => typeof k === 'string' && (FILE_KINDS as readonly string[]).includes(k)
+
+// Kinds decided by extension (lowercase). Everything else: by content (sniffKind).
 const BY_EXT: Record<string, ContentKind> = {
   '.md': 'markdown',
   '.markdown': 'markdown',
+  '.png': 'image',
+  '.jpg': 'image',
+  '.jpeg': 'image',
+  '.gif': 'image',
+  '.webp': 'image',
+  '.avif': 'image',
+  '.svg': 'image',
+  '.ico': 'image',
+  '.bmp': 'image',
 }
 
 // '.md' (lowercase), or '' when the name has none (dotfiles count as none).
@@ -15,25 +29,20 @@ export function extOf(path: string): string {
   return dot > 0 ? name.slice(dot).toLowerCase() : ''
 }
 
-// The kind showing `path`, by extension; null: no viewer (yet; P2 routes those by sniff).
+// The kind showing `path` by its extension; null: decided by content (sniffKind).
 export function fileKind(path: string): ContentKind | null {
   const ext = extOf(path)
   return Object.hasOwn(BY_EXT, ext) ? BY_EXT[ext] : null
 }
 
-// Extensions of a kind (file picker filters).
+// Extensions of a kind (file picker filters). Kinds decided by content (text, hex): none (any file).
 export function extsOf(kind: string): string[] {
   return Object.keys(BY_EXT).filter((e) => BY_EXT[e] === kind)
 }
 
-export function noViewer(path: string): string {
-  const ext = extOf(path)
-  return ext ? `No viewer for ${ext}` : `No viewer for "${path.slice(path.lastIndexOf('/') + 1)}"`
-}
-
-// Sniff rule for files without a kind (decided 2026-10-16; routed in P2): the first SNIFF_BYTES
-// are UTF-8 without NUL → text, else binary. `size`: the whole file's; when the sample is only a
-// prefix, a multi-byte sequence cut at its end still counts as text.
+// Sniff rule (decided 2026-10-16): the first SNIFF_BYTES are UTF-8 without NUL → text, else binary.
+// `size`: the whole file's; when the sample is only a prefix, a multi-byte sequence cut at its end
+// still counts as text.
 export const SNIFF_BYTES = 8192
 export function sniff(sample: Uint8Array, size = sample.length): 'text' | 'binary' {
   const head = sample.subarray(0, SNIFF_BYTES)
@@ -44,4 +53,14 @@ export function sniff(sample: Uint8Array, size = sample.length): 'text' | 'binar
   } catch {
     return 'binary'
   }
+}
+
+// Files without a kind by extension: text or hex, by content.
+export const sniffKind = (sample: Uint8Array, size?: number): ContentKind => (sniff(sample, size) === 'text' ? 'text' : 'hex')
+
+// May a file whose own kind is `own` (and whose content sniffs as text or not) be opened as `want`?
+// Its own kind; hex for any file (bytes); text for any file that sniffs as text (e.g. markdown
+// source). Nothing else: an image tile never gets a text file, and so on.
+export function canOpenAs(want: ContentKind, own: ContentKind, textLike: boolean): boolean {
+  return want === own || want === 'hex' || (want === 'text' && textLike)
 }

@@ -41,7 +41,7 @@ describe('viewerFile', () => {
     for (const kind of ['probe', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '']) expect(viewerFile(kind, '/_tie/markdown-mermaid.js')).toBe(null)
   })
   it('kinds without a policy row get nothing', () => {
-    for (const kind of ['text', 'constructor', '__proto__', '']) expect(viewerFile(kind, `/_tie/${kind}.html`)).toBe(null)
+    for (const kind of ['nope', 'constructor', '__proto__', '']) expect(viewerFile(kind, `/_tie/${kind}.html`)).toBe(null)
   })
 })
 
@@ -76,13 +76,13 @@ describe('isInside', () => {
 
 describe('navAllowed', () => {
   it("viewer-exact: the kind's viewer page, exactly", () => {
-    for (const kind of ['markdown', 'probe']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(true)
+    for (const kind of ['markdown', 'text', 'image', 'hex', 'probe']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(true)
   })
   it('nothing else: other pages, tokens, kinds, root files, queries, unknown kinds', () => {
     const other = '1'.repeat(32)
     for (const u of [`tie-content://${tok}/_tie/markdown.html`, `tie-content://${other}/_tie/probe.html`, `tie-content://${tok}/_tie/probe.js`, `tie-content://${tok}/page.html`, `tie-content://${tok}/_tie/probe.html?x`, `tie-content://${tok}/_tie/probe.html#x`, 'http://x/'])
       expect(navAllowed('probe', tok, u)).toBe(false)
-    for (const kind of ['', 'constructor', '__proto__', 'text']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(false)
+    for (const kind of ['', 'constructor', '__proto__', 'nope']) expect(navAllowed(kind, tok, `tie-content://${tok}/_tie/${kind}.html`)).toBe(false)
   })
 })
 

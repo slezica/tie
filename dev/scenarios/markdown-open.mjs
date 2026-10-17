@@ -1,5 +1,5 @@
-// Opening files: `tie open <path>` (viewer by extension; unsupported / missing / folder fail with
-// exit 1), Finder drops on the board (markdown → tile there; unsupported → modal; on a terminal:
+// Opening files: `tie open <path>` (kind by extension, else by content: text; missing / folder fail
+// with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal:
 // still the path), shelf template + file picker (harness stub: dev socket `pick`).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { execFile } from 'node:child_process'
@@ -30,8 +30,9 @@ export default async (ctx, h) => {
     const ok = await cli('open', 'notes.md')
     h.assert(ok.code === 0 && /^t\d+$/.test(ok.out), `tie open notes.md: ${JSON.stringify(ok)}`)
     await shows(ok.out, 'Notes')
+    const plain = await cli('open', 'plain.txt')
+    h.assert(plain.code === 0 && (await h.tileOf(ctx, plain.out)).kind === 'text', `tie open plain.txt: text tile ${JSON.stringify(plain)}`)
     for (const [args, msg] of [
-      [['open', 'plain.txt'], 'No viewer for .txt'],
       [['open', 'missing.md'], `No such file: ${join(dir, 'missing.md')}`],
       [['open', '.'], `Not a file: ${dir}`],
       [['open', 'markdown'], 'markdown shows a file'],
@@ -40,7 +41,7 @@ export default async (ctx, h) => {
       h.assert(r.code === 1 && r.err.includes(msg), `tie ${args.join(' ')}: ${JSON.stringify(r)}`)
     }
     h.assert((await cli('open', 'terminal')).code === 0, 'tie open terminal still opens a terminal')
-    h.assert((await tiles()).length === 3, 'failures opened nothing')
+    h.assert((await tiles()).length === 4, 'failures opened nothing')
     for (const t of await tiles()) await ctx.tie('close', t.id)
     await ctx.sleep(200)
 
@@ -58,16 +59,20 @@ export default async (ctx, h) => {
     const r2 = await h.rectOf(ctx, m2.id)
     h.assert(r2.y > r1.y && Math.abs(r2.x - r1.x) < 2, `bottom edge → below: ${JSON.stringify([r1, r2])}`)
 
-    // Unsupported (alone, and next to a markdown file): modal, only the markdown one opens.
-    await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [txt] })
-    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'modal for unsupported')
-    h.assert((await ctx.page.textContent('.dialog p')) === 'No viewer for .txt' && (await tiles()).length === 2, 'says why, opens nothing')
-    await ctx.shot('no-viewer')
+    // A folder (alone, and next to a markdown file): modal, only the file opens. Any other file: its
+    // kind (text here).
+    await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [dir] })
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'modal for a folder')
+    h.assert((await ctx.page.textContent('.dialog p')) === `Not a file: ${dir}` && (await tiles()).length === 2, 'says why, opens nothing')
+    await ctx.shot('not-a-file')
     await ctx.page.click('.dialog .ok')
-    await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [txt, md] })
+    await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [dir, md] })
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'modal for mixed drop')
     h.assert((await mdTiles()).length === 3, 'markdown part opened')
     await ctx.page.click('.dialog .ok')
+    await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [txt] })
+    await h.waitFor(ctx, async () => (await tiles()).some((t) => t.kind === 'text'), 'text file dropped: text tile')
+    for (const t of (await tiles()).filter((t) => t.kind === 'text')) await ctx.tie('close', t.id)
 
     // Onto the shelf: shelved tile.
     const shelf = await h.boxOf(ctx, '#shelf')

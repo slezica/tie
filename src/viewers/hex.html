@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>hex</title>
+    <!-- Nonce placeholders are replaced per response by main (content.ts): only tagged styles and
+         scripts apply. Colors and fonts arrive from the host (theme message) as custom properties. -->
+    <style nonce="%NONCE%">
+      /* Hex dump: offset | 16 bytes | ASCII. Only the rows in view exist (virtualized): #space has
+         the full height, #rows is moved to the scroll position. */
+      :root {
+        font: var(--size) / 1.45 var(--mono);
+        overflow-anchor: none; /* rows are redrawn on scroll: anchoring would move the view */
+        font-variant-ligatures: none; /* bytes as bytes: no "<=>" arrows */
+      }
+      body {
+        margin: 0;
+      }
+      #space {
+        position: relative;
+        width: max-content;
+        min-width: 100%;
+      }
+      #rows {
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 0 16px 0 10px;
+        white-space: pre;
+      }
+      .r {
+        height: var(--rh, 1lh);
+      }
+      .o {
+        color: color-mix(in srgb, var(--fg) 38%, var(--bg));
+        user-select: none;
+      }
+      .z {
+        color: color-mix(in srgb, var(--fg) 30%, var(--bg));
+      }
+      .a {
+        color: var(--a2);
+      }
+      .r.changed .h,
+      .r.changed .a {
+        background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+      }
+      #empty {
+        padding: 8px 14px;
+        color: var(--muted);
+        font-family: var(--font);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="space"><div id="rows"></div></div>
+    <script nonce="%NONCE%" src="./hex.js"></script>
+  </body>
+</html>

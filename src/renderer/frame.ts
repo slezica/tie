@@ -22,7 +22,7 @@ export interface FrameSpec {
 
 // What a content kind gets back: the Surface, plus messages to its viewer and root changes.
 export interface FrameSurface extends Surface {
-  post(msg: unknown): void // to the viewer, over the port (dropped before the handshake)
+  post(msg: unknown, transfer?: Transferable[]): void // to the viewer, over the port (dropped before the handshake)
   setRoot(root: string): Promise<void> // new token for another directory; the viewer reloads
 }
 
@@ -154,10 +154,10 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     },
     title: () => spec.title,
     icon: () => spec.icon,
-    post: (msg) => {
+    post: (msg, transfer = []) => {
       if (!port) return
       dog.lastPost = Date.now()
-      port.postMessage(msg)
+      port.postMessage(msg, transfer)
     },
     setRoot: async (root) => {
       const res = await tie.content.open(root, spec.viewer).catch((e: Error) => ({ error: e.message }))

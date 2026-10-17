@@ -6,9 +6,9 @@ const tok = '0123456789abcdef0123456789abcdef'
 // The table, row by row: what each content kind may do. A change here is a security change.
 describe('policy table', () => {
   it('kinds', () => {
-    expect(CONTENT_KINDS).toEqual(['markdown', 'probe'])
-    expect(viewerKinds(false)).toEqual(['markdown'])
-    expect(viewerKinds(true)).toEqual(['markdown', 'probe'])
+    expect(CONTENT_KINDS).toEqual(['markdown', 'text', 'image', 'hex', 'probe'])
+    expect(viewerKinds(false)).toEqual(['markdown', 'text', 'image', 'hex'])
+    expect(viewerKinds(true)).toEqual(['markdown', 'text', 'image', 'hex', 'probe'])
   })
   it('sandbox: scripts only, every row (opaque origin; no same-origin, popups, top navigation, forms, modals, downloads)', () => {
     for (const k of CONTENT_KINDS) expect(POLICY[k].sandbox).toEqual(['allow-scripts'])
@@ -19,12 +19,21 @@ describe('policy table', () => {
   it('markdown: viewer, inline styles, mermaid asset, text up to 8 MB', () => {
     expect(POLICY.markdown).toEqual({ page: 'viewer', sandbox: ['allow-scripts'], styles: 'inline', nav: 'viewer-exact', assets: ['markdown-mermaid.js'], payload: 'text', maxBytes: 8 * 1024 * 1024, dev: false })
   })
+  it('text: viewer, nonce styles, text up to 10 MB', () => {
+    expect(POLICY.text).toEqual({ page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'text', maxBytes: 10 * 1024 * 1024, dev: false })
+  })
+  it('image: viewer, nonce styles, nothing over the port (img from its token), up to 50 MB', () => {
+    expect(POLICY.image).toEqual({ page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 50 * 1024 * 1024, dev: false })
+  })
+  it('hex: viewer, nonce styles, bytes up to 16 MB', () => {
+    expect(POLICY.hex).toEqual({ page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'bytes', maxBytes: 16 * 1024 * 1024, dev: false })
+  })
   it('probe: dev only, nonce styles, no assets, no file', () => {
     expect(POLICY.probe).toEqual({ page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 0, dev: true })
   })
   it('lookup: own rows only', () => {
     expect(policyOf('markdown')).toBe(POLICY.markdown)
-    for (const k of ['constructor', '__proto__', 'toString', 'hasOwnProperty', '', 'text', 42, null]) expect(policyOf(k)).toBe(null)
+    for (const k of ['constructor', '__proto__', 'toString', 'hasOwnProperty', '', 'nope', 42, null]) expect(policyOf(k)).toBe(null)
   })
 })
 
@@ -33,6 +42,12 @@ describe('contentCsp', () => {
     expect(contentCsp(POLICY.markdown, 'N0NCE', tok)).toBe(
       `default-src 'none'; script-src 'nonce-N0NCE'; style-src 'unsafe-inline'; img-src tie-content://${tok}; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`,
     )
+  })
+  it('text, image, hex: exact (as probe: nonce styles)', () => {
+    for (const k of ['text', 'image', 'hex'] as const)
+      expect(contentCsp(POLICY[k], 'N0NCE', tok)).toBe(
+        `default-src 'none'; script-src 'nonce-N0NCE'; style-src 'nonce-N0NCE'; img-src tie-content://${tok}; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`,
+      )
   })
   it('probe: exact', () => {
     expect(contentCsp(POLICY.probe, 'N0NCE', tok)).toBe(

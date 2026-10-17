@@ -233,7 +233,7 @@ export async function contentFrame(ctx, id, ms = 5000) {
   for (let t = 0; t < ms; t += 100) {
     const src = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`)?.src, id)
     const f = src && ctx.page.frames().find((f) => f.url() === src)
-    if (f && (await f.evaluate(() => !!(window.probe?.inits || window.markdown?.port)).catch(() => false))) return f
+    if (f && (await f.evaluate(() => !!(window.probe?.inits || window.viewer?.port)).catch(() => false))) return f
     await ctx.sleep(100)
   }
   throw new Error(`no content frame for ${id}`)

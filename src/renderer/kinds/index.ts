@@ -5,7 +5,7 @@ import type { TileId } from '@core/layout'
 import type { Kind } from '../state'
 import type { Nav } from '../nav'
 import { terminalKind } from './terminal'
-import { markdownKind } from './markdown'
+import { fileView } from '../fileview'
 
 export interface OpenOpts {
   title?: string
@@ -61,8 +61,14 @@ export function registerKind(spec: KindSpec) {
   KINDS.set(spec.kind, spec)
 }
 
+// File kinds: the file view (fileview.ts) + the kind's viewer (src/viewers/<kind>.ts). One line each.
+const fileKind = (kind: Kind, icon: string): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file', template: { label: kind, icon } })
+
 registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare', template: { label: 'terminal', icon: '' } })
-registerKind({ kind: 'markdown', factory: markdownKind, opens: 'file', template: { label: 'markdown', icon: '📝' } })
+registerKind(fileKind('markdown', '📝')) // docs/MARKDOWN.md
+registerKind(fileKind('text', '📄')) // docs/VIEWERS.md
+registerKind(fileKind('image', '🖼️'))
+registerKind(fileKind('hex', '🔢'))
 
 export const kindSpec = (kind: string): KindSpec | undefined => KINDS.get(kind)
 export const needsFile = (kind: string) => kindSpec(kind)?.opens === 'file'
