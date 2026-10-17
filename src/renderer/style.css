@@ -34,6 +34,7 @@
   --pad: 6px; /* board edge padding */
   --gap: 6px; /* between tiles, and between board and shelf */
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
+  --nav-h: 24px; /* nav bar under the title bar (kinds that navigate) */
   --shelf-w: 68px;
   --peak: 8px; /* shelf reveal arrow */
   --tile-pad: 4px 0 0 6px; /* inside tile content: top right bottom left */
@@ -358,6 +359,68 @@ body.dragging-tab .tab {
   font-family: var(--tile-font);
   font-size: var(--tile-font-size);
   padding: var(--tile-pad);
+}
+/* Nav bar (nav.ts): kinds that navigate. Compact row under the title bar. */
+.navbar {
+  flex: 0 0 var(--nav-h);
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px 0 4px;
+  border-bottom: 1px solid var(--fg-a);
+  min-width: 0;
+}
+.nav-btn {
+  flex: none;
+  width: 20px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  cursor: pointer;
+}
+.nav-btn svg {
+  width: 12px;
+  height: 12px;
+}
+.nav-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--fg-b);
+}
+.nav-btn:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+.navbar .location {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--fg-a);
+  color: var(--muted);
+  font: 11.5px var(--ui-font);
+  text-overflow: ellipsis;
+  outline: none;
+}
+.navbar .location:read-only {
+  cursor: default;
+}
+.navbar .location:focus {
+  color: var(--text);
+  background: var(--fg-b);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+.tile.collapsed-h .navbar,
+.tile.collapsed-v .navbar {
+  display: none;
 }
 /* Content frame (frame.ts): fills the body, edge to edge. */
 .body iframe.content {

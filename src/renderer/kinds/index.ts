@@ -1,8 +1,9 @@
-// Tile kinds. The host (tile.ts) owns the element, title bar and error state; a kind
+// Tile kinds. The host (tile.ts) owns the element, title bar, nav bar and error state; a kind
 // supplies a Surface for the tile's body. Registry: one KindSpec per kind (how it opens, its
 // shelf template). docs/TILES.md.
 import type { TileId } from '@core/layout'
 import type { Kind } from '../state'
+import type { Nav } from '../nav'
 import { terminalKind } from './terminal'
 import { markdownKind } from './markdown'
 
@@ -19,7 +20,7 @@ export interface Host {
   id: TileId
   body: HTMLElement // the kind's area; sized by the host
   alive(): boolean // still open: async work re-checks before touching the tile
-  changed(): void // automatic title / icon / dir changed
+  changed(): void // automatic title / icon / dir / navigation changed
   activity(): void // new output (marks shelved tiles)
   exit(code: number): void // content ended: status shown in the title bar
   error(message: string): void // failed to start: message replaces the content
@@ -39,7 +40,7 @@ export interface Surface {
   drop?(data: DataTransfer): void
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
-  history?(step: -1 | 1): void // back / forward (cmd+[ / cmd+])
+  nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
 }
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface

@@ -6,6 +6,7 @@ import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
 import type { Action } from '@core/keymap'
 import { needsFile } from './kinds'
+import { navAction, focusLocation } from './nav'
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
 function editingText(target: Element | null): boolean {
@@ -39,6 +40,8 @@ export function initKeys() {
   window.addEventListener('keydown', (e) => e.metaKey && e.key.toLowerCase() === 'q' && (e.preventDefault(), e.stopPropagation()), true)
 }
 
+const active = () => (S.active ? S.tiles.get(S.active) : undefined)
+
 export function run(action: Action) {
   switch (action) {
     case 'split-right':
@@ -63,10 +66,14 @@ export function run(action: Action) {
       return cycleTab(1)
     case 'prev-tab':
       return cycleTab(-1)
-    case 'history-back':
-      return void (S.active && S.tiles.get(S.active)?.surface.history?.(-1))
-    case 'history-forward':
-      return void (S.active && S.tiles.get(S.active)?.surface.history?.(1))
+    case 'nav-back':
+      return active() && navAction(active()!, 'back')
+    case 'nav-forward':
+      return active() && navAction(active()!, 'forward')
+    case 'nav-reload':
+      return active() && navAction(active()!, 'reload')
+    case 'nav-location':
+      return active() && focusLocation(active()!)
     default:
       if (action.startsWith('tab-')) return switchTabIndex(Number(action.slice(4)))
   }

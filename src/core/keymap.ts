@@ -6,7 +6,7 @@ export type Action =
   | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
   | 'close-tile'
   | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
-  | 'history-back' | 'history-forward' // active tile's own history (markdown); no-op elsewhere
+  | 'nav-back' | 'nav-forward' | 'nav-reload' | 'nav-location' // active tile's navigation (Surface.nav); no-op elsewhere
   | `tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
 
 // Defaults; settings will override per chord later. Chord: modifiers (Cmd, Ctrl, Alt, Shift) + key.
@@ -23,8 +23,10 @@ export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+Shift+W': 'close-tab',
   'Ctrl+Tab': 'next-tab',
   'Ctrl+Shift+Tab': 'prev-tab',
-  'Cmd+[': 'history-back',
-  'Cmd+]': 'history-forward',
+  'Cmd+[': 'nav-back',
+  'Cmd+]': 'nav-forward',
+  'Cmd+R': 'nav-reload',
+  'Cmd+L': 'nav-location',
   ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`Cmd+${n}`, `tab-${n}` as Action])),
 }
 

@@ -9,6 +9,9 @@ export const ICON = {
   zoom: svg('<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9"/>'),
   unzoom: svg('<path d="M13 3L9 7M9 3.5V7h3.5M3 13l4-4M7 12.5V9H3.5"/>'),
   close: svg('<path d="M4 4l8 8M12 4l-8 8"/>'),
+  back: svg('<path d="M10 3.5L5.5 8l4.5 4.5"/>'),
+  forward: svg('<path d="M6 3.5l4.5 4.5L6 12.5"/>'),
+  reload: svg('<path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5v3h-3"/>'),
 }
 
 const PROGRAMS: Record<string, string> = {

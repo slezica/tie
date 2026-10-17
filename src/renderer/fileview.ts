@@ -1,8 +1,9 @@
 // File view: a tile showing a local file in a Tie viewer (content frame). Shared by every file
 // kind: the kind gives its name and icon, nothing else. Main reads and watches the file (docs.ts)
 // and pushes changes; the viewer (src/viewers/<kind>.ts) renders it. Here: the doc's lifecycle
-// (open, live changes, missing → frozen, close), history and folder (token) switching, link
-// routing, title / dir / cwd, activity, the theme message. docs/TILES.md "File view".
+// (open, live changes, missing → frozen, close), navigation (history, reload; the host's nav bar)
+// and folder (token) switching, link routing, title / dir / cwd, activity, the theme message.
+// docs/TILES.md "File view".
 import { S, tie, debug, spaceOf, withSpace, type Kind } from './state'
 import { frameSurface } from './frame'
 import { appearance, fontStack } from './appearance'
@@ -58,7 +59,8 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   let doc: Doc | null = null
   let root = dirOf(opts.path ?? '/')
   const history = { list: [] as string[], index: -1 }
-  // How the next render positions itself: keep (live change), top (new page), restore (back/forward).
+  // How the next render positions itself: keep (live change), top (new page), restore (back/forward,
+  // reload).
   let view: { scroll: 'keep' | 'top' | 'restore'; hash: string } = { scroll: 'top', hash: opts.hash ?? '' }
   let seq = 0 // latest navigation wins
 
@@ -103,14 +105,14 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   })
 
   // Open `path` in this tile. Another directory: the frame reloads with a root (token) for it.
-  async function go(path: string, how: 'push' | 'back' | 'forward', hash = '') {
+  async function go(path: string, how: 'push' | 'back' | 'forward' | 'reload', hash = '') {
     const n = ++seq
     const r = await tie.doc.open(path)
     if (!host.alive() || n !== seq) return void ('id' in r && tie.doc.close(r.id))
-    if ('error' in r) return void infoDialog("Can't open link", r.error)
+    if ('error' in r) return void infoDialog(how === 'reload' ? "Can't reload" : "Can't open link", r.error)
     setDoc(r, path)
     if (how === 'push') history.list.splice(++history.index, Infinity, path)
-    else history.index += how === 'back' ? -1 : 1
+    else if (how !== 'reload') history.index += how === 'back' ? -1 : 1
     view = { scroll: how === 'push' ? 'top' : 'restore', hash }
     host.changed()
     debug(kind, 'go', host.id, how, path)
@@ -142,6 +144,12 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
 
   const path = () => doc?.path ?? opts.path
 
+  function step(d: -1 | 1) {
+    const i = history.index + d
+    if (i < 0 || i >= history.list.length) return
+    void go(history.list[i], d < 0 ? 'back' : 'forward')
+  }
+
   return {
     ...frame,
     mount: async () => {
@@ -167,10 +175,13 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     dir: () => dirOf(path() ?? S.cwd),
     cwd: async () => dirOf(path() ?? S.cwd),
     appearance: () => frame.post(themeMessage()),
-    history: (step) => {
-      const i = history.index + step
-      if (i < 0 || i >= history.list.length) return
-      void go(history.list[i], step < 0 ? 'back' : 'forward')
+    // Path shown, not editable (links navigate). Reload: read the file again, render it as a page
+    // (scroll kept).
+    nav: {
+      state: () => ({ location: path() ?? '', back: history.index > 0, forward: history.index < history.list.length - 1, editable: false }),
+      back: () => step(-1),
+      forward: () => step(1),
+      reload: () => void (doc && go(doc.path, 'reload')),
     },
     info: () => ({ doc: doc && { path: doc.path, rev: doc.rev, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
   }

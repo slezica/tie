@@ -1,10 +1,11 @@
-// Tile host: element, title bar, error state, lifecycle. The body belongs to the tile's kind
+// Tile host: element, title bar, nav bar (nav.ts), error state, lifecycle. The body belongs to the tile's kind
 // (kinds/). Elements live in one layer and are never re-parented.
 import { ICON } from './icons'
 import { S, type Tile, type Kind, newId, debug } from './state'
 import { kindSpec, type Host, type OpenOpts } from './kinds'
 import { noteActivity } from './shelf'
 import { closeTile } from './ops'
+import { createNavBar, refreshNav } from './nav'
 
 export function displayTitle(t: Tile): string {
   return t.customTitle || t.surface.title()
@@ -61,6 +62,7 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   }
   S.tiles.set(id, tile)
   tile.surface = factory(host, opts)
+  createNavBar(tile) // kinds that navigate (Surface.nav)
   refreshTitle(tile)
   return tile
 }
@@ -77,6 +79,7 @@ export function refreshTitle(t: Tile) {
   ;(t.el.querySelector('.title') as HTMLElement).textContent = title
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
+  refreshNav(t)
   document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
 }
 
