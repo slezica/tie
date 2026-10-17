@@ -259,3 +259,28 @@ Means for P4: the planned rule (popup → system browser only within ~1 s of rea
 - Main reports via `did-frame-navigate` / `did-fail-provisional-load` (`webFrameMain.fromId` → `frameTreeNodeId` = the token's bound frame). Aborted (-3, nav lock) ignored. Meta-refresh-away loops end in "Page keeps navigating away" (> 3 per 10 s).
 - Spikes: `fetch` spike removed (always on); `spike-html-origin` now expects fetch to work. html/nav spikes overlap the real kind; remove with the webview spike at the end of P4.
 - Evidence (`sec-html`, mutation → red): `connect-src *`; network kill-switch removed (TURN TCP reached); confirm skipped; gesture rule off; `/_tie/` allowed by the nav lock; loop guard removed; bootstrap not stopping the handshake event (page saw the port). Opaque viewer fetch: red only when both the probe's opaque origin and its CSP are loosened (two layers).
+
+### Review decisions (implementation, 2026-10-17)
+
+- Shell window on `session.fromPartition('tie-shell')` (in memory). `tie` / `tie-content` handlers, dead proxy (dev-server exemption unchanged), permissions, WebRTC policy on it. `sec-storage`: red first (IndexedDB marker found in the profile's `WebStorage`), green after: no marker anywhere in the profile (open, closed); reopened file empty. Clear-on-close remnants removed.
+- Templates: `TEMPLATES` = terminal, file (picker: any file → `doc.viewer` → its kind), browser. `KindSpec.template` gone; picker kind filter and `extsOf` gone. `canOpenAs` stays in main (defense; `sec-viewers` calls the bridge directly). Lost: "open as hex/text" from the UI (an empty file now always opens as text).
+
+### P4 notes (implementation, 2026-10-17)
+
+- As planned: `webviewTag` on; `main/guest.ts` (attach guard, guest guards, downloads, keys via `watchKeys`), `renderer/guest.ts` (surface), `core/guest.ts` (pure rules, unit-tested). `KindSpec.opens` gains `'url'`; `tie open <url>`, `tie open browser [url]`. Details: `BROWSER.md`.
+- Found: the shell webContents is type `offscreen` in harness instances (attach check accepts `window` | `offscreen` showing the shell URL).
+- Found: `guest.setBackgroundColor` (at creation or `did-attach`) hangs main in a real (hidden) window. Page canvas white via CSS (`--web-canvas`) on the element instead.
+- Found: dropping Electron's internal `instanceId` param at attach hangs the attach; kept. Every real attribute dropped.
+- Found: `did-start-navigation` fires before `will-frame-navigate` (reported as browser-initiated for Tie's privileged schemes); `stop()` inside it crashes Electron. Shell-started loads are stopped deferred (`setImmediate`), skipped when `will-frame-navigate` refused the same URL.
+- Found: Chromium refuses `file:` popups and redirects from http pages before Tie's handlers (`-311`); `mailto:` clicks reach `will-frame-navigate` (refused). Playwright then waits forever on that page's "navigation" (harness quirk).
+- Found: download names: Chromium already turns `../.evil.sh` into `_.evil.sh`; `downloadName` / `uniqueName` add hidden-file, control and collision handling.
+- Not observed: guest `unresponsive` (busy loop + input for 60 s: no event). Handler kept (error + kill), untested; a hung guest stays frozen in its tile, the shell unaffected.
+- Location bar Enter: `preventDefault` + no refocus when `go()` opened a dialog (else the Enter pressed its OK, or the guest stole its focus).
+- Evidence (`sec-browser` / `browser`, mutation → red): prefs kept (partition `persist:evil`); partition forced but prefs kept (`preload` attribute → guest got `window.tie`); navigation guard off (log; Tie's schemes still fail: no handlers on the partition); shell-load stop off (`file:///etc/hosts` loaded); popup always external; downloads under the site's name (overwrite); permissions granted; dead proxy on the partition; crash ignored; bad `src` allowed; guest keys not watched. Content frames can't create `<webview>` (no element outside the shell's main frame): layered, no mutation.
+- Spikes removed (`spike.ts`, `TIE_SPIKE`, `spike-*`). S4 facts kept as product checks in `browser` (menu paints over the guest, partition persistence, guest as a Playwright page) and `sec-browser` (S5: popups with / without input).
+
+### P5 notes (implementation, 2026-10-17)
+
+- Cross-kind links: file view links to files of another kind (or decided by content) open beside in their kind (`doc.viewer`); html → markdown already did. `markdown-links`: markdown → text (by content), markdown → html → markdown.
+- Html title from `<title>`: bootstrap `title` verb (on each handshake, on `<head>` mutations), host `pageTitle` (control characters out, 200 chars, text only). `html`: change followed, hostile title literal and bounded.
+- `template` flake: a template dropped next to a tile reads that shell's cwd (`lsof`, ~55 ms, more under load) before opening; the scenario listed tiles after a fixed 150 ms. Mutation (250 ms delay) → old scenario red, new (waits for the tile) green. 10/10 standalone runs green.

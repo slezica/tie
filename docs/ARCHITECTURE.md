@@ -7,16 +7,18 @@
 | Main | `src/main/` | Window, menu, ptys, socket, settings file, instance files, viewer files (`docs.ts`: open, watch, write) |
 | Preload | `src/preload/index.ts` | `window.tie` bridge (sandboxed, CJS build) |
 | Renderer | `src/renderer/` | All UI state, DOM, xterm. Source of truth; main holds no layout state |
-| Content frames | `src/viewers/` (served by `main/content.ts`) | Content tiles: sandboxed iframes on `tie-content://<token>/`, own process, opaque origin, no bridge (`TILES.md`) |
+| Content frames | `src/viewers/` (served by `main/content.ts`) | Content tiles: sandboxed iframes on `tie-content://<token>/`, own process, opaque origin (html: own token origin), no bridge (`TILES.md`) |
+| Browser guests | `src/renderer/guest.ts`, `src/main/guest.ts` | Browser tiles: `<webview>` webContents on `persist:browser`, no bridge, no Tie protocols (`BROWSER.md`) |
 | Core | `src/core/` | Pure logic, no DOM/Electron: `layout.ts` (slot tree), `security.ts`, `content.ts` (checks, main), `paste.ts`, `requests.ts` (checks, renderer), `keymap.ts`, `markdown.ts` (files, links), `watchdog.ts` (content frames) |
 
-- Window: `sandbox`, `contextIsolation`, CSP `script-src 'self'`, served from `tie://app/`. One per instance. Guards: `SECURITY.md`.
+- Window: `sandbox`, `contextIsolation`, `webviewTag` (guests only via `attachGuest`), CSP `script-src 'self'`, served from `tie://app/`, session `tie-shell` (in memory, no network). One per instance. Guards: `SECURITY.md`.
+- Sessions: `tie-shell` (shell + content frames: in memory, dead proxy, Tie's protocols); `persist:browser` (guests: on disk, network, no Tie protocols). Permissions denied on both.
 - Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` + renderer hold-to-quit). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
 - Data flow: input (mouse/keys/socket) → `ops.ts` → `S` → `render()` → DOM.
 
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
-- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
+- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill|navigated|navfailed|changed`, `guest:unresponsive`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
 - Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd.
 - Main → renderer: `pty:data|exit|process|cwd`, `doc:changed(id, {text, rev} | {missing})`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
@@ -33,11 +35,12 @@
 | Log | `<state>/log/<instance>.log` (`TIE_LOG` overrides) |
 | Settings | `<state>/settings.json` (`default`), `<state>/settings.<instance>.json` (others); `TIE_SETTINGS` overrides |
 | Debug port | dev builds only: `TIE_DEBUG_PORT`, else `9300 + hash(instance) % 600` (can collide; `tie-dev` passes a free one) |
-| userData | `<appData>/tie-<instance>` (own single-instance lock) |
+| userData | `<appData>/tie-<instance>` (own single-instance lock; `Partitions/browser`: browser tiles) |
 
 Other env (main):
 
 - `TIE_CWD`: default start dir for terminals (default: home).
+- `TIE_DOWNLOADS` (dev builds only): browser downloads folder (harness instances; default `~/Downloads`).
 - `TIE_BACKGROUND=1`: offscreen, no dock icon, never focused (`HARNESS.md`). `TIE_BACKGROUND=hidden`: same, but a real never-shown window (input routes into content frames). `TIE_SCALE`: offscreen device scale (default 1).
 - `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`, `keys`, `docs` (main), `markdown`.
 

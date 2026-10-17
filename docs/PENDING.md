@@ -48,3 +48,7 @@
 - Find in page, zoom, devtools for a guest.
 - Hung page: today error + renderer killed (same-site guests too). Option: "wait / close" like Chrome.
 - Per-tile profiles / private mode (one shared `persist:browser` today).
+
+## Harness
+
+- Flake (1 in a full e2e run, 2026-10-17; 5/5 standalone green): `html` "cmd+R: reloaded, scroll kept" right after a sibling change that fired two live reloads (fs events) 300 ms apart. Suspected: the cmd+R reload hit the second page before its scroll restore. Not reproduced with back-to-back reloads; not fixed.
