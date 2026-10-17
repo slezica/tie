@@ -45,14 +45,15 @@ describe('markdown verbs', () => {
     ])
       expect(parseRequest(m)).toBe(null)
   })
-  it('toggleTask: line, expected, rev', () => {
-    const ok = { verb: 'toggleTask', line: 3, expected: '- [ ] a', rev: '0123456789abcdef' }
-    expect(parseRequest(ok)).toEqual(ok)
-    for (const bad of [{ line: -1 }, { line: 1.5 }, { line: '3' }, { line: 2e7 }, { expected: 5 }, { expected: 'x'.repeat(20000) }, { rev: 'zz' }, { rev: '0123456789ABCDEF' }, { rev: 1 }])
-      expect(parseRequest({ ...ok, ...bad })).toBe(null)
-    expect(parseRequest({ verb: 'toggleTask', line: 3, expected: '- [ ] a' })).toBe(null)
+  it('read-only: no write verbs (task toggles removed)', () => {
+    for (const m of [
+      { verb: 'toggleTask', line: 3, expected: '- [ ] a', rev: '0123456789abcdef' },
+      { verb: 'writeFile', path: '/tmp/x', text: 'x' },
+      { verb: 'saveDoc', text: 'x' },
+    ])
+      expect(parseRequest(m)).toBe(null)
   })
-  it('gesture verbs: link opens and file writes', () => {
-    expect(['ready', 'pong', 'openLink', 'followLink', 'toggleTask'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink', 'toggleTask'])
+  it('gesture verbs: link opens', () => {
+    expect(['ready', 'pong', 'openLink', 'followLink'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
   })
 })

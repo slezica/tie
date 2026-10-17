@@ -28,10 +28,10 @@
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `contentCsp`, `serveContent` | `sec-content-escape`, unit |
 | Content watchdog: hung frame (no pong 5 s) → error, frame removed, its process killed if exclusive; crashed (port closed) → error; never reloads | `frame.ts`, `@core/watchdog`, `content.ts` `killContent` | `content-watchdog`, unit |
 | Content requests: port only, typed verbs, strict shape; main re-validates (openLink: http(s)) | `frame.ts`, `@core/requests` | `sec-content-escape`, unit |
-| Gesture rule: link opens and file writes (`openLink`, `followLink`, `toggleTask`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |
+| Gesture rule: link opens (`openLink`, `followLink`) only while the frame is focused | `frame.ts`, `needsGesture` | `sec-content-escape`, `sec-markdown` |
 | Markdown render: raw HTML escaped (`html: false`; also in footnotes, front matter), DOMPurify on the final HTML (after every plugin), remote / out-of-folder images never requested (placeholder) | `viewers/markdown.ts` | `sec-markdown` |
 | Markdown links: anchors, http(s) (→ `openExternal`), markdown paths (main re-checks the file); other schemes refused | `@core/markdown` `classifyLink`, `kinds/markdown.ts` | `sec-markdown`, `markdown-links`, unit |
-| Task toggles: write only at the revision the viewer rendered, only the line it showed, only task items, UTF-8 round-trip; through the real path | `main/docs.ts`, `@core/markdown` `applyToggle` | `sec-markdown`, unit |
+| Content tiles read-only: no request verb writes (write-shaped messages are unknown verbs, dropped); no doc write IPC or bridge method; task boxes display-only | `@core/requests`, `main/docs.ts`, `preload`, `viewers/markdown.ts` | `sec-markdown`, unit |
 | Opening files: main checks absolute, existing regular file, known viewer | `main/docs.ts` `fileViewer` | `markdown-open` |
 | OS drags: content frames ignore the pointer while one is over the window (drops land in the shell) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
 | Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
@@ -59,7 +59,7 @@
 - Probe kind (dev builds): `tie open probe [--cwd root]`, `h.probeFrame(ctx, id)` = Playwright frame inside it (the attacker's seat). `h.frames(ctx)` / `tie-dev frames`: frame tree, out-of-process.
 - `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening, and never show the file picker (dev socket `pick` answers it).
-- Markdown: `h.contentFrame(ctx, id)` = the viewer's frame; `window.markdown.port` lets a scenario post requests as the frame (stale toggles, gesture-less links).
+- Markdown: `h.contentFrame(ctx, id)` = the viewer's frame; `window.markdown.port` lets a scenario post requests as the frame (write-shaped messages, gesture-less links).
 - Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`.
 - Limits: no harness path sends a key that is both routed into a focused frame and seen by `before-input-event`; `sec-keys` covers each half (frame really focused via `hiddenWindow`; main handles keys whatever the focus). Real-hardware check: manual.
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).

@@ -6,20 +6,16 @@ export type Request =
   | { verb: 'pong'; n: number } // answer to the host's watchdog ping n (frame.ts)
   | { verb: 'openLink'; url: string } // external URL (probe)
   | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
-  | { verb: 'toggleTask'; line: number; expected: string; rev: string } // task box: source line, its text, file revision
 export type Verb = Request['verb']
 
 const MAX_URL = 4096
-const MAX_LINE = 10_000 // chars in a task line
-const MAX_LINES = 10_000_000
 
 type Data = Record<string, unknown>
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max
 const int = (v: unknown, max: number): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max
-const rev = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{16}$/.test(v)
 
 // Per verb: allowed keys besides `verb`, and the check building the request from them.
-// `gesture`: acts outside the frame on the user's behalf (opens, writes): the host accepts it only
+// `gesture`: acts outside the frame on the user's behalf (opens): the host accepts it only
 // while the frame has focus (the user just clicked in it).
 const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) => Extract<Request, { verb: V }> | null } } = {
   ready: { keys: [], build: () => ({ verb: 'ready' }) },
@@ -29,11 +25,6 @@ const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) =
     keys: ['href', 'newTile'],
     gesture: true,
     build: (d) => (str(d.href, MAX_URL) && typeof d.newTile === 'boolean' ? { verb: 'followLink', href: d.href, newTile: d.newTile } : null),
-  },
-  toggleTask: {
-    keys: ['line', 'expected', 'rev'],
-    gesture: true,
-    build: (d) => (int(d.line, MAX_LINES) && str(d.expected, MAX_LINE) && rev(d.rev) ? { verb: 'toggleTask', line: d.line, expected: d.expected, rev: d.rev } : null),
   },
 }
 
@@ -51,7 +42,8 @@ export function parseRequest(data: unknown): Request | null {
   return spec.build(d)
 }
 
-// SECURITY: verbs that act for the user (open a link, write a file) need a user gesture.
+// SECURITY: verbs that act for the user (open a link) need a user gesture. No verb writes anything:
+// content tiles are read-only (a write-shaped message is an unknown verb, dropped).
 export function needsGesture(verb: Verb): boolean {
   return !!VERBS[verb].gesture
 }

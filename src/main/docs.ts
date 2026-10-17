@@ -1,12 +1,12 @@
-// Files open in viewer tiles (markdown): open + watch, push changes, task toggles, file picker.
-// docs/MARKDOWN.md. The renderer names files; main checks them (absolute, existing file, has a
-// viewer) and owns every read and write.
+// Files open in viewer tiles (markdown): open + watch, push changes, file picker. Read-only: no
+// path here writes a file. docs/MARKDOWN.md. The renderer names files; main checks them (absolute,
+// existing file, has a viewer) and owns every read.
 import { dialog, type BrowserWindow } from 'electron'
-import { stat, realpath, writeFile } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { log } from './env'
 import { watchFile, readStable, revision, type Watch } from './watch'
-import { viewerFor, noViewer, applyToggle } from '../core/markdown'
+import { viewerFor, noViewer } from '../core/markdown'
 
 export type DocPush = { text: string; rev: string } | { missing: true }
 
@@ -59,40 +59,6 @@ export function closeDoc(id: unknown) {
 export function clearDocs() {
   for (const d of docs.values()) d.watch.close()
   docs.clear()
-}
-
-// SECURITY: a task toggle writes the user's file on behalf of the viewer. Only if the file on disk
-// right now is the revision the viewer rendered, and the line still holds the text it showed
-// (applyToggle). Otherwise refused, and the viewer gets the current file (re-renders from disk).
-// Written in place through the real path: symlinks stay links, the inode stays. Only UTF-8 files
-// (the text must round-trip to the same bytes).
-export async function toggleTask(id: unknown, line: unknown, expected: unknown, rev: unknown, push: (id: number, p: DocPush) => void): Promise<{ ok: true } | { error: string }> {
-  const d = typeof id === 'number' ? docs.get(id) : undefined
-  const refuse = (why: string, current?: { text: string; rev: string }) => {
-    log('security', 'refused toggleTask', why, d?.path ?? id)
-    if (current) push(id as number, current)
-    return { error: why }
-  }
-  if (!d) return refuse('no such doc')
-  if (typeof line !== 'number' || typeof expected !== 'string' || typeof rev !== 'string') return refuse('bad args')
-  const r = await readStable(d.path)
-  if ('error' in r) return refuse(r.error)
-  const text = r.buf.toString('utf8')
-  const current = { text, rev: revision(r.buf) }
-  if (current.rev !== rev) return refuse('stale revision', current)
-  if (!Buffer.from(text, 'utf8').equals(r.buf)) return refuse('not utf-8', current)
-  const res = applyToggle(text, line, expected)
-  if ('error' in res) return refuse(res.error, current)
-  const real = await realpath(d.path).catch(() => null)
-  if (!real) return refuse('missing')
-  try {
-    await writeFile(real, res.text)
-  } catch (e) {
-    return refuse(`write failed: ${(e as Error).message}`, current)
-  }
-  log('docs', 'toggled', id, line)
-  await d.watch.check() // push the new text now, not after the debounce
-  return { ok: true }
 }
 
 // File picker for the markdown template. Harness instances (TIE_BACKGROUND) never show a dialog:

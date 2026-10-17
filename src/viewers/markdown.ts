@@ -1,6 +1,6 @@
 // Markdown viewer: runs in the tile's sandboxed content frame (opaque origin, strict CSP). Text,
-// theme and scroll requests arrive over the host's port; links and task toggles go back as
-// requests, posted from the click handler only (the host also requires frame focus).
+// theme and scroll requests arrive over the host's port; links go back as requests, posted from the
+// click handler only (the host also requires frame focus). Read-only: nothing here can write.
 // Pipeline: markdown-it (raw HTML escaped; footnotes, deflists, emoji, front matter) → highlight.js
 // → DOMPurify on the final HTML.
 // docs/MARKDOWN.md.
@@ -65,7 +65,8 @@ md.block.ruler.before('table', 'front_matter', (state, start, end, silent) => {
 })
 md.renderer.rules.front_matter = (tokens, idx) => `<pre class="front-matter"><code>${md.utils.escapeHtml(tokens[idx].content)}</code></pre>\n`
 
-// Task list items (`- [ ] x`): a checkbox token carrying the item's source line.
+// Task list items (`- [ ] x`): a display-only checkbox (disabled: not clickable, not focusable).
+// Read-only tiles: the file is changed in an editor, never from here.
 md.core.ruler.after('inline', 'tasks', (state) => {
   const tokens = state.tokens
   for (let i = 2; i < tokens.length; i++) {
@@ -76,14 +77,14 @@ md.core.ruler.after('inline', 'tasks', (state) => {
     if (!first || !m) continue
     first.content = first.content.slice(m[0].length)
     const box = new state.Token('task_box', 'input', 0)
-    box.meta = { checked: m[1] !== ' ', line: t.map[0] }
+    box.meta = { checked: m[1] !== ' ' }
     t.children!.unshift(box)
     tokens[i - 2].attrJoin('class', 'task')
   }
 })
 md.renderer.rules.task_box = (tokens, idx) => {
-  const { checked, line } = tokens[idx].meta as { checked: boolean; line: number }
-  return `<input type="checkbox" class="task-box" data-line="${line}"${checked ? ' checked' : ''}>`
+  const { checked } = tokens[idx].meta as { checked: boolean }
+  return `<input type="checkbox" class="task-box" disabled${checked ? ' checked' : ''}>`
 }
 
 // Heading ids for in-page anchors (GitHub-style slugs; DOMPurify prefixes them `user-content-`).
@@ -197,17 +198,9 @@ addEventListener('message', (e) => {
   state.port.postMessage({ verb: 'ready' })
 })
 
-// Clicks: links and task boxes become requests (only from here: a real click). Nothing navigates.
+// Clicks: links become requests (only from here: a real click). Nothing navigates.
 addEventListener('click', (e) => {
   const target = e.target as Element
-  const box = target.closest?.('input.task-box') as HTMLInputElement | null
-  if (box) {
-    e.preventDefault() // the file decides: the box flips when the change comes back
-    const line = Number(box.dataset.line)
-    const expected = state.text.split('\n')[line]
-    if (expected !== undefined) state.port?.postMessage({ verb: 'toggleTask', line, expected, rev: state.rev })
-    return
-  }
   const a = target.closest?.('a[href]')
   if (!a) return
   e.preventDefault()

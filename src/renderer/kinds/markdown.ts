@@ -1,6 +1,6 @@
-// Markdown kind: a live view of a .md file in a content frame. Main reads and watches the file
-// (docs.ts) and pushes changes; the viewer (src/viewers/markdown.ts) renders it. Links, task
-// toggles and history go through here. docs/MARKDOWN.md.
+// Markdown kind: a live, read-only view of a .md file in a content frame. Main reads and watches
+// the file (docs.ts) and pushes changes; the viewer (src/viewers/markdown.ts) renders it. Links and
+// history go through here. docs/MARKDOWN.md.
 import { S, tie, debug, spaceOf, withSpace } from '../state'
 import { frameSurface } from '../frame'
 import { appearance, fontStack } from '../appearance'
@@ -91,11 +91,6 @@ export function markdownKind(host: Host, opts: OpenOpts): Surface {
     },
     handlers: {
       followLink: (r) => follow(r.href, r.newTile),
-      toggleTask: async (r) => {
-        if (!doc) return
-        const res = await tie.doc.toggle(doc.id, r.line, r.expected, r.rev)
-        if ('error' in res) debug('markdown', 'toggle refused', host.id, res.error)
-      },
     },
   })
 

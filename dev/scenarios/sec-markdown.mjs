@@ -1,6 +1,6 @@
 // Security: markdown tiles. Raw HTML shown as text, never run (body, footnotes, front matter); DOMPurify on the final HTML; remote
-// images never requested; images outside the file's folder refused; task toggles write only the
-// line the viewer saw at the revision it saw; link and toggle requests need the frame focused.
+// images never requested; images outside the file's folder refused; read-only (task boxes inert,
+// write-shaped requests dropped, no doc write API); link requests need the frame focused.
 // Hidden window: real clicks focus the frame.
 import { mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -92,39 +92,44 @@ export default async (ctx, h) => {
     await p.assertUntouched('remote image')
     h.assert(/refused content outside root tie-content:\/\/\w+\/link\.svg/.test(ctx.appLog()), 'symlink out of the folder refused by main')
 
-    // Without focus (terminal active): link and toggle requests refused, nothing opened or written.
+    // Without focus (terminal active): link requests refused, nothing opened.
     await ctx.tie('focus', a)
     await ctx.sleep(200)
     h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) !== 'IFRAME', 'frame not focused')
     const rev = (await h.mdState(ctx, id)).rev
     const post = (m) => fr.evaluate((m) => window.markdown.port.postMessage(m), m)
     await post({ verb: 'followLink', href: `${p.url}/nofocus`, newTile: false })
-    await post({ verb: 'toggleTask', line: lineOf('- [ ] alpha'), expected: '- [ ] alpha', rev })
     await ctx.sleep(500)
-    h.assert((ctx.appLog().match(/refused request without focus t\d+ (followLink|toggleTask)/g) ?? []).length === 2, 'both refused without focus')
-    h.assert(!ctx.appLog().includes(`${p.url}/nofocus`) && file() === doc, 'nothing opened, file unchanged')
+    h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'link refused without focus')
+    h.assert(!ctx.appLog().includes(`${p.url}/nofocus`), 'nothing opened')
 
-    // Focused (real click in the frame): a real click on a box toggles it (control).
+    // Read-only: a real click on a task box (focuses the frame) changes nothing; boxes are inert.
     const box = await fr.locator('input.task-box').first().boundingBox()
     await ctx.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    await h.waitFor(ctx, async () => file().includes('- [x] alpha'), 'real click toggles')
-    h.assert(file() === doc.replace('- [ ] alpha', '- [x] alpha'), 'only that line changed')
-    await h.waitFor(ctx, () => fr.evaluate(() => document.querySelector('input.task-box').checked), 'box shows the file')
+    await ctx.sleep(800)
     h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'IFRAME', 'frame focused')
+    const boxes = await fr.evaluate(() => [...document.querySelectorAll('input.task-box')].map((b) => ({ disabled: b.disabled, checked: b.checked })))
+    h.assert(boxes.length === 2 && boxes.every((b) => b.disabled && !b.checked), `task boxes display-only: ${JSON.stringify(boxes)}`)
+    h.assert(file() === doc, 'click on a task box: file unchanged')
 
-    // Stale revision, changed line, not a task line: refused, file unchanged.
-    const now = file()
-    const cur = (await h.mdState(ctx, id)).rev
-    for (const [why, m] of [
-      ['stale revision', { verb: 'toggleTask', line: lineOf('- [ ] beta'), expected: '- [ ] beta', rev }],
-      ['line changed', { verb: 'toggleTask', line: lineOf('- [ ] beta'), expected: '- [ ] gamma', rev: cur }],
-      ['not a task', { verb: 'toggleTask', line: lineOf('# Doc'), expected: '# Doc', rev: cur }],
-      ['no such line', { verb: 'toggleTask', line: 999, expected: '', rev: cur }],
-    ]) {
-      await post(m)
-      await h.waitFor(ctx, async () => ctx.appLog().includes(`refused toggleTask ${why}`), `refused: ${why}`)
-      h.assert(file() === now, `${why}: file unchanged`)
-    }
+    // Write-shaped requests, frame focused (gesture rule satisfied): unknown verbs, dropped; file unchanged.
+    const before = (ctx.appLog().match(/dropped request/g) ?? []).length
+    const writes = [
+      { verb: 'toggleTask', line: lineOf('- [ ] alpha'), expected: '- [ ] alpha', rev },
+      { verb: 'writeFile', path: f, text: 'pwned' },
+      { verb: 'saveDoc', text: 'pwned' },
+    ]
+    for (const m of writes) await post(m)
+    await ctx.sleep(800)
+    const dropped = ctx.appLog().match(/dropped request t\d+ .*/g) ?? []
+    h.assert(dropped.length - before === writes.length && dropped.some((l) => l.includes('toggleTask')), `write-shaped requests dropped as unknown verbs: ${dropped.slice(before)}`)
+    h.assert(!/refused toggleTask|\[docs\] toggled/.test(ctx.appLog()), 'no write path reached')
+    h.assert(file() === doc, 'file unchanged')
+
+    // No write channel for docs in the shell bridge either.
+    const api = await ctx.page.evaluate(() => ({ doc: Object.keys(window.tie.doc).sort(), all: JSON.stringify(window.tie, (k, v) => (typeof v === 'function' ? k : v)) }))
+    h.assert(JSON.stringify(api.doc) === JSON.stringify(['close', 'onChange', 'open', 'pick', 'viewer']), `tie.doc: read-only API: ${api.doc}`)
+    h.assert(!/toggle|write|save/i.test(api.all.replace(/"write":"write"/, '')), `no doc write method anywhere: ${api.all}`)
 
     // Links: only http(s) out (main logs it); other schemes refused; never in-app.
     for (const href of ['smb://host/share.md', 'file:///etc/hosts', 'javascript:alert(1)', 'x-app://run', '//evil.example/x.md']) await post({ verb: 'followLink', href, newTile: false })

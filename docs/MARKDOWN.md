@@ -1,16 +1,16 @@
 # Markdown
 
-Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A content kind (`TILES.md`): renders in a sandboxed frame; main owns every read, watch and write.
+Live, read-only view of a `.md` / `.markdown` file. A content kind (`TILES.md`): renders in a sandboxed frame; main owns every read and watch. Nothing writes the file (edit it in an editor: `cmd+D`).
 
 ## Parts
 
 | Part | Where | Does |
 |---|---|---|
-| Kind | `renderer/kinds/markdown.ts` | doc + frame per tile; links, toggles, history; theme to the viewer |
+| Kind | `renderer/kinds/markdown.ts` | doc + frame per tile; links, history; theme to the viewer |
 | Viewer | `src/viewers/markdown.html\|ts` | markdown-it → highlight.js → DOMPurify; clicks → requests |
-| Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, toggle write, picker |
+| Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
-| Pure | `core/markdown.ts` | `viewerFor`, `noViewer`, `classifyLink`, `toggleTaskLine`, `applyToggle` (unit-tested) |
+| Pure | `core/markdown.ts` | `viewerFor`, `noViewer`, `classifyLink` (unit-tested) |
 | Opening | `driver.ts` (`tie open`), `files.ts` (drops), `drag.ts` (template + picker) | |
 
 ## Flow
@@ -18,7 +18,7 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 1. Mount: `tie.doc.open(path)` → main checks (absolute, regular file, markdown extension), reads, watches → `{id, text, rev}`. Error → `showError`.
 2. Frame: root = the file's directory (`tie.content.open`). On each handshake (`onReady`): theme, then doc.
 3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash}`, `{type: 'scroll', hash}`.
-4. Viewer → host: `followLink {href, newTile}`, `toggleTask {line, expected, rev}` (gesture verbs, `TILES.md`).
+4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
 5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer (scroll kept). Shelved tile: activity dot.
 6. Close: `tie.doc.close(id)` (watch stops), frame disposed (token forgotten).
 
@@ -27,7 +27,7 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 ## Rendering (viewer)
 
 - markdown-it `html: false` (raw HTML shown as text), `linkify`. DOMPurify on the final HTML (after every plugin and the highlighter): no `style`, forms, `style` attributes; ids/names prefixed `user-content-` (no DOM clobbering); URLs http(s), `tie-content://`, relative.
-- Tasks: list items starting `[ ]` / `[x]` → checkbox with `data-line` (source line, from markdown-it's map).
+- Tasks: list items starting `[ ]` / `[x]` → display-only box (`disabled`, no pointer, flat glyph; checked = accent ✓). Clicking does nothing.
 - Headings: GitHub-style slug ids (anchors).
 - Footnotes (`markdown-it-footnote`): `[^x]` refs, `[^x]: ...` notes, `^[inline]`. Ids `fn1` / `fnref1` (prefixed like headings): ref and back-ref scroll in-page.
 - Definition lists (`markdown-it-deflist`): `Term` then `: definition` → `<dl>`.
@@ -61,13 +61,10 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 - Shift+Up / Shift+Down (viewer, frame focused): scroll a third of the tile height. Plain arrows: browser step.
 - `cmd+[` / `cmd+]` (`history-back` / `history-forward`, keymap in main): active tile's `Surface.history(step)`. No-op on other kinds and at the ends.
 
-## Task toggles
+## Read-only
 
-1. Click on a box → viewer prevents the toggle, posts `toggleTask {line, expected: that source line, rev}`.
-2. Host: gesture rule (frame focused).
-3. Main (`toggleTask`): re-reads the file; refuses unless revision = `rev`, line `line` = `expected`, line is a task item (`applyToggle`), and the text round-trips as UTF-8. Writes in place through the real path (symlinks kept). Pushes the new text right away.
-4. Refused: `[security] refused toggleTask <why>`; viewer gets the file as it is now.
-- The box flips when the file says so.
+- Decision 2026-10-16: tiles never write the file. Task-box write-back (`toggleTask`) removed: request verb, validator, handler, `doc:toggle` IPC, bridge method, main write path.
+- A write-shaped message from the frame is an unknown verb: dropped, logged (`sec-markdown`).
 
 ## Watching (`main/watch.ts`)
 
@@ -91,12 +88,12 @@ Live, read-only view of a `.md` / `.markdown` file, with clickable task boxes. A
 
 ## Logs
 
-- `docs` (main): open, change, missing, close, toggled, picker. `markdown` (renderer): navigation, ignored links, drops, toggle refusals. `security`: refused toggles, links, requests without focus.
+- `docs` (main): open, change, missing, close, picker. `markdown` (renderer): navigation, ignored links, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
 
 ## Limitations
 
 - Images outside the file's folder (`../img.png`) never load (root = the file's directory).
 - Missing file: no visual mark yet (frozen render).
 - Scroll memory lost when the frame reloads (history across directories → top).
-- No search, no outline, no edit (open an editor next to it: `cmd+D`).
+- No search, no outline, no edit, by design (open an editor next to it: `cmd+D`).
 - OS drag entering the window straight over a frame: the frame gets it (viewer refuses drops).

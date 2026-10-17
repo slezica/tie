@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extOf, viewerFor, noViewer, classifyLink, toggleTaskLine, applyToggle } from './markdown'
+import { extOf, viewerFor, noViewer, classifyLink } from './markdown'
 
 describe('viewerFor', () => {
   it('maps markdown extensions, any case', () => {
@@ -42,28 +42,5 @@ describe('classifyLink', () => {
     for (const href of ['file:///etc/hosts.md', 'javascript:alert(1)', 'JavaScript:x', 'mailto:a@b.c', 'smb://h/s.md', 'x-app://run', 'data:text/html,x', '//evil.com/x.md', '', '   ', 'a%00.md', 'bad%zz.md', 'https://', 'tie-content://abc/x.md'])
       expect(classifyLink(href, from).type).toBe('refused')
     for (const href of [42, null, undefined, {}]) expect(classifyLink(href, from).type).toBe('refused')
-  })
-})
-
-describe('task toggles', () => {
-  it('toggles list items with a task box', () => {
-    expect(toggleTaskLine('- [ ] buy milk')).toBe('- [x] buy milk')
-    expect(toggleTaskLine('- [x] done')).toBe('- [ ] done')
-    expect(toggleTaskLine('  * [X] nested')).toBe('  * [ ] nested')
-    expect(toggleTaskLine('12. [ ] numbered')).toBe('12. [x] numbered')
-    expect(toggleTaskLine('3) [ ] paren\r')).toBe('3) [x] paren\r')
-    expect(toggleTaskLine('> - [ ] quoted')).toBe('> - [x] quoted')
-    expect(toggleTaskLine('+ [ ]')).toBe('+ [x]')
-  })
-  it('refuses lines that are not task items', () => {
-    for (const l of ['[ ] no bullet', '-[ ] no space', '- [] empty', '- [y] other', '- [ ]x glued', 'text - [ ] later', '']) expect(toggleTaskLine(l)).toBe(null)
-  })
-  it('applies only when the line still says what the viewer saw', () => {
-    const text = '# T\n- [ ] a\n- [x] b\r\n'
-    expect(applyToggle(text, 1, '- [ ] a')).toEqual({ text: '# T\n- [x] a\n- [x] b\r\n' })
-    expect(applyToggle(text, 2, '- [x] b\r')).toEqual({ text: '# T\n- [ ] a\n- [ ] b\r\n' })
-    expect(applyToggle(text, 1, '- [x] a')).toEqual({ error: 'line changed' })
-    expect(applyToggle(text, 0, '# T')).toEqual({ error: 'not a task' })
-    for (const line of [-1, 4, 99, 1.5, NaN]) expect(applyToggle(text, line, '- [ ] a')).toEqual({ error: 'no such line' })
   })
 })

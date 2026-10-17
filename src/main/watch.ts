@@ -48,7 +48,7 @@ export interface WatchOpts {
 
 export interface Watch {
   ready: Promise<void> // directory watchers armed (tests; until then only the poll sees changes)
-  check(): Promise<void> // re-read now (after our own write, or to resync)
+  check(): Promise<void> // re-read now (resync)
   close(): void
 }
 

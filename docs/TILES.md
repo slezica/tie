@@ -35,7 +35,7 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 | Kind | Realm | Notes |
 |---|---|---|
 | `terminal` | shell (trusted) | xterm + pty; the one exception to "content never in the shell realm" (`TERMINALS.md`) |
-| `markdown` | content frame | live file view, task toggles, links, history (`MARKDOWN.md`) |
+| `markdown` | content frame | live read-only file view, links, history (`MARKDOWN.md`) |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - Registry: `KINDS` (`kinds/index.ts`), `registerKind()` for dev-only kinds. `tie open <kind>` accepts registered kinds.
@@ -83,7 +83,6 @@ Every tile kind plugs into one host. The host owns the element, title bar, error
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | markdown: `classifyLink` → browser / this tile / new tile (`MARKDOWN.md`) |
-| `toggleTask` | `line` (int ≥ 0), `expected` (string, ≤ 10000), `rev` (16 hex); gesture | markdown → main `doc:toggle` (revision + line check) |
 
 - Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
 - New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.

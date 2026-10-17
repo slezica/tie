@@ -171,3 +171,8 @@ Design consequences:
 - Package: viewer libraries were `dependencies` → copied into `app.asar` unused (17 MB). Now `devDependencies` (6.9 MB). Package smoke opens a markdown file.
 - `cmd+D` on a markdown tile splits a terminal in the file's directory (a markdown split would need a file).
 - Fixed: a garbled duplicate of the Phase 2–4 steps (from b58fb5a) removed from this record.
+
+### 2026-10-16 follow-ups
+
+- Task-box write-back removed by decision (user): markdown tiles are read-only. `toggleTask` verb, validator, handler, `doc:toggle` IPC + bridge method, main write path and `applyToggle` / `toggleTaskLine` gone; boxes display-only (`MARKDOWN.md` "Read-only"). The Phase 4 toggle notes above describe the removed design.
+- Frame hang/crash now detected: ping watchdog + port `close` event (`TILES.md` "Watchdog"); supersedes "Not built: frame crash detection".

@@ -51,9 +51,26 @@
       pre { background: var(--code-bg); padding: 0.6em 0.8em; border-radius: 4px; overflow-x: auto; line-height: 1.35; }
       pre code { background: none; padding: 0; font-size: 0.9em; }
 
-      /* Task lists: the box sits where the bullet was. */
+      /* Task lists: the box sits where the bullet was. Display-only (read-only tiles): drawn as a
+         flat glyph, no hover, no pointer, never focusable (disabled). */
       li.task { list-style: none; }
-      input.task-box { margin: 0 0.45em 0 -1.25em; vertical-align: -0.1em; accent-color: var(--accent); cursor: pointer; }
+      input.task-box {
+        appearance: none;
+        display: inline-grid;
+        place-content: center;
+        box-sizing: border-box;
+        width: 0.9em;
+        height: 0.9em;
+        margin: 0 0.5em 0 -1.3em;
+        vertical-align: middle; /* same spot checked or not (the ✓ would move the baseline) */
+        border: 1px solid var(--muted);
+        border-radius: 2px;
+        background: none;
+        pointer-events: none;
+        cursor: default;
+      }
+      input.task-box:checked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
+      input.task-box:checked::before { content: '✓'; color: var(--accent); font: 700 0.75em / 1 var(--font); }
 
       /* Front matter: shown as-is, never parsed; quieter than code. */
       pre.front-matter { background: none; border: 1px dashed var(--rule); color: var(--muted); }

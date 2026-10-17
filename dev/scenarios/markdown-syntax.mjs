@@ -1,4 +1,4 @@
-// Markdown extensions: front matter shown muted (never parsed; task lines still map to the source),
+// Markdown extensions: front matter shown muted (never parsed; markdown after it intact),
 // footnotes (ref → note → back, real clicks scroll), :shortcode: emoji (no emoticons), definition
 // lists. No typographer: quotes and dashes stay as typed. Hidden window: real clicks into the frame.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
@@ -39,7 +39,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, () => h.mdState(ctx, id).then((s) => s.text.includes('Syntax')), 'render')
     const fr = await h.contentFrame(ctx, id)
 
-    // Front matter: first, as-is, muted monospace; not a setext heading / rule. Task line exact.
+    // Front matter: first, as-is, muted monospace; not a setext heading / rule. Task item after it.
     const fm = await fr.evaluate(() => {
       const pre = document.querySelector('#doc > pre.front-matter')
       const cs = pre && getComputedStyle(pre)
@@ -52,14 +52,15 @@ export default async (ctx, h) => {
         mono: getComputedStyle(document.documentElement).getPropertyValue('--mono').trim(),
         h2: document.querySelectorAll('#doc h2').length,
         hr: document.querySelectorAll('#doc hr:not(.footnotes-sep)').length,
-        line: document.querySelector('input.task-box')?.dataset.line,
+        task: document.querySelector('li.task')?.textContent.trim(),
+        boxDisabled: document.querySelector('input.task-box')?.disabled,
       }
     })
     h.assert(fm.first && fm.text === 'title: Syntax\ntags: [a, b]\n', `front matter block first, as-is: ${JSON.stringify(fm)}`)
     const family = (f) => f.split(',')[0].replace(/"/g, '').trim()
     h.assert(fm.color !== fm.fg && family(fm.font) === family(fm.mono), `front matter muted, monospace: ${JSON.stringify(fm)}`)
     h.assert(fm.h2 === 0 && fm.hr === 0, `no heading or rule from the delimiters: ${JSON.stringify(fm)}`)
-    h.assert(Number(fm.line) === src.split('\n').indexOf('- [ ] after front matter'), `task line maps to the source: ${fm.line}`)
+    h.assert(fm.task === 'after front matter' && fm.boxDisabled === true, `task item after front matter, display-only box: ${JSON.stringify(fm)}`)
     const edge = await fr.evaluate(() => ({
       unclosed: window.markdown.md.render('---\nfoo\n'),
       later: window.markdown.md.render('x\n\n---\na: 1\n---\n'),

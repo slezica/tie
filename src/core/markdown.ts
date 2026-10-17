@@ -1,4 +1,4 @@
-// Markdown files: which files have a viewer, link targets, task toggles. Pure, renderer-safe,
+// Markdown files: which files have a viewer, link targets. Pure, renderer-safe,
 // unit-tested. docs/MARKDOWN.md.
 
 export const MARKDOWN_EXTS = ['.md', '.markdown']
@@ -58,26 +58,4 @@ export function classifyLink(href: unknown, from: string): Link {
   }
   if (path.includes('\0')) return { type: 'refused', why: 'nul' }
   return viewerFor(path) ? { type: 'markdown', path, hash } : { type: 'file', path }
-}
-
-// A list item (`-`, `*`, `+`, `1.`, `1)`; maybe in a blockquote) starting with a task box.
-const TASK = /^(\s*(?:>\s*)*(?:[-*+]|\d{1,9}[.)])\s+\[)([ xX])(\](?:\s|$))/
-
-export function toggleTaskLine(line: string): string | null {
-  const m = TASK.exec(line)
-  if (!m) return null
-  return m[1] + (m[2] === ' ' ? 'x' : ' ') + line.slice(m[1].length + 1)
-}
-
-// SECURITY: a toggle from the viewer names the line and the text it saw there. It applies only if
-// that line still holds exactly that text and is a task item: never a write to a line the viewer
-// didn't show (the file may have changed since). Lines split on \n (a \r stays in the line).
-export function applyToggle(text: string, line: number, expected: string): { text: string } | { error: string } {
-  const lines = text.split('\n')
-  if (!Number.isInteger(line) || line < 0 || line >= lines.length) return { error: 'no such line' }
-  if (lines[line] !== expected) return { error: 'line changed' }
-  const toggled = toggleTaskLine(lines[line])
-  if (toggled === null) return { error: 'not a task' }
-  lines[line] = toggled
-  return { text: lines.join('\n') }
 }

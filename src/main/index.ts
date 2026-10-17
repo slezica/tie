@@ -7,7 +7,7 @@ import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL } from './security'
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent } from './content'
-import { fileViewer, openDoc, closeDoc, clearDocs, toggleTask, pickFile, setNextPick, type DocPush } from './docs'
+import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -88,7 +88,6 @@ const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed',
 ipc.handle('doc:viewer', (_e, path: unknown) => fileViewer(path))
 ipc.handle('doc:open', (_e, path: unknown) => openDoc(path, pushDoc))
 ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
-ipc.handle('doc:toggle', (_e, id: unknown, line: unknown, expected: unknown, rev: unknown) => toggleTask(id, line, expected, rev, pushDoc))
 ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('app:quit', () => app.quit())

@@ -8,7 +8,7 @@
 | Preload | `src/preload/index.ts` | `window.tie` bridge (sandboxed, CJS build) |
 | Renderer | `src/renderer/` | All UI state, DOM, xterm. Source of truth; main holds no layout state |
 | Content frames | `src/viewers/` (served by `main/content.ts`) | Content tiles: sandboxed iframes on `tie-content://<token>/`, own process, opaque origin, no bridge (`TILES.md`) |
-| Core | `src/core/` | Pure logic, no DOM/Electron: `layout.ts` (slot tree), `security.ts`, `content.ts` (checks, main), `paste.ts`, `requests.ts` (checks, renderer), `keymap.ts`, `markdown.ts` (files, links, task toggles) |
+| Core | `src/core/` | Pure logic, no DOM/Electron: `layout.ts` (slot tree), `security.ts`, `content.ts` (checks, main), `paste.ts`, `requests.ts` (checks, renderer), `keymap.ts`, `markdown.ts` (files, links), `watchdog.ts` (content frames) |
 
 - Window: `sandbox`, `contextIsolation`, CSP `script-src 'self'`, served from `tie://app/`. One per instance. Guards: `SECURITY.md`.
 - Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` + renderer hold-to-quit). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
@@ -16,8 +16,8 @@
 
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
-- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill`, `doc:viewer|open|close|toggle|pick|changed`, `keys:action|suspend`, `rpc:request|reply`, `log`.
-- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:toggle(id, line, expected, rev)` → `{ok}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd.
+- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
+- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd.
 - Main → renderer: `pty:data|exit|process|cwd`, `doc:changed(id, {text, rev} | {missing})`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
 
