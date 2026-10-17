@@ -1,7 +1,7 @@
 // Instance identity and paths. Each TIE_INSTANCE gets its own socket, lock, debug port, log, settings.
 // Installed app = `default`; dev runs (repo checkout) = `dev`, so both can run side by side.
 import { app } from 'electron'
-import { mkdirSync, appendFileSync, existsSync, readdirSync, renameSync } from 'node:fs'
+import { mkdirSync, appendFileSync, existsSync, readdirSync, renameSync, chmodSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +9,17 @@ export const instance = process.env.TIE_INSTANCE || (app.isPackaged ? 'default' 
 // All state lives in ~/.config/tie (or $XDG_CONFIG_HOME/tie): settings, sockets, info files, logs.
 export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
 export const logDir = join(stateDir, 'log')
-mkdirSync(logDir, { recursive: true })
+// SECURITY: the state dir holds the control sockets (= run commands as the user), logs (commands,
+// paths, URLs) and settings. Private to the user: 0700 (created or not; ~/.config itself is often
+// 0755), and every file Tie writes there is 0600 (PRIVATE). Other local accounts get nothing.
+export const PRIVATE = 0o600
+mkdirSync(logDir, { recursive: true, mode: 0o700 })
+for (const d of [stateDir, logDir]) {
+  try {
+    chmodSync(d, 0o700)
+    for (const f of readdirSync(d, { withFileTypes: true })) if (f.isFile() || f.isSocket()) chmodSync(join(d, f.name), PRIVATE) // files from before this rule
+  } catch {}
+}
 
 // One-time move of settings from the old ~/.tie (sockets/logs there are disposable).
 const oldDir = join(homedir(), '.tie')
@@ -38,6 +48,6 @@ export function log(tag: string, ...args: unknown[]) {
   if (!tags.has(tag) && !tags.has('*')) return
   const line = `${new Date().toISOString()} [${tag}] ${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`
   try {
-    appendFileSync(logPath, line)
+    appendFileSync(logPath, line, { mode: PRIVATE })
   } catch {}
 }

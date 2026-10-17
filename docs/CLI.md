@@ -79,7 +79,7 @@ Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cw
 
 ## Env (`bin/tie`)
 
-- `TIE_SOCKET` (set in Tie shells), else `<state>/<TIE_INSTANCE or "default">.sock`. Outside Tie it targets the installed app unless `TIE_INSTANCE` is set.
+- `TIE_SOCKET` (set in Tie shells), else `<state>/<TIE_INSTANCE or "default">.sock`. Outside Tie it targets the installed app unless `TIE_INSTANCE` is set. The socket is 0600 in a 0700 dir: the user's processes only; whoever connects can run commands as the user (`SECURITY.md`). Request lines over 1 MB drop the connection.
 - `TIE_TILE`: caller.
 
 ## Limitations

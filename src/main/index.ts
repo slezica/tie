@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, screen, session } from 'electron'
 import { join } from 'node:path'
 import { writeFileSync, rmSync } from 'node:fs'
-import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
+import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRIVATE } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, SHELL_PARTITION, noNetwork, noWebRtcUdp } from './security'
@@ -23,6 +23,11 @@ const offscreen = background && process.env.TIE_BACKGROUND !== 'hidden'
 // Per-instance user data, so instances don't share the single-instance lock.
 app.setPath('userData', join(app.getPath('appData'), `tie-${instance}`))
 if (dev) app.commandLine.appendSwitch('remote-debugging-port', String(debugPort))
+// SECURITY: a cross-origin iframe may call window.focus() / el.focus() and take the focus (and the
+// keyboard) at any time. Blink can refuse focus from a frame without transient user activation when
+// the frame's permissions policy disallows `focus-without-user-activation` (content iframes:
+// frame.ts `allow`); the check is behind this runtime feature.
+app.commandLine.appendSwitch('enable-blink-features', 'BlockingFocusWithoutUserActivation')
 
 if (!app.requestSingleInstanceLock()) {
   console.error(`tie: instance "${instance}" already running`)
@@ -216,7 +221,7 @@ app.whenReady().then(async () => {
   createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready
-  writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }))
+  writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }), { mode: PRIVATE })
   log('app', 'ready', { instance, socketPath, debugPort })
 })
 

@@ -26,7 +26,7 @@
 ## Instances (`src/main/env.ts`)
 
 - Instance: `TIE_INSTANCE`, else `default` (packaged) or `dev` (repo). Both run side by side.
-- State dir: `$XDG_CONFIG_HOME/tie`, else `~/.config/tie`.
+- State dir: `$XDG_CONFIG_HOME/tie`, else `~/.config/tie`. Private: 0700, every file in it 0600 (`env.ts` `PRIVATE`; sockets chmod'ed after listen): other local accounts can't reach the socket (= run commands as the user), logs or settings.
 
 | Per instance | Path / value |
 |---|---|
