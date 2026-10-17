@@ -162,7 +162,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
 - Viewer CSP: from the policy row (above). Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
 - Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the shell, first frame binds the token.
-- Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the shell. Storage per token origin, not cleared on close (`VIEWERS.md` Limitations).
+- Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the shell. Storage per token origin, in memory (the shell's session: `SECURITY.md`).
 - Served viewer kinds: `viewerKinds(dev)` (dev-only rows in dev builds only).
 - Closed tile / shell reload: token forgotten.
 

@@ -1,6 +1,6 @@
 // Html kind: a local .html file is the page. Its scripts run (decision 2026-10-16), isolated: own
 // content frame on its own token origin (sandbox allow-scripts allow-same-origin), document CSP (no
-// network), nav lock within its folder, storage cleared on close (main). Main injects the bootstrap
+// network), nav lock within its folder, storage in memory only (the shell's session). Main injects the bootstrap
 // (src/viewers/html-bootstrap.ts): handshake, pong, link clicks and window.open → followLink.
 // Here: routing those requests, history (host-driven and the page's own navigations, reported by
 // main), live reload on folder changes, nav bar. docs/VIEWERS.md "Html".

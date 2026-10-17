@@ -54,7 +54,7 @@ export const POLICY: { readonly [K in ContentKind]: ContentPolicy } = {
   // Hex: any file, bytes transferred over the port (no copy into strings).
   hex: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'bytes', maxBytes: 16 * MB, bootstrap: false, dev: false },
   // Html: the file is the page (scripts on, local only). Served by the protocol with documentCsp and
-  // the bootstrap; navigates within its folder; storage cleared on close. docs/VIEWERS.md "Html".
+  // the bootstrap; navigates within its folder; storage in memory (shell session). docs/VIEWERS.md "Html".
   html: { page: 'document', sandbox: ['allow-scripts', 'allow-same-origin'], styles: 'inline', nav: 'within-root', assets: [], payload: 'none', maxBytes: 10 * MB, bootstrap: true, dev: false },
   // Probe: harness kind (escape tests, sec-content-escape). Dev builds only.
   probe: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 0, bootstrap: false, dev: true },

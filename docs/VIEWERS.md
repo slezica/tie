@@ -65,7 +65,7 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 - History: host list. Host navigations (links, back/forward, reload) set the page first; the page's own navigations (script, links it handled) arrive from main (`did-frame-navigate` → `content:navigated`) → location follows, new entry. `cmd+[` / `cmd+]` / `cmd+R`; location not editable.
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
-- Storage: per token origin (localStorage, IndexedDB, sessionStorage work). A reopened file (or another folder) = a new token: empty. Not removed from disk on close (see Limitations).
+- Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the shell's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
 - Title = file name; dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
@@ -80,5 +80,4 @@ The file is the page; its scripts run (decision 2026-10-16). Isolated, local onl
 - Text: no wrapping, no search; 10 MB × one element per line is slow-ish to diff (≈200k lines).
 - Hex: no selection across the virtualized edge; no editing, no search, no jump-to-offset.
 - Image: no zoom steps beyond fit / 100%; animated formats animate (browser default).
-- Html storage stays on disk after close: Chromium's data removal (`session.clearData` / `clearStorageData`, with or without origin filters) skips the custom scheme (verified 2026-10-17); keyed `tie-content://<token>/^0tie://app` in the profile's `WebStorage`. Unreachable (tokens are never reused), but not deleted (`PENDING.md`).
 - Html: no per-file persistent storage; no network, no server features (POST, routing); media without range requests (seeking may fail); subfolder changes don't reload; no title from `<title>`.

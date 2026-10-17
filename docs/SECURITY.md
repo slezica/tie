@@ -17,7 +17,7 @@
 - Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (page, sandbox, CSP, nav rule, assets, payload, size cap, bootstrap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
 - Never add `tie-content:` to shell `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
 - `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the shell's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
-- The shell's session has no network (`noNetwork`): Tie's pages are all custom-scheme. A kind needing the network gets its own partition (P4 browser).
+- The shell window runs on an in-memory session (`SHELL_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. A kind needing the network gets its own partition (P4 browser).
 
 ## Guards
 
@@ -27,6 +27,7 @@
 | Content frame nav lock: the kind's nav rule (`viewer-exact`: exact viewer URL) of a registered token, child of the shell, one frame per token | `content.ts` `contentFrameAllowed`, `@core/content` `navAllowed` | `sec-content-nav`, unit |
 | Content frames: sandbox from the policy table (viewer rows `allow-scripts` only: opaque origin, no storage; html `+ allow-same-origin` on its token), own process, no `window.tie`, no top nav/popups | `@core/policy`, `frame.ts` | `sec-content-escape`, `sec-html`, unit |
 | Html document CSP: only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers), inline/eval scripts, `connect-src 'self'`, no frames/objects/forms/`<base>`, nothing remote; on every file of the token | `@core/policy` `documentCsp`, `content.ts` | `sec-html` (a CSP violation per vector; mutation `connect-src *` → red), unit (exact) |
+| Shell session in memory (`session.fromPartition('tie-shell')`): content storage (html localStorage, IndexedDB, Cache Storage) never on disk; protocols, permissions, no-network on it | `security.ts` `SHELL_PARTITION`, `index.ts` | `sec-storage` (red first: IndexedDB marker found in the profile) |
 | Shell session without network: proxy to a closed local port (loopback included), WebRTC without non-proxied UDP. Covers what no CSP does (WebRTC STUN/TURN) | `security.ts` `noNetwork`, `noWebRtcUdp` | `sec-html` (red first: STUN + TURN reached local probes; mutation → red) |
 | Html nav lock `within-root`: `.html`/`.htm` of its own root, not `/_tie/`, not other tokens; away → frame-src refuses, main reports, the tile reloads; loops → error | `@core/content` `navAllowed`, `content.ts` `initContent`, `frame.ts` | `sec-html` (mutations: `/_tie/` allowed → red; loop guard removed → red), unit |
 | Html requests: bootstrap port invisible to the page (capture, first, stopped); `followLink` routed as hostile: web only after a confirm showing the full URL (Cancel focused, one at a time), other files beside (one per second), other schemes refused; no `allow-popups`, `window.open` → request | `html-bootstrap.ts`, `kinds/html.ts` | `sec-html` (mutations: port visible → red; confirm skipped → red), `html` |
@@ -78,4 +79,3 @@
 - Limits: offscreen + CDP can't reach the native navigate-on-drop path; `sec-drop` asserts the mechanism (drags claimed).
 - Spikes (`HARNESS.md`): dev builds with `TIE_SPIKE` relax guards on purpose (root html documents on probe tokens, `<webview>` attach). Never in packaged builds (`app.isPackaged`); never set outside spike scenarios.
 - Html: `h.htmlFrame(ctx, id)` = the page's realm (what page scripts can do); `tie list --json` `page`. CSP violations observed in the page (`securitypolicyviolation`), so the CSP layer is tested even though the network kill-switch would also stop requests.
-- Gap: html storage isn't removed on close (Chromium skips the custom scheme; `VIEWERS.md`). Isolation holds (tokens never reused).

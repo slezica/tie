@@ -4,7 +4,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, noNetwork, noWebRtcUdp } from './security'
+import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, SHELL_PARTITION, noNetwork, noWebRtcUdp } from './security'
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
@@ -103,7 +103,7 @@ ipc.on('window:borderless-preview', (_e, on: boolean) => {
   if (process.platform === 'darwin') win?.setWindowButtonVisibility(!on)
 })
 
-function createWindow() {
+function createWindow(ses: Electron.Session) {
   const { workArea } = screen.getPrimaryDisplay()
   // Borderless at creation: frameless with square corners (macOS only allows that when frameless,
   // and only at creation). Toggling later hides the traffic lights live; corners follow on restart.
@@ -117,6 +117,7 @@ function createWindow() {
     show: false,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
+      session: ses, // in-memory (security.ts SHELL_PARTITION): content storage never on disk
       sandbox: true,
       contextIsolation: true,
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
@@ -204,10 +205,11 @@ harden()
 app.whenReady().then(async () => {
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
-  serveShell(join(import.meta.dirname, '../renderer'))
-  serveContent()
-  await noNetwork(session.defaultSession, dev ? process.env.ELECTRON_RENDERER_URL : undefined)
-  createWindow()
+  const ses = session.fromPartition(SHELL_PARTITION)
+  serveShell(ses, join(import.meta.dirname, '../renderer'))
+  serveContent(ses)
+  await noNetwork(ses, dev ? process.env.ELECTRON_RENDERER_URL : undefined)
+  createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready
   writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }))

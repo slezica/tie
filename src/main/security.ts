@@ -78,6 +78,13 @@ function guard(wc: WebContents) {
   wc.on('did-attach-webview', (_e, guest) => spikeGuest(guest))
 }
 
+// SECURITY: the shell window runs on its own in-memory session (SHELL_PARTITION: no `persist:`
+// prefix): whatever content stores (html pages: localStorage, IndexedDB, Cache Storage under their
+// token origins) lives in memory only and is gone when Tie quits. Chromium's data removal skips
+// custom schemes, so clearing on close isn't possible; never writing is (sec-storage). Protocols
+// (tie, tie-content), the no-network guard and permissions all apply to this session.
+export const SHELL_PARTITION = 'tie-shell'
+
 // SECURITY: the shell's session (the shell and every content frame) needs no network: Tie's own
 // pages come from tie:// and tie-content://, which no proxy touches. CSPs keep content off the
 // network, but WebRTC isn't covered by any CSP directive Chromium enforces (STUN over UDP, TURN over
@@ -128,8 +135,8 @@ export function shellIpc(win: () => BrowserWindow | null) {
 // script in a file:// shell could read every file on disk. tie://app serves only `root`
 // (out/renderer) through resolveInside (traversal-safe); other hosts are refused.
 export const SHELL_URL = 'tie://app/index.html'
-export function serveShell(root: string) {
-  protocol.handle('tie', async (req) => {
+export function serveShell(ses: Session, root: string) {
+  ses.protocol.handle('tie', async (req) => {
     const u = new URL(req.url)
     const file = u.host === 'app' ? resolveInside(root, u.pathname) : null
     if (!file) {

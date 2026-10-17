@@ -2,7 +2,7 @@
 // opaque origin, html documents on the token's own). Token → root registry, viewer files, root
 // files, html documents (CSP + bootstrap), folder watch and navigation reports for documents.
 // docs/TILES.md, docs/VIEWERS.md "Html", docs/SECURITY.md.
-import { app, protocol, webFrameMain, type WebContents, type WebFrameMain } from 'electron'
+import { app, webFrameMain, type Session, type WebContents, type WebFrameMain } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { realpathSync, statSync, readFileSync, watch, type FSWatcher } from 'node:fs'
@@ -89,11 +89,9 @@ function watchRoot(token: string) {
   }
 }
 
-// A document's storage (localStorage, IndexedDB, ...) lives in the shell's session under its token
-// origin (partitioned under tie://app), on disk. Not cleared on close: Chromium's data removal
-// (session.clearData / clearStorageData, any origin filter or none) skips the custom scheme
-// (verified 2026-10-17; plan Results). Unreachable after close (no frame gets that token again);
-// left on disk. docs/PENDING.md.
+// A document's storage (localStorage, IndexedDB, ...) lives under its token origin in the shell's
+// in-memory session (security.ts SHELL_PARTITION): never on disk, gone at quit; unreachable after
+// close (no frame gets that token again).
 function forget(_token: string, e: Entry) {
   e.watcher?.close()
 }
@@ -212,8 +210,8 @@ function withBootstrap(body: Buffer): { body: Buffer; charset: string } | null {
   return { body: Buffer.concat([body.subarray(0, at), tag, body.subarray(at)]), charset: htmlCharset(text) }
 }
 
-export function serveContent() {
-  protocol.handle(CONTENT_SCHEME, async (req) => {
+export function serveContent(ses: Session) {
+  ses.protocol.handle(CONTENT_SCHEME, async (req) => {
     if (req.method !== 'GET') return refuse(req.url, 'method')
     const r = routeContent(req.url, (t) => entries.get(t))
     if (!r) return refuse(req.url, 'route')
