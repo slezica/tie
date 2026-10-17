@@ -85,9 +85,12 @@ function guard(wc: WebContents) {
 // proxied, and everything proxied (loopback included) goes to a closed local port: no connection
 // leaves. External links go through the OS (openExternal), not this session. The browser tile (P4)
 // gets its own partition.
+// Dev server mode (`tie-dev run --hot`): the shell itself loads from the dev server, so exactly
+// that host:port is exempt (dev builds only; every other loopback address stays dead).
 export const DEAD_PROXY = '127.0.0.1:1'
-export async function noNetwork(ses: Session) {
-  await ses.setProxy({ mode: 'fixed_servers', proxyRules: `http=${DEAD_PROXY};https=${DEAD_PROXY};socks=${DEAD_PROXY}`, proxyBypassRules: '<-loopback>' })
+export async function noNetwork(ses: Session, devServer?: string) {
+  const exempt = devServer ? new URL(devServer).host : ''
+  await ses.setProxy({ mode: 'fixed_servers', proxyRules: `http=${DEAD_PROXY};https=${DEAD_PROXY};socks=${DEAD_PROXY}`, proxyBypassRules: `<-loopback>;${exempt}` })
 }
 export function noWebRtcUdp(wc: WebContents) {
   wc.setWebRTCIPHandlingPolicy('disable_non_proxied_udp')

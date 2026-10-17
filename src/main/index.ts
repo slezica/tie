@@ -206,7 +206,7 @@ app.whenReady().then(async () => {
   setMenu()
   serveShell(join(import.meta.dirname, '../renderer'))
   serveContent()
-  await noNetwork(session.defaultSession)
+  await noNetwork(session.defaultSession, dev ? process.env.ELECTRON_RENDERER_URL : undefined)
   createWindow()
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready
