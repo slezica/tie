@@ -7,6 +7,7 @@
 import { tie, debug } from './state'
 import { untrusted } from '@core/log'
 import { infoDialog, confirmDialog } from './dialog'
+import { openExternal } from './external'
 import { guestSrc, locationUrl, pageTitle, BROWSER_PARTITION } from '@core/guest'
 import type { Host, OpenOpts, Surface } from './kinds'
 
@@ -20,6 +21,8 @@ const titleOf = new Map<number, () => string>()
 let askingDownload = false
 export function initGuests() {
   tie.guest.onUnresponsive((id) => byGuest.get(id)?.())
+  // SECURITY: a site's popup is a link out: the same confirm as links from files and terminals.
+  tie.guest.onPopup((p) => void openExternal(p.url, titleOf.get(p.guest)?.() ?? 'A browser tile'))
   // SECURITY: a site started a download: nothing is saved until the user says so, here (one dialog
   // at a time; requests while it is open are dropped). Name sanitized by main, shown as text.
   tie.guest.onDownload(async (d) => {

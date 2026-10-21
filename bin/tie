@@ -79,7 +79,7 @@ TILE KINDS
              gets https://). A regular browser with the network, logins kept across restarts
              (shared by all browser tiles), no access to Tie, files or other tiles. Address bar:
              http(s) only, no search. Pages open in the tile; links that would open a new
-             window go to the system browser (only right after a click; scripts alone can't).
+             window ask the user, then open in the system browser.
              Downloads ask the user first, then save to ~/Downloads, never opened. Permissions
              (camera,
              notifications, location...) are denied. Not live: it doesn't watch files; reload

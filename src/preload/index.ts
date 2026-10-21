@@ -81,6 +81,10 @@ const api = {
     onDownload: (cb: (d: { guest: number; url: string; name: string; bytes: number }) => void) => {
       ipcRenderer.on('guest:download', (_e, d) => cb(d))
     },
+    // A guest's popup (window.open, target=_blank): a link out, confirmed like any other.
+    onPopup: (cb: (p: { guest: number; url: string }) => void) => {
+      ipcRenderer.on('guest:popup', (_e, p) => cb(p))
+    },
     download: (url: string, guest: number) => ipcRenderer.send('guest:download-ok', url, guest),
   },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field

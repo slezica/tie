@@ -7,10 +7,6 @@
 // tie-content: have no handler there).
 export const BROWSER_PARTITION = 'persist:browser'
 
-// A popup (window.open, target=_blank) goes to the system browser only this soon after real input
-// (mouse button, key) reached that guest; else it is blocked (scripts can't open windows alone).
-export const POPUP_INPUT_MS = 1000
-
 const scheme = (url: string) => /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1].toLowerCase() ?? ''
 
 // SECURITY: what a guest's frames may navigate to. Main frame: http(s) only (and about:blank, the
@@ -67,15 +63,14 @@ export function locationUrl(input: string): string | null {
   }
 }
 
-// SECURITY: popups never open in Tie. A gesture-backed http(s) popup goes to the system browser;
-// anything else is blocked. `sinceInput`: ms since real input reached that guest (null: never).
-export function popupVerdict(url: string, sinceInput: number | null): 'external' | 'blocked' {
-  if (!guestSrc(url) || url === 'about:blank') return 'blocked'
-  return sinceInput !== null && sinceInput >= 0 && sinceInput <= POPUP_INPUT_MS ? 'external' : 'blocked'
+// SECURITY: popups never open in Tie (a window would be a guest outside any tile). An http(s) popup
+// (window.open, target=_blank) is a link out: the UI asks the user like any other (external.ts);
+// anything else is blocked. Electron has no popup blocker of its own (gesture-less window.open
+// reaches the handler): the dialog is the blocker, one at a time. No timing heuristics.
+export function popupUrl(url: string): string | null {
+  const u = guestSrc(url)
+  return u && u !== 'about:blank' ? u : null
 }
-
-// Input events (Electron's input-event types) that count as the user acting in a guest.
-export const GESTURE_INPUTS: ReadonlySet<string> = new Set(['mouseDown', 'mouseUp', 'keyDown', 'rawKeyDown', 'char', 'touchStart', 'touchEnd', 'gestureTap'])
 
 // SECURITY: a download's file name comes from the site. Base name only, no path separators, control
 // characters, leading dots (hidden files) or trailing dots/spaces; bounded; never empty.

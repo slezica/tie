@@ -6,19 +6,10 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { log } from './env'
 import { untrusted } from '../core/log'
-import { openExternal } from './security'
 import { watchKeys } from './keys'
-import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName } from '../core/guest'
+import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupUrl, downloadName, uniqueName } from '../core/guest'
 
 const guests = new Set<WebContents>()
-// Last real input (mouse button, key) main saw going into each guest (ms since epoch). The popup
-// and download rules read it: scripts alone open and download nothing.
-const lastInputs = new WeakMap<WebContents, number>()
-const sinceInput = (wc: WebContents | undefined): number | null => {
-  const t = wc && lastInputs.get(wc)
-  return t ? Date.now() - t : null
-}
-
 // SECURITY: device choosers. Web Bluetooth: Electron picks the first device found unless the event
 // is prevented (a page could pair with whatever is nearby after one click). Cancelled here, for
 // guests and the UI window alike. USB / HID / serial go through setDevicePermissionHandler
@@ -68,6 +59,16 @@ export function attachGuest(e: Electron.Event, prefs: Electron.WebPreferences, p
 }
 
 // SECURITY: every guest webContents (web-contents-created, type webview).
+// Main → UI: a guest's popup to confirm (`guest:popup`).
+export interface PopupAsk {
+  guest: number
+  url: string
+}
+let popup: (p: PopupAsk) => void = () => {}
+export function onPopup(fn: (p: PopupAsk) => void) {
+  popup = fn
+}
+
 export function guardGuest(guest: WebContents) {
   guests.add(guest)
   guest.once('destroyed', () => guests.delete(guest))
@@ -97,16 +98,16 @@ export function guardGuest(guest: WebContents) {
       guest.stop()
     })
   })
-  // Popups never open in Tie (a new window would be a new guest outside any tile). http(s) popups
-  // go to the system browser only right after real input reached this guest (mouse button, key:
-  // main sees it before the page does); scripts alone get nothing.
-  guest.on('input-event', (_e, i) => {
-    if (GESTURE_INPUTS.has(i.type)) lastInputs.set(guest, Date.now())
-  })
+  // SECURITY: popups never open in Tie (a new window would be a new guest outside any tile). An
+  // http(s) popup is handed to the UI as a link out: the user confirms it (external.ts), like links
+  // from files and terminals; a script's gesture-less window.open gets the same dialog (Electron
+  // has no popup blocker; the UI shows one dialog at a time). Anything else: blocked + logged.
   guest.setWindowOpenHandler((d) => {
-    const since = sinceInput(guest)
-    if (popupVerdict(d.url, since) === 'external') openExternal(d.url)
-    else log('security', 'blocked popup', untrusted(d.url), 'since input', since ?? 'never')
+    const url = popupUrl(d.url)
+    if (url) {
+      log('guest', 'popup asks', untrusted(url))
+      popup({ guest: guest.id, url })
+    } else log('security', 'blocked popup', untrusted(d.url))
     return { action: 'deny' }
   })
   noDeviceChoosers(guest)

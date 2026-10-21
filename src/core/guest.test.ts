@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { guestNavAllowed, guestSrc, locationUrl, popupVerdict, downloadName, uniqueName, pageTitle, POPUP_INPUT_MS, BROWSER_PARTITION } from './guest'
+import { guestNavAllowed, guestSrc, locationUrl, popupUrl, downloadName, uniqueName, pageTitle, BROWSER_PARTITION } from './guest'
 
 describe('guestNavAllowed', () => {
   it('main frame: http(s) with a host, about:blank', () => {
@@ -45,16 +45,11 @@ describe('locationUrl', () => {
   it('about:blank', () => expect(locationUrl('about:blank')).toBe('about:blank'))
 })
 
-describe('popupVerdict', () => {
-  it('external only for http(s) within the input window', () => {
-    expect(popupVerdict('https://a.b/', 3)).toBe('external')
-    expect(popupVerdict('https://a.b/', POPUP_INPUT_MS)).toBe('external')
-    expect(popupVerdict('https://a.b/', POPUP_INPUT_MS + 1)).toBe('blocked')
-    expect(popupVerdict('https://a.b/', null)).toBe('blocked')
-    expect(popupVerdict('https://a.b/', -5)).toBe('blocked')
-  })
-  it('never for other schemes', () => {
-    for (const u of ['about:blank', 'file:///x', 'mailto:a@b.c', 'javascript:x', '']) expect(popupVerdict(u, 1)).toBe('blocked')
+describe('popupUrl', () => {
+  it('http(s) with a host goes to the confirm; everything else is blocked', () => {
+    expect(popupUrl('https://a.b/x')).toBe('https://a.b/x')
+    expect(popupUrl('http://a.b')).toBe('http://a.b/')
+    for (const u of ['about:blank', 'file:///x', 'mailto:a@b.c', 'javascript:x', '', 'https://']) expect(popupUrl(u)).toBe(null)
   })
 })
 

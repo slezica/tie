@@ -11,7 +11,8 @@ Earlier: live file viewer tiles; plan record `docs/2026-10-15-tile-host-plan.md`
 - Settled 2026-10-21: tile ids stay incremental (`t1`…): names, not credentials; `tie list` shows them anyway. Ownership, not secrecy, if a permission model comes.
 - Discussing one by one (2026-10-21):
   1. Token / caller identity for the socket (now). Same-uid privacy doesn't exist on macOS; a secret in env is readable by every process of the user. Proposal: identity without a secret: peer pid (`LOCAL_PEERPID`, tiny N-API addon) + lineage up to a pty's shell = insider; unknown callers get a default role. Alternative rejected: inherited fd (spawners close fds). Pushback: a week of plumbing, worth it only as the base for ownership scoping / sandbox broker.
-  2. Fact-check items as design changes: security refusals always logged; browser popups through the confirm; html nav-failure auto-reload → error at once; markdown links to absolute paths confined to the repo.
+  2. Fact-check items as design changes: security refusals always logged (done: always on, `<untrusted>` markers); browser popups through the confirm (done: option 2 "dialog always", no timer; Electron has no popup blocker, the dialog is it); next: html nav-failure auto-reload → error at once; markdown links to absolute paths confined to the repo.
+  1b. Lineage: done (native/peer, allowExternalControl default off, Security page). Keychain prompt = packaged app's cookie-encryption key per ad-hoc build; harness uses a mock keychain.
 - Open: settings UI review, root restrictions, sandbox research.
 
 ## Deceptive tiles (2026-10-20, done: html static by default + pill, confirm on every link out, no page titles, link strip)

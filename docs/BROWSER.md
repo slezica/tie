@@ -6,7 +6,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 | Piece | Does |
 |---|---|
-| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupVerdict` (+ `POPUP_INPUT_MS`, `GESTURE_INPUTS`), `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
+| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupUrl`, `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
 | `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, UI-started loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (UI session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
 | `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state); `initGuests` (hang reports) |
 | `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (UI page only) |
@@ -18,7 +18,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Prefs rebuilt from nothing: `sandbox`, `contextIsolation`, no Node (`nodeIntegration*` off), `webviewTag` off, `webSecurity` on, no insecure content, no experimental features, no navigate-on-drop, safe dialogs, partition `persist:browser`. Every attribute but `src` dropped (`preload`, `nodeintegration`, `webpreferences`, `partition`, `allowpopups`, `disablewebsecurity`, `useragent`, `httpreferrer`, blink features; Electron's internal `instanceId` kept). `src`: http(s) or `about:blank` (`guestSrc`), else refused.
 - Navigation (`will-frame-navigate`): main frame http(s) (+ `about:blank`); subframes also `about:`, `data:`, `blob:`. Refused: `file:`, `tie:`, `tie-content:`, `chrome:`, `devtools:`, OS handlers (`mailto:`...: refused v1). Redirects: same rule (`will-redirect`; Chromium itself refuses http → `file:`).
 - UI-started loads (`src`, `loadURL`, back/forward: no `will-frame-navigate`): `did-start-navigation` → refused URL → `stop()` (deferred: stopping inside the event crashes Electron; skipped when `will-frame-navigate` already refused it).
-- Popups (`setWindowOpenHandler`): always denied in Tie. http(s) + real input (mouse button, key: `input-event`, `GESTURE_INPUTS`) in that guest within 1 s (`POPUP_INPUT_MS`) → system browser (`openExternal`); else blocked + logged. Main sees input 2–4 ms before a click's popup (S5).
+- Popups (`setWindowOpenHandler`): always denied in Tie. http(s) (`popupUrl`) → `guest:popup` → the UI's link-out confirm (`external.ts`, setting `confirmExternal`) → `openExternal`; else blocked + logged. No timing heuristics (decision 2026-10-21: predictability). Electron has no popup blocker: a script's gesture-less `window.open` reaches the handler and gets the same dialog (one at a time, Open armed 600 ms).
 - Keys: `watchKeys(guest)`: same keymap and blocking as the window (`INPUT.md`).
 - Crash (`render-process-gone`): logged; the tile shows "Page crashed" (DOM event). Hang (`unresponsive`): UI told (`guest:unresponsive`, by guest id) → "Page stopped responding"; renderer killed (`forcefullyCrashRenderer`; same-site guests sharing the process crash too).
 

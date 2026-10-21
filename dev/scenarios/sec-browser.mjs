@@ -134,11 +134,16 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await ctx.tie('close', probe)
     h.assert((await guests()).length <= before, 'no guest left behind')
 
-    // Popups: without input → blocked; right after a real click → system browser (harness logs);
-    // never a window, never loaded by Tie; non-http → blocked even with a click.
+    // Popups: never a window, never loaded by Tie; http(s) ones are links out: the confirm dialog
+    // (Cancel → nothing, Open → system browser, harness logs); non-http → blocked even with a click.
+    // A script's popup without a gesture gets the same dialog (Electron has no popup blocker).
     const p = (await ctx.tie('open', s.url + '/?auto', '--at', t0, '--side', 'r')).id
     g = await h.guestPage(ctx, p)
-    await h.waitFor(ctx, async () => /blocked popup .*popup-auto since input never/.test(log()), 'auto popup blocked')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'script popup without a gesture: the dialog')
+    h.assert((await ctx.page.textContent('.dialog.external-open .url')) === `${s.url}/popup-auto` && !s.hits.includes('/popup-auto'), 'nothing loaded, URL shown')
+    await ctx.page.click('.dialog .cancel')
+    await ctx.sleep(300)
+    h.assert(!log().includes('external open'), 'Cancel: nothing opened')
     const wv = await ctx.page.locator(`.tile[data-id="${p}"] webview`).boundingBox()
     const click = async (sel) => {
       const bx = await g.locator(sel).boundingBox()
@@ -146,11 +151,16 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       await ctx.sleep(500)
     }
     await click('#pop')
-    h.assert(log().includes(`external open ${s.url}/popup-click`), 'real click: popup → system browser')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'click popup: confirm dialog')
+    h.assert((await ctx.page.textContent('.dialog.external-open .url')) === `${s.url}/popup-click` && !log().includes('external open'), 'full URL shown, nothing opened yet')
+    await ctx.page.click('.dialog .cancel')
+    await ctx.sleep(300)
+    h.assert(!log().includes(`external open ${s.url}/popup-click`), 'Cancel: nothing opened')
     const bl = await g.locator('#blank').boundingBox()
     await h.guestClick(ctx, p, bl.x + 5, bl.y + bl.height / 2)
-    await ctx.sleep(500)
-    h.assert(log().includes(`external open ${s.url}/popup-blank`), 'target=_blank click → system browser')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'target=_blank: confirm dialog')
+    await ctx.page.click('.dialog .confirm')
+    await h.waitFor(ctx, async () => log().includes(`external open ${s.url}/popup-blank`), 'Open: system browser (harness: logged)')
     await click('#popfile')
     // (Chromium refuses file: from an http page before the handler: either way, never opened.)
     h.assert(!/external open file:/.test(log()), 'non-http popup never opened, even with a click')

@@ -8,7 +8,7 @@ import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
-import { initBrowserSession, noDownloads, guestMethod, allowDownload } from './guest'
+import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -222,6 +222,7 @@ app.whenReady().then(async () => {
   noDownloads(ses)
   shellSession = ses
   initBrowserSession((d) => win?.webContents.send('guest:download', d))
+  onPopup((p) => win?.webContents.send('guest:popup', p))
   createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)), {
     tiles: pty.tiles,
