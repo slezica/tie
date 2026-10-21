@@ -76,6 +76,7 @@ EOF
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
+| `termFit(id)`, `assertTermFit(id, label)` | terminal grid vs visible area: screen/body slack, text overrun past rows, full-width rows (`TERMINALS.md` "Size") |
 | `probe`, `uiUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); UI URL |
 | `frames`, `probeFrame(id)` | window frame tree (`tie frames`: url, origin, pid, out-of-process); Playwright frame inside a probe tile, once its handshake is done |
 | `press(chord)`, `keyDown(key)`, `keyUp(key)` | keys through main (dev socket `input` → `sendInputEvent`): pass `before-input-event` like real keys. Use for shortcuts; CDP `ctx.page.keyboard` skips it (fine for typing) |

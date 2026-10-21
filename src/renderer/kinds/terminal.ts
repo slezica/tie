@@ -113,6 +113,7 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
 async function start(t: Term) {
   const { host, term } = t
   term.open(host.body)
+  fixWidthCache(term)
   t.fit.fit()
   const { cols, rows } = term
   const res = await tie.pty.spawn({ cmd: t.cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: host.id } }).catch((e: Error) => ({ error: e.message }))
@@ -147,6 +148,28 @@ function dropText(dt: DataTransfer): string {
   const files = [...dt.files].map((f) => tie.pathForFile(f)).filter(Boolean)
   const link = dt.getData('text/uri-list').split(/\r?\n/).find((l) => l && !l.startsWith('#'))
   return files.length ? files.map(shellQuote).join(' ') + ' ' : link || dt.getData('text/plain')
+}
+
+// xterm 6.0.0 DOM renderer bug (fixed upstream in 6.1, where the width cache uses canvas
+// measureText): its width cache measures a glyph as `offsetWidth / 32`, and offsetWidth is an
+// integer. 12px Menlo-class fonts: 32 × 7.2 = 230.4 → 230 → 7.1875. The renderer then adds the
+// difference to the cell width (7.2) as letter-spacing on every row, so each glyph advances
+// 7.2125 px, the text runs `cols × 0.0125` px past its row (`overflow: hidden`: 2.8 px at 225
+// cols) and the last column is cut. Measure fractionally instead. Private API (as is the fit
+// addon's): if its shape changes this is a no-op, and the `terminal-fit` scenario fails.
+// Remove when on xterm ≥ 6.1.
+type Renderer = { _widthCache?: WidthCache; handleCharSizeChanged?: () => void }
+type WidthCache = { _measure?: unknown; _measureElements?: HTMLElement[] }
+function fixWidthCache(term: Terminal) {
+  const r = (term as unknown as { _core?: { _renderService?: { _renderer?: { value?: Renderer } } } })._core?._renderService?._renderer?.value
+  const proto = r?._widthCache && Object.getPrototypeOf(r._widthCache)
+  if (!r || !proto || typeof proto._measure !== 'function' || !r.handleCharSizeChanged) return debug('pty', 'width cache fix: shape changed, skipped')
+  proto._measure = function (this: WidthCache, c: string, variant: number) {
+    const el = this._measureElements![variant]
+    el.textContent = c.repeat(32)
+    return el.getBoundingClientRect().width / 32
+  }
+  r.handleCharSizeChanged() // clears the cache, re-derives the row letter-spacing
 }
 
 function fitTerm(t: Term) {

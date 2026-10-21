@@ -122,6 +122,40 @@ export async function assertPtySizes(ctx) {
   }
 }
 
+// Terminal grid vs what's visible (TERMINALS.md "Size"): the screen (cols × cell, rows × cell) inside
+// the body, and each row's text inside its row (DOM renderer: a row is overflow-hidden, so text
+// running past it is cut). `full`: rows whose text fills every column, with their text width.
+export async function termFit(ctx, id) {
+  return ctx.page.evaluate((id) => {
+    const body = document.querySelector(`.tile[data-id="${id}"] .body`)
+    const b = body.getBoundingClientRect()
+    const screen = body.querySelector('.xterm-screen').getBoundingClientRect()
+    const rows = [...body.querySelector('.xterm-rows').children]
+    const r2 = (n) => Math.round(n * 100) / 100
+    const full = []
+    let over = 0 // worst text overrun past its row's right edge, px
+    for (const row of rows) {
+      const range = document.createRange()
+      range.selectNodeContents(row)
+      const t = range.getBoundingClientRect()
+      if (!t.width) continue
+      const rr = row.getBoundingClientRect()
+      over = Math.max(over, t.right - rr.right)
+      if (row.textContent.length && !/\s$/.test(row.textContent)) full.push({ chars: row.textContent.length, text: r2(t.width), row: r2(rr.width) })
+    }
+    return { body: [r2(b.width), r2(b.height)], screen: [r2(screen.width), r2(screen.height)], slack: { right: r2(b.right - screen.right), bottom: r2(b.bottom - screen.bottom) }, over: r2(over), full }
+  }, id)
+}
+
+// The whole grid is visible: screen inside the body, no row's text past its edge (0.25 px: subpixel).
+export async function assertTermFit(ctx, id, label = '') {
+  const f = await termFit(ctx, id)
+  const where = `${id}${label ? ` ${label}` : ''} ${JSON.stringify({ ...f, full: f.full.length })}`
+  assert(f.slack.right >= 0 && f.slack.bottom >= 0, `terminal grid clipped by body: ${where}`)
+  assert(f.over <= 0.25, `terminal text runs past its row by ${f.over} px: ${where}`)
+  return f
+}
+
 // Probe: local http page that reports what it can reach. A hit means content loaded somewhere it
 // shouldn't; `bridged` means it also got `window.tie` (= could spawn ptys: full RCE).
 // Always `await probe.close()` (try/finally).

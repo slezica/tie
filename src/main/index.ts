@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, screen, session } from 'electron'
+import { app, BrowserWindow, Menu, screen, session, systemPreferences } from 'electron'
 import { join } from 'node:path'
 import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRIVATE } from './env'
@@ -13,6 +13,15 @@ import { getSettings, setSettings, defaultShell, settingsPath, validateSettings,
 
 const dev = !app.isPackaged
 app.setName('Tie')
+// macOS press-and-hold (accent picker) off: held keys repeat, as in any terminal. Registration
+// domain: in memory, this launch only, nothing written to disk (the dev bundle id,
+// com.github.Electron, is shared with every dev Electron app); registered before any window or text
+// input exists, so no relaunch needed. A user's own `defaults write com.salezica.tie
+// ApplePressAndHoldEnabled -bool true` (app domain) still wins. TERMINALS.md "Keys".
+if (process.platform === 'darwin') {
+  systemPreferences.registerDefaults({ ApplePressAndHoldEnabled: false })
+  log('keys', 'press-and-hold', JSON.stringify(systemPreferences.getUserDefault('ApplePressAndHoldEnabled', 'string'))) // "0" = registered off; "" = unset
+}
 // TIE_BACKGROUND=1 (harness instances): offscreen rendering, no visible window, no dock icon,
 // never takes focus. Driven entirely over the debugging port.
 // TIE_BACKGROUND=hidden: a real (not offscreen) window that is never shown. Input routes like a

@@ -1,4 +1,4 @@
-// Keyboard: cmd+D / cmd+shift+D split the active tile; cmd+arrows move focus (incl. floats).
+// Keyboard: cmd+D / cmd+shift+D split the active tile; cmd+arrows move focus (incl. floats); press-and-hold off.
 export default async (ctx, h) => {
   const k = async (chord) => {
     await h.press(ctx, chord)
@@ -47,4 +47,6 @@ export default async (ctx, h) => {
   await k('Meta+d')
   h.assert((await h.list(ctx)).tiles.length === n, 'no shortcuts while settings open')
   await ctx.page.keyboard.press('Escape')
+  // macOS accent picker off, so held keys repeat (main registers the default; TERMINALS.md "Keys").
+  h.assert(ctx.appLog().includes('[keys] press-and-hold "0"'), 'ApplePressAndHoldEnabled registered false')
 }
