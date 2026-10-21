@@ -44,35 +44,36 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 
 ## Html (`renderer/kinds/html.ts`, `viewers/html-bootstrap.ts`, `main/content.ts`)
 
-The file is the page; its scripts run (decision 2026-10-16). Isolated, local only.
+The file is the page. Isolated, local only. Its own scripts run only when the tile says so (2026-10-20): the title-bar pill "Scripts: off/on" (default from the setting `htmlScripts`, off; the choice is remembered per file for the session) reloads the page under a new token; with scripts off the document CSP allows only Tie's bootstrap (per-response nonce), so the page is static: no inline handlers, no `<script>`, no modules, no workers, while links, the hover strip, scroll keep and the watchdog still work.
 
 | Property | How |
 |---|---|
 | Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: modules, storage, fetch work; cross-origin to the shell (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
-| No network | document CSP (`documentCsp`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers); scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'`; no frames, objects, forms, `<base>`. Plus the shell session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
+| No network | document CSP (`documentCsp(scripts, nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers); scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'` with scripts on, `'nonce-<response>'` (the bootstrap only) with scripts off; no frames, objects, forms, `<base>`. Plus the shell session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
 | Folder | root = the file's directory (token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
 | Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the shell CSP `frame-src` refuses → main reports `did-fail-provisional-load` → the tile reloads its page; > 3 in 10 s → error "Page keeps navigating away". Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
-| Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `title` (`<title>`). Page scripts share its realm: hostile by assumption |
+| Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `hover` (pointer over a link → the tile's link strip). Page scripts share its realm: hostile by assumption |
 | Popups | no `allow-popups`; `window.open` replaced by the bootstrap (request, returns `null`) |
 
 - Bootstrap: built ASCII-only (`esbuild charset ascii`), no `</script`/`<!--` (main refuses it otherwise), injected inline first in `<head>` (else after `<html>`, the doctype, a BOM: `bootstrapAt`). Header charset = the document's declared one (`htmlCharset`: the bootstrap can push `<meta charset>` past the 1024-byte prescan). Captures `addEventListener`, `postMessage`, `stopImmediatePropagation`... before page scripts run. Handshake listener: capture phase, first, stops propagation: the page never sees the port (tested).
 - Links (bootstrap click listener, bubble phase on `window`): clicks the page didn't `preventDefault`, not `#` or `javascript:` (the page's own). Host routing (`follow`): `/x` = the root's; own-origin URLs → paths; then `classifyLink`:
   - html file, plain click → this tile (history push). Same root (subfolders too): same token, `frame.load`. Other folder: new token (`setRoot`).
   - other files (any kind, main decides), or new-tile requests (cmd-click, `target`, `window.open`) → beside, at most one per second per tile.
-  - http(s) → confirm dialog "Open in browser?" with the full URL (`.dialog.external-open`), Cancel focused (Enter cancels); one at a time (others dropped while open) → `openExternal`.
+  - http(s) → `external.ts` confirm dialog (`TILES.md` "Links out"; the html note names the folder the page can read) → `openExternal`.
   - anything else → refused (`debug security`).
 - Gesture rule (`frame.ts`): `followLink` only while the frame is focused (or within 150 ms: a click's focus can lag its request across processes). Scripts in a focused page can still post: hence the confirm and the throttle.
 - History: host list. Host navigations (links, back/forward, reload) set the page first; the page's own navigations (script, links it handled) arrive from main (`did-frame-navigate` → `content:navigated`) → location follows, new entry. `cmd+[` / `cmd+]` / `cmd+R`; location not editable.
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
 - Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the shell's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
-- Title = the page's `<title>` (bootstrap `title` request on each handshake and on `<head>` changes; untrusted text: control characters out, 200 chars, shown as text only), else the file name; dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
+- Title = the file name, never the page's `<title>` (2026-10-20: content can't label its tile); dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
 
 - `text`, `image`, `hex`: functional (kinds by content, highlighting, live, keys, fit/actual, virtualization, file template).
 - `sec-viewers`: hostile text literal (HTML, escapes, bidi), SVG with scripts/handlers/external refs inert (no probe hit), caps (CLI errors), main refusing files as other kinds.
-- `html`: siblings (scripts, modules, CSS, fetch, XHR), in-folder / subfolder / other-folder navigation, back/forward, script navigation followed, other kinds beside, web confirm (Cancel / Open), anchors, live reload (page, sibling) with scroll kept, cmd+R, fresh storage on reopen.
+- `html` (scripts on by setting): siblings (scripts, modules, CSS, fetch, XHR), in-folder / subfolder / other-folder navigation, back/forward, script navigation followed, other kinds beside, web confirm (Cancel / Open), anchors, live reload (page, sibling) with scroll kept, cmd+R, fresh storage on reopen.
+- `html-scripts`: the default (static: no inline / file / module scripts, no handlers; bootstrap links and strip work), the pill (reload with scripts, back to static), remembered per file, title never from `<title>`.
 - `sec-html`: exfiltration (CSP violation per vector + probes untouched, WebRTC STUN/TURN), confirm paths, gesture, shell/port/other tokens/traversal/`/_tie/`, navigation away and loops, opaque frames can't fetch.
 
 ## Limitations

@@ -21,9 +21,11 @@
 | `shell` | `''` | terminal kind | command line; `''` = login shell (`TERMINALS.md`) |
 | `warnPasteControl` | true | terminal kind | confirm pastes/drops with control characters |
 | `warnPasteRun` | true | terminal kind | confirm pastes that would run commands |
+| `htmlScripts` | false | html kind | new html tiles run the page's scripts; off = static page, the title-bar pill turns them on per tile (`VIEWERS.md`) |
+| `confirmExternal` | true | all tiles | confirm before a link opens in the system browser (`TILES.md` "Links out") |
 
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
-- `shell` applies to new terminals only. Everything else applies live.
+- `shell` applies to new terminals only; `htmlScripts` to html tiles opened afterwards. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).
 - Adding a setting: `Settings` + `DEFAULTS` + `sanitize` (main), `Settings` type (preload), `Appearance` + `applyAppearance` (if visual), panel field + `draft()`.
 
 ## Panel (`src/renderer/settings.ts`)

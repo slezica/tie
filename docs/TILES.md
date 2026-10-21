@@ -6,7 +6,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Host (`renderer/tile.ts`)
 
-- `createTile(kind, opts)`: element (title bar, `.body`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
+- `createTile(kind, opts)`: element (title bar with an optional kind pill, `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
+- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; shell realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle()}`: a labelled toggle in the title bar (html: scripts on/off), refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
 - `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`.
@@ -157,8 +158,13 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `ready` | — | host (clears load timer) |
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
-| `title` | `text` (string, ≤ 1024) | html: tile title (`pageTitle`: no control characters, 200 chars; text only) |
-| `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser / this tile / new tile ("File view"); html: same, web after a confirm, other kinds beside (`VIEWERS.md`) |
+| `hover` | `href` (string, ≤ 4096; `''` = left) | file views, html: `Host.hint` with where the link leads (URL, path, anchor, or "Blocked link") |
+| `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser (confirm) / this tile / new tile ("File view"); html: same, other kinds beside (`VIEWERS.md`) |
+
+## Links out (`renderer/external.ts`)
+
+- The one path from any tile to the system browser: `openExternal(url, from, note?)` → confirm dialog (setting `confirmExternal`, default on) → `tie.openExternal` (main: http(s) only). Callers: file views (markdown links), html pages (links, `window.open`, `target=_blank`), terminals (cmd-click on OSC 8). The probe kind (dev) calls main directly.
+- Dialog `.dialog.external-open`: "`<from>` wants to open:", the full URL with the site address in bold (`.url .host`), a `.warn` line for links with > 200 characters after the origin (plus the caller's note: html names the folder the page can read), Cancel focused (Enter cancels), Open disabled 600 ms (`confirmDialog` `arm`: no click-through). One dialog app-wide; requests while it is open are dropped (`debug security`). Setting off: opened directly, `debug external`.
 
 - Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
 - New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.

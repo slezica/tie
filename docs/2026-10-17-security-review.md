@@ -15,9 +15,18 @@ Full pass over Tie's security seams: code read (main, core, preload, frame host,
 - External-open dialog: Open disabled 600 ms (click-through), site address in bold, long links (> 200 chars after the origin) called out. `sec-focus`.
 - Frame message flood: > 1000/s dropped unparsed.
 
+## Batch 2 (2026-10-20): deceptive tiles
+
+- Reframed with the user: processes in shells (agents) are a known concern, not Tie's to solve. Content tiles that look passive but aren't are the concern.
+- Html tiles open static by default (`htmlScripts` setting): document CSP `script-src 'nonce-<response>'` (bootstrap only); title-bar pill "Scripts: off/on" reloads under a new token; remembered per file for the session. `html-scripts`.
+- Every link out goes through one confirm (`renderer/external.ts`, setting `confirmExternal`): html, markdown, terminal cmd-click. `sec-links`, `markdown-links`, `sec-markdown`.
+- `title` verb removed: html tiles are titled by file name.
+- Link strip (`Host.hint`): hovered link's real target bottom-left of the tile, shell-drawn; terminal, viewers (`hover` verb), browser guests.
+- Rejected: wider html root via cwd / `--root` (wider = more exposure, agent-set). Markdown root widening: to discuss (PENDING).
+
 ## Flagged, kept (decisions for the user; details in the report)
 
-- Socket = full power for any process that can reach it (sandboxed agents inherit `TIE_SOCKET`).
+- Socket = full power for any process that can reach it (sandboxed agents inherit `TIE_SOCKET`). Decision 2026-10-19: known, not Tie's to solve; revisit only if Tie itself sandboxes agents (PENDING).
 - Html root = the page's folder, recursively (home / repo root exposes the subtree; exit only via a confirmed link).
 - Gesture rule = focused, not just clicked (scripts may post verbs while focused; refocus within Chromium's transient activation window).
 - Downloads after one click: up to 10 s of silent saves.

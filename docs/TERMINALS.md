@@ -40,8 +40,8 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 
 ## Links
 
-- OSC 8 hyperlinks only (no plain-URL detection). Hover: `.link-tip` with the real URL (red if blocked).
-- cmd-click → `tie.openExternal` → main, http(s) only. Plain click: nothing. `SECURITY.md`.
+- OSC 8 hyperlinks only (no plain-URL detection). Hover: the tile's link strip (`Host.hint`, bottom-left, shell realm) shows the real URL, or "Blocked link: …" for non-http(s) schemes.
+- cmd-click on http(s) → confirm dialog (`external.ts`, setting `confirmExternal`) → `tie.openExternal` → main, http(s) only. Plain click, other schemes: nothing. `SECURITY.md`.
 
 ## Size
 
