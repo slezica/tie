@@ -95,4 +95,28 @@ export default async (ctx, h) => {
   await ctx.sleep(200)
   h.assert((await tabsX()) < x0 - 40, `tab bar shifted left (${x0} -> ${await tabsX()})`)
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
+
+  await securityPage(ctx, h, open)
+}
+
+// Security page: socket callers + links out; no Content page. The external-control switch applies
+// at once (this harness is an external caller; the seed turned it on).
+async function securityPage(ctx, h, open) {
+  await open()
+  h.assert(!(await ctx.page.$('nav button[data-page="content"]')), 'no Content page')
+  await ctx.page.locator('nav button[data-page="security"]').click()
+  h.assert(await ctx.page.isVisible('#set-confirm-external'), 'link confirm on Security')
+  h.assert(await ctx.page.isChecked('#set-allow-external'), 'external control seeded on')
+  await ctx.shot('security-page')
+  await ctx.page.uncheck('#set-allow-external')
+  await ctx.page.locator('.save').click()
+  await ctx.sleep(200)
+  const err = await ctx.tie('list').then(() => null, (e) => e.message)
+  h.assert(err === 'tie: External control is off (Settings → Security)', `external refused once off: ${err}`)
+  await open()
+  await ctx.page.locator('nav button[data-page="security"]').click()
+  await ctx.page.check('#set-allow-external')
+  await ctx.page.locator('.save').click()
+  await ctx.sleep(200)
+  h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again')
 }

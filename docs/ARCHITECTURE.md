@@ -30,7 +30,7 @@
 
 | Per instance | Path / value |
 |---|---|
-| Socket | `<state>/<instance>.sock` |
+| Socket | `<state>/<instance>.sock`. Callers: Tie terminals by lineage, others gated by a setting (`CLI.md` "Callers") |
 | Info file | `<state>/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
 | Log | `<state>/log/<instance>.log` (`TIE_LOG` overrides) |
 | Settings | `<state>/settings.json` (`default`), `<state>/settings.<instance>.json` (others); `TIE_SETTINGS` overrides |
@@ -61,4 +61,4 @@ Other env (main):
 ## Build
 
 - electron-vite: `main`, `preload` (CJS `index.cjs`), `renderer`. Alias `@core` → `src/core`. Main's build also bundles viewers (`src/viewers/` → `out/viewers/`, IIFE).
-- `postinstall`: rebuild node-pty for Electron; `dev/brand-electron.sh` renames dev bundle to "Tie" (menu name).
+- `postinstall`: rebuild node-pty and `tie-peer` (`native/peer`) for Electron; `dev/brand-electron.sh` renames dev bundle to "Tie" (menu name).

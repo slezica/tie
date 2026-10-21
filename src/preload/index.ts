@@ -13,6 +13,7 @@ export interface Settings {
   warnPasteControl: boolean
   warnPasteRun: boolean
   confirmExternal: boolean
+  allowExternalControl: boolean
 }
 
 type DataCb = (id: number, data: string) => void

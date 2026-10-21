@@ -22,6 +22,7 @@
 | `warnPasteControl` | true | terminal kind | confirm pastes/drops with control characters |
 | `warnPasteRun` | true | terminal kind | confirm pastes that would run commands |
 | `confirmExternal` | true | all tiles | confirm before a link opens in the system browser (`TILES.md` "Links out") |
+| `allowExternalControl` | false | app | socket callers outside Tie terminals (scripts, other apps) may run commands (`CLI.md` "Callers"); only a real `true` counts |
 
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
 - `shell` applies to new terminals only. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).
@@ -30,7 +31,7 @@
 ## Panel (`src/renderer/settings.ts`)
 
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
-- Pages `Appearance` | `Terminal` (last one remembered).
+- Pages `Appearance` | `Terminal` (shell, paste confirms) | `Security` (external control, link confirm) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
 - Enter (not in a select) or Save saves. Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.

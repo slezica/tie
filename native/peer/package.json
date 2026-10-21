@@ -1,0 +1,11 @@
+{
+  "name": "tie-peer",
+  "version": "0.1.0",
+  "description": "Unix socket peer identity (pid, uid) and parent pid, macOS. Loaded by Tie's main process only.",
+  "private": true,
+  "main": "index.js",
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "7.1.1"
+  }
+}

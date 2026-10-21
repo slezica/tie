@@ -1,10 +1,10 @@
 // ASCII render of the board from `tie list --json`.
-import { tie } from './lib.mjs'
+import { tie, fail } from './lib.mjs'
 
 const instance = process.env.TIE_INSTANCE || 'dev'
 const COLS = Number(process.argv[2]) || 100
 
-const r = await tie(instance, 'list')
+const r = await tie(instance, 'list').catch(fail)
 const b = r.board
 const rows = Math.round((COLS * b.h) / b.w / 2.1)
 const grid = Array.from({ length: rows }, () => Array(COLS).fill(' '))

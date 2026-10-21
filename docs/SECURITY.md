@@ -6,7 +6,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 
 - UI renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
 - Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html): any script inside their frame; browser tiles: any web site (its own webContents, `BROWSER.md`). Html pages are shown static (decision 2026-10-21: their scripts never run; only Tie's bootstrap does, by nonce); still local (no network) and isolated (own origin, no UI access, no other tile).
-- Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code. Kept to them: the state dir is 0700 and the socket 0600 (other local accounts never reach it). Any process that can connect (incl. sandboxed agents inheriting `TIE_SOCKET`) has the user's full power (`tie open terminal --cmd`).
+- The `tie` socket: reachable only by the user's own processes, which can already run code. Kept to them: the state dir is 0700 and the socket 0600 (other local accounts never reach it). Whoever is let in has the user's full power (`tie open terminal --cmd`). Callers are identified by the kernel (peer pid + uid, then process lineage): one running in a Tie terminal acts as that tile (`TIE_TILE` is not trusted); others (scripts, other apps, sandboxed agents inheriting `TIE_SOCKET` outside Tie) only with `allowExternalControl` (default off). Not a boundary between processes in the same terminal.
 
 ## Rules
 
@@ -15,7 +15,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
 - New IPC: `ipc.on` / `ipc.handle` (`uiIpc`), never `ipcMain` directly.
 - Opening URLs: only `openExternal` in `src/main/security.ts`.
-- Pure checks in `src/core/security.ts`, `src/core/content.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/links.ts`, `src/core/kinds.ts` (renderer + main), unit-tested.
+- Pure checks in `src/core/security.ts`, `src/core/content.ts`, `src/core/callers.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/links.ts`, `src/core/kinds.ts` (renderer + main), unit-tested.
 - Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (page, sandbox, CSP, nav rule, assets, payload, size cap, bootstrap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
 - Never add `tie-content:` to the UI's `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
 - `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the UI's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
@@ -67,6 +67,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 | Device choosers: Web Bluetooth chooser cancelled (Electron's default picks the first device found); USB / HID / serial denied (device permission handler); client certificates never sent (Electron's default sends the first in the keychain) | `guest.ts` `noDeviceChoosers`, `harden()` | — (no device in the harness) |
 | Content protocol memory: root files streamed (never read whole into main: a page naming a multi-GB file of its folder costs a stream); html documents of a root read whole only up to the kind's cap | `content.ts` `serveContent`, `streamFile` | `sec-html` (document over the cap → refused; large asset streams) |
 | State dir private: `~/.config/tie` 0700, sockets / info / logs / settings 0600 (fixed up at start for older files); socket request lines capped at 1 MB | `env.ts` `PRIVATE`, `socket.ts` | `sec-state` |
+| Socket callers: peer pid + uid from the kernel (`LOCAL_PEERPID`, `LOCAL_PEERCRED`), ancestors walked (≤ 64 hops) to a tile's pty; other uid / unknown peer → refused + dropped; same uid, no pty ancestor → external: refused unless `allowExternalControl`; tile callers: `params.caller` forced to the lineage's tile (a different claim logged `caller spoof`). Every method, dev ones too | `socket.ts`, `native/peer`, `@core/callers` `callerTile`, `pty.ts` `tiles` | `sec-socket` (spoofed `TIE_TILE`), `sec-socket-external` (setting off: harness refused, terminal allowed), `settings` (switch applies at once), unit (uid mismatch: unit only, the harness runs as the user) |
 | Browser partition: permissions denied (as every session), network direct, UI session still dead-proxied | `harden()`, `noNetwork` (UI session only) | `sec-browser` (mutations: permissions granted → red; dead proxy on the partition → red) |
 | Guest shortcuts: matched in each guest's own `before-input-event`, blocked before the page | `main/keys.ts` `watchKeys` | `browser` (mutation: not attached → red) |
 | Guest crash → tile error, guest removed, UI and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
@@ -91,6 +92,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 - `probe(ctx)`: local http page reporting hits and whether it got `window.tie`. `assertUntouched(what)`.
 - Probe kind (dev builds): `tie open probe [--cwd root]`, `h.probeFrame(ctx, id)` = Playwright frame inside it (the attacker's seat). `h.frames(ctx)` / `tie-dev frames`: frame tree, out-of-process.
 - `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
+- Socket: the harness is an external caller. `launch()` seeds `allowExternalControl: true` (scenario `settings` override it).
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening, and never show the file picker (dev socket `pick` answers it).
 - Markdown: `h.contentFrame(ctx, id)` = the viewer's frame; `window.markdown.port` lets a scenario post requests as the frame (write-shaped messages, gesture-less links).
 - Keys: `h.press` / `keyDown` / `keyUp` go through main (`sendInputEvent`); CDP keys skip `before-input-event`. Playwright's `evaluate` runs with a user gesture (CDP `userGesture`): it can't show what a page's own script may do without one (focus, popups); use the page's own timers for that (`sec-focus`).

@@ -42,6 +42,13 @@ export function tie(instance, ...args) {
   })
 }
 
+// Socket errors for toolkit commands: the message alone, exit 1 (e.g. 'External control is off':
+// a user-run instance only answers external callers like tie-dev with the setting on).
+export function fail(e) {
+  console.error(e.message)
+  process.exit(1)
+}
+
 // Raw socket call (JSON-RPC) to an instance; for methods bin/tie doesn't expose (dev `input`).
 export function rpc(instance, method, params = {}) {
   return new Promise((resolve, reject) => {
@@ -97,7 +104,8 @@ function freePort() {
   })
 }
 
-// opts.settings: pre-seed the instance's settings file (object, or raw string e.g. malformed JSON).
+// opts.settings: pre-seed the instance's settings file (object, merged over the seed
+// { allowExternalControl: true }; or raw string e.g. malformed JSON, written as-is).
 // opts.hiddenWindow: never-shown real window instead of offscreen (input reaches content frames).
 // opts.env: extra environment (scenario `export const env`).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
@@ -126,7 +134,10 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
   rmSync(env.TIE_SETTINGS, { force: true })
-  if (opts.settings) writeFileSync(env.TIE_SETTINGS, typeof opts.settings === 'string' ? opts.settings : JSON.stringify(opts.settings))
+  // The harness drives Tie from outside (not from a Tie terminal): external control seeded on.
+  // Scenario settings win (seed first); a raw string is written as-is (no seed).
+  const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ allowExternalControl: true, ...opts.settings })
+  writeFileSync(env.TIE_SETTINGS, seeded)
   const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
   const bin = join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron')

@@ -29,7 +29,7 @@
 | `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere. `hidden` (scenario `hiddenWindow`): real window, never shown |
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
-| `TIE_SETTINGS` | `tmp/<instance>.settings.json`, deleted on stop |
+| `TIE_SETTINGS` | `tmp/<instance>.settings.json`, deleted on stop. Seeded `{allowExternalControl: true}` (the harness is an external socket caller); scenario `settings` merge over it; a raw string is written as-is |
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |
@@ -42,7 +42,7 @@
 `dev/scenarios/<name>.mjs`, first line `// description`. List: `tie-dev scenarios`.
 
 ```js
-export const settings = { theme: 'nord' }   // optional pre-seed (object or raw string)
+export const settings = { theme: 'nord' }   // optional pre-seed (object over the seed, or raw string)
 export const hiddenWindow = true            // optional: real never-shown window, not offscreen
 export const env = { TIE_DEBUG: 'guest' }   // optional: extra environment for the instance
 export default async (ctx, h) => { ... }    // h = helpers

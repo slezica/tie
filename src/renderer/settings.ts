@@ -1,5 +1,5 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
-// Pages: Appearance (app-wide look) | Terminal | Content (file, html and web behaviour).
+// Pages: Appearance (app-wide look) | Terminal | Security (socket callers, links out).
 import { tie } from './state'
 import { refocus } from './ops'
 import { THEMES, theme } from './themes'
@@ -33,7 +33,7 @@ export async function toggleSettings() {
         <button data-page="appearance">Appearance</button>
         <hr />
         <button data-page="terminal">Terminal</button>
-        <button data-page="content">Content</button>
+        <button data-page="security">Security</button>
       </nav>
       <div class="pages">
         <section data-page="appearance">
@@ -85,8 +85,10 @@ export async function toggleSettings() {
           <label class="check"><input id="set-warn-control" type="checkbox" /> Confirm control characters <span class="scope">pastes and drops</span></label>
           <label class="check"><input id="set-warn-run" type="checkbox" /> Confirm pastes that would run commands <span class="scope">newlines, program without bracketed paste</span></label>
         </section>
-        <section data-page="content">
-          <h2>Content</h2>
+        <section data-page="security">
+          <h2>Security</h2>
+          <h3>Control</h3>
+          <label class="check"><input id="set-allow-external" type="checkbox" /> Allow external programs to control Tie <span class="scope">processes not started in a Tie terminal: scripts, other apps</span></label>
           <h3>Links</h3>
           <label class="check"><input id="set-confirm-external" type="checkbox" /> Confirm before opening links in the browser <span class="scope">files, html pages, terminals</span></label>
         </section>
@@ -112,6 +114,7 @@ export async function toggleSettings() {
   const warnControl = $<HTMLInputElement>('#set-warn-control')
   const warnRun = $<HTMLInputElement>('#set-warn-run')
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
+  const allowExternal = $<HTMLInputElement>('#set-allow-external')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
   // Font list arrives async (system font query can be slow); fields never wait on it.
@@ -133,6 +136,7 @@ export async function toggleSettings() {
   warnControl.checked = settings.warnPasteControl
   warnRun.checked = settings.warnPasteRun
   confirmExternal.checked = settings.confirmExternal
+  allowExternal.checked = settings.allowExternalControl
   shell.placeholder = defaults.shell
 
   const swatches = () => {
@@ -152,6 +156,7 @@ export async function toggleSettings() {
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
     confirmExternal: confirmExternal.checked,
+    allowExternalControl: allowExternal.checked,
   })
   const preview = () => {
     swatches()
@@ -168,7 +173,7 @@ export async function toggleSettings() {
   const show = (p: string) => {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
-    ;(p === 'terminal' ? shell : p === 'content' ? confirmExternal : themeSel).focus()
+    ;(p === 'terminal' ? shell : p === 'security' ? allowExternal : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
 

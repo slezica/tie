@@ -109,14 +109,18 @@ BEHAVIOR
   - Tiles persist until closed; Tie does not restore them after a restart.
   - Keys: cmd+[ / cmd+] back/forward, cmd+R reload, cmd+L address field (browser, file tiles)
     work while a page has focus; pages never see Tie's shortcuts.
+  - Commands run from a Tie terminal (or anything it started) act as that terminal's tile, whatever
+    TIE_TILE says. Other programs (scripts, other apps) are refused unless the user turns on
+    Settings → Security → Allow external programs.
 
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
   Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
-  not a web address (tie open browser <url>), Tie not reachable.
+  not a web address (tie open browser <url>), Tie not reachable, external control off.
 
 ENVIRONMENT
-  TIE_TILE      Id of the tile this shell runs in. Set by Tie.
+  TIE_TILE      Id of the tile this shell runs in. Set by Tie. Tie checks it: the caller is the
+                terminal the command runs in (process lineage), not this value.
   TIE_SOCKET    Control socket of the Tie instance this shell belongs to. Set by Tie.
   TIE_INSTANCE  Instance name (dev builds); outside Tie, selects which instance to control.
 

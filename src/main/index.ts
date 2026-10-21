@@ -220,7 +220,10 @@ app.whenReady().then(async () => {
   shellSession = ses
   initBrowserSession((d) => win?.webContents.send('guest:download', d))
   createWindow(ses)
-  startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
+  startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)), {
+    tiles: pty.tiles,
+    allowExternal: () => getSettings().allowExternalControl,
+  })
   await ready
   writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }), { mode: PRIVATE })
   log('app', 'ready', { instance, socketPath, debugPort })

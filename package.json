@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "postinstall": "install-electron && electron-rebuild -f -w node-pty && dev/brand-electron.sh"
+    "postinstall": "install-electron && electron-rebuild -f -w node-pty,tie-peer && dev/brand-electron.sh"
   },
   "devDependencies": {
     "@electron/rebuild": "4.2.0",
@@ -34,7 +34,8 @@
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "node-pty": "1.1.0"
+    "node-pty": "1.1.0",
+    "tie-peer": "file:native/peer"
   },
   "author": "salezica"
 }

@@ -140,7 +140,7 @@
     <li><strong>UI renderer.</strong> One Chromium page, <code>tie://app/index.html</code>. Only Tie's code runs in it. It has a bridge, <code>window.tie</code>, that main checks on every call: must be this window, must be the main frame, must be the UI's URL. Terminals render here (xterm.js) because keystrokes must reach ptys; that makes it the most valuable room in the house.</li>
     <li><strong>Content frame processes.</strong> Each file tile is an <code>&lt;iframe&gt;</code> inside the UI page, but Chromium puts it in its own process because its origin differs (site isolation). Its URL is <code>tie-content://&lt;128-bit token&gt;/…</code>; the token is minted per tile and folder (a new one when the tile moves to another folder or flips its scripts) and is the only credential: it names the folder main will serve. Viewer kinds (markdown, text, image, hex) load Tie's own viewer page; the html kind loads the file itself.</li>
     <li><strong>Browser guest processes.</strong> A <code>&lt;webview&gt;</code> is a separate web contents with its own session (<code>persist:browser</code>): it has the network and persistent cookies, and none of Tie's schemes or bridges. Main rebuilds its preferences from nothing when it attaches, whatever the tag asked for.</li>
-    <li><strong>Pty children.</strong> Your login shell, or <code>--cmd</code>, spawned by main with a pseudo-terminal. They are yours: your uid, Tie's environment plus <code>TIE_SOCKET</code>, <code>TIE_TILE</code>, <code>TIE_INSTANCE</code>, Tie's bin first on <code>PATH</code>, and the usual <code>TERM</code> variables. The <code>tie</code> CLI runs inside them (or anywhere else of yours) and talks to main over a unix socket that only your account can open.</li>
+    <li><strong>Pty children.</strong> Your login shell, or <code>--cmd</code>, spawned by main with a pseudo-terminal. They are yours: your uid, Tie's environment plus <code>TIE_SOCKET</code>, <code>TIE_TILE</code>, <code>TIE_INSTANCE</code>, Tie's bin first on <code>PATH</code>, and the usual <code>TERM</code> variables. The <code>tie</code> CLI runs inside them (or anywhere else of yours) and talks to main over a unix socket that only your account can open. Main identifies callers by kernel lineage (peer pid and its ancestors, same uid): a <code>tie</code> run in a Tie terminal acts as that tile, whatever <code>TIE_TILE</code> says; other programs need Settings → Security → Allow external programs.</li>
   </ol>
 
   <h3>What happens when you open something</h3>
@@ -220,7 +220,7 @@
   <ul>
     <li><strong>Keyboard shortcuts</strong> are matched in main before any page sees the key. A page can't swallow ⌘W or fake ⌘D. Synthetic key events never reach main.</li>
     <li><strong>Paste and drops</strong> into a terminal go through a guard: control characters and would-run newlines ask first; dropped file names are shell-quoted.</li>
-    <li><strong>The socket and state dir</strong> are 0600 and 0700: your account only. The socket is deliberately not a boundary between your own processes.</li>
+    <li><strong>The socket and state dir</strong> are 0600 and 0700: your account only. Inside it, processes in Tie terminals get in by lineage; your other processes only with the setting on.</li>
     <li><strong>Permissions</strong> (camera, mic, location, notifications, clipboard read, Bluetooth, USB, client certificates) are denied for every session.</li>
     <li><strong>Electron fuses</strong> turn off the usual injection paths in the packaged app (<code>NODE_OPTIONS</code>, <code>--inspect</code>, loading code from outside the asar).</li>
   </ul>
@@ -354,7 +354,7 @@
     <dt>Gesture rule</dt><dd>Verbs that act for you are accepted only while the frame is focused by you.</dd>
     <dt>Guest</dt><dd>A browser tile's <code>&lt;webview&gt;</code> web contents.</dd>
     <dt>Pty</dt><dd>Pseudo-terminal. Main spawns your shell in one; xterm in the UI draws its output.</dd>
-    <dt>Socket</dt><dd><code>~/.config/tie/&lt;instance&gt;.sock</code>, 0600. The <code>tie</code> CLI's line to main. Full power for whoever can open it: your account.</dd>
+    <dt>Socket</dt><dd><code>~/.config/tie/&lt;instance&gt;.sock</code>, 0600. The <code>tie</code> CLI's line to main. Full power for whoever it lets in. Callers inside a Tie terminal are identified by kernel lineage (peer pid + ancestors, same uid); others need the <code>allowExternalControl</code> setting (off by default).</dd>
     <dt>Fuses</dt><dd>Electron build-time switches baked into the binary. Tie turns off the injection paths and keeps <code>runAsNode</code> for its CLI launcher.</dd>
   </dl>
   <p>Deeper, per topic: <code>docs/SECURITY.md</code> (guards and their tests), <code>docs/TILES.md</code> (frame host, requests, policy table), <code>docs/VIEWERS.md</code>, <code>docs/BROWSER.md</code>, <code>docs/2026-10-17-security-report.html</code> (findings and open decisions).</p>

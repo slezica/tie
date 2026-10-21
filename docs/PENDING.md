@@ -12,6 +12,8 @@
 
 ## Alerts
 
+- Logs in the UI: comfortable access to the instance log (at least the always-on `[security]` lines), filter by tag, follow mode. Today: `tie-dev logs -f` / the file under `~/.config/tie/log/`.
+
 - New system: notifications floating top-right of board, next to shelf. Title, body, x to close, swipe to close.
 - Ephemeral for now. Later maybe history.
 - First use: explain blocked actions the user may not understand (refused link scheme, denied permission, blocked navigation).

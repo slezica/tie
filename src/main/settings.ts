@@ -17,9 +17,10 @@ export interface Settings {
   warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
   confirmExternal: boolean // all tiles: confirm before a link opens in the system browser
+  allowExternalControl: boolean // app-wide: socket callers outside Tie terminals may run commands
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true, confirmExternal: true }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -75,6 +76,8 @@ function sanitize(s: Settings): Settings {
     warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
     warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,
     confirmExternal: typeof s.confirmExternal === 'boolean' ? s.confirmExternal : DEFAULTS.confirmExternal,
+    // SECURITY: only a real true opens the socket to external callers.
+    allowExternalControl: s.allowExternalControl === true,
   }
 }
 

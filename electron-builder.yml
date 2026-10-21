@@ -12,6 +12,7 @@ files:
   - package.json
 asarUnpack:
   - node_modules/node-pty/** # native module + spawn-helper must be real files
+  - node_modules/tie-peer/** # native module (socket peer identity)
 extraResources:
   - from: resources/bin # CLI launcher (shell), put on PATH in Tie terminals
     to: bin

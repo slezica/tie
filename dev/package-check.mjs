@@ -37,6 +37,8 @@ const env = { ...process.env, TIE_INSTANCE: instance, TIE_BACKGROUND: '1', TIE_S
 delete env.TIE_SOCKET
 delete env.TIE_TILE
 delete env.ELECTRON_RUN_AS_NODE
+// The bundled CLI runs from here, not a Tie terminal: an external caller (Settings → Security).
+writeFileSync(settings, JSON.stringify({ allowExternalControl: true }))
 const child = spawn(join(app, 'Contents/MacOS/Tie'), ['-ApplePersistenceIgnoreState', 'YES'], { env, stdio: 'ignore' })
 try {
   for (let i = 0; i < 100 && !existsSync(infoPath(instance)); i++) await sleep(100)

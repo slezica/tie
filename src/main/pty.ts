@@ -25,6 +25,9 @@ function isDir(p: string): boolean {
   }
 }
 const procNames = new Map<number, string>()
+// SECURITY: pty pid → tile id (TIE_TILE from the UI at spawn). The socket's caller identity
+// (core/callers.ts) walks a caller's ancestors up to one of these pids.
+const tileOf = new Map<number, string>()
 const cwds = new Map<number, string>()
 
 export function initPty(wc: () => WebContents | null) {
@@ -93,11 +96,13 @@ export function initPty(wc: () => WebContents | null) {
         return { error: `Could not start ${shell}: ${e instanceof Error ? e.message : e}` }
       }
       ptys.set(p.pid, p)
+      if (o.env.TIE_TILE) tileOf.set(p.pid, o.env.TIE_TILE)
       log('pty', 'spawn', p.pid, shell, args, o.cwd)
       p.onData((d) => send('pty:data', p.pid, d))
       p.onExit(({ exitCode }) => {
         log('pty', 'exit', p.pid, exitCode)
         ptys.delete(p.pid)
+        tileOf.delete(p.pid)
         procNames.delete(p.pid)
         cwds.delete(p.pid)
         send('pty:exit', p.pid, exitCode)
@@ -141,6 +146,8 @@ export function initPty(wc: () => WebContents | null) {
       }
     },
     count: () => ptys.size,
+    // Live pty pids → their tiles (socket caller identity).
+    tiles: (): Map<number, string> => new Map(tileOf),
     // Current directory of a shell, read now (the poll above may be up to 2s stale).
     cwd(id: number): Promise<string | null> {
       if (!ptys.has(id)) return Promise.resolve(null)

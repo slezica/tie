@@ -75,16 +75,24 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
 
-- `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`.
+- `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`; for callers in a Tie terminal main replaces it (below).
+
+### Callers
+
+- Resolved once per connection (`socket.ts`, `@core/callers`): peer pid + uid from the kernel (`native/peer`: `LOCAL_PEERPID`, `LOCAL_PEERCRED` on the socket fd), then ancestors (`proc_pidinfo` ppid, ≤ 64 hops) up to a tile's pty (`pty.ts` `tiles()`: pid → tile).
+- `tile`: same uid, descends from a pty. `params.caller` forced to that tile; a different claim (spoofed `TIE_TILE`) logged `[security] caller spoof`.
+- `external`: same uid, no pty ancestor (scripts, other apps, the harness). Allowed only with setting `allowExternalControl` (default off), read per request; else error `External control is off (Settings → Security)`, logged `[security] refused external caller <pid>`.
+- `refused`: other uid or unknown peer. Error, connection dropped.
+- Same rule for every method, dev ones included. No fd or addon → external (logged). Resolution logged under `rpc`.
 
 ## Env (`bin/tie`)
 
 - `TIE_SOCKET` (set in Tie shells), else `<state>/<TIE_INSTANCE or "default">.sock`. Outside Tie it targets the installed app unless `TIE_INSTANCE` is set. The socket is 0600 in a 0700 dir: the user's processes only; whoever connects can run commands as the user (`SECURITY.md`). Request lines over 1 MB drop the connection.
-- `TIE_TILE`: caller.
+- `TIE_TILE`: caller (a hint: main uses the process lineage for callers in Tie terminals).
 
 ## Limitations
 
-- No auth: any local process of the user can connect.
+- No auth beyond the caller rule: processes in a Tie terminal (any descendant) act as that tile; with `allowExternalControl` on, any process of the user can connect.
 - No events; poll `list`.
 - No terminal I/O. Kinds: `terminal`; `markdown`, `text`, `image`, `hex`, `html` (by path); `browser` (by URL); `probe` in dev builds.
 - No way to force a kind (e.g. hex of a PNG): the kind is the file's (extension, else content), from the CLI, drops and the file template alike.

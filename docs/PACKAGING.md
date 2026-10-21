@@ -33,6 +33,7 @@ Idempotent:
 | `MacOS/Tie` | Electron |
 | `Resources/app.asar` | `out/**` (minus package, log, stamp) + `package.json` + prod deps |
 | `Resources/app.asar.unpacked/node_modules/node-pty` | native module + `spawn-helper` (must be real files) |
+| `Resources/app.asar.unpacked/node_modules/tie-peer` | native module: socket peer identity (`native/peer`) |
 | `Resources/bin/tie` | launcher (`resources/bin/tie`, sh) |
 | `Resources/cli/tie.mjs` | CLI (`bin/tie`) |
 | `Resources/fingerprint` | input hash (idempotency) |
