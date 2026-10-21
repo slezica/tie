@@ -2,7 +2,7 @@
 
 ## Mouse map
 
-- Tile pointerdown: activate (not unpinned shelved tiles). Clicks inside content frames and browser guests never reach the shell: the window blur + `activeElement` activate instead (`initFrames`).
+- Tile pointerdown: activate; a hover-revealed shelved tile pins instead (`SHELF.md`); hidden shelved tiles take no pointer. Clicks inside content frames and browser guests never reach the shell: the window blur + `activeElement` activate (or pin) instead (`initFrames`).
 - Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
 - Title buttons: collapse / zoom / close.
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; Enter loads, Escape restores; refused input → dialog).

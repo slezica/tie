@@ -1,7 +1,7 @@
 import '@xterm/xterm/css/xterm.css'
 import { S, tie, location } from './state'
 import { render } from './render'
-import { openTile, activate, closeTile, toggleCollapse, toggleZoom } from './ops'
+import { openTile, activate, closeTile, toggleCollapse, toggleZoom, pin } from './ops'
 import { initTerminals } from './kinds/terminal'
 import { initFileViews } from './fileview'
 import { registerKind } from './kinds'
@@ -52,7 +52,7 @@ tiles.addEventListener('pointerdown', (e) => {
   if (!id || !S.tiles.has(id)) return
   if (location(id) !== 'shelved' || S.pinned === id) {
     if (S.active !== id) activate(id)
-  }
+  } else if (S.revealed === id) pin(id) // a click into a hover reveal pins it (SHELF.md)
   if (target.closest('.rz')) return startFloatResize(e, id)
   if (e.button !== 0 || target.closest('.btn') || !target.closest('.titlebar')) return
   startDrag(e, { type: 'tile', id }, () => onTitleClick(id))

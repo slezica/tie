@@ -147,6 +147,17 @@ export function dropSide(rect: Rect, px: number, py: number): Side {
   return (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
 }
 
+// Shelf hover reveal: kept open while the pointer is over its item, the reveal, or the band
+// between them (reveal's right edge to item's left edge, spanning both vertically), so the pointer
+// can travel from the item into the reveal (SHELF.md). `slack`: px of tolerance around each.
+export function inRevealZone(px: number, py: number, item: Rect, reveal: Rect, slack = 2): boolean {
+  const inside = (r: Rect) => px >= r.x - slack && px <= r.x + r.w + slack && py >= r.y - slack && py <= r.y + r.h + slack
+  const a = reveal.x + reveal.w
+  const top = Math.min(reveal.y, item.y)
+  const band = { x: Math.min(a, item.x), y: top, w: Math.abs(item.x - a), h: Math.max(reveal.y + reveal.h, item.y + item.h) - top }
+  return inside(item) || inside(reveal) || inside(band)
+}
+
 export interface LayoutOptions {
   gap: number // px between siblings
   bar: number // px thickness of a collapsed tile

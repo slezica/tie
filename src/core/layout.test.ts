@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compute, dropSide, insert, leaf, leaves, move, normalize, parentDir, remove, resize, type Node } from './layout'
+import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, resize, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -128,6 +128,25 @@ describe('dropSide', () => {
     expect(dropSide(r, 190, 50)).toBe('r')
     expect(dropSide(r, 100, 5)).toBe('t')
     expect(dropSide(r, 100, 95)).toBe('b')
+  })
+})
+
+describe('inRevealZone', () => {
+  // Reveal left of the shelf, item in the shelf column, a 20 px gap between.
+  const reveal = { x: 100, y: 100, w: 400, h: 300 }
+  const item = { x: 520, y: 230, w: 60, h: 40 }
+  it('covers item, reveal and the band between', () => {
+    expect(inRevealZone(550, 250, item, reveal)).toBe(true) // item
+    expect(inRevealZone(300, 120, item, reveal)).toBe(true) // reveal
+    expect(inRevealZone(510, 250, item, reveal)).toBe(true) // gap, level with the item
+    expect(inRevealZone(510, 110, item, reveal)).toBe(true) // gap, diagonal toward the reveal's top
+  })
+  it('excludes the rest', () => {
+    expect(inRevealZone(550, 300, item, reveal)).toBe(false) // shelf column below the item
+    expect(inRevealZone(550, 200, item, reveal)).toBe(false) // above the item
+    expect(inRevealZone(90, 250, item, reveal)).toBe(false) // left of the reveal
+    expect(inRevealZone(510, 420, item, reveal)).toBe(false) // band x, below both
+    expect(inRevealZone(300, 401, item, reveal, 0)).toBe(false)
   })
 })
 

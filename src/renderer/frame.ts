@@ -4,8 +4,9 @@
 // handlers. Document kinds (html: nav 'within-root') also name a page and may navigate: main
 // reports their navigations and folder changes; a navigation isn't a crash. docs/TILES.md.
 import { S, tie, location, debug } from './state'
+import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
-import { activate } from './ops'
+import { activate, pin } from './ops'
 import { parseRequest, needsGesture, type Request, type Verb } from '@core/requests'
 import { watchdog, tick, pong, TICK_MS } from '@core/watchdog'
 import { policyOf } from '@core/policy'
@@ -17,7 +18,7 @@ export interface FrameSpec {
   viewer: string // content kind (policy table row; viewer out/viewers/<viewer>.html|js)
   root: string // directory the frame may read files from
   title: string
-  icon: string
+  icon: Glyph
   handlers: Handlers
   onReady?: () => void // viewer answered the handshake (each load): send it its content
   page?: string // document kinds: the page to show, path relative to root (as on disk)
@@ -295,7 +296,8 @@ export function initFrames() {
       if (!(el instanceof HTMLIFrameElement) && el?.tagName !== 'WEBVIEW') return
       const id = (el.closest('.tile') as HTMLElement | null)?.dataset.id
       if (!id || !S.tiles.has(id) || S.active === id) return
-      if (location(id) === 'shelved' && S.pinned !== id) return
+      // A hover reveal (the pointer is over it: a click) pins; hidden shelved tiles never activate.
+      if (location(id) === 'shelved' && S.pinned !== id) return void (S.revealed === id && pin(id))
       activate(id)
     }),
   )
