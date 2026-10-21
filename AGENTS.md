@@ -19,6 +19,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/HARNESS.md`: `tie-dev`, scenarios, helpers, traces.
 - `docs/PACKAGING.md`: Tie.app, release, CLI launcher.
 - `docs/SECURITY.md`: threat model, guards + their tests, fuses, rules.
+- `docs/EXECUTION-AND-SECURITY.html`: onboarding explainer: processes, realms, per-tile doors matrix, layers, threats, attack stories, change checklist (`tie open docs/EXECUTION-AND-SECURITY.html`).
 
 ## Records and backlog
 
