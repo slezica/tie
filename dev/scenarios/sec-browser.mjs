@@ -166,9 +166,22 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const real = join(homedir(), 'Downloads', 'evil.sh')
       const realBefore = existsSync(real) ? statSync(real).mtimeMs : null
       const files = () => (existsSync(dl) ? readdirSync(dl).filter((f) => !f.endsWith('.crdownload')) : [])
+      // Every download asks: a dialog with the sanitized name and the site; nothing saved before Save.
       await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
-      await h.waitFor(ctx, async () => files().length === 1 && /download completed/.test(log()), 'download saved')
+      await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'download: confirm dialog')
+      const dlg = await ctx.page.evaluate(() => ({ name: document.querySelector('.dialog.save-download .url')?.textContent, focus: document.activeElement?.className, text: document.querySelector('.dialog.save-download')?.textContent }))
+      h.assert(/evil\.sh/.test(dlg.name ?? '') && !/^\./.test(dlg.name) && /cancel/.test(dlg.focus) && dlg.text.includes('127.0.0.1'), `dialog: ${JSON.stringify(dlg)}`)
+      h.assert(files().length === 0, 'nothing saved before Save')
+      await ctx.page.click('.dialog .cancel')
+      await ctx.sleep(400)
+      h.assert(files().length === 0 && !/download completed/.test(log()), 'Cancel: nothing saved')
       await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
+      await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'download: confirm dialog again')
+      await ctx.page.click('.dialog .confirm')
+      await h.waitFor(ctx, async () => files().length === 1 && /download completed/.test(log()), 'Save: download saved')
+      await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
+      await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'third dialog')
+      await ctx.page.click('.dialog .confirm')
       await h.waitFor(ctx, async () => files().length === 2, 'second download saved')
       const names = files().sort()
       h.assert(names.every((n) => n.includes('evil') && !n.startsWith('.') && !n.includes('/')) && names.some((n) => n.includes(' (1)')), `safe unique names: ${names}`)
@@ -176,9 +189,10 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       h.assert(!existsSync(join(dl, '..', '.evil.sh')), 'no traversal')
       const realAfter = existsSync(real) ? statSync(real).mtimeMs : null
       h.assert(realAfter === realBefore && !(realAfter && realAfter > start), 'real ~/Downloads untouched')
-      // No input ever reached this guest: a download its script starts is blocked (nothing saved).
+      // A download a script starts with no input: asks too, saves nothing until you say so.
       const auto = (await ctx.tie('open', s.url + '/autodl', '--at', t0, '--side', 'b')).id
-      await h.waitFor(ctx, async () => /blocked download .*\/dl since input never/.test(log()), 'script download without input blocked')
+      await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'script download: asks')
+      await ctx.page.click('.dialog .cancel')
       await ctx.sleep(500)
       h.assert(files().length === 2, `nothing saved by it (${files().length} files)`)
       await ctx.tie('close', auto)

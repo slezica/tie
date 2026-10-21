@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { log } from './env'
 import { openExternal } from './security'
 import { watchKeys } from './keys'
-import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName, downloadVerdict } from '../core/guest'
+import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName } from '../core/guest'
 
 const guests = new Set<WebContents>()
 // Last real input (mouse button, key) main saw going into each guest (ms since epoch). The popup
@@ -129,21 +129,49 @@ function downloadsDir(): string {
   return dir
 }
 
-// The browser partition: downloads saved, never opened; Electron's name out of the user agent
-// (sites refuse or degrade "Electron" browsers). Permissions: denied (harden, every session).
-export function initBrowserSession(): Session {
+// A download the UI should ask the user about (main → UI `guest:download`).
+export interface DownloadAsk {
+  guest: number // guest webContents id (the tile)
+  url: string
+  name: string // sanitized file name
+  bytes: number // total, or 0 if unknown
+}
+
+// SECURITY: a download starts only after the user said yes to it, every time (decision
+// 2026-10-21: no input-timer heuristics). `will-download` can't wait for an answer, so the first
+// request is refused and the UI asked; on Save, the URL is allowed once and the guest asked to
+// download it again. Allowances expire unused.
+const allowed = new Map<string, ReturnType<typeof setTimeout>>()
+const ALLOW_MS = 60_000
+export function allowDownload(url: unknown, guestId: unknown) {
+  if (typeof url !== 'string') return
+  const g = [...guests].find((x) => x.id === guestId)
+  if (!g || g.isDestroyed()) return log('security', 'download allowed for a gone guest', url)
+  clearTimeout(allowed.get(url))
+  allowed.set(url, setTimeout(() => allowed.delete(url), ALLOW_MS))
+  log('guest', 'download allowed', url)
+  g.downloadURL(url)
+}
+
+// The browser partition: downloads asked and saved, never opened; Electron's name out of the user
+// agent (sites refuse or degrade "Electron" browsers). Permissions: denied (harden, every session).
+export function initBrowserSession(ask: (d: DownloadAsk) => void): Session {
   const ses = session.fromPartition(BROWSER_PARTITION)
   ses.setUserAgent(ses.getUserAgent().replace(/ (Electron|Tie)\/\S+/g, ''))
   const reserved = new Set<string>()
   // SECURITY: no save dialog, no opening: the file lands under a sanitized, unique name in the
   // downloads folder and stays there. The site picks neither the folder nor what runs it. And only
-  // after real input in that guest (downloadVerdict: a script alone plants no files in ~/Downloads).
+  // after the user confirmed this very download (allowDownload).
   ses.on('will-download', (e, item, wc) => {
-    const since = sinceInput(wc)
-    if (downloadVerdict(since) === 'blocked') {
-      log('security', 'blocked download', item.getURL(), 'since input', since ?? 'never')
-      return e.preventDefault()
+    const url = item.getURL()
+    const t = allowed.get(url)
+    if (!t) {
+      e.preventDefault()
+      log('guest', 'download asks', url)
+      return ask({ guest: wc.id, url, name: downloadName(item.getFilename()), bytes: Math.max(0, item.getTotalBytes()) })
     }
+    clearTimeout(t)
+    allowed.delete(url)
     const dir = downloadsDir()
     const name = uniqueName(downloadName(item.getFilename()), (n) => reserved.has(join(dir, n)) || existsSync(join(dir, n)))
     const path = join(dir, name)

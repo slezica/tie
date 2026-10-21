@@ -74,14 +74,6 @@ export function popupVerdict(url: string, sinceInput: number | null): 'external'
   return sinceInput !== null && sinceInput >= 0 && sinceInput <= POPUP_INPUT_MS ? 'external' : 'blocked'
 }
 
-// SECURITY: a download saves a file the site chose (name sanitized) into the downloads folder with
-// no dialog. Only after real input reached that guest (within this window: pages often start a
-// download a few seconds after the click that asked for it); a script alone plants nothing.
-export const DOWNLOAD_INPUT_MS = 10_000
-export function downloadVerdict(sinceInput: number | null): 'saved' | 'blocked' {
-  return sinceInput !== null && sinceInput >= 0 && sinceInput <= DOWNLOAD_INPUT_MS ? 'saved' : 'blocked'
-}
-
 // Input events (Electron's input-event types) that count as the user acting in a guest.
 export const GESTURE_INPUTS: ReadonlySet<string> = new Set(['mouseDown', 'mouseUp', 'keyDown', 'rawKeyDown', 'char', 'touchStart', 'touchEnd', 'gestureTap'])
 

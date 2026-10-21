@@ -5,7 +5,7 @@
 // (never re-parented, like every tile body), title from the page, nav bar (editable location:
 // core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
 import { tie, debug } from './state'
-import { infoDialog } from './dialog'
+import { infoDialog, confirmDialog } from './dialog'
 import { guestSrc, locationUrl, pageTitle, BROWSER_PARTITION } from '@core/guest'
 import type { Host, OpenOpts, Surface } from './kinds'
 
@@ -13,10 +13,28 @@ const ICON = '🧭'
 
 type Webview = Electron.WebviewTag
 
-// Main's reports by guest webContents id (initGuests): a hung page.
+// Main's reports by guest webContents id (initGuests): a hung page; a download to confirm.
 const byGuest = new Map<number, () => void>()
+const titleOf = new Map<number, () => string>()
+let askingDownload = false
 export function initGuests() {
   tie.guest.onUnresponsive((id) => byGuest.get(id)?.())
+  // SECURITY: a site started a download: nothing is saved until the user says so, here (one dialog
+  // at a time; requests while it is open are dropped). Name sanitized by main, shown as text.
+  tie.guest.onDownload(async (d) => {
+    if (askingDownload) return debug('security', 'download request dropped (dialog open)', d.url)
+    askingDownload = true
+    try {
+      const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
+      const from = titleOf.get(d.guest)?.() ?? 'A browser tile'
+      const size = d.bytes ? ` (${d.bytes < 1024 * 1024 ? `${Math.ceil(d.bytes / 1024)} KB` : `${(d.bytes / 1024 / 1024).toFixed(1)} MB`})` : ''
+      const ok = await confirmDialog({ cls: 'save-download', title: 'Save file?', body: [p(`${from} wants to save:`), p(`${d.name}${size}`, 'url'), p(`from ${hostOf(d.url) || d.url}`)], confirm: 'Save', arm: 600 })
+      debug('guest', ok ? 'download confirmed' : 'download cancelled', d.url)
+      if (ok) tie.guest.download(d.url, d.guest)
+    } finally {
+      askingDownload = false
+    }
+  })
 }
 
 const hostOf = (url: string) => {
@@ -53,7 +71,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
   const fail = (message: string, why: string) => {
     if (dead || !host.alive()) return
     dead = true
-    if (gid !== null) byGuest.delete(gid)
+    if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid))
     wv?.remove()
     wv = null
     debug('guest', why, host.id)
@@ -84,6 +102,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
         if (gid === null) {
           gid = el.getWebContentsId()
           byGuest.set(gid, () => fail('Page stopped responding', 'unresponsive'))
+          titleOf.set(gid, () => `${hostOf(url) || 'A browser tile'} (${host.id})`)
         }
         changed()
       })
@@ -113,7 +132,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
     resize: () => {}, // fills the body (CSS)
     dispose: () => {
       dead = true
-      if (gid !== null) byGuest.delete(gid)
+      if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid))
       wv?.remove()
       wv = null
     },
