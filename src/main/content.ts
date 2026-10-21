@@ -135,7 +135,7 @@ export function clearContent() {
 // Main sees every committed navigation of a frame bound to a document token: reported to the UI
 // (`content:navigated`, URL path), which follows it (location, history). A navigation that fails
 // (the UI CSP refuses http(s), file:, other schemes: the frame would end on an error page) is
-// reported too (`content:navfailed`): the tile reloads its page. Aborted ones (-3: the nav lock
+// reported too (`content:navfailed`, with the URL): the tile shows an error. Aborted ones (-3: the nav lock
 // cancelled it) leave the frame where it was: nothing to do.
 export function initContent(wc: WebContents, push: Send) {
   send = push
@@ -156,7 +156,7 @@ export function initContent(wc: WebContents, push: Send) {
     const token = docOf(procId, routingId)
     if (!token) return
     log('security', 'document navigation failed', token.slice(0, 8), code, desc, untrusted(url))
-    send('content:navfailed', token)
+    send('content:navfailed', token, url)
   })
 }
 

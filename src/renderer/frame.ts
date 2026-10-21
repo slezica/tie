@@ -34,7 +34,7 @@ export interface FrameSurface extends Surface {
 }
 
 // Main's reports for document frames, by token (initFrames).
-const byToken = new Map<string, { navigated(path: string): void; failed(): void; changed(): void }>()
+const byToken = new Map<string, { navigated(path: string): void; failed(url: string): void; changed(): void }>()
 const docUrl = (token: string, page: string) => `tie-content://${token}/${page.split('/').map(encodeURIComponent).join('/')}`
 
 // MessagePort's close event (Chromium): fires when the other end's document goes away.
@@ -43,8 +43,6 @@ type Port = MessagePort & { onclose: ((e: Event) => void) | null }
 const READY_MS = 5000 // viewer must answer the handshake by then, else the tile shows an error
 const GESTURE_MS = 150 // an unfocused gesture request waits this long for the frame's focus
 const NAV_GRACE_MS = 5000 // documents: port closed, a load must follow by then (else crashed)
-const NAVFAIL_MAX = 3 // documents: failed navigations reloaded per NAVFAIL_MS, then an error
-const NAVFAIL_MS = 10_000
 const FLOOD_MAX = 1000 // frame messages handled per second; the rest dropped (a flooding page can't jank the UI)
 
 // SECURITY: focus. A cross-origin iframe could call window.focus() / el.focus() at any time and
@@ -71,7 +69,6 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
   const navigates = policy?.nav === 'within-root' // documents navigate: a closed port may be a navigation
   let page = spec.page ?? '' // documents: page shown now (relative to root, decoded)
   let graceTimer: ReturnType<typeof setTimeout> | null = null
-  let navFails: number[] = []
 
   const stop = () => {
     if (readyTimer) clearTimeout(readyTimer)
@@ -188,15 +185,10 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
         page = p
         spec.onNavigate?.(p)
       },
-      // A navigation away failed (the UI CSP refused it): the frame shows an error page. Reload
-      // the page, unless it keeps doing it (meta refresh loops).
-      failed: () => {
-        const now = Date.now()
-        navFails = [...navFails.filter((t) => now - t < NAVFAIL_MS), now]
-        if (navFails.length > NAVFAIL_MAX) return fail('Page keeps navigating away', 'navigation loop')
-        debug('content', 'navigation failed, reloading', host.id, untrusted(page))
-        surface.load(page)
-      },
+      // SECURITY: the page tried to leave (http(s), file:, another scheme) and the UI CSP refused:
+      // the frame shows an error page. No retry (decision 2026-10-21: predictability): the tile
+      // fails at once, saying where the page tried to go (untrusted text, shown as text, bounded).
+      failed: (url) => fail(`Page navigated away: ${url.slice(0, 200)}`, 'navigation away'),
       changed: () => spec.onChanged?.(),
     })
 
@@ -295,7 +287,7 @@ const safeJson = (v: unknown) => {
 // pointerdown would. (Frames can't focus themselves by script: "focus" above.)
 export function initFrames() {
   tie.content.onNavigated((token, path) => byToken.get(token)?.navigated(path))
-  tie.content.onNavFailed((token) => byToken.get(token)?.failed())
+  tie.content.onNavFailed((token, url) => byToken.get(token)?.failed(String(url)))
   tie.content.onChanged((token) => byToken.get(token)?.changed())
   window.addEventListener('blur', () =>
     setTimeout(() => {

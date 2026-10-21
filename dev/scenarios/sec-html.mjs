@@ -5,7 +5,7 @@
 // meta refresh); window.open / target=_blank only through the confirm dialog (Cancel and Open
 // paths; never without focus); the UI (parent/top) unreachable; the port never visible to the
 // page; another tile's token unreadable; traversal, symlinks out, /_tie/ refused; navigating away
-// breaks only the frame (reloaded; a loop ends in an error); opaque viewer frames still can't fetch.
+// fails the tile at once (no reload); opaque viewer frames still can't fetch.
 // Hidden window: real clicks focus the frame.
 import { mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -220,19 +220,23 @@ export default async (ctx, h) => {
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'other schemes refused')
     await p.assertUntouched('opens', 300)
 
-    // Navigating away: blocked (the UI's frame-src), the frame broke → reloaded, same page. Nav
-    // lock: other tokens, /_tie/ files: cancelled (frame stays).
-    for (const target of [`${p.url}/location`, `tie-content://${'e'.repeat(32)}/evil.html`, '/_tie/markdown.html']) {
+    // Nav lock: other tokens, /_tie/ files: cancelled (frame stays, no error).
+    for (const target of [`tie-content://${'e'.repeat(32)}/evil.html`, '/_tie/markdown.html']) {
       await (await h.htmlFrame(ctx, id)).evaluate((t) => (location.href = t), target).catch(() => {})
-      await ctx.sleep(1200)
+      await ctx.sleep(800)
       const pg = (await h.tileOf(ctx, id)).page
       h.assert(pg.path.endsWith('/evil.html') && !(await h.tileOf(ctx, id)).error, `location ${target}: still evil.html, no error: ${JSON.stringify(pg)}`)
-      await h.htmlFrame(ctx, id) // loaded again, handshake done
     }
+    // Navigating away (http): blocked by the UI's frame-src; the tile fails at once, naming the
+    // target; no reload (decision 2026-10-21).
+    await (await h.htmlFrame(ctx, id)).evaluate((t) => (location.href = t), `${p.url}/location`).catch(() => {})
+    await h.waitFor(ctx, async () => /^Page navigated away: /.test((await h.tileOf(ctx, id)).error ?? ''), 'navigation away → error')
+    h.assert((await h.tileOf(ctx, id)).error.includes(`${p.url}/location`), 'error names the target')
     h.assert(/document navigation failed \w+ -?\d+/.test(ctx.appLog()), 'failed navigation reported by main')
-    // Meta refresh away, on every load: reloaded a few times, then an error (no loop).
-    const loop = (await ctx.tie('open', join(dir, 'loop.html'), '--at', id)).id
-    await h.waitFor(ctx, async () => /keeps navigating away/.test((await h.tileOf(ctx, loop)).error ?? ''), 'meta refresh loop → error', 15000)
+    // Meta refresh away on load: error at once, no reload loop.
+    const loop = (await ctx.tie('open', join(dir, 'loop.html'), '--at', t0)).id
+    await h.waitFor(ctx, async () => /^Page navigated away: .*meta-loop/.test((await h.tileOf(ctx, loop)).error ?? ''), 'meta refresh → error', 8000)
+    h.assert(!/navigation failed, reloading/.test(ctx.appLog()), 'never reloaded')
     await p.assertUntouched('navigation away', 500)
     h.assert(!tcpHits.length && !udpHits.length, 'no raw connections')
   } finally {

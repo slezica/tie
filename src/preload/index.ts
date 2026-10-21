@@ -52,8 +52,8 @@ const api = {
     onNavigated: (cb: (token: string, path: string) => void) => {
       ipcRenderer.on('content:navigated', (_e, token, path) => cb(token, path))
     },
-    onNavFailed: (cb: (token: string) => void) => {
-      ipcRenderer.on('content:navfailed', (_e, token) => cb(token))
+    onNavFailed: (cb: (token: string, url: string) => void) => {
+      ipcRenderer.on('content:navfailed', (_e, token, url) => cb(token, url))
     },
     onChanged: (cb: (token: string) => void) => {
       ipcRenderer.on('content:changed', (_e, token) => cb(token))

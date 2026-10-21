@@ -126,7 +126,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 6. `post(msg)`: host → viewer over the port (dropped before the handshake).
 7. `setRoot(root)`: new token for another directory, same iframe (`src` changes; nav lock binds the new token to it), old token closed. Handshake again.
 8. `dispose`: port closed, iframe removed, `tie.content.close(token)`.
-9. Documents (`nav: 'within-root'`): `load(page)` navigates the frame within the root (port closed first; same page + `#hash`: in-page, port kept); main reports the frame's own navigations (`content:navigated` → `onNavigate`), failed ones (`content:navfailed` → reload the page; > 3 per 10 s → "Page keeps navigating away"), folder changes (`content:changed` → `onChanged`). Routed by token (`initFrames`).
+9. Documents (`nav: 'within-root'`): `load(page)` navigates the frame within the root (port closed first; same page + `#hash`: in-page, port kept); main reports the frame's own navigations (`content:navigated` → `onNavigate`), failed ones (`content:navfailed` with the URL → error "Page navigated away: <url>", no reload), folder changes (`content:changed` → `onChanged`). Routed by token (`initFrames`).
 
 ### Watchdog (`frame.ts`, timing in `core/watchdog.ts`)
 
