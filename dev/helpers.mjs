@@ -299,16 +299,19 @@ export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
   if (!b) throw new Error(`not visible in frame: ${selector}`)
   const x = b.x + Math.min(b.width / 2, 10)
   const y = b.y + b.height / 2
-  const focused = () => ctx.page.evaluate(() => document.activeElement instanceof HTMLIFrameElement)
+  // Lost click = nothing happened: focus still where it was, no dialog or menu opened by it.
+  const where = () => ctx.page.evaluate(() => { const a = document.activeElement; return (a?.tagName ?? '') + ':' + (a?.closest?.('.tile')?.dataset.id ?? '') + ':' + (document.querySelector('.dialog-backdrop, .menu') ? 'modal' : '') })
+  const lost = async (before) => (await where()) === before && !before.startsWith('IFRAME') && !before.endsWith('modal')
   await ctx.page.mouse.move(x, y)
   await ctx.sleep(80)
   for (let attempt = 0; attempt < 2; attempt++) {
+    const before = await where()
     if (meta) await ctx.page.keyboard.down('Meta')
     await ctx.page.mouse.click(x, y)
     if (meta) await ctx.page.keyboard.up('Meta')
     await ctx.sleep(300)
-    if (await focused()) return
-    ctx.log(`clickIn: frame not focused after click #${attempt + 1} (${selector})`)
+    if (!(await lost(before))) return
+    ctx.log(`clickIn: click #${attempt + 1} lost (${selector})`)
   }
 }
 
