@@ -291,13 +291,25 @@ export async function osDrop(ctx, at, data) {
 
 // Real click on an element inside a content frame (hidden-window scenarios route it into the
 // frame). `meta`: cmd held.
+// Under load, the first click into a freshly loaded out-of-process frame is sometimes lost (the
+// frame's surface isn't hit-testable yet): the pointer is moved there first and the click is
+// repeated once if the frame didn't take focus.
 export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
   const b = await frame.locator(selector).first().boundingBox()
   if (!b) throw new Error(`not visible in frame: ${selector}`)
-  if (meta) await ctx.page.keyboard.down('Meta')
-  await ctx.page.mouse.click(b.x + Math.min(b.width / 2, 10), b.y + b.height / 2)
-  if (meta) await ctx.page.keyboard.up('Meta')
-  await ctx.sleep(300)
+  const x = b.x + Math.min(b.width / 2, 10)
+  const y = b.y + b.height / 2
+  const focused = () => ctx.page.evaluate(() => document.activeElement instanceof HTMLIFrameElement)
+  await ctx.page.mouse.move(x, y)
+  await ctx.sleep(80)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (meta) await ctx.page.keyboard.down('Meta')
+    await ctx.page.mouse.click(x, y)
+    if (meta) await ctx.page.keyboard.up('Meta')
+    await ctx.sleep(300)
+    if (await focused()) return
+    ctx.log(`clickIn: frame not focused after click #${attempt + 1} (${selector})`)
+  }
 }
 
 // Local web site for browser tiles: `route(path, req)` → string (html) | {status, headers, body} |
