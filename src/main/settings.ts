@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, access
 import { userInfo, homedir } from 'node:os'
 import { join, delimiter } from 'node:path'
 import { stateDir, instance, log, PRIVATE } from './env'
+import { untrusted } from '../core/log'
 
 export interface Settings {
   shell: string // terminal tiles: command line for new terminals; '' = default
@@ -84,7 +85,7 @@ function sanitize(s: Settings): Settings {
 export function setSettings(patch: Partial<Settings>): Settings {
   current = sanitize({ ...current, ...patch })
   writeFileSync(settingsPath, JSON.stringify(current, null, 2) + '\n', { mode: PRIVATE })
-  log('app', 'settings saved', current)
+  log('app', 'settings saved', untrusted(current))
   return getSettings()
 }
 

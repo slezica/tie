@@ -13,6 +13,10 @@ export const ELECTRON_ARGS = ['.', '-ApplePersistenceIgnoreState', 'YES']
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// A log line as a human reads it: <untrusted> markers removed, \uXXXX escapes undone. Mirrors
+// src/core/log.ts plainLog (the harness can't import TypeScript).
+export const plainLog = (text) => text.replaceAll('<untrusted>', '').replaceAll('</untrusted>', '').replace(/\\u([0-9a-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+
 export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
 export const infoPath = (instance) => join(stateDir, `${instance}.json`)
 // Electron profile of an instance (main: app userData = <appData>/tie-<instance>). Fresh harness
@@ -127,7 +131,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   if (runDir) {
     mkdirSync(runDir, { recursive: true })
     env.TIE_LOG = join(runDir, 'app.log')
-    env.TIE_DEBUG = process.env.TIE_DEBUG || '*'
+    env.TIE_DEBUG = opts.env?.TIE_DEBUG ?? (process.env.TIE_DEBUG || '*') // scenario env wins (sec-log: debug off)
   }
   delete env.TIE_SOCKET
   delete env.TIE_TILE

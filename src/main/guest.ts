@@ -5,6 +5,7 @@ import { app, session, type Session, type WebContents } from 'electron'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { log } from './env'
+import { untrusted } from '../core/log'
 import { openExternal } from './security'
 import { watchKeys } from './keys'
 import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupVerdict, GESTURE_INPUTS, downloadName, uniqueName } from '../core/guest'
@@ -25,7 +26,7 @@ const sinceInput = (wc: WebContents | undefined): number | null => {
 export function noDeviceChoosers(wc: WebContents) {
   wc.on('select-bluetooth-device', (e, _devices, cb) => {
     e.preventDefault()
-    log('security', 'cancelled bluetooth chooser', wc.getURL())
+    log('security', 'cancelled bluetooth chooser', untrusted(wc.getURL()))
     cb('')
   })
 }
@@ -39,7 +40,7 @@ export function noDeviceChoosers(wc: WebContents) {
 export function attachGuest(e: Electron.Event, prefs: Electron.WebPreferences, params: Record<string, string>, fromUi: boolean) {
   const src = guestSrc(params.src)
   if (!fromUi || !src) {
-    log('security', 'blocked webview', fromUi ? 'src' : 'embedder', String(params.src ?? ''))
+    log('security', 'blocked webview', fromUi ? 'src' : 'embedder', untrusted(String(params.src ?? '')))
     return e.preventDefault()
   }
   const asked = Object.keys(prefs).filter((k) => k !== 'offscreen')
@@ -63,7 +64,7 @@ export function attachGuest(e: Electron.Event, prefs: Electron.WebPreferences, p
   const dropped = Object.keys(params).filter((k) => k !== 'src' && k !== 'instanceId') // instanceId: Electron's own (the element)
   for (const k of dropped) delete params[k]
   params.src = src
-  log('guest', 'attach', src, 'prefs rebuilt', asked.join(',') || '-', 'attributes dropped', dropped.join(',') || '-')
+  log('guest', 'attach', untrusted(src), 'prefs rebuilt', untrusted(asked.join(',') || '-'), 'attributes dropped', untrusted(dropped.join(',') || '-'))
 }
 
 // SECURITY: every guest webContents (web-contents-created, type webview).
@@ -75,13 +76,13 @@ export function guardGuest(guest: WebContents) {
   let refused = '' // last main-frame URL will-frame-navigate refused (did-start-navigation: no stop)
   guest.on('will-frame-navigate', (e) => {
     if (guestNavAllowed(e.url, e.isMainFrame)) return
-    log('security', 'blocked guest navigation', e.isMainFrame ? 'main' : 'subframe', e.url)
+    log('security', 'blocked guest navigation', e.isMainFrame ? 'main' : 'subframe', untrusted(e.url))
     if (e.isMainFrame) refused = e.url
     e.preventDefault()
   })
   guest.on('will-redirect', (e) => {
     if (guestNavAllowed(e.url, e.isMainFrame)) return
-    log('security', 'blocked guest redirect', e.url)
+    log('security', 'blocked guest redirect', untrusted(e.url))
     e.preventDefault()
   })
   // Loads the UI starts (src, location bar, back/forward) skip will-frame-navigate. The UI
@@ -92,7 +93,7 @@ export function guardGuest(guest: WebContents) {
     // Not inside the event (stopping there crashes Electron).
     setImmediate(() => {
       if (guest.isDestroyed() || refused === d.url) return
-      log('security', 'stopped guest load', d.url)
+      log('security', 'stopped guest load', untrusted(d.url))
       guest.stop()
     })
   })
@@ -105,7 +106,7 @@ export function guardGuest(guest: WebContents) {
   guest.setWindowOpenHandler((d) => {
     const since = sinceInput(guest)
     if (popupVerdict(d.url, since) === 'external') openExternal(d.url)
-    else log('security', 'blocked popup', d.url, 'since input', since ?? 'never')
+    else log('security', 'blocked popup', untrusted(d.url), 'since input', since ?? 'never')
     return { action: 'deny' }
   })
   noDeviceChoosers(guest)
@@ -146,10 +147,10 @@ const ALLOW_MS = 60_000
 export function allowDownload(url: unknown, guestId: unknown) {
   if (typeof url !== 'string') return
   const g = [...guests].find((x) => x.id === guestId)
-  if (!g || g.isDestroyed()) return log('security', 'download allowed for a gone guest', url)
+  if (!g || g.isDestroyed()) return log('security', 'download allowed for a gone guest', untrusted(url))
   clearTimeout(allowed.get(url))
   allowed.set(url, setTimeout(() => allowed.delete(url), ALLOW_MS))
-  log('guest', 'download allowed', url)
+  log('guest', 'download allowed', untrusted(url))
   g.downloadURL(url)
 }
 
@@ -167,7 +168,7 @@ export function initBrowserSession(ask: (d: DownloadAsk) => void): Session {
     const t = allowed.get(url)
     if (!t) {
       e.preventDefault()
-      log('guest', 'download asks', url)
+      log('guest', 'download asks', untrusted(url))
       return ask({ guest: wc.id, url, name: downloadName(item.getFilename()), bytes: Math.max(0, item.getTotalBytes()) })
     }
     clearTimeout(t)
@@ -177,10 +178,10 @@ export function initBrowserSession(ask: (d: DownloadAsk) => void): Session {
     const path = join(dir, name)
     reserved.add(path)
     item.setSavePath(path)
-    log('guest', 'download', item.getURL(), '→', path)
+    log('guest', 'download', untrusted(item.getURL()), '→', untrusted(path))
     item.once('done', (_e2, state) => {
       reserved.delete(path)
-      log('guest', 'download', state, path)
+      log('guest', 'download', state, untrusted(path))
     })
   })
   return ses
@@ -190,7 +191,7 @@ export function initBrowserSession(ask: (d: DownloadAsk) => void): Session {
 // second layer).
 export function noDownloads(ses: Session) {
   ses.on('will-download', (e, item) => {
-    log('security', 'blocked download', item.getURL())
+    log('security', 'blocked download', untrusted(item.getURL()))
     e.preventDefault()
   })
 }

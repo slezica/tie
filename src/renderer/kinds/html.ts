@@ -7,6 +7,7 @@
 // requests, history (host-driven and the page's own navigations, reported by main), live reload on
 // folder changes, nav bar. docs/VIEWERS.md "Html".
 import { tie, debug, spaceOf, withSpace, type Kind } from '../state'
+import { untrusted } from '@core/log'
 import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
 import { infoDialog } from '../dialog'
@@ -66,7 +67,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       if (abs === path) return
       path = abs
       history.list.splice(++history.index, Infinity, abs)
-      debug('html', 'navigated', host.id, abs)
+      debug('html', 'navigated', host.id, untrusted(abs))
       host.changed()
     },
     // Live: anything in the folder changed → reload the page (the bootstrap keeps the scroll).
@@ -92,7 +93,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     else history.index += how === 'back' ? -1 : 1
     path = abs
     loading()
-    debug('html', 'go', host.id, how, abs)
+    debug('html', 'go', host.id, how, untrusted(abs))
     if (inRoot(abs)) frame.load(rel(abs) + hash)
     else {
       root = dirOf(abs)
@@ -127,19 +128,19 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   // everything else refused.
   async function follow(href: string, newTile: boolean) {
     const l = resolve(href)
-    if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
+    if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, untrusted(href))
     if (l.type === 'anchor') return newTile ? undefined : frame.load(rel(path) + l.hash)
     if (l.type === 'web') return openExternal(l.url, nameOf(path))
     if (!newTile && l.kind === 'html') return go(l.path, 'push', l.hash)
     const now = Date.now()
-    if (now - lastNewTile < NEW_TILE_MS) return debug('security', 'new tile throttled', host.id, l.path)
+    if (now - lastNewTile < NEW_TILE_MS) return debug('security', 'new tile throttled', host.id, untrusted(l.path))
     lastNewTile = now
     const v = await tie.doc.viewer(l.path)
     if (!host.alive()) return
     if ('error' in v) return void infoDialog("Can't open link", v.error)
     const sp = spaceOf(host.id)
     const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash: l.hash })
-    debug('html', 'open beside', host.id, v.kind, v.path)
+    debug('html', 'open beside', host.id, v.kind, untrusted(v.path))
     sp ? withSpace(sp.id, open) : open()
   }
 

@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, sleep, tie, connectPage, launch } from './lib.mjs'
+import { ROOT, sleep, tie, connectPage, launch, plainLog } from './lib.mjs'
 import * as helpers from './helpers.mjs'
 
 const args = process.argv.slice(2)
@@ -82,7 +82,9 @@ try {
     },
     log: (...a) => console.log(...a),
     runDir,
-    appLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
+    // The app log as a human reads it (<untrusted> markers removed, escapes undone: core/log.ts); rawLog: the file.
+    appLog: () => plainLog(existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
+    rawLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
   }
   const result = await mod.default(ctx, helpers)
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))

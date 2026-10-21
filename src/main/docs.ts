@@ -6,6 +6,7 @@ import { dialog, type BrowserWindow } from 'electron'
 import { open, stat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import { log } from './env'
+import { untrusted } from '../core/log'
 import { watchFile, readStable, revision, type Watch } from './watch'
 import { fileKind, sniff, sniffKind, canOpenAs, isFileKind, SNIFF_BYTES } from '../core/kinds'
 import { policyOf, type ContentKind, type ContentPolicy } from '../core/policy'
@@ -84,7 +85,7 @@ export async function openDoc(path: unknown, want: unknown, push: (id: number, p
     { maxBytes: p.maxBytes },
   )
   docs.set(id, { path: v.path, watch })
-  log('docs', 'open', id, v.kind, v.path, rev)
+  log('docs', 'open', id, v.kind, untrusted(v.path), rev)
   return { id, kind: v.kind, rev, ...bodyOf(p, r.buf) }
 }
 
@@ -113,7 +114,7 @@ export async function pickFile(win: BrowserWindow | null, defaultPath: unknown):
   if (process.env.TIE_BACKGROUND) {
     const p = nextPick
     nextPick = null
-    log('docs', 'picker (harness)', p ?? 'cancel')
+    log('docs', 'picker (harness)', untrusted(p ?? 'cancel'))
     return p
   }
   if (!win) return null

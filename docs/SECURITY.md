@@ -91,7 +91,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 
 - `probe(ctx)`: local http page reporting hits and whether it got `window.tie`. `assertUntouched(what)`.
 - Probe kind (dev builds): `tie open probe [--cwd root]`, `h.probeFrame(ctx, id)` = Playwright frame inside it (the attacker's seat). `h.frames(ctx)` / `tie-dev frames`: frame tree, out-of-process.
-- `ctx.appLog()`: run's app log; `[security]` lines record every block/refusal.
+- `ctx.appLog()`: run's app log as a human reads it (`<untrusted>` markers removed, escapes undone); `ctx.rawLog()`: the file. `[security]` lines record every block/refusal and are written even with `TIE_DEBUG` unset (`sec-log`). Values that aren't Tie's (URLs, hrefs, paths, names, request bodies, socket params) are logged as `<untrusted>…</untrusted>`, escaped (`core/log.ts` `untrusted`): wrap them at the call site.
 - Socket: the harness is an external caller. `launch()` seeds `allowExternalControl: true` (scenario `settings` override it).
 - Harness instances (`TIE_BACKGROUND`) log `external open <url>` instead of opening, and never show the file picker (dev socket `pick` answers it).
 - Markdown: `h.contentFrame(ctx, id)` = the viewer's frame; `window.markdown.port` lets a scenario post requests as the frame (write-shaped messages, gesture-less links).

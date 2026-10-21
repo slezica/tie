@@ -5,6 +5,7 @@
 // out, Cancel focused (Enter cancels), Open disabled for a moment (no click-through). One dialog at
 // a time, app-wide: requests while one is open are dropped. Off: opened directly, logged.
 import { tie, debug } from './state'
+import { untrusted } from '@core/log'
 import { confirmDialog } from './dialog'
 import { prefs } from './prefs'
 
@@ -17,10 +18,10 @@ let asking = false
 // line shown for long links (html: the folder the page can read).
 export async function openExternal(url: string, from: string, note?: string) {
   if (!prefs.confirmExternal) {
-    debug('external', 'open (no confirm)', from, url)
+    debug('external', 'open (no confirm)', untrusted(from), untrusted(url))
     return tie.openExternal(url)
   }
-  if (asking) return debug('security', 'external request dropped (dialog open)', from, url)
+  if (asking) return debug('security', 'external request dropped (dialog open)', untrusted(from), untrusted(url))
   asking = true
   try {
     const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
@@ -34,7 +35,7 @@ export async function openExternal(url: string, from: string, note?: string) {
     const tail = url.length - origin.length
     if (tail > LONG_LINK) body.push(p(`Long link: ${tail} characters after the site address.${note ? ' ' + note : ''}`, 'warn'))
     const ok = await confirmDialog({ cls: 'external-open', title: 'Open in browser?', body, confirm: 'Open', arm: CONFIRM_ARM_MS })
-    debug('external', ok ? 'confirmed' : 'cancelled', from, url)
+    debug('external', ok ? 'confirmed' : 'cancelled', untrusted(from), untrusted(url))
     if (ok) tie.openExternal(url)
   } finally {
     asking = false

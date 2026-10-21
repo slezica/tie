@@ -4,6 +4,7 @@
 // handlers. Document kinds (html: nav 'within-root') also name a page and may navigate: main
 // reports their navigations and folder changes; a navigation isn't a crash. docs/TILES.md.
 import { S, tie, location, debug } from './state'
+import { untrusted } from '@core/log'
 import { activate } from './ops'
 import { parseRequest, needsGesture, type Request, type Verb } from '@core/requests'
 import { watchdog, tick, pong, TICK_MS } from '@core/watchdog'
@@ -116,7 +117,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     if (now - msgsAt > 1000) (msgsAt = now), (msgs = 0)
     if (++msgs > FLOOD_MAX) return void (msgs === FLOOD_MAX + 1 && debug('security', 'message flood, dropping', host.id))
     const req = parseRequest(data)
-    if (!req) return debug('security', 'dropped request', host.id, safeJson(data))
+    if (!req) return debug('security', 'dropped request', host.id, untrusted(safeJson(data)))
     // SECURITY: verbs acting for the user (open a link, write a file) only while this frame has
     // focus: the user clicked or typed in it (VS Code's rule; a script can't take focus by itself:
     // see "focus" above). The viewer posts them from its click handler only. A click into a frame
@@ -193,7 +194,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
         const now = Date.now()
         navFails = [...navFails.filter((t) => now - t < NAVFAIL_MS), now]
         if (navFails.length > NAVFAIL_MAX) return fail('Page keeps navigating away', 'navigation loop')
-        debug('content', 'navigation failed, reloading', host.id, page)
+        debug('content', 'navigation failed, reloading', host.id, untrusted(page))
         surface.load(page)
       },
       changed: () => spec.onChanged?.(),

@@ -8,6 +8,7 @@ import { createServer, type Server, type Socket } from 'node:net'
 import { existsSync, unlinkSync, chmodSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { log, PRIVATE } from './env'
+import { untrusted } from '../core/log'
 import { callerTile, type Caller, type Peer } from '../core/callers'
 
 type Call = (method: string, params: unknown) => Promise<unknown>
@@ -71,7 +72,7 @@ export function startSocket(path: string, call: Call, callers: Callers): Server 
         const params = typeof msg.params === 'object' && msg.params ? msg.params : {}
         // SECURITY: the caller gate, for every method (dev ones included).
         if (caller.kind === 'refused') {
-          log('security', 'refused caller', pid, caller.why)
+          log('security', 'refused caller', pid, untrusted(caller.why))
           reply({ jsonrpc: '2.0', id, error: { code: -32000, message: `Caller refused: ${caller.why}` } })
           return conn.end(() => conn.destroy())
         }
@@ -81,10 +82,10 @@ export function startSocket(path: string, call: Call, callers: Callers): Server 
         }
         if (caller.kind === 'tile') {
           // The tile is the lineage's, never what the request claims (TIE_TILE is just env).
-          if (params.caller !== undefined && params.caller !== caller.tile) log('security', 'caller spoof', { claimed: params.caller, lineage: caller.tile, pid })
+          if (params.caller !== undefined && params.caller !== caller.tile) log('security', 'caller spoof', untrusted({ claimed: params.caller }), { lineage: caller.tile, pid })
           params.caller = caller.tile
         }
-        log('rpc', '<-', msg.method, params)
+        log('rpc', '<-', untrusted(msg.method), untrusted(params))
         const result = await call(msg.method, params)
         reply({ jsonrpc: '2.0', id, result: result ?? null })
       } catch (e) {

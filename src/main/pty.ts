@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import { statSync } from 'node:fs'
 import { shellArgv, resolveExecutable } from './settings'
 import { log } from './env'
+import { untrusted } from '../core/log'
 
 export interface SpawnOptions {
   cmd?: string
@@ -97,7 +98,7 @@ export function initPty(wc: () => WebContents | null) {
       }
       ptys.set(p.pid, p)
       if (o.env.TIE_TILE) tileOf.set(p.pid, o.env.TIE_TILE)
-      log('pty', 'spawn', p.pid, shell, args, o.cwd)
+      log('pty', 'spawn', p.pid, untrusted(shell), untrusted(args), untrusted(o.cwd))
       p.onData((d) => send('pty:data', p.pid, d))
       p.onExit(({ exitCode }) => {
         log('pty', 'exit', p.pid, exitCode)

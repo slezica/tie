@@ -5,6 +5,7 @@
 // (never re-parented, like every tile body), title from the page, nav bar (editable location:
 // core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
 import { tie, debug } from './state'
+import { untrusted } from '@core/log'
 import { infoDialog, confirmDialog } from './dialog'
 import { guestSrc, locationUrl, pageTitle, BROWSER_PARTITION } from '@core/guest'
 import type { Host, OpenOpts, Surface } from './kinds'
@@ -22,14 +23,14 @@ export function initGuests() {
   // SECURITY: a site started a download: nothing is saved until the user says so, here (one dialog
   // at a time; requests while it is open are dropped). Name sanitized by main, shown as text.
   tie.guest.onDownload(async (d) => {
-    if (askingDownload) return debug('security', 'download request dropped (dialog open)', d.url)
+    if (askingDownload) return debug('security', 'download request dropped (dialog open)', untrusted(d.url))
     askingDownload = true
     try {
       const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
       const from = titleOf.get(d.guest)?.() ?? 'A browser tile'
       const size = d.bytes ? ` (${d.bytes < 1024 * 1024 ? `${Math.ceil(d.bytes / 1024)} KB` : `${(d.bytes / 1024 / 1024).toFixed(1)} MB`})` : ''
       const ok = await confirmDialog({ cls: 'save-download', title: 'Save file?', body: [p(`${from} wants to save:`), p(`${d.name}${size}`, 'url'), p(`from ${hostOf(d.url) || d.url}`)], confirm: 'Save', arm: 600 })
-      debug('guest', ok ? 'download confirmed' : 'download cancelled', d.url)
+      debug('guest', ok ? 'download confirmed' : 'download cancelled', untrusted(d.url))
       if (ok) tie.guest.download(d.url, d.guest)
     } finally {
       askingDownload = false
@@ -123,11 +124,11 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
       el.addEventListener('update-target-url', (e) => host.alive() && host.hint(e.url || null)) // hovered link (site text, shown as text)
       el.addEventListener('did-start-loading', () => ((loading = true), changed()))
       el.addEventListener('did-stop-loading', () => ((loading = false), changed()))
-      el.addEventListener('did-fail-load', (e) => e.isMainFrame && e.errorCode !== -3 && debug('guest', 'load failed', host.id, e.errorCode, e.validatedURL))
+      el.addEventListener('did-fail-load', (e) => e.isMainFrame && e.errorCode !== -3 && debug('guest', 'load failed', host.id, e.errorCode, untrusted(e.validatedURL)))
       el.addEventListener('render-process-gone', (e) => fail('Page crashed', `crashed (${e.details?.reason ?? '?'})`))
       wv = el
       host.body.appendChild(el)
-      debug('guest', 'mount', host.id, start)
+      debug('guest', 'mount', host.id, untrusted(start))
     },
     resize: () => {}, // fills the body (CSS)
     dispose: () => {
@@ -163,7 +164,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
       go: (input) => {
         const u = locationUrl(input)
         if (!u) {
-          debug('guest', 'refused location', host.id, input)
+          debug('guest', 'refused location', host.id, untrusted(input))
           return void infoDialog("Can't open", `Not a web address: ${input.trim()}\nhttp(s) addresses only (no search).`)
         }
         load(u)

@@ -7,6 +7,7 @@
 // and folder (token) switching, link routing, title / dir / cwd, activity, the theme message.
 // docs/TILES.md "File view".
 import { S, tie, debug, spaceOf, withSpace, type Kind } from './state'
+import { untrusted } from '@core/log'
 import { frameSurface } from './frame'
 import { appearance, fontStack } from './appearance'
 import { theme } from './themes'
@@ -127,7 +128,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     else if (how !== 'reload') history.index += how === 'back' ? -1 : 1
     view = { scroll: how === 'push' ? 'top' : 'restore', hash }
     host.changed()
-    debug(kind, 'go', host.id, how, path)
+    debug(kind, 'go', host.id, how, untrusted(path))
     if (dirOf(path) !== root) {
       root = dirOf(path)
       await frame.setRoot(root) // onReady sends the doc
@@ -152,7 +153,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     const l = classifyLink(href, doc.path)
     if (l.type === 'web') return void openExternal(l.url, nameOf(doc.path))
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
-    if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
+    if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, untrusted(href))
     if (l.kind !== kind) return void beside(l.path, l.hash)
     if (newTile) {
       const sp = spaceOf(host.id)
@@ -169,7 +170,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     const v = await tie.doc.viewer(path)
     if (!host.alive()) return
     if ('error' in v) return void infoDialog("Can't open link", v.error)
-    debug(kind, 'open beside', host.id, v.kind, v.path)
+    debug(kind, 'open beside', host.id, v.kind, untrusted(v.path))
     const sp = spaceOf(host.id)
     const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash })
     sp ? withSpace(sp.id, open) : open()

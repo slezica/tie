@@ -1,6 +1,7 @@
 // Security guards for every webContents. Threat model, research: docs/SECURITY.md.
 import { app, shell, ipcMain, protocol, net, type Session, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { log } from './env'
+import { untrusted } from '../core/log'
 import { pathToFileURL } from 'node:url'
 import { isUiSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 import { CONTENT_SCHEME } from '../core/content'
@@ -40,7 +41,7 @@ export function harden() {
   // the browser's "cancel".
   app.on('select-client-certificate', (e, wc, url, _certs, cb) => {
     e.preventDefault()
-    log('security', 'refused client certificate', url, wc?.getURL?.() ?? '')
+    log('security', 'refused client certificate', untrusted(url), untrusted(wc?.getURL?.() ?? ''))
     cb()
   })
 }
@@ -56,16 +57,16 @@ function guard(wc: WebContents) {
   wc.on('will-frame-navigate', (e) => {
     if (e.isMainFrame && sameDocument(e.url, uiUrl)) return
     if (!e.isMainFrame && contentFrameAllowed(e.url, e.frame, wc.mainFrame)) return
-    log('security', 'blocked navigation', e.isMainFrame ? 'main' : 'subframe', e.url)
+    log('security', 'blocked navigation', e.isMainFrame ? 'main' : 'subframe', untrusted(e.url))
     e.preventDefault()
   })
   wc.on('will-redirect', (e) => {
-    log('security', 'blocked redirect', e.url)
+    log('security', 'blocked redirect', untrusted(e.url))
     e.preventDefault()
   })
   // SECURITY: new windows inherit the opener's webPreferences, preload included. Never open any.
   wc.setWindowOpenHandler((d) => {
-    log('security', 'blocked window.open', d.url)
+    log('security', 'blocked window.open', untrusted(d.url))
     return { action: 'deny' }
   })
   // SECURITY: <webview> guests (browser tiles) only from the UI window's own page, prefs rebuilt
@@ -106,8 +107,8 @@ export function noWebRtcUdp(wc: WebContents) {
 // Harness instances (TIE_BACKGROUND) record instead of opening.
 export function openExternal(url: unknown) {
   const href = externalUrl(url)
-  if (!href) return log('security', 'refused external', String(url))
-  log('security', 'external open', href)
+  if (!href) return log('security', 'refused external', untrusted(String(url)))
+  log('security', 'external open', untrusted(href))
   if (!process.env.TIE_BACKGROUND) shell.openExternal(href)
 }
 
@@ -119,7 +120,7 @@ export function uiIpc(win: () => BrowserWindow | null) {
     const w = win()
     const f = e.senderFrame
     const ok = !!w && e.sender === w.webContents && isUiSender(f && { url: f.url, parent: f.parent }, uiUrl)
-    if (!ok) log('security', 'rejected ipc from', f?.url ?? '(gone)')
+    if (!ok) log('security', 'rejected ipc from', untrusted(f?.url ?? '(gone)'))
     return ok
   }
   return {
@@ -139,7 +140,7 @@ export function serveShell(ses: Session, root: string) {
     const u = new URL(req.url)
     const file = u.host === 'app' ? resolveInside(root, u.pathname) : null
     if (!file) {
-      log('security', 'refused', req.url)
+      log('security', 'refused', untrusted(req.url))
       return new Response('not found', { status: 404 })
     }
     return net.fetch(pathToFileURL(file).href).catch(() => new Response('not found', { status: 404 }))

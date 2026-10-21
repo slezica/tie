@@ -9,6 +9,7 @@ import { realpathSync, statSync, readFileSync, createReadStream, watch, type FSW
 import { Readable } from 'node:stream'
 import { extname, isAbsolute, join } from 'node:path'
 import { log } from './env'
+import { untrusted } from '../core/log'
 import { CONTENT_SCHEME, routeContent, isInside, viewerUrl, parseContentUrl, navAllowed, contentFile, documentUrl, isDocument, bootstrapAt, htmlCharset } from '../core/content'
 import { policyOf, viewerKinds, contentCsp, documentCsp } from '../core/policy'
 
@@ -69,7 +70,7 @@ export function openContent(root: unknown, kind: unknown, page?: unknown): { tok
   }
   entries.set(token, { root: real, kind, frame: null })
   if (isDocKind(kind)) watchRoot(token)
-  log('content', 'open', kind, token.slice(0, 8), real)
+  log('content', 'open', kind, token.slice(0, 8), untrusted(real))
   return { token, url: isDocKind(kind) ? documentUrl(token, page as string) : viewerUrl(token, kind) }
 }
 
@@ -85,7 +86,7 @@ function watchRoot(token: string) {
     })
     e.watcher.on('error', () => e.watcher?.close())
   } catch {
-    log('content', 'watch failed', token.slice(0, 8), e.root)
+    log('content', 'watch failed', token.slice(0, 8), untrusted(e.root))
   }
 }
 
@@ -154,7 +155,7 @@ export function initContent(wc: WebContents, push: Send) {
     if (isMain || code === -3) return
     const token = docOf(procId, routingId)
     if (!token) return
-    log('security', 'document navigation failed', token.slice(0, 8), code, desc, url)
+    log('security', 'document navigation failed', token.slice(0, 8), code, desc, untrusted(url))
     send('content:navfailed', token)
   })
 }
@@ -175,7 +176,7 @@ export function contentFrameAllowed(url: string, frame: WebFrameMain | null, uiF
 }
 
 const refuse = (url: string, why: string) => {
-  log('security', 'refused content', why, url)
+  log('security', 'refused content', why, untrusted(url))
   return new Response('not found', { status: 404 })
 }
 
@@ -260,7 +261,7 @@ export function serveContent(ses: Session) {
 function streamFile(path: string): ReadableStream<Uint8Array> | null {
   try {
     const s = createReadStream(path)
-    s.on('error', (e) => log('content', 'stream error', path, String(e)))
+    s.on('error', (e) => log('content', 'stream error', untrusted(path), String(e)))
     return Readable.toWeb(s) as ReadableStream<Uint8Array>
   } catch {
     return null

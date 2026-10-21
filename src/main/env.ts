@@ -4,6 +4,7 @@ import { app } from 'electron'
 import { mkdirSync, appendFileSync, existsSync, readdirSync, renameSync, chmodSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { formatArg } from '../core/log'
 
 export const instance = process.env.TIE_INSTANCE || (app.isPackaged ? 'default' : 'dev')
 // All state lives in ~/.config/tie (or $XDG_CONFIG_HOME/tie): settings, sockets, info files, logs.
@@ -41,12 +42,14 @@ function hash(s: string) {
 }
 export const debugPort = Number(process.env.TIE_DEBUG_PORT) || 9300 + (hash(instance) % 600)
 
-// TIE_DEBUG=layout,shelf,pty (or "*") enables tagged logs to logPath.
+// TIE_DEBUG=layout,shelf,pty (or "*") enables tagged logs to logPath. SECURITY: the `security`
+// tag is always on (every refusal and block is on record); values that aren't Tie's are marked
+// <untrusted>…</untrusted> and escaped (core/log.ts `untrusted`).
 const tags = new Set((process.env.TIE_DEBUG || '').split(',').filter(Boolean))
 export const debugTags = [...tags]
 export function log(tag: string, ...args: unknown[]) {
-  if (!tags.has(tag) && !tags.has('*')) return
-  const line = `${new Date().toISOString()} [${tag}] ${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`
+  if (tag !== 'security' && !tags.has(tag) && !tags.has('*')) return
+  const line = `${new Date().toISOString()} [${tag}] ${args.map(formatArg).join(' ')}\n`
   try {
     appendFileSync(logPath, line, { mode: PRIVATE })
   } catch {}

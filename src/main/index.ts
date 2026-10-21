@@ -23,6 +23,9 @@ const offscreen = background && process.env.TIE_BACKGROUND !== 'hidden'
 // Per-instance user data, so instances don't share the single-instance lock.
 app.setPath('userData', join(app.getPath('appData'), `tie-${instance}`))
 if (dev) app.commandLine.appendSwitch('remote-debugging-port', String(debugPort))
+// Harness and packaging smoke instances: Chromium's cookie encryption key would otherwise prompt for
+// the Keychain ("Tie Safe Storage"), once per ad-hoc signed binary; a mock keychain keeps them quiet.
+if (background) app.commandLine.appendSwitch('use-mock-keychain')
 // SECURITY: a cross-origin iframe may call window.focus() / el.focus() and take the focus (and the
 // keyboard) at any time. Blink can refuse focus from a frame without transient user activation when
 // the frame's permissions policy disallows `focus-without-user-activation` (content iframes:
