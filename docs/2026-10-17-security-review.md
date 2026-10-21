@@ -32,6 +32,15 @@ Full pass over Tie's security seams: code read (main, core, preload, frame host,
 - Fact-check of the explainer (Opus agent): 9 wrong, 11 imprecise claims, fixed; guards without scenarios listed in PENDING.
 - Decided: `TIE_TOKEN` per tile is identity/scoping plumbing, not security (any process of the user can read a shell's env); deferred until a scoping feature needs it.
 
+## Batch 4 (2026-10-21, later): fact-check items as design changes
+
+- Security log always on; values that aren't Tie's marked `<untrusted>…</untrusted>` and escaped (`core/log.ts`); harness `appLog` plain / `rawLog` raw. `sec-log`.
+- Socket caller identity by kernel lineage (`native/peer`, `core/callers.ts`); `allowExternalControl` default off; Security settings page. `sec-socket`, `sec-socket-external`. Harness and package smoke use a mock keychain (the Keychain prompt was Electron's cookie-encryption key, once per ad-hoc build).
+- Browser popups: through the link-out confirm, no input timer. Electron has no popup blocker: gesture-less `window.open` gets the dialog too (one at a time).
+- Html page navigating away: error at once naming the target; no reload retries.
+- Links to files outside the document's folder (markdown, html): confirm with the full path first.
+- Principle restated by the user: simple and predictable until proven bothersome in practice; no timing heuristics.
+
 ## Flagged, kept (decisions for the user; details in the report)
 
 - Socket = full power for any process that can reach it (sandboxed agents inherit `TIE_SOCKET`). Decision 2026-10-19: known, not Tie's to solve; revisit only if Tie itself sandboxes agents (PENDING).
