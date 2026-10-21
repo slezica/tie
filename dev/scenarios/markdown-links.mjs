@@ -70,8 +70,15 @@ export default async (ctx, h) => {
     h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame')
     await (await fr()).evaluate(() => scrollTo(0, 0))
 
-    // External: system browser (harness: logged). Missing: modal.
+    // External: hover shows the target in the tile's link strip; click asks first, then the system
+    // browser (harness: logged). Missing: modal.
+    const wb = await (await fr()).locator('a >> text=web').boundingBox()
+    await ctx.page.mouse.move(wb.x + 5, wb.y + wb.height / 2)
+    await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === 'https://example.com/ext', 'link strip shows the URL')
     await h.clickIn(ctx, await fr(), 'a >> text=web')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'confirm dialog')
+    h.assert((await ctx.page.textContent('.dialog.external-open .url')) === 'https://example.com/ext', 'full URL shown')
+    await ctx.page.click('.dialog .confirm')
     await h.waitFor(ctx, async () => ctx.appLog().includes('external open https://example.com/ext'), 'external open')
     await h.clickIn(ctx, await fr(), 'a >> text=gone')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'missing target: modal')

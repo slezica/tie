@@ -122,6 +122,22 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
     scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'instant' })
   })
 
+  // Pointer over a link: the host shows its real target in the tile's link strip ('' = left).
+  if (spec.links) {
+    let hovered = ''
+    const hrefOf = (t: EventTarget | null) => {
+      const a = (t as Element | null)?.closest?.('a')
+      return a ? (a.getAttribute('href') ?? a.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ?? '') : ''
+    }
+    addEventListener('mouseover', (e) => {
+      const h = hrefOf(e.target)
+      if (h !== hovered) state.port?.postMessage({ verb: 'hover', href: (hovered = h) })
+    })
+    addEventListener('mouseout', (e) => {
+      if (hovered && !hrefOf(e.relatedTarget)) state.port?.postMessage({ verb: 'hover', href: (hovered = '') })
+    })
+  }
+
   // Middle clicks, drops: never navigate (the nav lock would refuse anyway).
   addEventListener('auxclick', (e) => (e.target as Element).closest?.('a') && e.preventDefault())
   addEventListener('dragover', (e) => e.preventDefault())

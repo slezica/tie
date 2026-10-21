@@ -7,6 +7,7 @@ import { S, tie, debug } from '../state'
 import { termOptions } from '../appearance'
 import { activate } from '../ops'
 import { pasteInto } from '../paste'
+import { openExternal } from '../external'
 import { shellQuote } from '@core/paste'
 import type { Host, OpenOpts, Surface } from '.'
 
@@ -28,25 +29,18 @@ const byPty = new Map<number, Term>()
 
 // SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
 // xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
-// URL, only cmd-click opens it, and only via main's openExternal (which allows http(s) only).
-// Non-http schemes pass xterm (allowNonHttpProtocols) so the tip can show them as blocked.
-const linkTip = document.createElement('div')
-linkTip.className = 'link-tip'
+// URL in the tile's link strip (shell realm), only cmd-click opens it, after the user confirms
+// (external.ts), and only via main's openExternal (http(s) only). Non-http schemes pass xterm
+// (allowNonHttpProtocols) so the strip can show them as blocked.
 const webUrl = (uri: string) => /^https?:\/\//i.test(uri)
-const linkHandler = {
+const linkHandler = (host: Host) => ({
   allowNonHttpProtocols: true,
   activate: (e: MouseEvent, uri: string) => {
-    if (e.metaKey) tie.openExternal(uri)
+    if (e.metaKey && webUrl(uri)) void openExternal(uri, `Terminal ${host.id}`)
   },
-  hover: (e: MouseEvent, uri: string) => {
-    linkTip.textContent = webUrl(uri) ? `⌘-click to open ${uri}` : `Blocked link: ${uri}`
-    linkTip.classList.toggle('blocked', !webUrl(uri))
-    linkTip.style.left = `${e.clientX + 12}px`
-    linkTip.style.top = `${e.clientY + 16}px`
-    document.body.appendChild(linkTip)
-  },
-  leave: () => linkTip.remove(),
-}
+  hover: (_e: MouseEvent, uri: string) => host.hint(webUrl(uri) ? `⌘-click to open ${uri}` : `Blocked link: ${uri}`),
+  leave: () => host.hint(null),
+})
 
 export function terminalKind(host: Host, opts: OpenOpts): Surface {
   const term = new Terminal({
@@ -56,7 +50,7 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
     macOptionIsMeta: true,
     macOptionClickForcesSelection: true,
     allowProposedApi: true,
-    linkHandler,
+    linkHandler: linkHandler(host),
   })
   const fit = new FitAddon()
   term.loadAddon(fit)

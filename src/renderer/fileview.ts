@@ -12,6 +12,7 @@ import { appearance, fontStack } from './appearance'
 import { theme } from './themes'
 import { openTile, besidePlacement } from './ops'
 import { infoDialog } from './dialog'
+import { openExternal } from './external'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from './kinds'
 import type { DocBody } from '../preload'
@@ -111,6 +112,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     },
     handlers: {
       followLink: (r) => follow(r.href, r.newTile),
+      hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
     },
   })
 
@@ -132,14 +134,23 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     } else sendDoc()
   }
 
-  // SECURITY: hrefs come from the document. classifyLink allows anchors, http(s) (main re-checks)
-  // and local files (main re-checks: absolute, existing, its kind). Files of this kind (by
-  // extension) open here (cmd: a new tile beside); files of another kind (or decided by content)
-  // open beside, in their kind (main decides); everything else refused.
+  // Link strip text for a hovered href: what following it would do.
+  function target(href: string): string {
+    const l = classifyLink(href, doc!.path)
+    if (l.type === 'web') return l.url
+    if (l.type === 'file') return l.path + l.hash
+    if (l.type === 'anchor') return l.hash
+    return `Blocked link: ${href.trim()}`
+  }
+
+  // SECURITY: hrefs come from the document. classifyLink allows anchors, http(s) (the user confirms,
+  // main re-checks) and local files (main re-checks: absolute, existing, its kind). Files of this
+  // kind (by extension) open here (cmd: a new tile beside); files of another kind (or decided by
+  // content) open beside, in their kind (main decides); everything else refused.
   function follow(href: string, newTile: boolean) {
     if (!doc) return
     const l = classifyLink(href, doc.path)
-    if (l.type === 'web') return tie.openExternal(l.url)
+    if (l.type === 'web') return void openExternal(l.url, nameOf(doc.path))
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
     if (l.kind !== kind) return void beside(l.path, l.hash)

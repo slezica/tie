@@ -101,6 +101,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
         title = pageTitle(e.title)
         changed()
       })
+      el.addEventListener('update-target-url', (e) => host.alive() && host.hint(e.url || null)) // hovered link (site text, shown as text)
       el.addEventListener('did-start-loading', () => ((loading = true), changed()))
       el.addEventListener('did-stop-loading', () => ((loading = false), changed()))
       el.addEventListener('did-fail-load', (e) => e.isMainFrame && e.errorCode !== -3 && debug('guest', 'load failed', host.id, e.errorCode, e.validatedURL))

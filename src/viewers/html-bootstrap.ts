@@ -1,6 +1,6 @@
 // Html bootstrap: injected by main (content.ts) first in the <head> of every html document an html
 // tile shows, inline (the document CSP allows inline scripts). The page's only link to the host:
-// handshake (one MessagePort from the shell), watchdog pong, link clicks and window.open → requests
+// handshake (one MessagePort from the shell), watchdog pong, link hovers, clicks and window.open → requests
 // (the host routes them: same folder in the tile, other files beside, the web after a confirm),
 // scroll kept across reloads. docs/VIEWERS.md "Html".
 //
@@ -17,8 +17,6 @@
   const prevent = Event.prototype.preventDefault
   const closest = Element.prototype.closest
   const getAttr = Element.prototype.getAttribute
-  const getTitle = Object.getOwnPropertyDescriptor(Document.prototype, 'title')?.get
-  const Observer = MutationObserver
   let store: Storage | null = null
   try {
     store = window.sessionStorage
@@ -42,27 +40,24 @@
         if (m.data?.type === 'tie:ping') send({ verb: 'pong', n: m.data.n })
       }
       send({ verb: 'ready' })
-      sendTitle(true)
     }) as EventListener,
     true,
   )
 
-  // The page's <title> (tile title). Sent when it changes; bounded (the host trims it again).
-  let lastTitle = ''
-  const sendTitle = (force = false) => {
-    let t = ''
-    try {
-      t = String(getTitle?.call(document) ?? '').slice(0, 1024)
-    } catch {}
-    if (!force && t === lastTitle) return
-    lastTitle = t
-    send({ verb: 'title', text: t })
+  // Pointer over a link: the host shows its real target (link strip). '' when it leaves.
+  let hovered = ''
+  const hoverOf = (e: Event) => {
+    const a = e.target instanceof Element ? (closest.call(e.target, 'a[href], area[href]') as Element | null) : null
+    return a ? (getAttr.call(a, 'href') ?? '').trim() : ''
   }
-  addEvent.call(document, 'DOMContentLoaded', () => {
-    try {
-      new Observer(() => sendTitle()).observe(document.head ?? document.documentElement, { subtree: true, childList: true, characterData: true })
-    } catch {}
-  })
+  addEvent.call(window, 'mouseover', ((e: MouseEvent) => {
+    const h = hoverOf(e)
+    if (h !== hovered) send({ verb: 'hover', href: (hovered = h) })
+  }) as EventListener)
+  addEvent.call(window, 'mouseout', ((e: MouseEvent) => {
+    const to = e.relatedTarget instanceof Element ? (closest.call(e.relatedTarget, 'a[href], area[href]') as Element | null) : null
+    if (!to && hovered) send({ verb: 'hover', href: (hovered = '') })
+  }) as EventListener)
 
   // Link clicks the page didn't handle: the host decides (no navigation from here). In-page anchors
   // and javascript: links stay the page's. target=_blank / cmd-click: a new tile (or the web).

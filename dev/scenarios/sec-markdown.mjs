@@ -134,10 +134,12 @@ export default async (ctx, h) => {
     // Links: only http(s) out (main logs it); other schemes refused; never in-app.
     for (const href of ['smb://host/share.md', 'file:///etc/hosts', 'javascript:alert(1)', 'x-app://run', '//evil.example/x.md']) await post({ verb: 'followLink', href, newTile: false })
     await post({ verb: 'followLink', href: `${p.url}/focused`, newTile: false })
-    await ctx.sleep(500)
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'http(s): confirm dialog first')
+    h.assert(!ctx.appLog().includes(`external open ${p.url}/focused`), 'nothing opened before the confirm')
+    await ctx.page.click('.dialog .confirm')
+    await h.waitFor(ctx, async () => ctx.appLog().includes(`external open ${p.url}/focused`), 'http(s) goes to the system browser after Open (harness: logged)')
     const log = ctx.appLog()
     h.assert((log.match(/\[security\] refused link t\d+/g) ?? []).length === 5, 'other schemes refused')
-    h.assert(log.includes(`external open ${p.url}/focused`), 'http(s) goes to the system browser (harness: logged)')
     await p.assertUntouched('links', 300)
     h.assert((await h.list(ctx)).tiles.length === 2, 'no tiles opened')
   } finally {
