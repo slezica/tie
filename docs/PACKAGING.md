@@ -55,6 +55,8 @@ Idempotent:
 
 Ad hoc (`codesign --sign -`), enough for self-built apps. No developer identity, no notarization (needed only to distribute).
 
+First launch of each build: macOS asks whether Tie may use "Tie Safe Storage" in the Keychain (Electron's cookie-encryption key, fuse `enableCookieEncryption`). An ad-hoc signature is a new identity every build, so "Always allow" lasts until the next install. Harness and smoke instances run with `--use-mock-keychain` and never prompt.
+
 ## Electron updates
 
 - `tie-dev electron-check`: pinned version (`package.json`, exact) vs npm dist-tags (`<major>-x-y`, `latest`).
