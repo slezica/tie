@@ -55,5 +55,7 @@
 
 ## Harness
 
+- Guards without a scenario (fact-check 2026-10-21): frame message flood cap (1000/s), content frames can't download (`noDownloads` + no `allow-downloads`), html new-tile throttle (1/s), `confirmExternal` off path, guest `window.focus()` not moving the shell's focus (probed by hand only), Bluetooth / client-cert / device denials (no device in the harness).
+
 - Flake (2026-10-20, twice in a row, then 3/3 green): `markdown-links` "b.md in the same tile": the first click into the frame produced no request at the shell at all (no `refused`, no `go` in the log). Not the gesture-rule race (that logs a refusal). Unexplained.
 - Flake (1 in a full e2e run, 2026-10-17; 5/5 standalone green): `html` "cmd+R: reloaded, scroll kept" right after a sibling change that fired two live reloads (fs events) 300 ms apart. Suspected: the cmd+R reload hit the second page before its scroll restore. Not reproduced with back-to-back reloads; not fixed.
