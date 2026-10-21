@@ -1,9 +1,10 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
-// Pages: Appearance (app-wide look) | Terminal (tile-kind specific).
+// Pages: Appearance (app-wide look) | Terminal | Content (file, html and web behaviour).
 import { tie } from './state'
 import { refocus } from './ops'
 import { THEMES, theme } from './themes'
 import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
+import { applyPrefs } from './prefs'
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
@@ -32,6 +33,7 @@ export async function toggleSettings() {
         <button data-page="appearance">Appearance</button>
         <hr />
         <button data-page="terminal">Terminal</button>
+        <button data-page="content">Content</button>
       </nav>
       <div class="pages">
         <section data-page="appearance">
@@ -83,6 +85,13 @@ export async function toggleSettings() {
           <label class="check"><input id="set-warn-control" type="checkbox" /> Confirm control characters <span class="scope">pastes and drops</span></label>
           <label class="check"><input id="set-warn-run" type="checkbox" /> Confirm pastes that would run commands <span class="scope">newlines, program without bracketed paste</span></label>
         </section>
+        <section data-page="content">
+          <h2>Content</h2>
+          <h3>Html files</h3>
+          <label class="check"><input id="set-html-scripts" type="checkbox" /> Run scripts by default <span class="scope">off: pages open static; the title-bar pill turns scripts on per tile</span></label>
+          <h3>Links</h3>
+          <label class="check"><input id="set-confirm-external" type="checkbox" /> Confirm before opening links in the browser <span class="scope">files, html pages, terminals</span></label>
+        </section>
         <div class="actions">
           <span class="status" title="${esc(path)}">${esc(path)}</span>
           <button class="cancel">Cancel</button>
@@ -104,6 +113,8 @@ export async function toggleSettings() {
   const shell = $<HTMLInputElement>('#set-shell')
   const warnControl = $<HTMLInputElement>('#set-warn-control')
   const warnRun = $<HTMLInputElement>('#set-warn-run')
+  const htmlScripts = $<HTMLInputElement>('#set-html-scripts')
+  const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
   // Font list arrives async (system font query can be slow); fields never wait on it.
@@ -124,6 +135,8 @@ export async function toggleSettings() {
   shell.value = settings.shell
   warnControl.checked = settings.warnPasteControl
   warnRun.checked = settings.warnPasteRun
+  htmlScripts.checked = settings.htmlScripts
+  confirmExternal.checked = settings.confirmExternal
   shell.placeholder = defaults.shell
 
   const swatches = () => {
@@ -142,6 +155,8 @@ export async function toggleSettings() {
     shelfStyle: shelfStyle.value as 'normal' | 'compact',
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
+    htmlScripts: htmlScripts.checked,
+    confirmExternal: confirmExternal.checked,
   })
   const preview = () => {
     swatches()
@@ -158,7 +173,7 @@ export async function toggleSettings() {
   const show = (p: string) => {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
-    ;(p === 'terminal' ? shell : themeSel).focus()
+    ;(p === 'terminal' ? shell : p === 'content' ? htmlScripts : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
 
@@ -189,7 +204,10 @@ export async function toggleSettings() {
   }
   const save = async () => {
     const res = await tie.settings.set({ ...draft(), shell: shell.value.trim() })
-    if (res.ok) return close()
+    if (res.ok) {
+      applyPrefs(res.settings)
+      return close()
+    }
     showErrors(res.errors)
   }
   $('.save').addEventListener('click', save)

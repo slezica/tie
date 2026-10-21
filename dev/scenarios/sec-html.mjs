@@ -12,6 +12,7 @@ import { createServer } from 'node:net'
 import { createSocket } from 'node:dgram'
 
 export const hiddenWindow = true
+export const settings = { htmlScripts: true } // hostile pages that run (the default is off: html-scripts)
 
 export default async (ctx, h) => {
   const p = await h.probe(ctx)

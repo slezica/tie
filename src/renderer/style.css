@@ -359,6 +359,46 @@ body.dragging-tab .tab {
 .titlebar .spacer {
   flex: 1;
 }
+/* Kind pill (Surface.pill): a labelled toggle, e.g. html "Scripts: off". */
+.titlebar .pill {
+  width: auto;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: 600 10.5px var(--ui-font);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.titlebar .pill.on {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+/* Link strip (Host.hint): the hovered link's real target, bottom-left of the tile, over the body,
+   in the shell (content can't draw it). */
+.link-strip {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 5;
+  max-width: 75%;
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 6px;
+  font: 11.5px var(--tile-font);
+  color: var(--text);
+  pointer-events: none;
+}
 .btn {
   flex: none;
   width: 22px;
@@ -756,26 +796,6 @@ body.resizing-col { cursor: row-resize; }
 }
 body.empty #empty-hint {
   display: grid;
-}
-
-/* Terminal link hover tip: the real URL behind OSC 8 link text. */
-.link-tip {
-  position: absolute;
-  z-index: 7000;
-  max-width: 60vw;
-  padding: 4px 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  box-shadow: 0 4px 16px var(--shadow);
-  font-size: 12px;
-  pointer-events: none;
-}
-.link-tip.blocked {
-  color: var(--red);
 }
 
 /* Context menu */

@@ -16,6 +16,7 @@ interface Entry {
   root: string // real path
   kind: string // viewer name
   frame: number | null // frameTreeNodeId of the one frame that may show it (bound on first load)
+  scripts: boolean // documents: the page's own scripts run (else only the bootstrap, by nonce)
   watcher?: FSWatcher // documents: the root folder (live reload)
 }
 
@@ -49,8 +50,8 @@ const isDocKind = (kind: string) => policyOf(kind)?.page === 'document'
 
 // SECURITY: the shell (trusted) names the root; still checked: absolute, existing directory, real
 // path (symlinked roots resolve once, here). Document kinds also name the page: a document inside
-// the root. Returns the frame URL, never file paths.
-export function openContent(root: unknown, kind: unknown, page?: unknown): { token: string; url: string } | { error: string } {
+// the root; and whether its scripts run (default: not). Returns the frame URL, never file paths.
+export function openContent(root: unknown, kind: unknown, page?: unknown, scripts = false): { token: string; url: string } | { error: string } {
   if (typeof kind !== 'string' || !(VIEWERS.has(kind) || isDocKind(kind))) return { error: `unknown kind: ${String(kind)}` }
   let real: string
   try {
@@ -67,9 +68,9 @@ export function openContent(root: unknown, kind: unknown, page?: unknown): { tok
   if (isDocKind(kind)) {
     if (typeof page !== 'string' || !isDocument(page) || !contentFile(real, '/' + page.split('/').map(encodeURIComponent).join('/'))) return { error: `Not a page in ${real}: ${String(page)}` }
   }
-  entries.set(token, { root: real, kind, frame: null })
+  entries.set(token, { root: real, kind, frame: null, scripts })
   if (isDocKind(kind)) watchRoot(token)
-  log('content', 'open', kind, token.slice(0, 8), real)
+  log('content', 'open', kind, token.slice(0, 8), real, isDocKind(kind) ? (scripts ? 'scripts' : 'static') : '')
   return { token, url: isDocKind(kind) ? documentUrl(token, page as string) : viewerUrl(token, kind) }
 }
 
@@ -200,13 +201,14 @@ function bootstrap(): string | null {
   return bootstrapJs || null
 }
 
-// An html document with the bootstrap injected (bytes, as stored, plus the script).
-function withBootstrap(body: Buffer): { body: Buffer; charset: string } | null {
+// An html document with the bootstrap injected (bytes, as stored, plus the script, carrying the
+// response nonce: with scripts off, the CSP lets only it run).
+function withBootstrap(body: Buffer, nonce: string): { body: Buffer; charset: string } | null {
   const js = bootstrap()
   if (!js) return null
   const text = body.toString('latin1') // byte offsets = string offsets
   const at = bootstrapAt(text)
-  const tag = Buffer.from(`<script>${js}</script>`, 'latin1')
+  const tag = Buffer.from(`<script nonce="${nonce}">${js}</script>`, 'latin1')
   return { body: Buffer.concat([body.subarray(0, at), tag, body.subarray(at)]), charset: htmlCharset(text) }
 }
 
@@ -238,9 +240,10 @@ export function serveContent(ses: Session) {
       if (cap && st.size > cap) return refuse(req.url, 'document too large')
       const body = await readFile(real).catch(() => null)
       if (!body) return refuse(req.url, 'unreadable')
-      const page = withBootstrap(body)
+      const nonce = randomBytes(16).toString('base64')
+      const page = withBootstrap(body, nonce)
       if (!page) return refuse(req.url, 'bootstrap missing')
-      return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': documentCsp() } })
+      return new Response(new Uint8Array(page.body), { headers: { ...HEADERS, 'Content-Type': `text/html; charset=${page.charset}`, 'Content-Security-Policy': documentCsp(r.entry.scripts, nonce) } })
     }
     // SECURITY: every other root file (images, scripts, data, media) is streamed, never read into
     // memory whole: content choosing a multi-GB file of its folder (<img>, fetch, <video>) costs
@@ -248,7 +251,7 @@ export function serveContent(ses: Session) {
     const body = streamFile(real)
     if (!body) return refuse(req.url, 'unreadable')
     const headers = { ...HEADERS, 'Content-Length': String(st.size) }
-    if (doc) return new Response(body, { headers: { ...headers, 'Content-Type': DOC_TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': documentCsp() } })
+    if (doc) return new Response(body, { headers: { ...headers, 'Content-Type': DOC_TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': documentCsp(r.entry.scripts, randomBytes(16).toString('base64')) } })
     const type = TYPES[extname(real).toLowerCase()] ?? 'application/octet-stream'
     return new Response(body, { headers: { ...headers, 'Content-Type': type, 'Content-Security-Policy': "default-src 'none'; sandbox" } })
   })

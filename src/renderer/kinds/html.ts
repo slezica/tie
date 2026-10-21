@@ -1,23 +1,28 @@
-// Html kind: a local .html file is the page. Its scripts run (decision 2026-10-16), isolated: own
-// content frame on its own token origin (sandbox allow-scripts allow-same-origin), document CSP (no
-// network), nav lock within its folder, storage in memory only (the shell's session). Main injects the bootstrap
-// (src/viewers/html-bootstrap.ts): handshake, pong, link clicks and window.open → followLink.
-// Here: routing those requests, history (host-driven and the page's own navigations, reported by
-// main), live reload on folder changes, nav bar. docs/VIEWERS.md "Html".
+// Html kind: a local .html file is the page, isolated: own content frame on its own token origin
+// (sandbox allow-scripts allow-same-origin), document CSP (no network), nav lock within its folder,
+// storage in memory only (the shell's session). The page's own scripts run only when the tile says
+// so (pill "Scripts: off/on" in the title bar; default from the setting `htmlScripts`, remembered
+// per file for the session): with scripts off the document CSP lets only Tie's bootstrap run and the
+// page is static. Main injects the bootstrap (src/viewers/html-bootstrap.ts): handshake, pong, link
+// hovers, clicks and window.open → requests. Here: routing those requests, history (host-driven and
+// the page's own navigations, reported by main), live reload on folder changes, nav bar.
+// docs/VIEWERS.md "Html".
 import { tie, debug, spaceOf, withSpace, type Kind } from '../state'
 import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
-import { infoDialog, confirmDialog } from '../dialog'
+import { infoDialog } from '../dialog'
 import { dirOf } from '../fileview'
+import { openExternal } from '../external'
+import { prefs } from '../prefs'
 import { classifyLink } from '@core/links'
-import { pageTitle } from '@core/guest'
 import type { Host, OpenOpts, Surface } from '.'
 
 const ICON = '🌐'
 const RELOAD_MS = 100 // folder change → reload (main already debounced)
 const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (scripts can call window.open)
-const CONFIRM_ARM_MS = 600 // the confirm dialog's Open button is disabled this long after it appears
-const LONG_LINK = 200 // characters after the site address that make a link "long" (data riding on it)
+
+// Files whose scripts the user turned on (or off) in this session: a tile showing them starts so.
+const scriptsByPath = new Map<string, boolean>()
 
 const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/')
@@ -28,10 +33,9 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   const history = { list: [] as string[], index: -1 }
   let ready = false
   let reloads = 0
-  let asking = false // confirm dialog open: further external requests dropped
   let lastNewTile = 0
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
-  let docTitle = '' // the page's <title> (bootstrap request): untrusted text, bounded
+  let scripts = scriptsByPath.get(path) ?? prefs.htmlScripts // the page's own scripts run (token property)
 
   const inRoot = (p: string) => p.startsWith(root === '/' ? '/' : root + '/')
   const rel = (p: string) => p.slice(root === '/' ? 1 : root.length + 1)
@@ -40,18 +44,12 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     viewer: 'html',
     root,
     page: rel(path),
+    scripts: () => scripts,
     title: 'html',
     icon: ICON,
     handlers: {
       followLink: (r) => void follow(r.href, r.newTile),
-      // SECURITY: the page's own text (any script can set it): plain text, control characters out,
-      // bounded; shown only via textContent (title bar, shelf, tabs) and in tie list.
-      title: (r) => {
-        const t = pageTitle(r.text)
-        if (t === docTitle) return
-        docTitle = t
-        host.changed()
-      },
+      hover: (r) => host.hint(r.href ? target(r.href) : null),
     },
     onReady: () => {
       ready = true
@@ -100,21 +98,35 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     host.changed()
   }
 
-  // SECURITY: requests come from the page's realm (bootstrap or any page script): hostile. Hrefs
-  // resolve against the page (root-absolute "/x" = the folder's, own-origin URLs too); then
-  // classifyLink: http(s) → only after the user confirms the full URL (scripts can fire this
-  // without a click: the dialog closes that exfiltration path); html files → this tile; other files
-  // or new-tile requests → beside, in their kind (main checks), at most one per second; everything
-  // else refused.
-  async function follow(href: string, newTile: boolean) {
+  // A link as the page wrote it → where it leads (classifyLink), after resolving root-absolute "/x"
+  // (the folder's) and own-origin URLs to paths.
+  function resolve(href: string) {
     let h = href.trim()
     const origin = frame.origin()
     if (origin && h.toLowerCase().startsWith(origin + '/')) h = h.slice(origin.length)
     if (h.startsWith('/') && !h.startsWith('//')) h = (root === '/' ? '' : root) + h
-    const l = classifyLink(h, path)
+    return classifyLink(h, path)
+  }
+
+  // Link strip text for a hovered href: what following it would do.
+  function target(href: string): string {
+    const l = resolve(href)
+    if (l.type === 'web') return l.url
+    if (l.type === 'file') return l.path + l.hash
+    if (l.type === 'anchor') return l.hash
+    return `Blocked link: ${href.trim()}`
+  }
+
+  // SECURITY: requests come from the page's realm (bootstrap or any page script): hostile. Hrefs
+  // resolve against the page; then classifyLink: http(s) → only after the user confirms the full
+  // URL (scripts can fire this without a click: the dialog closes that exfiltration path); html
+  // files → this tile; other files or new-tile requests → beside, in their kind (main checks), at
+  // most one per second; everything else refused.
+  async function follow(href: string, newTile: boolean) {
+    const l = resolve(href)
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
     if (l.type === 'anchor') return newTile ? undefined : frame.load(rel(path) + l.hash)
-    if (l.type === 'web') return askExternal(l.url)
+    if (l.type === 'web') return openExternal(l.url, nameOf(path), `The page can read files under ${root}; a link you open is the only way it can send anything out.`)
     if (!newTile && l.kind === 'html') return go(l.path, 'push', l.hash)
     const now = Date.now()
     if (now - lastNewTile < NEW_TILE_MS) return debug('security', 'new tile throttled', host.id, l.path)
@@ -126,26 +138,6 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash: l.hash })
     debug('html', 'open beside', host.id, v.kind, v.path)
     sp ? withSpace(sp.id, open) : open()
-  }
-
-  // SECURITY: the page asked for the web (link, target=_blank, window.open). Never without the user:
-  // a dialog showing the full URL (site address emphasized; a long tail is called out: the only way
-  // data leaves a page is a link the user opens), Cancel focused (Enter cancels), Open disabled for
-  // a moment (no click-through). One at a time; requests while it is open are dropped.
-  async function askExternal(url: string) {
-    if (asking) return debug('security', 'external request dropped (dialog open)', host.id, url)
-    asking = true
-    const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
-    const origin = new URL(url).origin
-    const shown = p('', 'url')
-    shown.append(Object.assign(document.createElement('b'), { className: 'host', textContent: origin }), url.slice(origin.length))
-    const body = [p(`${nameOf(path)} wants to open:`), shown]
-    const tail = url.length - origin.length
-    if (tail > LONG_LINK) body.push(p(`Long link: ${tail} characters after the site address. The page can read files under ${root}; a link you open is the only way it can send anything out.`, 'warn'))
-    const ok = await confirmDialog({ cls: 'external-open', title: 'Open in browser?', body, confirm: 'Open', arm: CONFIRM_ARM_MS })
-    asking = false
-    debug('html', ok ? 'external confirmed' : 'external cancelled', host.id, url)
-    if (ok && host.alive()) tie.openExternal(url)
   }
 
   function step(d: -1 | 1) {
@@ -170,10 +162,25 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       if (reloadTimer) clearTimeout(reloadTimer)
       frame.dispose()
     },
-    title: () => docTitle || nameOf(path),
+    title: () => nameOf(path),
     icon: () => ICON,
     dir: () => root,
     cwd: async () => root,
+    // SECURITY: scripts are a per-tile choice the user makes here (or by the setting's default); a
+    // new token carries it (the CSP is decided per token in main), so the page reloads.
+    pill: {
+      label: () => (scripts ? 'Scripts: on' : 'Scripts: off'),
+      on: () => scripts,
+      title: () => (scripts ? "This page's scripts run (isolated: no network, no Tie). Click to reload it static." : 'This page is shown static: its scripts do not run. Click to reload it with scripts.'),
+      toggle: () => {
+        scripts = !scripts
+        scriptsByPath.set(path, scripts)
+        ready = false
+        debug('html', 'scripts', host.id, scripts ? 'on' : 'off')
+        host.changed()
+        void frame.setRoot(root, rel(path))
+      },
+    },
     nav: {
       state: () => ({ location: path, back: history.index > 0, forward: history.index < history.list.length - 1, editable: false }),
       back: () => step(-1),
@@ -185,7 +192,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     },
     info: () => {
       const o = frame.origin()
-      return { page: { path, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, history: { index: history.index, length: history.list.length } } }
+      return { page: { path, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, scripts, history: { index: history.index, length: history.list.length } } }
     },
   }
 }

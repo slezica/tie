@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const hiddenWindow = true
+export const settings = { htmlScripts: true } // hostile pages that run (the default is off: html-scripts)
 
 export default async (ctx, h) => {
   const p = await h.probe(ctx)

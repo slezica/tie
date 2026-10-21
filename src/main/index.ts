@@ -87,7 +87,7 @@ ipc.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
-ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
+ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown, scripts: unknown) => openContent(root, kind, page, scripts === true))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
 ipc.on('content:kill', (_e, token: unknown) => killContent(token, win?.webContents.mainFrame ?? null))
 const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed', id, p)

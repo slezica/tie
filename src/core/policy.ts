@@ -81,7 +81,7 @@ export function viewerKinds(dev: boolean): ContentKind[] {
 // CSS can only restyle the tile; its url()s are still bound by img-src (own token) and font-src
 // (none); scripts stay nonce-only.
 export function contentCsp(p: ContentPolicy, nonce: string, token: string): string {
-  if (p.page === 'document') return documentCsp()
+  if (p.page === 'document') return documentCsp(true, nonce)
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
@@ -94,16 +94,19 @@ export function contentCsp(p: ContentPolicy, nonce: string, token: string): stri
   ].join('; ')
 }
 
-// SECURITY: html documents (and every file of their root, workers included) run their own scripts,
-// isolated on their token origin: inline and eval add nothing there. Everything else is local only:
-// 'self' (the token) plus data:/blob: for styles, images, fonts, media; connections only to 'self'.
-// No remote source in any directive (no network: no exfiltration, no tracking, no LAN). No frames,
-// objects, forms, <base>. WebRTC (STUN/TURN) is outside every CSP directive Chromium enforces:
-// blocked for the whole shell session instead (main/security.ts noNetwork).
-export function documentCsp(): string {
+// SECURITY: html documents (and every file of their root, workers included), isolated on their
+// token origin. Scripts: with `scripts` the page's own run (inline and eval add nothing there);
+// without, only Tie's bootstrap, by the per-response nonce: the page is static (no inline
+// handlers, no <script>, no modules, no workers), yet links, scroll keep and the watchdog work.
+// Everything else is local only: 'self' (the token) plus data:/blob: for styles, images, fonts,
+// media; connections only to 'self'. No remote source in any directive (no network: no
+// exfiltration, no tracking, no LAN). No frames, objects, forms, <base>. WebRTC (STUN/TURN) is
+// outside every CSP directive Chromium enforces: blocked for the whole shell session instead
+// (main/security.ts noNetwork).
+export function documentCsp(scripts: boolean, nonce: string): string {
   return [
     "default-src 'none'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+    scripts ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'" : `script-src 'nonce-${nonce}'`,
     "style-src 'self' 'unsafe-inline' data: blob:",
     "img-src 'self' data: blob:",
     "font-src 'self' data: blob:",

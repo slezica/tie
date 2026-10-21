@@ -28,6 +28,7 @@ export interface Host {
   exit(code: number): void // content ended: status shown in the title bar
   error(message: string): void // failed to start: message replaces the content
   close(): void
+  hint(text: string | null): void // link strip at the tile's bottom-left (hovered link's real target); null hides
 }
 
 export interface Surface {
@@ -44,6 +45,15 @@ export interface Surface {
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
   nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
+  pill?: Pill // a state the kind exposes in its title bar (html: scripts on/off); clicking toggles
+}
+
+// Title-bar pill: a labelled toggle for one per-tile state (tile.ts renders it, `changed()` refreshes it).
+export interface Pill {
+  label(): string
+  title(): string // tooltip
+  on(): boolean // highlighted
+  toggle(): void
 }
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface

@@ -36,11 +36,13 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
       <span class="title"></span>
       <span class="status"></span>
       <span class="spacer"></span>
+      <button class="btn pill" hidden></button>
       <button class="btn collapse" title="Collapse">${ICON.collapse}</button>
       <button class="btn zoom" title="Zoom">${ICON.zoom}</button>
       <button class="btn close" title="Close">${ICON.close}</button>
     </div>
     <div class="body"></div>
+    <div class="link-strip" hidden></div>
     ${['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((d) => `<div class="rz ${d}" data-dir="${d}"></div>`).join('')}
   `
   document.getElementById('tiles')!.appendChild(el)
@@ -59,6 +61,12 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
     },
     error: (message) => showError(tile, message),
     close: () => host.alive() && closeTile(id),
+    // SECURITY: the strip lives in the shell, over the body: content can't draw the real one. Text only.
+    hint: (text) => {
+      const strip = el.querySelector('.link-strip') as HTMLElement
+      strip.textContent = text ?? ''
+      strip.hidden = !text
+    },
   }
   S.tiles.set(id, tile)
   tile.surface = factory(host, opts)
@@ -79,6 +87,13 @@ export function refreshTitle(t: Tile) {
   ;(t.el.querySelector('.title') as HTMLElement).textContent = title
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
+  const pill = t.el.querySelector('.pill') as HTMLButtonElement
+  pill.hidden = !t.surface.pill
+  if (t.surface.pill) {
+    pill.textContent = t.surface.pill.label()
+    pill.title = t.surface.pill.title()
+    pill.classList.toggle('on', t.surface.pill.on())
+  }
   refreshNav(t)
   document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
 }

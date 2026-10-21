@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const hiddenWindow = true
+export const settings = { htmlScripts: true } // this scenario is about pages that run; the default (off) and the pill: html-scripts
 
 const page = (title, body, head = '') => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${head}</head><body>${body}</body></html>`
 
@@ -50,15 +51,11 @@ export default async (ctx, h) => {
     const r = await f0.evaluate(() => ({ app: window.appLoaded, color: getComputedStyle(document.getElementById('h')).color, origin: location.origin }))
     h.assert(r.app && r.color === 'rgb(1, 2, 3)' && /^tie-content:\/\/[0-9a-f]{32}$/.test(r.origin), `siblings: ${JSON.stringify(r)}`)
     const t = await h.tileOf(ctx, id)
-    h.assert(t.kind === 'html' && t.title === 'Index' && !t.error, `html tile, title from <title>: ${JSON.stringify(t)}`)
-    // Title changes follow; hostile titles stay text, bounded, without control characters.
+    h.assert(t.kind === 'html' && t.title === 'index.html' && !t.error, `html tile, title = file name: ${JSON.stringify(t)}`)
+    // The page's <title> never names the tile (decision 2026-10-20: content can't label itself).
     await f0.evaluate(() => (document.title = 'Changed'))
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).title === 'Changed', 'title change follows')
-    await f0.evaluate(() => (document.title = '\u0007<b id="inj">x</b>' + 'y'.repeat(3000)))
-    const ht = await h.waitFor(ctx, async () => ((await h.tileOf(ctx, id)).title.includes('inj') ? (await h.tileOf(ctx, id)).title : null), 'hostile title shown')
-    h.assert(ht.length === 200 && ht.startsWith('<b id="inj">') && !(await ctx.page.$('#inj')), `hostile title: text, bounded (${ht.length})`)
-    await f0.evaluate(() => (document.title = 'Index'))
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).title === 'Index', 'title back')
+    await ctx.sleep(400)
+    h.assert((await h.tileOf(ctx, id)).title === 'index.html' && t.page.scripts === true, 'title stays the file name; scripts on (setting)')
     await ctx.shot('index')
 
     // Link in the folder: same tile, same token; back / forward. (A first click focuses the frame:
@@ -70,7 +67,7 @@ export default async (ctx, h) => {
     await shows('B')
     let p = await pg()
     h.assert(p.path.endsWith('/site/b.html') && p.history.index === 1 && p.url.split('/')[2] === url0.split('/')[2], `b.html in the tile: ${JSON.stringify(p)}`)
-    h.assert((await h.tileOf(ctx, id)).title === 'B', 'title follows (B.html <title>)')
+    h.assert((await h.tileOf(ctx, id)).title === 'b.html', 'title follows the file')
     await h.press(ctx, 'Meta+[')
     await shows('Index')
     await h.press(ctx, 'Meta+]')

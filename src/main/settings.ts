@@ -16,9 +16,11 @@ export interface Settings {
   shelfStyle: 'normal' | 'compact' // app-wide: compact = narrow, icons only
   warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
+  htmlScripts: boolean // html tiles: run the page's scripts by default (off: static page, pill in the title bar turns them on)
+  confirmExternal: boolean // all tiles: confirm before a link opens in the system browser
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true, htmlScripts: false, confirmExternal: true }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -73,6 +75,8 @@ function sanitize(s: Settings): Settings {
     shelfStyle: s.shelfStyle === 'compact' ? 'compact' : 'normal',
     warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
     warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,
+    htmlScripts: typeof s.htmlScripts === 'boolean' ? s.htmlScripts : DEFAULTS.htmlScripts,
+    confirmExternal: typeof s.confirmExternal === 'boolean' ? s.confirmExternal : DEFAULTS.confirmExternal,
   }
 }
 

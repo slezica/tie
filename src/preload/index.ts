@@ -12,6 +12,8 @@ export interface Settings {
   shelfStyle: 'normal' | 'compact'
   warnPasteControl: boolean
   warnPasteRun: boolean
+  htmlScripts: boolean
+  confirmExternal: boolean
 }
 
 type DataCb = (id: number, data: string) => void
@@ -40,8 +42,8 @@ const api = {
   },
   // Content tiles (sandboxed frames): main registers `root` under a fresh token, returns the frame URL.
   content: {
-    // Document kinds (html) also name the page (path relative to the root).
-    open: (root: string, kind: string, page?: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind, page),
+    // Document kinds (html) also name the page (path relative to the root) and whether its scripts run.
+    open: (root: string, kind: string, page?: string, scripts?: boolean): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind, page, scripts),
     close: (token: string) => ipcRenderer.send('content:close', token),
     // Watchdog: frame stopped answering. Main kills its process (if it holds nothing else), then closes.
     kill: (token: string) => ipcRenderer.send('content:kill', token),

@@ -61,12 +61,19 @@ describe('contentCsp', () => {
   })
   it('html: the document CSP, exact', () => {
     const csp = "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' data: blob:; img-src 'self' data: blob:; font-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
-    expect(documentCsp()).toBe(csp)
+    expect(documentCsp(true, 'N0NCE')).toBe(csp)
     expect(contentCsp(POLICY.html, 'N0NCE', tok)).toBe(csp)
   })
+  it('html with scripts off: only the bootstrap (nonce) may run, the rest unchanged', () => {
+    const off = documentCsp(false, 'N0NCE')
+    expect(off).toBe(documentCsp(true, 'N0NCE').replace("script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'", "script-src 'nonce-N0NCE'"))
+    expect(off).not.toMatch(/unsafe-inline' 'unsafe-eval|script-src 'self'/)
+  })
   it('document CSP: no remote source anywhere (only self, data:, blob:, keywords)', () => {
-    for (const d of documentCsp().split('; ')) for (const src of d.split(' ').slice(1)) expect(src).toMatch(/^('self'|'none'|'unsafe-inline'|'unsafe-eval'|'wasm-unsafe-eval'|data:|blob:)$/)
-    expect(documentCsp()).not.toMatch(/\*|https?:|tie:|ws:|wss:/)
+    for (const scripts of [true, false]) {
+      for (const d of documentCsp(scripts, 'N0NCE').split('; ')) for (const src of d.split(' ').slice(1)) expect(src).toMatch(/^('self'|'none'|'unsafe-inline'|'unsafe-eval'|'wasm-unsafe-eval'|'nonce-N0NCE'|data:|blob:)$/)
+      expect(documentCsp(scripts, 'N0NCE')).not.toMatch(/\*|https?:|tie:|ws:|wss:/)
+    }
   })
   it('every viewer row: nothing by default, scripts by nonce only, images own token only, nothing remote', () => {
     for (const k of viewerKinds(true)) {

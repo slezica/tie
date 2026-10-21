@@ -41,6 +41,8 @@ function holders(dir, marker) {
   return out
 }
 
+export const settings = { htmlScripts: true } // the page's script writes the storage
+
 export default async (ctx, h) => {
   const dir = join(process.cwd(), 'tmp', `sec-storage-${process.pid}`)
   mkdirSync(dir, { recursive: true })

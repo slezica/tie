@@ -14,6 +14,7 @@ import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
 import { initSettings } from './settings'
 import { applyAppearance } from './appearance'
+import { applyPrefs } from './prefs'
 import { initKeys } from './keys'
 import { initTabs, setHome } from './tabs'
 import { initPaste, dropOnTile } from './paste'
@@ -74,6 +75,7 @@ tiles.addEventListener('click', (e) => {
   if (btn.classList.contains('close')) closeTile(id)
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
+  else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pill?.toggle()
 })
 
 tiles.addEventListener('contextmenu', (e) => {
@@ -90,6 +92,7 @@ async function boot() {
   const info = await tie.info()
   const { settings } = await tie.settings.get()
   applyAppearance(settings)
+  applyPrefs(settings)
   S.cwd = info.cwd
   setHome(info.home)
   if (info.instance !== 'default') document.getElementById('brand')!.textContent = info.instance
