@@ -12,7 +12,7 @@ import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
 import { infoDialog } from '../dialog'
 import { dirOf } from '../fileview'
-import { openExternal } from '../external'
+import { openExternal, confirmFile } from '../external'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from '.'
 
@@ -131,6 +131,9 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, untrusted(href))
     if (l.type === 'anchor') return newTile ? undefined : frame.load(rel(path) + l.hash)
     if (l.type === 'web') return openExternal(l.url, nameOf(path))
+    // Outside this page's folder: the user confirms the path first (same tile or beside alike).
+    if (!inRoot(l.path) && !(await confirmFile(l.path, nameOf(path)))) return
+    if (!host.alive()) return
     if (!newTile && l.kind === 'html') return go(l.path, 'push', l.hash)
     const now = Date.now()
     if (now - lastNewTile < NEW_TILE_MS) return debug('security', 'new tile throttled', host.id, untrusted(l.path))

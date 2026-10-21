@@ -85,7 +85,10 @@ export default async (ctx, h) => {
     h.assert((await pg()).url.split('/')[2] === url0.split('/')[2], 'subfolder: same token')
     await h.press(ctx, 'Meta+[')
     await shows('Index')
-    await h.clickIn(ctx, await fr(), '#other')
+    await h.clickIn(ctx, await fr(), '#other') // outside the page's folder: asks first
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'other folder: confirm dialog')
+    h.assert((await ctx.page.textContent('.dialog.open-file .url')).endsWith('/other/d.html'), 'path shown')
+    await ctx.page.click('.dialog .confirm')
     await shows('D')
     h.assert((await pg()).url.split('/')[2] !== url0.split('/')[2], 'other folder: new token')
     await h.press(ctx, 'Meta+[')

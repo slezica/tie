@@ -168,7 +168,7 @@
     <thead><tr><th>Kind</th><th>Code running</th><th>Can read</th><th>Can send to the UI</th><th>Can cause outside</th></tr></thead>
     <tbody>
       <tr><td><strong>terminal</strong> <span class="tag t">trusted</span></td><td>xterm (Tie's) in the UI; your programs in the pty</td><td>Program output as bytes; your keystrokes</td><td>Everything a program of yours can do; it is you</td><td>Anything, as you. OSC 8 links: hover shows target, cmd-click + confirm; plain URLs aren't links</td></tr>
-      <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images from its folder (as pixels only)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Open any local file it names in a tile beside it (shown to you, not to it); open a URL after confirm</td></tr>
+      <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images from its folder (as pixels only)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Open a local file in a tile (shown to you, not to it; outside its folder only after you confirm the path); open a URL after confirm</td></tr>
       <tr><td><strong>text / hex / image</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file</td><td><code>pong</code> (no links)</td><td>Nothing</td></tr>
       <tr><td><strong>html</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup (its scripts never run)</td><td>Its folder, recursively, by markup only (stylesheets, images, fonts)</td><td><code>followLink</code>, <code>hover</code>, <code>blocked</code>, <code>pong</code></td><td>Navigate within its folder; open a file beside; URL after confirm</td></tr>
       <tr><td><strong>browser</strong> <span class="tag u">untrusted site</span></td><td>The site, like a browser tab</td><td>The internet; its own cookies</td><td>Nothing (events only: title, URL, hovered link, loading, crash)</td><td>Popup to the system browser after you confirm it; download after you confirm it</td></tr>
@@ -296,7 +296,7 @@
       <li><code>README.md</code> says <code>[documentation](https://evil.example/login)</code>. The viewer renders it as a normal link.</li>
       <li>You hover. <span class="stop">The strip at the tile's bottom-left shows the real URL</span>, drawn by the UI, where the document can't draw.</li>
       <li>You click anyway. The viewer sends <code>followLink</code>. The UI classifies: http(s). <span class="stop">Dialog, full URL.</span> You cancel.</li>
-      <li>Had it been <code>javascript:</code>, <code>file:</code> or <code>smb:</code>: <span class="stop">refused</span> before any dialog. Had it been <code>../.ssh/id_rsa</code>: opened beside you as a text tile, on your screen only; nothing reads it but you.</li>
+      <li>Had it been <code>javascript:</code>, <code>file:</code> or <code>smb:</code>: <span class="stop">refused</span> before any dialog. Had it been <code>../.ssh/id_rsa</code>: outside the document's folder, so a dialog shows the full path first; opened only if you say so, as a text tile, on your screen only.</li>
     </ol>
   </div>
 

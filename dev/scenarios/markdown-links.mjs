@@ -12,11 +12,13 @@ export default async (ctx, h) => {
   const dir = join(process.cwd(), 'tmp', `mdlinks-${process.pid}`)
   mkdirSync(join(dir, 'sub'), { recursive: true })
   const filler = Array.from({ length: 80 }, (_, i) => `Line ${i}.`).join('\n\n')
-  writeFileSync(join(dir, 'a.md'), `# A\n\n[to b](b.md) [to c](sub/c.md#part) [jump](#far) [web](https://example.com/ext) [script](run.sh) [page](page.html) [gone](nope.md)\n\n${filler}\n\n## Far\n\nend\n`)
+  writeFileSync(join(dir, 'a.md'), `# A\n\n[to b](b.md) [to c](sub/c.md#part) [jump](#far) [web](https://example.com/ext) [script](run.sh) [page](page.html) [gone](nope.md) [up](../mdlinks-outside-${process.pid}.md)\n\n${filler}\n\n## Far\n\nend\n`)
   writeFileSync(join(dir, 'b.md'), '# B\n\n[back to a](a.md)\n')
   writeFileSync(join(dir, 'sub', 'c.md'), `# C\n\n![dot](dot.svg)\n\n${filler}\n\n## Part\n\nhere\n`)
   writeFileSync(join(dir, 'sub', 'dot.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>')
   writeFileSync(join(dir, 'run.sh'), 'echo hi\n')
+  const outside = join(process.cwd(), 'tmp', `mdlinks-outside-${process.pid}.md`)
+  writeFileSync(outside, '# Outside\n')
   writeFileSync(join(dir, 'page.html'), '<!doctype html><title>page</title><a id="md" href="b.md" style="display:block;padding:20px">to b.md</a>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
@@ -70,6 +72,21 @@ export default async (ctx, h) => {
     h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame')
     await (await fr()).evaluate(() => scrollTo(0, 0))
 
+    // A file outside the document's folder: asks first (full path shown); Cancel → nothing; Open →
+    // the same tile (same kind).
+    await h.clickIn(ctx, await fr(), 'a >> text=up')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'outside link: confirm dialog')
+    h.assert((await ctx.page.textContent('.dialog.open-file .url')) === outside && (await ctx.page.evaluate(() => document.activeElement?.className)).includes('cancel'), 'path shown, Cancel focused')
+    await ctx.page.click('.dialog .cancel')
+    await ctx.sleep(300)
+    h.assert((await doc()).path.endsWith('/a.md') && (await count()) === 2, 'Cancel: nothing opened')
+    await h.clickIn(ctx, await fr(), 'a >> text=up')
+    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'outside link: dialog again')
+    await ctx.page.click('.dialog .confirm')
+    await h.waitFor(ctx, shows('Outside'), 'Open: outside.md in the same tile')
+    await h.press(ctx, 'Meta+[')
+    await h.waitFor(ctx, shows('A'), 'back to a.md')
+
     // External: hover shows the target in the tile's link strip; click asks first, then the system
     // browser (harness: logged). Missing: modal.
     const wb = await (await fr()).locator('a >> text=web').boundingBox()
@@ -121,5 +138,6 @@ export default async (ctx, h) => {
     await ctx.shot('links')
   } finally {
     rmSync(dir, { recursive: true, force: true })
+    rmSync(outside, { force: true })
   }
 }

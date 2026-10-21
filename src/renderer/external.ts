@@ -14,6 +14,25 @@ const LONG_LINK = 200 // characters after the site address that make a link "lon
 
 let asking = false
 
+// SECURITY: a document links to a file outside its own folder (`../../.ssh/id_rsa`, `/etc/hosts`):
+// shown to the user only after they confirm the full path (decision 2026-10-21: same shape as links
+// out; files under the document's folder open without asking). One dialog at a time, app-wide.
+export async function confirmFile(path: string, from: string): Promise<boolean> {
+  if (asking) {
+    debug('security', 'file request dropped (dialog open)', untrusted(from), untrusted(path))
+    return false
+  }
+  asking = true
+  try {
+    const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
+    const ok = await confirmDialog({ cls: 'open-file', title: 'Open file?', body: [p(`${from} links to a file outside its folder:`), p(path, 'url')], confirm: 'Open', arm: CONFIRM_ARM_MS })
+    debug('external', ok ? 'file confirmed' : 'file cancelled', untrusted(from), untrusted(path))
+    return ok
+  } finally {
+    asking = false
+  }
+}
+
 // `from`: who asks, for the dialog's first line ("report.html wants to open:"). `note`: an extra
 // line shown for long links (html: the folder the page can read).
 export async function openExternal(url: string, from: string, note?: string) {

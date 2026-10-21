@@ -13,7 +13,7 @@ import { appearance, fontStack } from './appearance'
 import { theme } from './themes'
 import { openTile, besidePlacement } from './ops'
 import { infoDialog } from './dialog'
-import { openExternal } from './external'
+import { openExternal, confirmFile } from './external'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from './kinds'
 import type { DocBody } from '../preload'
@@ -112,7 +112,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
       sendDoc()
     },
     handlers: {
-      followLink: (r) => follow(r.href, r.newTile),
+      followLink: (r) => void follow(r.href, r.newTile),
       hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
     },
   })
@@ -148,12 +148,15 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   // main re-checks) and local files (main re-checks: absolute, existing, its kind). Files of this
   // kind (by extension) open here (cmd: a new tile beside); files of another kind (or decided by
   // content) open beside, in their kind (main decides); everything else refused.
-  function follow(href: string, newTile: boolean) {
+  async function follow(href: string, newTile: boolean) {
     if (!doc) return
     const l = classifyLink(href, doc.path)
     if (l.type === 'web') return void openExternal(l.url, nameOf(doc.path))
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, untrusted(href))
+    // Outside this file's folder: the user confirms the path first (same tile or beside alike).
+    if (!(root === '/' || l.path.startsWith(root + '/')) && !(await confirmFile(l.path, nameOf(doc.path)))) return
+    if (!host.alive() || !doc) return
     if (l.kind !== kind) return void beside(l.path, l.hash)
     if (newTile) {
       const sp = spaceOf(host.id)

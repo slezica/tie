@@ -164,6 +164,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 ## Links out (`renderer/external.ts`)
 
+- `confirmFile(path, from)`: a document's link to a file outside its own folder (markdown, html) asks first: `.dialog.open-file` with the full path, Cancel focused, Open armed 600 ms; under the folder: no dialog. Same module, same one-at-a-time rule.
 - The one path from any tile to the system browser: `openExternal(url, from, note?)` → confirm dialog (setting `confirmExternal`, default on) → `tie.openExternal` (main: http(s) only). Callers: file views (markdown links), html pages (links, `window.open`, `target=_blank`), terminals (cmd-click on OSC 8). The probe kind (dev) calls main directly.
 - Dialog `.dialog.external-open`: "`<from>` wants to open:", the full URL with the site address in bold (`.url .host`), a `.warn` line for links with > 200 characters after the origin (plus the caller's note: html names the folder the page can read), Cancel focused (Enter cancels), Open disabled 600 ms (`confirmDialog` `arm`: no click-through). One dialog app-wide; requests while it is open are dropped (`debug security`). Setting off: opened directly, `debug external`.
 

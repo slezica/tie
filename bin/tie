@@ -55,7 +55,8 @@ TILE KINDS
              - Raw HTML in the file is shown as text, never rendered.
              - Images: relative paths in the file's folder load; remote images are not loaded.
              - Links: relative .md opens in the same tile (cmd-click: new tile; cmd+[ / cmd+]
-               back/forward); other local files open beside, in their kind; http(s) asks the
+               back/forward); other local files open beside, in their kind (outside the file's
+               folder: asks first); http(s) asks the
                user, then opens the system browser; other schemes are ignored. Hovering a
                link shows its target at the bottom of the tile.
              - A file that hangs or crashes the viewer leaves an error in the tile; reopen to retry.

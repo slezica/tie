@@ -250,11 +250,13 @@ body.dragging-tab .tab {
 }
 /* Html page asking for the web (kinds/html.ts): the full URL, as text, wrapped anywhere. */
 .dialog.external-open,
-.dialog.save-download {
+.dialog.save-download,
+.dialog.open-file {
   width: min(560px, calc(100vw - 32px));
 }
 .dialog.external-open .dialog-body p.url,
-.dialog.save-download .dialog-body p.url {
+.dialog.save-download .dialog-body p.url,
+.dialog.open-file .dialog-body p.url {
   max-height: 30vh;
   overflow: auto;
   padding: 8px 10px;
