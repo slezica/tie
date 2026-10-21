@@ -20,7 +20,6 @@ export interface FrameSpec {
   handlers: Handlers
   onReady?: () => void // viewer answered the handshake (each load): send it its content
   page?: string // document kinds: the page to show, path relative to root (as on disk)
-  scripts?: () => boolean // document kinds: run the page's own scripts (read at each open; default off)
   onNavigate?: (page: string) => void // document kinds: the frame now shows `page` (relative, decoded)
   onChanged?: () => void // document kinds: something in the root folder changed
 }
@@ -211,7 +210,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
   const surface: FrameSurface = {
     mount: async () => {
       if (!policy) return host.error(`No policy for ${spec.viewer}`)
-      const res = await tie.content.open(spec.root, spec.viewer, spec.page, spec.scripts?.()).catch((e: Error) => ({ error: e.message }))
+      const res = await tie.content.open(spec.root, spec.viewer, spec.page).catch((e: Error) => ({ error: e.message }))
       if (!host.alive()) return void ('token' in res && tie.content.close(res.token))
       if ('error' in res) return host.error(res.error)
       token = res.token
@@ -255,7 +254,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       port.postMessage(msg, transfer)
     },
     setRoot: async (root, p) => {
-      const res = await tie.content.open(root, spec.viewer, p, spec.scripts?.()).catch((e: Error) => ({ error: e.message }))
+      const res = await tie.content.open(root, spec.viewer, p).catch((e: Error) => ({ error: e.message }))
       if (!host.alive() || !frame || dead) return void ('token' in res && tie.content.close(res.token))
       if ('error' in res) return host.error(res.error)
       const old = token

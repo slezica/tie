@@ -7,6 +7,7 @@ export type Request =
   | { verb: 'openLink'; url: string } // external URL (probe)
   | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
   | { verb: 'hover'; href: string } // pointer over a link ('' = left): the host shows its real target in the link strip
+  | { verb: 'blocked'; n: number } // html: scripts the document CSP refused so far (bootstrap counts violations)
 export type Verb = Request['verb']
 
 const MAX_URL = 4096
@@ -28,6 +29,7 @@ const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) =
     build: (d) => (str(d.href, MAX_URL) && typeof d.newTile === 'boolean' ? { verb: 'followLink', href: d.href, newTile: d.newTile } : null),
   },
   hover: { keys: ['href'], build: (d) => (str(d.href, MAX_URL) ? { verb: 'hover', href: d.href } : null) },
+  blocked: { keys: ['n'], build: (d) => (int(d.n, 1_000_000) ? { verb: 'blocked', n: d.n } : null) },
 }
 
 // SECURITY: frame messages are untrusted (any script in the frame can post anything). Only plain

@@ -1,28 +1,23 @@
-// Html kind: a local .html file is the page, isolated: own content frame on its own token origin
-// (sandbox allow-scripts allow-same-origin), document CSP (no network), nav lock within its folder,
-// storage in memory only (the UI's session). The page's own scripts run only when the tile says
-// so (pill "Scripts: off/on" in the title bar; default from the setting `htmlScripts`, remembered
-// per file for the session): with scripts off the document CSP lets only Tie's bootstrap run and the
-// page is static. Main injects the bootstrap (src/viewers/html-bootstrap.ts): handshake, pong, link
-// hovers, clicks and window.open → requests. Here: routing those requests, history (host-driven and
-// the page's own navigations, reported by main), live reload on folder changes, nav bar.
-// docs/VIEWERS.md "Html".
+// Html kind: a local .html file is the page, shown static (decision 2026-10-21): its own scripts
+// never run; the document CSP lets only Tie's bootstrap run (per-response nonce). Isolated: own
+// content frame on its own token origin (sandbox allow-scripts allow-same-origin), no network, nav
+// lock within its folder, storage in memory only (the UI's session). Main injects the bootstrap
+// (src/viewers/html-bootstrap.ts): handshake, pong, link hovers, clicks and window.open → requests,
+// and a count of scripts the CSP blocked (the title-bar tag "Scripts blocked"). Here: routing those
+// requests, history (host-driven and the page's own navigations, reported by main), live reload on
+// folder changes, nav bar. docs/VIEWERS.md "Html".
 import { tie, debug, spaceOf, withSpace, type Kind } from '../state'
 import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
 import { infoDialog } from '../dialog'
 import { dirOf } from '../fileview'
 import { openExternal } from '../external'
-import { prefs } from '../prefs'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from '.'
 
 const ICON = '🌐'
 const RELOAD_MS = 100 // folder change → reload (main already debounced)
-const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (scripts can call window.open)
-
-// Files whose scripts the user turned on (or off) in this session: a tile showing them starts so.
-const scriptsByPath = new Map<string, boolean>()
+const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (a page can hold many links)
 
 const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/')
@@ -35,31 +30,39 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   let reloads = 0
   let lastNewTile = 0
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
-  let scripts = scriptsByPath.get(path) ?? prefs.htmlScripts // the page's own scripts run (token property)
+  let blocked = 0 // scripts the CSP refused on the page shown (bootstrap `blocked` reports)
 
   const inRoot = (p: string) => p.startsWith(root === '/' ? '/' : root + '/')
   const rel = (p: string) => p.slice(root === '/' ? 1 : root.length + 1)
+  const loading = () => {
+    ready = false
+    blocked = 0
+  }
 
   const frame = frameSurface(host, {
     viewer: 'html',
     root,
     page: rel(path),
-    scripts: () => scripts,
     title: 'html',
     icon: ICON,
     handlers: {
       followLink: (r) => void follow(r.href, r.newTile),
       hover: (r) => host.hint(r.href ? target(r.href) : null),
+      blocked: (r) => {
+        if (r.n === blocked) return
+        blocked = r.n
+        host.changed()
+      },
     },
     onReady: () => {
       ready = true
       host.changed()
     },
-    // The page navigated itself (a link it handled, a script, a form...): within the root only (nav
+    // The page navigated itself (a link it handled, a meta refresh...): within the root only (nav
     // lock). The location follows; a new history entry.
     onNavigate: (page) => {
       const abs = (root === '/' ? '/' : root + '/') + page
-      ready = false
+      loading()
       if (abs === path) return
       path = abs
       history.list.splice(++history.index, Infinity, abs)
@@ -72,7 +75,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       reloadTimer = setTimeout(() => {
         if (!host.alive()) return
         reloads++
-        ready = false
+        loading()
         frame.load(rel(path))
         host.activity()
       }, RELOAD_MS)
@@ -88,7 +91,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     if (how === 'push') history.list.splice(++history.index, Infinity, abs)
     else history.index += how === 'back' ? -1 : 1
     path = abs
-    ready = false
+    loading()
     debug('html', 'go', host.id, how, abs)
     if (inRoot(abs)) frame.load(rel(abs) + hash)
     else {
@@ -117,16 +120,16 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     return `Blocked link: ${href.trim()}`
   }
 
-  // SECURITY: requests come from the page's realm (bootstrap or any page script): hostile. Hrefs
-  // resolve against the page; then classifyLink: http(s) → only after the user confirms the full
-  // URL (scripts can fire this without a click: the dialog closes that exfiltration path); html
-  // files → this tile; other files or new-tile requests → beside, in their kind (main checks), at
-  // most one per second; everything else refused.
+  // SECURITY: requests come from the page's realm (the bootstrap; page scripts never run, but the
+  // bootstrap acts on the page's links): treated as hostile anyway. Hrefs resolve against the page;
+  // then classifyLink: http(s) → only after the user confirms the full URL; html files → this tile;
+  // other files or new-tile requests → beside, in their kind (main checks), at most one per second;
+  // everything else refused.
   async function follow(href: string, newTile: boolean) {
     const l = resolve(href)
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, href)
     if (l.type === 'anchor') return newTile ? undefined : frame.load(rel(path) + l.hash)
-    if (l.type === 'web') return openExternal(l.url, nameOf(path), `The page can read files under ${root}; a link you open is the only way it can send anything out.`)
+    if (l.type === 'web') return openExternal(l.url, nameOf(path))
     if (!newTile && l.kind === 'html') return go(l.path, 'push', l.hash)
     const now = Date.now()
     if (now - lastNewTile < NEW_TILE_MS) return debug('security', 'new tile throttled', host.id, l.path)
@@ -166,33 +169,25 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     icon: () => ICON,
     dir: () => root,
     cwd: async () => root,
-    // SECURITY: scripts are a per-tile choice the user makes here (or by the setting's default); a
-    // new token carries it (the CSP is decided per token in main), so the page reloads.
+    // The page had scripts; Tie didn't run them. A tag, not a switch: html tiles are static by
+    // design (dynamic pages: serve them and open a browser tile).
     pill: {
-      label: () => (scripts ? 'Scripts: on' : 'Scripts: off'),
-      on: () => scripts,
-      title: () => (scripts ? "This page's scripts run (isolated: no network, no Tie). Click to reload it static." : 'This page is shown static: its scripts do not run. Click to reload it with scripts.'),
-      toggle: () => {
-        scripts = !scripts
-        scriptsByPath.set(path, scripts)
-        ready = false
-        debug('html', 'scripts', host.id, scripts ? 'on' : 'off')
-        host.changed()
-        void frame.setRoot(root, rel(path))
-      },
+      label: () => (blocked ? 'Scripts blocked' : ''),
+      title: () => `This page has scripts (${blocked} blocked). Tie shows html files static. For a dynamic page, run a server and open it in a browser tile.`,
+      on: () => false,
     },
     nav: {
       state: () => ({ location: path, back: history.index > 0, forward: history.index < history.list.length - 1, editable: false }),
       back: () => step(-1),
       forward: () => step(1),
       reload: () => {
-        ready = false
+        loading()
         frame.load(rel(path))
       },
     },
     info: () => {
       const o = frame.origin()
-      return { page: { path, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, scripts, history: { index: history.index, length: history.list.length } } }
+      return { page: { path, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, blocked, history: { index: history.index, length: history.list.length } } }
     },
   }
 }

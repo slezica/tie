@@ -249,10 +249,12 @@ body.dragging-tab .tab {
   width: min(560px, calc(100vw - 32px));
 }
 /* Html page asking for the web (kinds/html.ts): the full URL, as text, wrapped anywhere. */
-.dialog.external-open {
+.dialog.external-open,
+.dialog.save-download {
   width: min(560px, calc(100vw - 32px));
 }
-.dialog.external-open .dialog-body p.url {
+.dialog.external-open .dialog-body p.url,
+.dialog.save-download .dialog-body p.url {
   max-height: 30vh;
   overflow: auto;
   padding: 8px 10px;
@@ -372,6 +374,11 @@ body.dragging-tab .tab {
   letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
+}
+.titlebar .pill.static {
+  cursor: default;
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .titlebar .pill.on {
   color: var(--text);

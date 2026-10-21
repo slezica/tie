@@ -1,4 +1,5 @@
-// Security: html tiles (the page's scripts run). From the page's realm: no request reaches the
+// Security: html tiles (static: the page's scripts never run, but Playwright's evaluate can act in
+// the page's realm, which is what a renderer bug would get). From the page's realm: no request reaches the
 // network (fetch, XHR, img, beacon, WebSocket, EventSource, form, CSS url(), fonts, prefetch,
 // preconnect, preload, script, media, frames, objects, workers, ping, WebRTC STUN/TURN, location,
 // meta refresh); window.open / target=_blank only through the confirm dialog (Cancel and Open
@@ -12,7 +13,6 @@ import { createServer } from 'node:net'
 import { createSocket } from 'node:dgram'
 
 export const hiddenWindow = true
-export const settings = { htmlScripts: true } // hostile pages that run (the default is off: html-scripts)
 
 export default async (ctx, h) => {
   const p = await h.probe(ctx)
@@ -68,7 +68,7 @@ export default async (ctx, h) => {
       }
       return { tie: typeof window.tie, parentDoc: t(() => parent.document.title), parentTie: t(() => parent.tie), topHref: t(() => top.location.href), ports: window.__ports }
     })
-    h.assert(realm.tie === 'undefined' && [realm.parentDoc, realm.parentTie, realm.topHref].every((x) => x.startsWith('threw')) && realm.ports === 0, `shell unreachable, port unseen: ${JSON.stringify(realm)}`)
+    h.assert(realm.tie === 'undefined' && [realm.parentDoc, realm.parentTie, realm.topHref].every((x) => x.startsWith('threw')) && realm.ports === undefined, `UI unreachable, page script never ran: ${JSON.stringify(realm)}`)
     await fr.evaluate(() => {
       try {
         top.location.href = 'https://example.com/top'

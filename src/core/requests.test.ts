@@ -54,11 +54,12 @@ describe('markdown verbs', () => {
       expect(parseRequest(m)).toBe(null)
   })
   it('gesture verbs: link opens', () => {
-    expect(['ready', 'pong', 'openLink', 'followLink', 'hover'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
+    expect(['ready', 'pong', 'openLink', 'followLink', 'hover', 'blocked'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
   })
   it('title: text, bounded', () => {
     expect(parseRequest({ verb: 'hover', href: 'x.md' })).toEqual({ verb: 'hover', href: 'x.md' })
     expect(parseRequest({ verb: 'hover', href: '' })).toEqual({ verb: 'hover', href: '' })
-    for (const m of [{ verb: 'hover' }, { verb: 'hover', href: 3 }, { verb: 'hover', href: 'x'.repeat(4097) }, { verb: 'title', text: 'Report' }]) expect(parseRequest(m)).toBe(null)
+    expect(parseRequest({ verb: 'blocked', n: 3 })).toEqual({ verb: 'blocked', n: 3 })
+    for (const m of [{ verb: 'hover' }, { verb: 'hover', href: 3 }, { verb: 'hover', href: 'x'.repeat(4097) }, { verb: 'title', text: 'Report' }, { verb: 'blocked', n: -1 }, { verb: 'blocked', n: 1e9 }]) expect(parseRequest(m)).toBe(null)
   })
 })

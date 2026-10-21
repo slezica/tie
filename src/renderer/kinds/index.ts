@@ -45,7 +45,7 @@ export interface Surface {
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
   nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
-  pill?: Pill // a state the kind exposes in its title bar (html: scripts on/off); clicking toggles
+  pill?: Pill // a state the kind shows in its title bar (html: "Scripts blocked"); a toggle if it has one
 }
 
 // Title-bar pill: a labelled toggle for one per-tile state (tile.ts renders it, `changed()` refreshes it).
@@ -53,7 +53,7 @@ export interface Pill {
   label(): string
   title(): string // tooltip
   on(): boolean // highlighted
-  toggle(): void
+  toggle?(): void // clickable
 }
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface

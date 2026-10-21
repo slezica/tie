@@ -8,7 +8,7 @@ import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
-import { initBrowserSession, noDownloads, guestMethod } from './guest'
+import { initBrowserSession, noDownloads, guestMethod, allowDownload } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -87,7 +87,7 @@ ipc.handle('settings:set', (_e, patch) => {
   applyWindowSettings()
   return { ok: true, settings }
 })
-ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown, scripts: unknown) => openContent(root, kind, page, scripts === true))
+ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
 ipc.on('content:kill', (_e, token: unknown) => killContent(token, win?.webContents.mainFrame ?? null))
 const pushDoc = (id: number, p: DocPush) => win?.webContents.send('doc:changed', id, p)
@@ -96,6 +96,7 @@ ipc.handle('doc:open', (_e, path: unknown, kind: unknown) => openDoc(path, kind,
 ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
 ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
+ipc.on('guest:download-ok', (_e, url: unknown, guest: unknown) => allowDownload(url, guest))
 ipc.on('app:quit', () => app.quit())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
@@ -217,7 +218,7 @@ app.whenReady().then(async () => {
   await noNetwork(ses, dev ? process.env.ELECTRON_RENDERER_URL : undefined)
   noDownloads(ses)
   shellSession = ses
-  initBrowserSession()
+  initBrowserSession((d) => win?.webContents.send('guest:download', d))
   createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)))
   await ready

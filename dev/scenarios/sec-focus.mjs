@@ -1,16 +1,16 @@
-// Security: content frames can't take focus by script. An html page's own script calling
-// window.focus() / el.focus() (on load, from timers) is refused by Blink (permissions policy
-// focus-without-user-activation 'none' + BlockingFocusWithoutUserActivation): the frame never
-// becomes the UI's activeElement, so no gesture verb passes (no dialog, no file opened), the
-// tile isn't activated, and typing stays in the terminal. After a real click the page is focused;
-// window.open then shows the dialog: site address in bold, a long link called out, Open disabled
-// at first (no click-through). Hidden window: real input routing. Playwright's evaluate carries a
-// user gesture, so the grabs come from the page's own timers.
+// Security: content frames can't take focus or act by themselves. An html page's own scripts never
+// run (static), so its focus() / window.open() on load are nothing; and even script in the page's
+// realm (Playwright's evaluate stands in for a renderer bug) can't focus the frame without a user
+// gesture: Blink refuses it (permissions policy focus-without-user-activation 'none' +
+// BlockingFocusWithoutUserActivation), the frame never becomes the UI's activeElement, no gesture
+// verb passes, typing stays in the terminal. After a real click the page is focused; window.open
+// then shows the dialog: site address in bold, a long link called out, Open disabled at first.
+// Hidden window: real input routing. evaluate carries a gesture, so the gesture-less call is made
+// from a timer set long after the evaluate (transient activation expires).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const hiddenWindow = true
-export const settings = { htmlScripts: true } // hostile pages that run (the default is off: html-scripts)
 
 export default async (ctx, h) => {
   const p = await h.probe(ctx)
@@ -21,17 +21,8 @@ export default async (ctx, h) => {
     join(dir, 'grab.html'),
     `<!doctype html><html><head><meta charset="utf-8"><title>Grab</title></head><body>
 <h1 id="h">Grab</h1><input id="i" autofocus>
-<script>
-window.__log = []
-const grab = (tag) => {
-  window.focus(); document.getElementById('i').focus()
-  window.__log.push(tag + ':' + document.hasFocus())
-  if (document.hasFocus()) { window.open('${p.url}/grabbed'); window.open('secret.txt') } // gesture verbs, if focus was taken
-}
-grab('load')
-setTimeout(() => grab('t500'), 500)
-setTimeout(() => grab('t1500'), 1500)
-</script></body></html>`,
+<script>window.__ran = 1; window.focus(); document.getElementById('i').focus(); window.open('${p.url}/grabbed')</script>
+</body></html>`,
   )
   const active = () => ctx.page.evaluate(() => (document.activeElement ? document.activeElement.tagName + ':' + (document.activeElement.closest('.tile')?.dataset.id ?? '') : 'none'))
   const consoleMsgs = []
@@ -41,13 +32,17 @@ setTimeout(() => grab('t1500'), 1500)
     await ctx.tie('focus', t0)
     const id = (await ctx.tie('open', join(dir, 'grab.html'), '--at', t0, '--side', 'r')).id
     const fr = await h.htmlFrame(ctx, id)
-    await ctx.sleep(2200)
-    const log = await fr.evaluate(() => window.__log)
-    h.assert(log.length === 3 && log.every((l) => l.endsWith(':false')), `page never got focus by script: ${JSON.stringify(log)}`)
-    h.assert(consoleMsgs.some((m) => /Blocked focus call/.test(m)), 'Blink refused the focus calls (console)')
-    h.assert((await active()).startsWith('TEXTAREA:' + t0), `focus stays in the terminal: ${await active()}`)
-    h.assert((await h.list(ctx)).active === t0, 'tile not activated')
+    await ctx.sleep(800)
+    h.assert((await fr.evaluate(() => window.__ran)) === undefined, 'the page script never ran (static html)')
+    h.assert((await active()).startsWith('TEXTAREA:' + t0) && (await h.list(ctx)).active === t0, `focus stays in the terminal: ${await active()}`)
+    // Script in the page's realm, without a gesture (timer long after the evaluate): refused by Blink.
+    await fr.evaluate((u) => setTimeout(() => { window.focus(); document.getElementById('i').focus(); window.__hasFocus = document.hasFocus(); window.open(u + '/timer') }, 6000), p.url)
+    await ctx.sleep(7000)
+    h.assert((await fr.evaluate(() => window.__hasFocus)) === false, 'focus() without a gesture: refused')
+    h.assert(consoleMsgs.some((m) => /Blocked focus call/.test(m)), 'Blink refused the focus call (console)')
+    h.assert((await active()).startsWith('TEXTAREA:' + t0), 'still the terminal')
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (await h.list(ctx)).tiles.length === 2, 'no dialog, no file opened')
+    h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'request refused without focus')
     await ctx.page.keyboard.type('echo nothing-grabbed')
     await ctx.sleep(300)
     h.assert((await h.screen(ctx, t0)).includes('nothing-grabbed'), 'typing lands in the terminal')

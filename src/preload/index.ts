@@ -12,7 +12,6 @@ export interface Settings {
   shelfStyle: 'normal' | 'compact'
   warnPasteControl: boolean
   warnPasteRun: boolean
-  htmlScripts: boolean
   confirmExternal: boolean
 }
 
@@ -42,8 +41,8 @@ const api = {
   },
   // Content tiles (sandboxed frames): main registers `root` under a fresh token, returns the frame URL.
   content: {
-    // Document kinds (html) also name the page (path relative to the root) and whether its scripts run.
-    open: (root: string, kind: string, page?: string, scripts?: boolean): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind, page, scripts),
+    // Document kinds (html) also name the page (path relative to the root).
+    open: (root: string, kind: string, page?: string): Promise<{ token: string; url: string } | { error: string }> => ipcRenderer.invoke('content:open', root, kind, page),
     close: (token: string) => ipcRenderer.send('content:close', token),
     // Watchdog: frame stopped answering. Main kills its process (if it holds nothing else), then closes.
     kill: (token: string) => ipcRenderer.send('content:kill', token),
@@ -72,11 +71,16 @@ const api = {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
     },
   },
-  // Browser tiles: main's reports about guests (by guest webContents id).
+  // Browser tiles: main's reports about guests (by guest webContents id); downloads asked (the user
+  // confirms in the UI) and allowed once.
   guest: {
     onUnresponsive: (cb: (id: number) => void) => {
       ipcRenderer.on('guest:unresponsive', (_e, id) => cb(id))
     },
+    onDownload: (cb: (d: { guest: number; url: string; name: string; bytes: number }) => void) => {
+      ipcRenderer.on('guest:download', (_e, d) => cb(d))
+    },
+    download: (url: string, guest: number) => ipcRenderer.send('guest:download-ok', url, guest),
   },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
   // or modal has focus, its keys stay its own.

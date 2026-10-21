@@ -75,7 +75,7 @@ tiles.addEventListener('click', (e) => {
   if (btn.classList.contains('close')) closeTile(id)
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
-  else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pill?.toggle()
+  else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pill?.toggle?.()
 })
 
 tiles.addEventListener('contextmenu', (e) => {

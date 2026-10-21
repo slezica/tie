@@ -3,12 +3,10 @@
 import type { Settings } from '../preload'
 
 export interface Prefs {
-  htmlScripts: boolean // html tiles start with scripts on
   confirmExternal: boolean // confirm before opening a link in the system browser
 }
-export const prefs: Prefs = { htmlScripts: false, confirmExternal: true }
+export const prefs: Prefs = { confirmExternal: true }
 
-export function applyPrefs(s: Pick<Settings, 'htmlScripts' | 'confirmExternal'>) {
-  prefs.htmlScripts = s.htmlScripts
+export function applyPrefs(s: Pick<Settings, 'confirmExternal'>) {
   prefs.confirmExternal = s.confirmExternal
 }

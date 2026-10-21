@@ -87,8 +87,6 @@ export async function toggleSettings() {
         </section>
         <section data-page="content">
           <h2>Content</h2>
-          <h3>Html files</h3>
-          <label class="check"><input id="set-html-scripts" type="checkbox" /> Run scripts by default <span class="scope">off: pages open static; the title-bar pill turns scripts on per tile</span></label>
           <h3>Links</h3>
           <label class="check"><input id="set-confirm-external" type="checkbox" /> Confirm before opening links in the browser <span class="scope">files, html pages, terminals</span></label>
         </section>
@@ -113,7 +111,6 @@ export async function toggleSettings() {
   const shell = $<HTMLInputElement>('#set-shell')
   const warnControl = $<HTMLInputElement>('#set-warn-control')
   const warnRun = $<HTMLInputElement>('#set-warn-run')
-  const htmlScripts = $<HTMLInputElement>('#set-html-scripts')
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
@@ -135,7 +132,6 @@ export async function toggleSettings() {
   shell.value = settings.shell
   warnControl.checked = settings.warnPasteControl
   warnRun.checked = settings.warnPasteRun
-  htmlScripts.checked = settings.htmlScripts
   confirmExternal.checked = settings.confirmExternal
   shell.placeholder = defaults.shell
 
@@ -155,7 +151,6 @@ export async function toggleSettings() {
     shelfStyle: shelfStyle.value as 'normal' | 'compact',
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
-    htmlScripts: htmlScripts.checked,
     confirmExternal: confirmExternal.checked,
   })
   const preview = () => {
@@ -173,7 +168,7 @@ export async function toggleSettings() {
   const show = (p: string) => {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
-    ;(p === 'terminal' ? shell : p === 'content' ? htmlScripts : themeSel).focus()
+    ;(p === 'terminal' ? shell : p === 'content' ? confirmExternal : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
 

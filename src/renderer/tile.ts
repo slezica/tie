@@ -88,11 +88,13 @@ export function refreshTitle(t: Tile) {
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
   const pill = t.el.querySelector('.pill') as HTMLButtonElement
-  pill.hidden = !t.surface.pill
-  if (t.surface.pill) {
-    pill.textContent = t.surface.pill.label()
+  const label = t.surface.pill?.label() ?? ''
+  pill.hidden = !label
+  if (t.surface.pill && label) {
+    pill.textContent = label
     pill.title = t.surface.pill.title()
     pill.classList.toggle('on', t.surface.pill.on())
+    pill.classList.toggle('static', !t.surface.pill.toggle)
   }
   refreshNav(t)
   document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))

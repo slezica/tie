@@ -1,6 +1,7 @@
 // Html bootstrap: injected by main (content.ts) first in the <head> of every html document an html
 // tile shows, inline (the document CSP allows inline scripts). The page's only link to the host:
-// handshake (one MessagePort from the UI), watchdog pong, link hovers, clicks and window.open → requests
+// handshake (one MessagePort from the UI), watchdog pong, link hovers, clicks and window.open → requests,
+// scripts the CSP blocked (count)
 // (the host routes them: same folder in the tile, other files beside, the web after a confirm),
 // scroll kept across reloads. docs/VIEWERS.md "Html".
 //
@@ -43,6 +44,23 @@
     }) as EventListener,
     true,
   )
+
+  // Scripts the document CSP refused (the page's own: inline, handlers, files, modules): counted
+  // and reported, debounced; the host shows "Scripts blocked". Style and other violations don't count.
+  let blocked = 0
+  let blockedTimer: ReturnType<typeof setTimeout> | null = null
+  addEvent.call(
+    document,
+    'securitypolicyviolation',
+    ((e: SecurityPolicyViolationEvent) => {
+      if (!/^script-src/.test(e.effectiveDirective)) return
+      blocked++
+      if (blockedTimer) clearTimeout(blockedTimer)
+      blockedTimer = setTimeout(() => send({ verb: 'blocked', n: blocked }), 200)
+    }) as EventListener,
+    true,
+  )
+  addEvent.call(window, 'load', () => blocked && send({ verb: 'blocked', n: blocked }))
 
   // Pointer over a link: the host shows its real target (link strip). '' when it leaves.
   let hovered = ''
