@@ -63,8 +63,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text), `html.ts` (html page: scripts pill, routing, history, live reload), `probe.ts` (dev harness content kind).
-  - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`htmlScripts`, `confirmExternal`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).
+  - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
   - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
   - `guest.ts`: browser kind (`browserKind`: `<webview>`, title, nav bar with editable location, focus, crash/hang → error; `initGuests`).
@@ -95,7 +95,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle}`: title-bar toggle, html scripts).
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle?}`: title-bar state, html "Scripts blocked").
 - `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon}`). `OpenOpts`: `title`, `cwd`, `cmd`, `path`, `hash`, `url`.
 - `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).

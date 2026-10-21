@@ -24,12 +24,19 @@ Full pass over Tie's security seams: code read (main, core, preload, frame host,
 - Link strip (`Host.hint`): hovered link's real target bottom-left of the tile, shell-drawn; terminal, viewers (`hover` verb), browser guests.
 - Rejected: wider html root via cwd / `--root` (wider = more exposure, agent-set). Markdown root widening: to discuss (PENDING).
 
+## Batch 3 (2026-10-21)
+
+- Rename: the UI renderer is "UI", not "shell" (`uiIpc`, `UI_URL`, `UI_PARTITION` = `tie-ui`, `isUiSender`, `uiUrl`; docs, scenarios). "Shell" means login shell only.
+- Html static only (option B): scripts never run (CSP nonce = bootstrap only; no workers); `htmlScripts` setting and the pill toggle removed; a red, non-interactive "Scripts blocked" tag when a page had scripts (bootstrap counts `script-src` violations → `blocked` verb). Dynamic pages: local server + browser tile. `html-static`.
+- Downloads: every one asks (`.dialog.save-download`: name, size, site; Save disabled 600 ms); `will-download` refuses, UI asks, Save allows the URL once and the guest downloads again. Input-window rule removed. `sec-browser`.
+- Fact-check of the explainer (Opus agent): 9 wrong, 11 imprecise claims, fixed; guards without scenarios listed in PENDING.
+- Decided: `TIE_TOKEN` per tile is identity/scoping plumbing, not security (any process of the user can read a shell's env); deferred until a scoping feature needs it.
+
 ## Flagged, kept (decisions for the user; details in the report)
 
 - Socket = full power for any process that can reach it (sandboxed agents inherit `TIE_SOCKET`). Decision 2026-10-19: known, not Tie's to solve; revisit only if Tie itself sandboxes agents (PENDING).
 - Html root = the page's folder, recursively (home / repo root exposes the subtree; exit only via a confirmed link).
 - Gesture rule = focused, not just clicked (scripts may post verbs while focused; refocus within Chromium's transient activation window).
-- Downloads after one click: up to 10 s of silent saves.
 - `runAsNode` fuse (packaged), CDP port in dev builds, impersonable titles, one shared browser profile.
 
 # Pending

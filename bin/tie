@@ -62,17 +62,14 @@ TILE KINDS
   image      Files .png, .jpg, .jpeg, .gif, .webp, .avif, .svg, .ico, .bmp. Fit to the tile
              (shrink only); click or z toggles actual size. Reloads when the file changes. SVG is
              shown as an image: its scripts and links never run.
-  html       Files .html, .htm: the file is the page. Opens static by default: the page's own
-             scripts don't run until the user clicks the "Scripts: off" pill in the tile's title
-             bar (a setting changes the default). With scripts on they run in isolation: no
-             network at all (only files under its own folder load: scripts, styles, modules,
-             fetch of data), no access to Tie or other tiles. Reloads when a file in its folder
-             changes (not subfolders; scroll kept). Links: html pages navigate the tile (cmd+[ /
-             cmd+] back/forward); other files open beside, in their kind; web links (and
-             window.open, target=_blank) ask the user first. The tile's title is the file name
-             (never the page's <title>). Storage (localStorage...) starts empty each time the
-             file is opened. For anything needing a server or the network: run a server, open
-             it in a browser.
+  html       Files .html, .htm: the file is the page, shown static: its own scripts never run
+             (a red "Scripts blocked" tag in the title bar says when a page had some). CSS,
+             images, fonts and links from its own folder work; no network at all, no access to
+             Tie or other tiles. Reloads when a file in its folder changes (not subfolders;
+             scroll kept). Links: html pages navigate the tile (cmd+[ / cmd+] back/forward);
+             other files open beside, in their kind; web links ask the user first. The tile's
+             title is the file name (never the page's <title>). For a dynamic page: run a
+             server, open it in a browser tile.
   text       Any other file that is UTF-8 text (sniffed: no NUL bytes), whatever its name.
              Line numbers; code highlighted by extension (files up to 512 KB). Live like
              markdown (view stays still, changed lines marked, n jumps). Shown literally:
@@ -83,8 +80,8 @@ TILE KINDS
              (shared by all browser tiles), no access to Tie, files or other tiles. Address bar:
              http(s) only, no search. Pages open in the tile; links that would open a new
              window go to the system browser (only right after a click; scripts alone can't).
-             Downloads are saved to ~/Downloads (only after a click or key in that tile), never
-             opened. Permissions (camera,
+             Downloads ask the user first, then save to ~/Downloads, never opened. Permissions
+             (camera,
              notifications, location...) are denied. Not live: it doesn't watch files; reload
              (cmd+R) after rebuilding. Other schemes (file:, mailto:...) are refused.
   Size limits: markdown 8 MB, text 10 MB, html 10 MB, hex 16 MB, image 50 MB (larger: tie open

@@ -2,6 +2,7 @@
 
 ## Interface
 
+- Html dynamic pages: not supported (static only, decision 2026-10-21; option B of the security review). Revisit if real use needs sandboxed JS with no network; the alternative is a local server + browser tile.
 - Settings panel review: three pages now (Appearance, Terminal, Content); structure, naming and scopes deserve a pass before more settings land.
 - Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/core/keymap.ts`) from the settings panel.
 - Move tile to another tab: drop a dragged tile onto a tab in the tab bar.
@@ -39,8 +40,7 @@
 - Per-tile capabilities (shell without pty power): terminals as `<webview>`s with their own preload, not `nodeIntegrationInSubFrames`.
 - OS drag entering straight over a content frame goes to the frame (it can read dropped files; no way out but `openLink`). Mitigated: `body.os-drag` shield once the drag is over the shell; viewers refuse drops.
 - Gesture rule = frame focused, not a fresh user activation: once the user clicked into a frame, script in it may post gesture verbs until focus leaves (scripts can't focus the frame by themselves since 2026-10-17: Blink policy, `TILES.md`; they may re-focus it within Chromium's transient activation window after a click). Html pages do run scripts: mitigated by routing (confirm for the web with an armed Open button, one new tile per second). Option: transient activation on the UI side too (main can't see input routed into out-of-process frames; a trusted signal would need the viewer or a different mechanism).
-- Downloads: gated on real input in the guest within 10 s (2026-10-17). Residual: after one click a site may save many files silently (Chrome prompts for repeated automatic downloads). Option: one download per input, or a per-site counter.
-- Html root = the file's folder, recursively: a page opened from `~` or a repo root can read that whole subtree (dotfiles, `.env`); the only way out is a link the user opens (dialog shows the site and flags long links). Scripts off by default (2026-10-20) covers most of it. To discuss: html root stays the file's dir (wider = more exposure; `--root` would be agent-set); markdown root = caller's cwd when it contains the file (images `../img.png`), else the file's dir; `--root` for `tie open`.
+- Html root = the file's folder, recursively: a page opened from `~` or a repo root can read that whole subtree (dotfiles, `.env`); the only way out is a link the user opens (dialog shows the site and flags long links). Html is static since 2026-10-21 (no scripts: the page can't read anything), so this is about markdown images and the html document's own markup only. To discuss: html root stays the file's dir (wider = more exposure; `--root` would be agent-set); markdown root = caller's cwd when it contains the file (images `../img.png`), else the file's dir; `--root` for `tie open`.
 - Sandbox as a Tie feature (to discuss): Tie launches agents / commands in a sandbox (seatbelt profile, container) and brokers the socket; then per-tile tokens, ownership scoping and prompts (never / once / always) become the broker's policy rather than theatre. Research first: microsoft/mxc, `sandbox-exec` profiles as Claude Code and Codex use them, Apple Containerization, what agents expect.
 - Html: persistent storage per file (opt-in; today in memory, per open), range requests (media seeking), subfolder watch.
 

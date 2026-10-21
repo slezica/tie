@@ -87,7 +87,7 @@
 <header>
   <h1>Tie Security Landscape</h1>
   <p>Where Tie's trust boundaries are, what crossed them, what was closed in this pass, and what stays open because the product wants it that way.</p>
-  <div class="meta"><span>2026-10-17, updated 2026-10-20</span><span>Electron 44.7.2 · Chromium 152</span><span>branch master</span></div>
+  <div class="meta"><span>2026-10-17, updated 2026-10-21</span><span>Electron 44.7.2 · Chromium 152</span><span>branch master</span></div>
   <nav class="toc">
     <a href="#glance">At a glance</a><a href="#model">Trust model</a><a href="#fixed">Fixed now</a><a href="#open">Open by design</a><a href="#residual">Residual</a><a href="#method">Method</a>
   </nav>
@@ -95,21 +95,22 @@
 
 <section id="glance">
   <h2>At a glance</h2>
-  <p>Tie's design is sound: content never shares a JS realm with the shell, the shell session has no network, every guard has a scenario. The problems found were in the seams: one real bypass of the gesture rule, memory exhaustion through the content protocol, three Electron defaults nobody had turned off, and files on disk readable by other accounts.</p>
+  <p>Tie's design is sound: content never shares a JS realm with the UI, the UI session has no network, every guard has a scenario. The problems found were in the seams: one real bypass of the gesture rule, memory exhaustion through the content protocol, three Electron defaults nobody had turned off, and files on disk readable by other accounts.</p>
   <div class="tiles">
     <div class="tile crit"><b>1</b><span>bypass of an existing guard (focus)</span></div>
-    <div class="tile fixed"><b>13</b><span>issues fixed in code</span></div>
-    <div class="tile flag"><b>6</b><span>flagged, kept by design</span></div>
-    <div class="tile"><b>59</b><span>e2e scenarios green, 3 new; 135 unit tests</span></div>
+    <div class="tile fixed"><b>14</b><span>issues fixed in code</span></div>
+    <div class="tile flag"><b>5</b><span>flagged, kept by design</span></div>
+    <div class="tile"><b>59</b><span>e2e scenarios, 3 new; 133 unit tests</span></div>
   </div>
   <p>Severity below is judged against Tie's own threat model: the attacker is a document, a page or a site you deliberately opened in a tile, and the prize is code running as you outside that tile. Processes in your shells (agents included) are your own concern: Tie opens them no hole they don't already have.</p>
-  <p><strong>Update 2026-10-20.</strong> A second batch closed the deceptive-tile gaps: html pages open static by default (a title-bar pill turns scripts on), every link out goes through one confirm, pages no longer name their tiles, and hovered links show their real target in a shell-drawn strip. The items below are marked accordingly.</p>
+  <p><strong>Update 2026-10-20.</strong> A second batch closed the deceptive-tile gaps: every link out goes through one confirm, pages no longer name their tiles, and hovered links show their real target in a UI-drawn strip.</p>
+  <p><strong>Update 2026-10-21.</strong> Html tiles are static for good: the page's scripts never run (no switch), a red "Scripts blocked" tag says when a page had some; dynamic pages belong in a local server plus a browser tile. Every download asks first (no input-timer heuristics). The UI renderer is now called the UI everywhere, not the UI.</p>
 </section>
 
 <section id="model">
   <h2>Trust model</h2>
   <figure>
-    <svg viewBox="0 0 860 470" role="img" aria-label="Tie's processes and what crosses between them: main holds all power; the shell renderer talks to it over IPC; content frames and browser guests are isolated and can only send typed requests or trigger guarded actions; the socket gives any local process full power.">
+    <svg viewBox="0 0 860 470" role="img" aria-label="Tie's processes and what crosses between them: main holds all power; the UI renderer talks to it over IPC; content frames and browser guests are isolated and can only send typed requests or trigger guarded actions; the socket gives any local process full power.">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
       </defs>
@@ -123,7 +124,7 @@
         <text x="54" y="112" fill="currentColor" stroke="none" opacity="0.8">ptys · files · tie-content:// · guards</text>
         <text x="54" y="130" fill="currentColor" stroke="none" opacity="0.8">downloads · openExternal · settings</text>
         <text x="54" y="160" fill="currentColor" stroke="none" opacity="0.8">Decides every path, URL, kind, size.</text>
-        <text x="54" y="178" fill="currentColor" stroke="none" opacity="0.8">Re-validates what the shell asks.</text>
+        <text x="54" y="178" fill="currentColor" stroke="none" opacity="0.8">Re-validates what the UI asks.</text>
         <!-- socket -->
         <rect x="40" y="260" width="300" height="80" rx="8"/>
         <text x="54" y="282" fill="currentColor" stroke="none" font-weight="600">tie socket (0600, dir 0700)</text>
@@ -133,9 +134,9 @@
         <text x="198" y="246" fill="currentColor" stroke="none" opacity="0.8">JSON-RPC</text>
         <!-- shell -->
         <rect x="400" y="70" width="420" height="110" rx="8"/>
-        <text x="414" y="92" fill="currentColor" stroke="none" font-weight="600">Shell renderer (tie://app, in-memory session, no network)</text>
+        <text x="414" y="92" fill="currentColor" stroke="none" font-weight="600">UI renderer (tie://app, in-memory session, no network)</text>
         <text x="414" y="112" fill="currentColor" stroke="none" opacity="0.8">only Tie's code · window.tie bridge · xterm terminals</text>
-        <text x="414" y="130" fill="currentColor" stroke="none" opacity="0.8">script here = shell as you. Nothing foreign may run here.</text>
+        <text x="414" y="130" fill="currentColor" stroke="none" opacity="0.8">script here = a shell as you. Nothing foreign may run here.</text>
         <text x="414" y="160" fill="currentColor" stroke="none" opacity="0.8">Keys matched in main before any page sees them.</text>
         <line x1="340" y1="125" x2="398" y2="125" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
         <text x="345" y="116" fill="currentColor" stroke="none" opacity="0.8">IPC</text>
@@ -170,12 +171,12 @@
         <text x="728" y="390" fill="currentColor" stroke="none" opacity="0.8">gesture</text>
       </g>
     </svg>
-    <figcaption>Main holds all power and re-checks what the shell asks for. Content frames and browser guests (orange) are the untrusted parties: their only ways out are typed requests the shell routes as hostile, and a few guarded exits to the OS. The socket is not a boundary: it hands full power to any process of yours.</figcaption>
+    <figcaption>Main holds all power and re-checks what the UI asks for. Content frames and browser guests (orange) are the untrusted parties: their only ways out are typed requests the UI routes as hostile, and a few guarded exits to the OS. The socket is not a boundary: it hands full power to any process of yours.</figcaption>
   </figure>
-  <p>The one-line threat model from <code>docs/SECURITY.md</code> still holds and was the yardstick for everything below: <em>viewing is safe, running is a choice, content never reaches the shell.</em> Two consequences matter for reading the findings:</p>
+  <p>The one-line threat model from <code>docs/SECURITY.md</code> still holds and was the yardstick for everything below: <em>viewing is safe, running is a choice, content never reaches the UI.</em> Two consequences matter for reading the findings:</p>
   <ul>
     <li><strong>"As you" is the ceiling.</strong> Anything a local process of your account can already do is not a Tie vulnerability. It becomes one when a weaker party (a document, a site, a sandboxed agent) gets there through Tie.</li>
-    <li><strong>Exits are the whole game.</strong> A page inside a frame can read what Tie hands it and compute on it. Damage needs an exit: the network (closed), the system browser (confirm), the shell (closed), your keyboard (closed in this pass), files on disk (downloads, gated now).</li>
+    <li><strong>Exits are the whole game.</strong> A page inside a frame can read what Tie hands it and compute on it. Damage needs an exit: the network (closed), the system browser (confirm), the UI (closed), your keyboard (closed in this pass), files on disk (downloads, gated now).</li>
   </ul>
 </section>
 
@@ -188,7 +189,7 @@
     <dl class="facts">
       <dt>Where</dt><dd><code>renderer/frame.ts</code> gesture rule (<code>document.activeElement === frame</code>); every content iframe.</dd>
       <dt>Threat model</dt><dd>Any html file opened in a tile (a report an agent wrote, a vendored demo, a file from a repo). Also any future XSS in a viewer.</dd>
-      <dt>How</dt><dd>A cross-origin iframe may call <code>window.focus()</code> or <code>el.focus()</code> at any time. Chromium made the frame the shell's active element. The rule treating "focused" as "the user clicked here" then passed. Verified: a page's load script opened the external-link dialog with no click at all, and took focus back from a terminal after the user had moved there.</dd>
+      <dt>How</dt><dd>A cross-origin iframe may call <code>window.focus()</code> or <code>el.focus()</code> at any time. Chromium made the frame the UI's active element. The rule treating "focused" as "the user clicked here" then passed. Verified: a page's load script opened the external-link dialog with no click at all, and took focus back from a terminal after the user had moved there.</dd>
       <dt>What it achieved</dt><dd>
         <ul>
           <li>Keyboard theft: keystrokes meant for a terminal (a password at a <code>sudo</code> prompt) land in the page.</li>
@@ -199,8 +200,8 @@
       <dt>Why it was there</dt><dd>The rule copied VS Code's, which lives inside a trusted webview preload. Tie's html pages are untrusted and cross-origin: the signal was never theirs to keep honest.</dd>
     </dl>
     <div class="after">
-      <p>Blink refuses focus calls from a frame without transient user activation when the frame's permissions policy denies <code>focus-without-user-activation</code>. Every content iframe now carries <code>allow="focus-without-user-activation 'none'"</code> and main enables the <code>BlockingFocusWithoutUserActivation</code> feature. The page's own timers fail with "Blocked focus call…" in its console; a real click still focuses it. Browser guests never could move the shell's focus (verified). Scenario <code>sec-focus</code> (red first, and red if the feature is removed).</p>
-      <p>Discarded on the way: a shell-side guard fed by main's <code>input-event</code>. Main only observes input to the main frame; clicks routed into out-of-process frames never reach it, so that guard rejected real clicks. Documented in <code>TILES.md</code> so nobody rebuilds it.</p>
+      <p>Blink refuses focus calls from a frame without transient user activation when the frame's permissions policy denies <code>focus-without-user-activation</code>. Every content iframe now carries <code>allow="focus-without-user-activation 'none'"</code> and main enables the <code>BlockingFocusWithoutUserActivation</code> feature. The page's own timers fail with "Blocked focus call…" in its console; a real click still focuses it. Browser guests never could move the UI's focus (verified). Scenario <code>sec-focus</code> (red first, and red if the feature is removed).</p>
+      <p>Discarded on the way: a UI-side guard fed by main's <code>input-event</code>. Main only observes input to the main frame; clicks routed into out-of-process frames never reach it, so that guard rejected real clicks. Documented in <code>TILES.md</code> so nobody rebuilds it.</p>
     </div>
   </article>
 
@@ -223,7 +224,7 @@
       <dt>How</dt><dd><code>navigator.bluetooth.requestDevice({acceptAllDevices: true})</code> needs a user gesture. Without a handler, Electron answers the chooser with the first device found. The device-permission handler Tie sets covers USB, HID and serial, not this chooser.</dd>
       <dt>What it achieved</dt><dd>A GATT connection to whatever BLE device is nearest (headphones, a lock, a sensor), with no prompt.</dd>
     </dl>
-    <div class="after"><p><code>noDeviceChoosers</code>: the event is prevented and answered with an empty id, logged, on guests and the shell window. Not testable in the harness (no device); covered by review.</p></div>
+    <div class="after"><p><code>noDeviceChoosers</code>: the event is prevented and answered with an empty id, logged, on guests and the UI window. Not testable in the harness (no device); covered by review.</p></div>
   </article>
 
   <article class="issue fixed">
@@ -244,7 +245,7 @@
       <dt>How</dt><dd><code>location = '/file'</code> with <code>Content-Disposition: attachment</code>, in a loop if it likes.</dd>
       <dt>What it achieved</dt><dd>Planted files: <code>invoice.pdf.command</code>, a poisoned <code>.terminal</code>, hundreds of junk files. Nothing runs by itself, but the next thing you double-click in Downloads might.</dd>
     </dl>
-    <div class="after"><p>A download is saved only within 10 s of real input (mouse button or key) in that guest, the same signal the popup rule uses; otherwise blocked and logged. <code>sec-browser</code>: a page whose script starts a download with no input saves nothing. Residual: see "Open by design".</p></div>
+    <div class="after"><p>Every download asks (10-21): a dialog in the UI with the sanitized name, size and site, Save disabled for 600 ms, one at a time. Main refuses the first request, the UI asks, Save allows that URL once and the guest downloads it again. No input-timer heuristics. <code>sec-browser</code>: Cancel saves nothing, script-started downloads ask too.</p></div>
   </article>
 
   <article class="issue fixed">
@@ -272,19 +273,19 @@
     <header><span class="chip fixed">fixed · low</span><h3>Message floods from a frame</h3></header>
     <dl class="facts">
       <dt>Where</dt><dd><code>frame.ts</code> <code>onRequest</code>: every port message parsed and logged.</dd>
-      <dt>What it achieved</dt><dd>A tight <code>postMessage</code> loop in a page janks the shell UI and bloats the log when debugging is on.</dd>
+      <dt>What it achieved</dt><dd>A tight <code>postMessage</code> loop in a page janks the UI UI and bloats the log when debugging is on.</dd>
     </dl>
     <div class="after"><p>More than 1000 messages a second from one frame are dropped before parsing.</p></div>
   </article>
 
   <article class="issue fixed">
-    <header><span class="chip fixed">fixed 10-20 · high</span><h3>Html files ran their scripts the moment they were opened</h3></header>
+    <header><span class="chip fixed">fixed 10-20, closed 10-21 · high</span><h3>Html files ran their scripts the moment they were opened</h3></header>
     <dl class="facts">
       <dt>Where</dt><dd>Html kind: the file was the page and its scripts ran on open, including when an agent opened it with <code>tie open</code>.</dd>
       <dt>Threat model</dt><dd>A report an agent wrote with a poisoned dependency, a vendored demo, a file from a repo. "Running is a choice" held only if a human chose; agents open files too.</dd>
       <dt>What it achieved</dt><dd>Every html risk below (folder reads, dialog timing, tile activation) with zero user action.</dd>
     </dl>
-    <div class="after"><p>Html tiles open static: the document CSP allows only Tie's bootstrap (per-response nonce), so inline scripts, handlers, script files, modules and workers don't run while links, hover and live reload still work. A title-bar pill "Scripts: off / on" reloads the page under a new token; the choice is remembered per file for the session. Setting <code>htmlScripts</code> changes the default. <code>html-scripts</code> scenario.</p></div>
+    <div class="after"><p>Html tiles are static, period (10-21): the document CSP allows only Tie's bootstrap (per-response nonce), so inline scripts, handlers, script files, modules and workers never run, while links, hover and live reload still work. A page that had scripts shows a red "Scripts blocked" tag; there is no switch. Dynamic pages: a local server and a browser tile. The 10-20 pill and setting were removed: a toggle users learn to flip is no boundary. <code>html-static</code> scenario.</p></div>
   </article>
 
   <article class="issue fixed">
@@ -293,7 +294,7 @@
       <dt>Where</dt><dd>File views (<code>followLink</code> → web) and terminal cmd-click went straight to <code>openExternal</code>; only html pages confirmed.</dd>
       <dt>What it achieved</dt><dd><code>[docs](https://evil)</code> in a markdown file: one click and your real, logged-in browser loads the attacker's page. No URL shown before the click.</dd>
     </dl>
-    <div class="after"><p>One module (<code>renderer/external.ts</code>) is now the only path out: the same confirm dialog (full URL, site in bold, long links flagged, Open disabled 600 ms, one at a time) for html, markdown and terminals. Setting <code>confirmExternal</code> (default on). Hovered links show their real target in a strip at the tile's bottom-left, drawn by the shell (terminal OSC 8, viewer links, browser guests via <code>update-target-url</code>).</p></div>
+    <div class="after"><p>One module (<code>renderer/external.ts</code>) is now the only path out: the same confirm dialog (full URL, site in bold, long links flagged, Open disabled 600 ms, one at a time) for html, markdown and terminals. Setting <code>confirmExternal</code> (default on). Hovered links show their real target in a strip at the tile's bottom-left, drawn by the UI (terminal OSC 8, viewer links, browser guests via <code>update-target-url</code>).</p></div>
   </article>
 
   <article class="issue fixed">
@@ -317,7 +318,7 @@
       <dt>Threat model</dt><dd>Not another account (fixed above). A process of yours that you meant to confine: an agent run under a sandbox, a tool with restricted file access, a container that mounts the socket dir.</dd>
       <dt>How</dt><dd>The socket path is in the environment. One JSON line: <code>open</code> with <code>kind: terminal</code> and <code>cmd</code>. Unix sockets pass through most file-permission sandboxes if the directory is reachable.</dd>
       <dt>What it achieves</dt><dd>Escape from any sandbox that doesn't block that socket: an arbitrary shell command as you, in a visible tile.</dd>
-      <dt>Why not fixed away</dt><dd>Decision 2026-10-19: a shell is already potent and the agent is already in it, with or without <code>tie</code>. Tie opens no hole the shell doesn't have; sandboxing agents is the developer's call, not a Tie feature. Revisit if Tie ever launches agents inside a sandbox itself (then the socket is the broker and tokens, scoping and prompts earn their keep; see PENDING).</dd>
+      <dt>Why not fixed away</dt><dd>Decision 2026-10-19: a shell is already potent and the agent is already in it, with or without <code>tie</code>. Tie opens no hole the UI doesn't have; sandboxing agents is the developer's call, not a Tie feature. Revisit if Tie ever launches agents inside a sandbox itself (then the socket is the broker and tokens, scoping and prompts earn their keep; see PENDING).</dd>
       <dt>Options</dt><dd>
         <ul>
           <li>Minimal: a setting that refuses <code>--cmd</code> from the socket (agents can still open files, URLs, terminals with a plain shell).</li>
@@ -329,13 +330,13 @@
   </article>
 
   <article class="issue flag">
-    <header><span class="chip flag">kept · mitigated 10-20</span><h3>An html page reads its whole folder, recursively</h3></header>
+    <header><span class="chip flag">kept · mostly closed 10-21</span><h3>An html page reads its whole folder, recursively</h3></header>
     <dl class="facts">
       <dt>Where</dt><dd><code>main/content.ts</code>: root = the page's directory; <code>contentFile</code> allows any depth below it.</dd>
       <dt>Threat model</dt><dd>You open <code>~/report.html</code>, or <code>index.html</code> at a repo root that holds <code>.env</code>, <code>.git</code>, keys. The page includes a bundled library that was compromised upstream, or was written by an agent you don't fully trust.</dd>
       <dt>How</dt><dd><code>fetch('.ssh/id_ed25519')</code> works (same origin, inside the root). The page can't send it anywhere: no network, no storage on disk, no shell. Its only exit is a link you open: "View full report online" pointing at <code>https://host/?d=…</code>.</dd>
       <dt>What it achieves</dt><dd>Exfiltration of anything under the folder, gated on one click of yours on a dialog that now shows the host in bold and warns about the long tail.</dd>
-      <dt>Why not fixed away</dt><dd>Pages need their folder: scripts, styles, data files, images. Narrowing the root breaks the feature; refusing dotfiles breaks <code>.well-known</code>-style setups and still leaves <code>config.json</code>. The file input (<code>&lt;input type=file&gt;</code>) is the same story: standard browser behaviour, your choice per file. Since 10-20 the page can only read anything after you turned its scripts on; a wider root (the caller's cwd) is under discussion for markdown only, where the viewer loads images and nothing else.</dd>
+      <dt>Why not fixed away</dt><dd>Pages need their folder: scripts, styles, data files, images. Narrowing the root breaks the feature; refusing dotfiles breaks <code>.well-known</code>-style setups and still leaves <code>config.json</code>. The file input (<code>&lt;input type=file&gt;</code>) is the same story: standard browser behaviour, your choice per file. Since 10-21 html pages have no scripts at all: nothing in the page can read a file; only its markup references images, styles and fonts under its folder. What remains is a markdown-images question (a wider root, the caller's cwd, is under discussion for markdown).</dd>
       <dt>Options</dt><dd>
         <ul>
           <li>Warn (or refuse) when the root is <code>~</code>, <code>/</code> or a volume root. Cheap, catches the worst case.</li>
@@ -347,23 +348,13 @@
   </article>
 
   <article class="issue flag">
-    <header><span class="chip flag">kept · mitigated 10-20</span><h3>Gesture rule means "focused", not "just clicked"</h3></header>
+    <header><span class="chip flag">kept · moot 10-21</span><h3>Gesture rule means "focused", not "just clicked"</h3></header>
     <dl class="facts">
       <dt>Where</dt><dd><code>frame.ts</code> <code>needsGesture</code> verbs: <code>followLink</code>, <code>openLink</code>.</dd>
       <dt>How</dt><dd>After you click into an html page, its scripts may post gesture verbs until focus leaves, and may refocus the frame within Chromium's transient activation window (a few seconds after your last click or key there).</dd>
-      <dt>What it achieves</dt><dd>While you work in a page whose scripts you turned on: the external-link dialog at any moment (one at a time, Open disabled at first), local files opened beside (one per second).</dd>
-      <dt>Why not fixed away</dt><dd>Main can't see input routed into out-of-process frames (shown in this pass), so the shell has no trusted "a click just happened in frame X" signal. The viewers could report clicks, but for html pages the reporter is the page itself. Chromium's own activation state isn't exposed to the embedder for subframes.</dd>
+      <dt>What it achieves</dt><dd>Nothing today: no content tile runs foreign script. It would matter again only through a renderer bug in a content process (then: the external-link dialog at any moment, one at a time, Open disabled at first; local files opened beside, one per second).</dd>
+      <dt>Why not fixed away</dt><dd>Main can't see input routed into out-of-process frames (shown in this pass), so the UI has no trusted "a click just happened in frame X" signal. The viewers could report clicks, but for html pages the reporter is the page itself. Chromium's own activation state isn't exposed to the embedder for subframes.</dd>
       <dt>Options</dt><dd>Accept (the exits are already gated); or move html pages to their own <code>&lt;webview&gt;</code> with a trusted preload that reports real clicks, at the cost of the lighter iframe model.</dd>
-    </dl>
-  </article>
-
-  <article class="issue flag">
-    <header><span class="chip flag">kept · design</span><h3>Downloads: after one click, a site may save many files</h3></header>
-    <dl class="facts">
-      <dt>Where</dt><dd><code>core/guest.ts</code> <code>downloadVerdict</code>: 10 s window after real input.</dd>
-      <dt>What it achieves</dt><dd>Up to ten seconds of silent saves after any click, sanitized names, never opened.</dd>
-      <dt>Why not fixed away</dt><dd>You decided no download dialog. Chrome's answer is a prompt for repeated automatic downloads; that is a dialog.</dd>
-      <dt>Options</dt><dd>One download per input event; a per-site counter; or a non-modal "saved X" toast in the planned alerts system, so at least it is visible.</dd>
     </dl>
   </article>
 
@@ -380,7 +371,7 @@
     <header><span class="chip flag">kept · dev only</span><h3>Dev builds listen on a CDP port</h3></header>
     <dl class="facts">
       <dt>Where</dt><dd><code>main/index.ts</code>: <code>remote-debugging-port</code> when not packaged (port derived from the instance name).</dd>
-      <dt>Threat model</dt><dd>Any local process while a dev instance runs (which, in practice, is most of the day). Localhost only, but a sandboxed agent that can open TCP connections can drive the shell, and the shell has <code>window.tie</code>.</dd>
+      <dt>Threat model</dt><dd>Any local process while a dev instance runs (which, in practice, is most of the day). Localhost only, but a sandboxed agent that can open TCP connections can drive the UI, and the UI has <code>window.tie</code>.</dd>
       <dt>Why not fixed away</dt><dd>The harness is built on it. Dev builds are not the product.</dd>
       <dt>Options</dt><dd>Only open the port when <code>TIE_DEBUG_PORT</code> is set by <code>tie-dev</code>; a plain <code>tie-dev run</code> for daily use could leave it closed.</dd>
     </dl>
@@ -418,7 +409,7 @@
     <li><strong>Read:</strong> all of <code>src/main</code>, <code>src/core</code>, the preload, the frame host, file view, html and browser kinds, the viewer runtime and bootstrap, markdown/text/image viewers, shell CSP, packaging fuses, the CLI launcher, and every <code>sec-*</code> scenario's shape. Markup sinks grepped across the renderer: all text goes through <code>textContent</code>, icons escaped.</li>
     <li><strong>Probed:</strong> focus stealing from html frames and browser guests (real finding); whether main's <code>input-event</code> sees CDP and routed-frame input (it does not); Blink's focus policy with page-timer scripts (works); Electron 44 source for where input observers attach (main frame only).</li>
     <li><strong>Checked against Electron's defaults:</strong> permission handlers (already denied), device permission handler (set), Bluetooth chooser (was default), client certificates (was default), <code>login</code> (default cancels), downloads (was ungated).</li>
-    <li><strong>Did not find:</strong> traversal in either protocol handler (decode once, reject leftovers, realpath, containment), IPC from anything but the shell's main frame, a way for content to reach <code>window.tie</code> or another tile's token, a network path from the shell session, a scheme other than http(s) reaching the OS.</li>
+    <li><strong>Did not find:</strong> traversal in either protocol handler (decode once, reject leftovers, realpath, containment), IPC from anything but the UI's main frame, a way for content to reach <code>window.tie</code> or another tile's token, a network path from the UI session, a scheme other than http(s) reaching the OS.</li>
   </ul>
   <p>Full guard table and test mapping: <code>docs/SECURITY.md</code>. Open decisions: <code>docs/PENDING.md</code>.</p>
 </section>

@@ -30,7 +30,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Permissions: denied (`harden`, every session, this one included: `sec-browser`).
 - User agent: Electron's own token removed (sites refuse or degrade "Electron").
 - Hovered links (`update-target-url`): shown in the tile's link strip (`Host.hint`, text only).
-- Downloads (`will-download`): only within 10 s of real input in that guest (`downloadVerdict`; a script alone plants nothing, logged `blocked download`); saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The UI session refuses downloads (`noDownloads`).
+- Downloads (`will-download`): every one asks (`guest:download` → UI dialog `.dialog.save-download`: sanitized name, size, site; Save disabled 600 ms; one at a time); Save → `guest:download-ok` → `allowDownload` allows that URL once (60 s) and calls `downloadURL` on the guest; then saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The UI session refuses downloads (`noDownloads`).
 
 ## Surface (`renderer/guest.ts`)
 

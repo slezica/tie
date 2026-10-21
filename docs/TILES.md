@@ -7,7 +7,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 ## Host (`renderer/tile.ts`)
 
 - `createTile(kind, opts)`: element (title bar with an optional kind pill, `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
-- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle()}`: a labelled toggle in the title bar (html: scripts on/off), refreshed by `changed()`.
+- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle?()}`: a labelled state in the title bar (html: a red "Scripts blocked" tag; a toggle only if `toggle` exists; empty label = hidden), refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
 - `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`.
@@ -159,6 +159,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
 | `hover` | `href` (string, ≤ 4096; `''` = left) | file views, html: `Host.hint` with where the link leads (URL, path, anchor, or "Blocked link") |
+| `blocked` | `n` (int ≥ 0, ≤ 1e6) | html: scripts the document CSP refused (title-bar tag) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser (confirm) / this tile / new tile ("File view"); html: same, other kinds beside (`VIEWERS.md`) |
 
 ## Links out (`renderer/external.ts`)
