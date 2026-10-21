@@ -1,7 +1,7 @@
 // Browser tile: a <webview> guest showing the remote web in the tile's body. The guest is its own
 // webContents on the browser partition (main/guest.ts rebuilds its prefs at attach: no preload, no
 // Node, sandboxed; guards its navigation, popups, downloads; matches shortcuts in its own
-// before-input-event). No channel to the shell: no requests, no window.tie. Here: the element
+// before-input-event). No channel to the UI: no requests, no window.tie. Here: the element
 // (never re-parented, like every tile body), title from the page, nav bar (editable location:
 // core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
 import { tie, debug } from './state'

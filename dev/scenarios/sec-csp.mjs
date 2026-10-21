@@ -1,4 +1,4 @@
-// Security: shell CSP refuses frames, plugins, <base>, forms, workers, remote loads.
+// Security: UI CSP refuses frames, plugins, <base>, forms, workers, remote loads.
 // Inline styles stay allowed: xterm injects <style> elements and style attributes (truecolor).
 export default async (ctx, h) => {
   const p = await h.probe(ctx)

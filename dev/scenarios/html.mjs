@@ -59,7 +59,7 @@ export default async (ctx, h) => {
     await ctx.shot('index')
 
     // Link in the folder: same tile, same token; back / forward. (A first click focuses the frame:
-    // in the hidden window, a link clicked as the very first click may arrive before the shell sees
+    // in the hidden window, a link clicked as the very first click may arrive before the UI sees
     // the frame focused, and the gesture rule refuses it; same flake as markdown-links.)
     const url0 = (await pg()).url
     await h.clickIn(ctx, f0, '#h')

@@ -1,5 +1,5 @@
 // Content watchdog: a hung content frame (busy loop) → its tile shows "Viewer stopped responding" and
-// its process goes away; a crashed frame → "Viewer crashed". The shell, terminals and other content
+// its process goes away; a crashed frame → "Viewer crashed". The UI, terminals and other content
 // tiles stay responsive throughout. No automatic reload.
 export default async (ctx, h) => {
   const [t] = (await h.list(ctx)).tiles.map((t) => t.id)
@@ -34,7 +34,7 @@ export default async (ctx, h) => {
   }
   await terminalWorks()
 
-  // Hang: a's viewer spins forever. Before the deadline the shell, b and the terminal are fine.
+  // Hang: a's viewer spins forever. Before the deadline the UI, b and the terminal are fine.
   await fa.evaluate(() => setTimeout(() => { for (;;); }, 0))
   const lat = []
   for (let i = 0; i < 6; i++) {
@@ -52,7 +52,7 @@ export default async (ctx, h) => {
   await h.waitFor(ctx, async () => !alive(pa), `hung frame process ${pa} gone`, 8000)
   await ctx.shot('hung')
 
-  // b, the shell and the terminal unaffected; no reload attempt on a.
+  // b, the UI and the terminal unaffected; no reload attempt on a.
   h.assert(!(await h.tileOf(ctx, b)).error && (await fb.evaluate(() => window.probe.inits)) === 1, 'other content tile untouched')
   h.assert((await shellLatency()) < 250, 'shell responsive after')
   await terminalWorks()

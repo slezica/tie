@@ -1,6 +1,6 @@
 // Html kind: a local .html file is the page, isolated: own content frame on its own token origin
 // (sandbox allow-scripts allow-same-origin), document CSP (no network), nav lock within its folder,
-// storage in memory only (the shell's session). The page's own scripts run only when the tile says
+// storage in memory only (the UI's session). The page's own scripts run only when the tile says
 // so (pill "Scripts: off/on" in the title bar; default from the setting `htmlScripts`, remembered
 // per file for the session): with scripts off the document CSP lets only Tie's bootstrap run and the
 // page is static. Main injects the bootstrap (src/viewers/html-bootstrap.ts): handshake, pong, link

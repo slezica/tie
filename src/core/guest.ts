@@ -3,7 +3,7 @@
 // main (src/main/guest.ts) and the browser surface (src/renderer/guest.ts). docs/BROWSER.md.
 
 // SECURITY: every guest runs on this one persistent partition (logins survive restarts), never the
-// shell's session: it has the network (the shell's has none) and none of Tie's protocols (tie:,
+// UI's session: it has the network (the UI's has none) and none of Tie's protocols (tie:,
 // tie-content: have no handler there).
 export const BROWSER_PARTITION = 'persist:browser'
 

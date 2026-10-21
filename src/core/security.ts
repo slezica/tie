@@ -12,10 +12,10 @@ function noHash(u: string): string {
   }
 }
 
-// SECURITY: only the shell's own main frame may use IPC (= the pty/settings/app API). Subframes and
+// SECURITY: only the UI's own main frame may use IPC (= the pty/settings/app API). Subframes and
 // any other page (content tiles, a navigation that slipped through) are refused.
-export function isShellSender(frame: { url: string; parent: unknown } | null, shellUrl: string): boolean {
-  return !!frame && !!shellUrl && frame.parent === null && noHash(frame.url) === noHash(shellUrl)
+export function isUiSender(frame: { url: string; parent: unknown } | null, uiUrl: string): boolean {
+  return !!frame && !!uiUrl && frame.parent === null && noHash(frame.url) === noHash(uiUrl)
 }
 
 // SECURITY: schemes handed to the OS. Anything beyond http(s) launches registered apps (smb:, file:,

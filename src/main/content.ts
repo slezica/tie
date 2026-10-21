@@ -20,7 +20,7 @@ interface Entry {
   watcher?: FSWatcher // documents: the root folder (live reload)
 }
 
-// Main → shell pushes (index.ts sets it): document navigations, failed navigations, folder changes.
+// Main → UI pushes (index.ts sets it): document navigations, failed navigations, folder changes.
 type Send = (channel: string, ...args: unknown[]) => void
 let send: Send = () => {}
 
@@ -48,7 +48,7 @@ const DOC_TYPES: Record<string, string> = {
 
 const isDocKind = (kind: string) => policyOf(kind)?.page === 'document'
 
-// SECURITY: the shell (trusted) names the root; still checked: absolute, existing directory, real
+// SECURITY: the UI (trusted) names the root; still checked: absolute, existing directory, real
 // path (symlinked roots resolve once, here). Document kinds also name the page: a document inside
 // the root; and whether its scripts run (default: not). Returns the frame URL, never file paths.
 export function openContent(root: unknown, kind: unknown, page?: unknown, scripts = false): { token: string; url: string } | { error: string } {
@@ -90,8 +90,8 @@ function watchRoot(token: string) {
   }
 }
 
-// A document's storage (localStorage, IndexedDB, ...) lives under its token origin in the shell's
-// in-memory session (security.ts SHELL_PARTITION): never on disk, gone at quit; unreachable after
+// A document's storage (localStorage, IndexedDB, ...) lives under its token origin in the UI's
+// in-memory session (security.ts UI_PARTITION): never on disk, gone at quit; unreachable after
 // close (no frame gets that token again).
 function forget(_token: string, e: Entry) {
   e.watcher?.close()
@@ -106,16 +106,16 @@ export function closeContent(token: unknown) {
 }
 
 // SECURITY: a content frame that stopped answering (frame.ts watchdog) keeps spinning in its
-// renderer even after the shell removes it (a stuck thread never handles the shutdown). Kill its
-// process, but only if that process holds nothing else: never the shell's, never one shared with
+// renderer even after the UI removes it (a stuck thread never handles the shutdown). Kill its
+// process, but only if that process holds nothing else: never the UI's, never one shared with
 // another frame. Then forget the token.
-export function killContent(token: unknown, shell: WebFrameMain | null) {
+export function killContent(token: unknown, ui: WebFrameMain | null) {
   const e = typeof token === 'string' ? entries.get(token) : undefined
-  if (e && e.frame !== null && shell) {
-    const frames = shell.framesInSubtree
+  if (e && e.frame !== null && ui) {
+    const frames = ui.framesInSubtree
     const f = frames.find((x) => x.frameTreeNodeId === e.frame)
     const pid = f?.osProcessId
-    if (f && pid && pid !== shell.osProcessId && pid !== process.pid && frames.every((x) => x === f || x.osProcessId !== pid)) {
+    if (f && pid && pid !== ui.osProcessId && pid !== process.pid && frames.every((x) => x === f || x.osProcessId !== pid)) {
       try {
         process.kill(pid, 'SIGKILL')
         log('content', 'killed', (token as string).slice(0, 8), pid)
@@ -125,16 +125,16 @@ export function killContent(token: unknown, shell: WebFrameMain | null) {
   closeContent(token)
 }
 
-// Shell reloaded: its content tiles are gone.
+// UI reloaded: its content tiles are gone.
 export function clearContent() {
   for (const [token, e] of entries) forget(token, e)
   entries.clear()
 }
 
 // Document frames navigate themselves (links the page handled, scripts, the host's src changes).
-// Main sees every committed navigation of a frame bound to a document token: reported to the shell
+// Main sees every committed navigation of a frame bound to a document token: reported to the UI
 // (`content:navigated`, URL path), which follows it (location, history). A navigation that fails
-// (the shell CSP refuses http(s), file:, other schemes: the frame would end on an error page) is
+// (the UI CSP refuses http(s), file:, other schemes: the frame would end on an error page) is
 // reported too (`content:navfailed`): the tile reloads its page. Aborted ones (-3: the nav lock
 // cancelled it) leave the frame where it was: nothing to do.
 export function initContent(wc: WebContents, push: Send) {
@@ -162,14 +162,14 @@ export function initContent(wc: WebContents, push: Send) {
 
 // SECURITY: frame nav lock (with will-frame-navigate, security.ts). A subframe may load only what
 // its kind's nav rule allows (policy table; 'viewer-exact': the exact viewer URL) of a registered
-// token, as a direct child of the shell, and each token binds to the first frame that loads it:
+// token, as a direct child of the UI, and each token binds to the first frame that loads it:
 // content can't navigate itself elsewhere (meta refresh, location, links, drops) or into another
-// tile's viewer. So the shell's port handshake (targetOrigin '*' to an opaque origin) always
+// tile's viewer. So the UI's port handshake (targetOrigin '*' to an opaque origin) always
 // reaches the tile's own viewer.
-export function contentFrameAllowed(url: string, frame: WebFrameMain | null, shellFrame: WebFrameMain): boolean {
+export function contentFrameAllowed(url: string, frame: WebFrameMain | null, uiFrame: WebFrameMain): boolean {
   const u = parseContentUrl(url)
   const e = u && entries.get(u.token)
-  if (!u || !e || !frame || frame.parent !== shellFrame) return false
+  if (!u || !e || !frame || frame.parent !== uiFrame) return false
   if (!navAllowed(e.kind, u.token, url)) return false
   e.frame ??= frame.frameTreeNodeId
   return e.frame === frame.frameTreeNodeId

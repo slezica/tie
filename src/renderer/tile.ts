@@ -61,7 +61,7 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
     },
     error: (message) => showError(tile, message),
     close: () => host.alive() && closeTile(id),
-    // SECURITY: the strip lives in the shell, over the body: content can't draw the real one. Text only.
+    // SECURITY: the strip lives in the UI, over the body: content can't draw the real one. Text only.
     hint: (text) => {
       const strip = el.querySelector('.link-strip') as HTMLElement
       strip.textContent = text ?? ''

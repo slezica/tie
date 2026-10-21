@@ -16,7 +16,7 @@ export default async (ctx, h) => {
   ctx.log(r)
   for (const [k, v] of Object.entries(r)) h.assert(/^denied/.test(v), `${k}: ${v}`)
   // External protocol launch (scheme with no handler: nothing gets launched even if allowed).
-  // (Top frame: the shell CSP already refuses iframes.)
+  // (Top frame: the UI CSP already refuses iframes.)
   await ctx.page.evaluate(() => (location.href = 'x-tie-test://probe')).catch(() => {})
   await ctx.sleep(500)
   // Navigation guard may catch it first; either way it never launches.

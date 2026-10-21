@@ -7,7 +7,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 ## Host (`renderer/tile.ts`)
 
 - `createTile(kind, opts)`: element (title bar with an optional kind pill, `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
-- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; shell realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle()}`: a labelled toggle in the title bar (html: scripts on/off), refreshed by `changed()`.
+- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle()}`: a labelled toggle in the title bar (html: scripts on/off), refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
 - `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`.
@@ -58,11 +58,11 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 | Kind | Realm | Notes |
 |---|---|---|
-| `terminal` | shell (trusted) | xterm + pty; the one exception to "content never in the shell realm" (`TERMINALS.md`) |
+| `terminal` | UI (trusted) | xterm + pty; the one exception to "content never in the UI realm" (`TERMINALS.md`) |
 | `markdown` | content frame | file view + markdown viewer (`MARKDOWN.md`) |
 | `text`, `image`, `hex` | content frame | file view + viewer (`VIEWERS.md`) |
 | `html` | content frame, own origin | the file is the page (`kinds/html.ts` on the frame host; `VIEWERS.md` "Html") |
-| `browser` | `<webview>` guest, browser partition | remote web (`guest.ts`; `BROWSER.md`): no frame host, no requests, no channel to the shell |
+| `browser` | `<webview>` guest, browser partition | remote web (`guest.ts`; `BROWSER.md`): no frame host, no requests, no channel to the UI |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view).
@@ -95,9 +95,9 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 |---|---|---|
 | Kinds | markdown, text, image, hex, html, probe | browser |
 | Element | `<iframe sandbox>` on `tie-content://<token>/` | `<webview>` (own webContents) |
-| Session | the shell's (in memory, no network) | `persist:browser` (network) |
+| Session | the UI's (in memory, no network) | `persist:browser` (network) |
 | Rules | policy table | `core/guest.ts`, `main/guest.ts` |
-| Channel to the shell | one port, typed requests | none |
+| Channel to the UI | one port, typed requests | none |
 | Keys | main, window's `before-input-event` | main, the guest's own `before-input-event` |
 | Focus → activate | `initFrames` (blur, `activeElement` iframe) | same (`WEBVIEW`) |
 | Failure | watchdog (hung, crashed, no handshake) | `render-process-gone`, `unresponsive` |
@@ -137,16 +137,16 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | No handshake | no `ready` within 5 s | "Content did not load" |
 
 - Every viewer answers `tie:ping` with `pong` (same `n`) from its message handler.
-- On failure: watchdog stopped, port closed, iframe removed, error shown. Hung: `tie.content.kill(token)` first: main SIGKILLs the frame's process if it holds nothing else (not the shell's, not shared with another frame), then forgets the token. A stuck thread never handles the shutdown a removed frame would get: it would burn a core forever.
+- On failure: watchdog stopped, port closed, iframe removed, error shown. Hung: `tie.content.kill(token)` first: main SIGKILLs the frame's process if it holds nothing else (not the UI's, not shared with another frame), then forgets the token. A stuck thread never handles the shutdown a removed frame would get: it would burn a core forever.
 - No automatic reload: a document that hung or crashed the viewer would do it again. The user reopens the tile.
 - Sleep / throttling: a tick > 3 s late (machine slept, hidden window throttled) restarts the ping, no verdict.
-- Own process per frame (`sec-content-escape`): the shell and other tiles keep running while one spins (`content-watchdog`).
+- Own process per frame (`sec-content-escape`): the UI and other tiles keep running while one spins (`content-watchdog`).
 - A viewer paused in DevTools (breakpoint) for > 5 s counts as hung.
 
-- No window `message` listener in the shell: requests arrive over the port only.
-- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the shell's focus update), then is refused.
-- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the shell's `activeElement` (`sec-focus`). Main's `input-event` can't serve as the signal: with out-of-process frames it sees only input to the main frame.
-- Focus: a click in a frame gives the shell no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
+- No window `message` listener in the UI: requests arrive over the port only.
+- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the UI's focus update), then is refused.
+- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the UI's `activeElement` (`sec-focus`). Main's `input-event` can't serve as the signal: with out-of-process frames it sees only input to the main frame.
+- Focus: a click in a frame gives the UI no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
 - Message flood: a frame posting more than 1000 messages a second has the rest dropped unparsed (`FLOOD_MAX`).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
 - Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
@@ -184,10 +184,10 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out, non-files.
 - Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
 - Viewer CSP: from the policy row (above). Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
-- Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the shell, first frame binds the token.
-- Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the shell. Storage per token origin, in memory (the shell's session: `SECURITY.md`).
+- Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the UI, first frame binds the token.
+- Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the UI. Storage per token origin, in memory (the UI's session: `SECURITY.md`).
 - Served viewer kinds: `viewerKinds(dev)` (dev-only rows in dev builds only).
-- Closed tile / shell reload: token forgotten.
+- Closed tile / UI reload: token forgotten.
 
 ## Viewers (`src/viewers/`)
 

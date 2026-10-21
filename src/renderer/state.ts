@@ -37,7 +37,7 @@ export function readGeometry() {
   PEAK = px('--peak', PEAK)
 }
 
-// Tile kinds: the terminal (shell realm), the content kinds (policy table, core/policy), the
+// Tile kinds: the terminal (UI realm), the content kinds (policy table, core/policy), the
 // browser (<webview> guest, core/guest).
 export type Kind = 'terminal' | 'browser' | ContentKind
 

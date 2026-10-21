@@ -126,7 +126,7 @@ export default async (ctx, h) => {
     h.assert(!/refused toggleTask|\[docs\] toggled/.test(ctx.appLog()), 'no write path reached')
     h.assert(file() === doc, 'file unchanged')
 
-    // No write channel for docs in the shell bridge either.
+    // No write channel for docs in the UI bridge either.
     const api = await ctx.page.evaluate(() => ({ doc: Object.keys(window.tie.doc).sort(), all: JSON.stringify(window.tie, (k, v) => (typeof v === 'function' ? k : v)) }))
     h.assert(JSON.stringify(api.doc) === JSON.stringify(['close', 'onChange', 'open', 'pick', 'viewer']), `tie.doc: read-only API: ${api.doc}`)
     h.assert(!/toggle|write|save/i.test(api.all.replace(/"write":"write"/, '')), `no doc write method anywhere: ${api.all}`)

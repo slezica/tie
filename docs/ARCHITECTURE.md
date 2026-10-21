@@ -11,8 +11,8 @@
 | Browser guests | `src/renderer/guest.ts`, `src/main/guest.ts` | Browser tiles: `<webview>` webContents on `persist:browser`, no bridge, no Tie protocols (`BROWSER.md`) |
 | Core | `src/core/` | Pure logic, no DOM/Electron: `layout.ts` (slot tree), `security.ts`, `content.ts` (checks, main), `paste.ts`, `requests.ts` (checks, renderer), `keymap.ts`, `markdown.ts` (files, links), `watchdog.ts` (content frames) |
 
-- Window: `sandbox`, `contextIsolation`, `webviewTag` (guests only via `attachGuest`), CSP `script-src 'self'`, served from `tie://app/`, session `tie-shell` (in memory, no network). One per instance. Guards: `SECURITY.md`.
-- Sessions: `tie-shell` (shell + content frames: in memory, dead proxy, Tie's protocols); `persist:browser` (guests: on disk, network, no Tie protocols). Permissions denied on both.
+- Window: `sandbox`, `contextIsolation`, `webviewTag` (guests only via `attachGuest`), CSP `script-src 'self'`, served from `tie://app/`, session `tie-ui` (in memory, no network). One per instance. Guards: `SECURITY.md`.
+- Sessions: `tie-ui` (UI + content frames: in memory, dead proxy, Tie's protocols); `persist:browser` (guests: on disk, network, no Tie protocols). Permissions denied on both.
 - Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` + renderer hold-to-quit). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
 - Data flow: input (mouse/keys/socket) → `ops.ts` → `S` → `render()` → DOM.
 

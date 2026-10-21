@@ -1,4 +1,4 @@
-// Security: script inside a content frame (probe kind) can't reach the shell, the network, other
+// Security: script inside a content frame (probe kind) can't reach the UI, the network, other
 // tiles, or the OS; its requests are typed and checked. The frame runs in its own process.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -10,7 +10,7 @@ export default async (ctx, h) => {
   writeFileSync(join(root, 'evil.js'), 'window.__rootScript = 1')
   writeFileSync(join(root, 'pic.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>')
   try {
-    const home = await h.shellUrl(ctx)
+    const home = await h.uiUrl(ctx)
     const a = (await ctx.tie('open', 'probe', '--cwd', root)).id
     const b = (await ctx.tie('open', 'probe', '--cwd', root)).id
     const fa = await h.probeFrame(ctx, a)
@@ -21,7 +21,7 @@ export default async (ctx, h) => {
     const content = (await h.frames(ctx)).filter((f) => f.url.startsWith('tie-content://'))
     h.assert(content.length === 2 && content.every((f) => f.outOfProcess && f.origin === 'null'), `frames out-of-process, opaque: ${JSON.stringify(content)}`)
 
-    // The shell realm: no bridge here, parent/top not scriptable, no storage.
+    // The UI realm: no bridge here, parent/top not scriptable, no storage.
     const realm = await fa.evaluate(() => {
       const t = (fn) => {
         try {
@@ -32,7 +32,7 @@ export default async (ctx, h) => {
       }
       return { tie: typeof window.tie, parentTie: t(() => parent.tie), topDoc: t(() => top.document), storage: t(() => localStorage.length), cookie: t(() => document.cookie) }
     })
-    h.assert(realm.tie === 'undefined' && /^threw/.test(realm.parentTie) && /^threw/.test(realm.topDoc), `shell unreachable: ${JSON.stringify(realm)}`)
+    h.assert(realm.tie === 'undefined' && /^threw/.test(realm.parentTie) && /^threw/.test(realm.topDoc), `UI unreachable: ${JSON.stringify(realm)}`)
     h.assert(/^threw/.test(realm.storage) && /^threw/.test(realm.cookie), `no storage: ${JSON.stringify(realm)}`)
 
     // Top navigation, popups.
@@ -48,7 +48,7 @@ export default async (ctx, h) => {
       l.click()
     }, p.url)
     await p.assertUntouched('top navigation / popups')
-    h.assert((await h.shellUrl(ctx)) === home, 'shell stayed')
+    h.assert((await h.uiUrl(ctx)) === home, 'UI stayed')
 
     // Network out: fetch, image, script, style; injected scripts (inline, from the root) don't run.
     await fa.evaluate(
@@ -85,7 +85,7 @@ export default async (ctx, h) => {
       const port = window.probe.port
       for (const url of ['file:///etc/hosts', 'smb://host/share', 'javascript:alert(1)', 'x-app://run?cmd=id', u + '/link']) port.postMessage({ verb: 'openLink', url })
       for (const m of [{ verb: 'spawn', cmd: 'id' }, { verb: 'openLink', url: u + '/extra', cmd: 'id' }, 'openLink', null, [1], { verb: 'openLink', url: 42 }]) port.postMessage(m)
-      // Not the port: the shell listens for no window messages.
+      // Not the port: the UI listens for no window messages.
       parent.postMessage({ type: 'tie:init' }, '*')
       parent.postMessage({ verb: 'openLink', url: u + '/window-message' }, '*')
     }, p.url)

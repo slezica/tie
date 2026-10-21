@@ -2,7 +2,7 @@
 // network (fetch, XHR, img, beacon, WebSocket, EventSource, form, CSS url(), fonts, prefetch,
 // preconnect, preload, script, media, frames, objects, workers, ping, WebRTC STUN/TURN, location,
 // meta refresh); window.open / target=_blank only through the confirm dialog (Cancel and Open
-// paths; never without focus); the shell (parent/top) unreachable; the port never visible to the
+// paths; never without focus); the UI (parent/top) unreachable; the port never visible to the
 // page; another tile's token unreadable; traversal, symlinks out, /_tie/ refused; navigating away
 // breaks only the frame (reloaded; a loop ends in an error); opaque viewer frames still can't fetch.
 // Hidden window: real clicks focus the frame.
@@ -53,11 +53,11 @@ export default async (ctx, h) => {
     const token = new URL(fr.url()).host
     await h.clickIn(ctx, fr, '#h') // focused: gesture requests would pass the focus rule
 
-    // Own process, own origin (the token), not the shell's.
+    // Own process, own origin (the token), not the UI's.
     const fs = (await h.frames(ctx)).filter((f) => f.url.startsWith(`tie-content://${token}/`))
     h.assert(fs.length === 1 && fs[0].outOfProcess && fs[0].origin === `tie-content://${token}`, `own process + origin: ${JSON.stringify(fs)}`)
 
-    // The shell: unreachable. The handshake port: never seen by the page.
+    // The UI: unreachable. The handshake port: never seen by the page.
     const realm = await fr.evaluate(() => {
       const t = (fn) => {
         try {
@@ -77,7 +77,7 @@ export default async (ctx, h) => {
 
     // Exfiltration: every way a page loads or sends something, pointed at the probes. Two layers,
     // each checked: the document CSP refuses (violation events, below; forms: the sandbox; workers
-    // from elsewhere: same-origin rule) and the shell session has no network (probes untouched, even
+    // from elsewhere: same-origin rule) and the UI session has no network (probes untouched, even
     // for what the CSP doesn't cover: WebRTC).
     await fr.evaluate(() => {
       window.__v = []
@@ -220,7 +220,7 @@ export default async (ctx, h) => {
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'other schemes refused')
     await p.assertUntouched('opens', 300)
 
-    // Navigating away: blocked (the shell's frame-src), the frame broke → reloaded, same page. Nav
+    // Navigating away: blocked (the UI's frame-src), the frame broke → reloaded, same page. Nav
     // lock: other tokens, /_tie/ files: cancelled (frame stays).
     for (const target of [`${p.url}/location`, `tie-content://${'e'.repeat(32)}/evil.html`, '/_tie/markdown.html']) {
       await (await h.htmlFrame(ctx, id)).evaluate((t) => (location.href = t), target).catch(() => {})

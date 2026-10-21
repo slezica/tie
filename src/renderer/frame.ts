@@ -45,13 +45,13 @@ const GESTURE_MS = 150 // an unfocused gesture request waits this long for the f
 const NAV_GRACE_MS = 5000 // documents: port closed, a load must follow by then (else crashed)
 const NAVFAIL_MAX = 3 // documents: failed navigations reloaded per NAVFAIL_MS, then an error
 const NAVFAIL_MS = 10_000
-const FLOOD_MAX = 1000 // frame messages handled per second; the rest dropped (a flooding page can't jank the shell)
+const FLOOD_MAX = 1000 // frame messages handled per second; the rest dropped (a flooding page can't jank the UI)
 
 // SECURITY: focus. A cross-origin iframe could call window.focus() / el.focus() at any time and
 // become document.activeElement (the gesture rule's signal; and the keyboard would follow). Blink
 // refuses such calls from a frame without transient user activation when the frame's permissions
 // policy denies `focus-without-user-activation` (`allow` below; feature enabled in main/index.ts):
-// a frame is focused only by a click / Tab into it, the shell focusing it, or a script within a
+// a frame is focused only by a click / Tab into it, the UI focusing it, or a script within a
 // few seconds of the user's last click in it (sec-focus).
 
 // Watchdog (timing: core/watchdog.ts): the host pings the viewer over the port. No pong in time =
@@ -83,7 +83,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     port = null
   }
 
-  // SECURITY: a stuck or crashed frame is content failing, never the shell's problem: the frame
+  // SECURITY: a stuck or crashed frame is content failing, never the UI's problem: the frame
   // goes away (frees its process: a busy loop would burn a core forever) and the failure stays
   // visible. Once only; nothing restarts it.
   const fail = (message: string, why: string) => {
@@ -109,7 +109,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
 
   // SECURITY: frame messages are untrusted: parseRequest (shape) first, then the kind's handler
   // for that verb, if any. Everything else is dropped and logged, never thrown into the frame.
-  // Beyond FLOOD_MAX a second: dropped unparsed (a tight postMessage loop costs the shell nothing).
+  // Beyond FLOOD_MAX a second: dropped unparsed (a tight postMessage loop costs the UI nothing).
   let msgs = 0
   let msgsAt = 0
   const onRequest = (data: unknown) => {
@@ -121,7 +121,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
     // SECURITY: verbs acting for the user (open a link, write a file) only while this frame has
     // focus: the user clicked or typed in it (VS Code's rule; a script can't take focus by itself:
     // see "focus" above). The viewer posts them from its click handler only. A click into a frame
-    // that wasn't focused: its request can arrive (other process) before the shell sees the focus
+    // that wasn't focused: its request can arrive (other process) before the UI sees the focus
     // move, so an unfocused request waits GESTURE_MS for it, then is refused.
     if (needsGesture(req.verb) && !focused()) {
       const r = req
@@ -188,7 +188,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
         page = p
         spec.onNavigate?.(p)
       },
-      // A navigation away failed (the shell CSP refused it): the frame shows an error page. Reload
+      // A navigation away failed (the UI CSP refused it): the frame shows an error page. Reload
       // the page, unless it keeps doing it (meta refresh loops).
       failed: () => {
         const now = Date.now()
@@ -219,8 +219,8 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       frame = document.createElement('iframe')
       frame.className = 'content'
       // SECURITY: sandbox from the policy table (viewers: scripts only. No allow-same-origin: opaque
-      // origin, can't reach the shell or its storage. Documents: allow-same-origin = their own
-      // token's origin, still cross-origin to the shell: they can't lift the sandbox. No popups, top
+      // origin, can't reach the UI or its storage. Documents: allow-same-origin = their own
+      // token's origin, still cross-origin to the UI: they can't lift the sandbox. No popups, top
       // navigation, forms, modals, downloads). No permissions, no referrer.
       frame.setAttribute('sandbox', policy.sandbox.join(' '))
       frame.setAttribute('allow', "focus-without-user-activation 'none'") // Blink refuses focus() from the frame without a user gesture (main/index.ts)
@@ -290,7 +290,7 @@ const safeJson = (v: unknown) => {
   }
 }
 
-// A click inside a frame (or a browser guest) never reaches the shell (no pointerdown): the shell
+// A click inside a frame (or a browser guest) never reaches the UI (no pointerdown): the UI
 // window blurs and the iframe (webview) becomes document.activeElement. Activate its tile, as a
 // pointerdown would. (Frames can't focus themselves by script: "focus" above.)
 export function initFrames() {

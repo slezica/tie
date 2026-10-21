@@ -48,10 +48,10 @@ The file is the page. Isolated, local only. Its own scripts run only when the ti
 
 | Property | How |
 |---|---|
-| Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: modules, storage, fetch work; cross-origin to the shell (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
-| No network | document CSP (`documentCsp(scripts, nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers); scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'` with scripts on, `'nonce-<response>'` (the bootstrap only) with scripts off; no frames, objects, forms, `<base>`. Plus the shell session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
+| Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: modules, storage, fetch work; cross-origin to the UI (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
+| No network | document CSP (`documentCsp(scripts, nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers); scripts `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'` with scripts on, `'nonce-<response>'` (the bootstrap only) with scripts off; no frames, objects, forms, `<base>`. Plus the UI session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
 | Folder | root = the file's directory (token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
-| Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the shell CSP `frame-src` refuses → main reports `did-fail-provisional-load` → the tile reloads its page; > 3 in 10 s → error "Page keeps navigating away". Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
+| Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the UI CSP `frame-src` refuses → main reports `did-fail-provisional-load` → the tile reloads its page; > 3 in 10 s → error "Page keeps navigating away". Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
 | Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `hover` (pointer over a link → the tile's link strip). Page scripts share its realm: hostile by assumption |
 | Popups | no `allow-popups`; `window.open` replaced by the bootstrap (request, returns `null`) |
 
@@ -65,7 +65,7 @@ The file is the page. Isolated, local only. Its own scripts run only when the ti
 - History: host list. Host navigations (links, back/forward, reload) set the page first; the page's own navigations (script, links it handled) arrive from main (`did-frame-navigate` → `content:navigated`) → location follows, new entry. `cmd+[` / `cmd+]` / `cmd+R`; location not editable.
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
-- Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the shell's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
+- Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the UI's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
 - Title = the file name, never the page's `<title>` (2026-10-20: content can't label its tile); dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
@@ -74,7 +74,7 @@ The file is the page. Isolated, local only. Its own scripts run only when the ti
 - `sec-viewers`: hostile text literal (HTML, escapes, bidi), SVG with scripts/handlers/external refs inert (no probe hit), caps (CLI errors), main refusing files as other kinds.
 - `html` (scripts on by setting): siblings (scripts, modules, CSS, fetch, XHR), in-folder / subfolder / other-folder navigation, back/forward, script navigation followed, other kinds beside, web confirm (Cancel / Open), anchors, live reload (page, sibling) with scroll kept, cmd+R, fresh storage on reopen.
 - `html-scripts`: the default (static: no inline / file / module scripts, no handlers; bootstrap links and strip work), the pill (reload with scripts, back to static), remembered per file, title never from `<title>`.
-- `sec-html`: exfiltration (CSP violation per vector + probes untouched, WebRTC STUN/TURN), confirm paths, gesture, shell/port/other tokens/traversal/`/_tie/`, navigation away and loops, opaque frames can't fetch.
+- `sec-html`: exfiltration (CSP violation per vector + probes untouched, WebRTC STUN/TURN), confirm paths, gesture, UI/port/other tokens/traversal/`/_tie/`, navigation away and loops, opaque frames can't fetch.
 
 ## Limitations
 

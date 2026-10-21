@@ -1,6 +1,6 @@
 // Html bootstrap: injected by main (content.ts) first in the <head> of every html document an html
 // tile shows, inline (the document CSP allows inline scripts). The page's only link to the host:
-// handshake (one MessagePort from the shell), watchdog pong, link hovers, clicks and window.open → requests
+// handshake (one MessagePort from the UI), watchdog pong, link hovers, clicks and window.open → requests
 // (the host routes them: same folder in the tile, other files beside, the web after a confirm),
 // scroll kept across reloads. docs/VIEWERS.md "Html".
 //

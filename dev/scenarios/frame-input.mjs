@@ -10,7 +10,7 @@ export default async (ctx, h) => {
   const pf = page.frames().find((f) => f.url().startsWith('tie-content://'))
   h.assert(pf && (await pf.evaluate(() => window.probe.inits)) === 1, 'probe frame up, one handshake')
 
-  // Click inside the frame: the shell sees no pointerdown, yet the tile activates.
+  // Click inside the frame: the UI sees no pointerdown, yet the tile activates.
   await ctx.tie('focus', a)
   await ctx.sleep(200)
   const pr = await h.rectOf(ctx, p)

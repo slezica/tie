@@ -1,5 +1,5 @@
 // Browser tiles (<webview> guest on a local site): tie open <url>, title from the page, links
-// (real clicks), back / forward / reload (keys from the shell and from inside the guest), location
+// (real clicks), back / forward / reload (keys from the UI and from inside the guest), location
 // bar (cmd+L, typed URL, refused input), keys from the guest (cmd+D splits), focus activation,
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
 // focused), tie open browser [url], CLI errors. Hidden window: real clicks reach the guest.
@@ -71,7 +71,7 @@ export default async (ctx, h) => {
     t = await h.tileOf(ctx, b)
     h.assert(t.web.back && !t.web.forward && (await loc()) === s.url + '/two', `history after link: ${JSON.stringify(t.web)}`)
 
-    // Back / forward: cmd+[ / cmd+] (through main, shell side) and from inside the guest.
+    // Back / forward: cmd+[ / cmd+] (through main, UI side) and from inside the guest.
     await h.press(ctx, 'Meta+[')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'Page One', 'cmd+[ back')
     await h.guestKey(ctx, b, 'Meta+]')
@@ -150,7 +150,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, e.id)).web.url.startsWith('https://127.0.0.1'), 'bare host → https')
     await ctx.tie('close', e.id)
 
-    // Layering: the shell's tile menu paints over the guest.
+    // Layering: the UI's tile menu paints over the guest.
     const red = (await ctx.tie('open', s.url + '/red', '--at', b, '--side', 'b')).id
     await h.guestPage(ctx, red)
     const rr = await h.rectOf(ctx, red)

@@ -157,7 +157,7 @@ export async function probe(ctx) {
 }
 
 // App URL the shell must stay on (guards against navigation).
-export const shellUrl = (ctx) => ctx.page.evaluate(() => location.href)
+export const uiUrl = (ctx) => ctx.page.evaluate(() => location.href)
 
 // Paste text into a terminal tile as the OS would (paste event on xterm's textarea).
 export async function paste(ctx, id, text) {

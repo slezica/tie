@@ -1,4 +1,4 @@
-// Content storage never reaches disk: the shell (and every content frame) runs on an in-memory
+// Content storage never reaches disk: the UI (and every content frame) runs on an in-memory
 // session. An html page writes localStorage, IndexedDB and Cache Storage; the instance's Electron
 // profile never holds the marker (scanned after the writes had time to flush and after the tile
 // closed); a reopened file starts empty.

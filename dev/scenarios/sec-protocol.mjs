@@ -1,6 +1,6 @@
-// Security: the shell is served from tie://app (not file://), can't read other files, no traversal.
+// Security: the UI is served from tie://app (not file://), can't read other files, no traversal.
 export default async (ctx, h) => {
-  const url = await h.shellUrl(ctx)
+  const url = await h.uiUrl(ctx)
   h.assert(url.startsWith('tie://app/'), `shell on tie://app (got ${url})`)
   const r = await ctx.page.evaluate(async () => {
     const tryFetch = (u) => fetch(u).then(async (res) => (res.ok ? 'READ ' + (await res.text()).length : 'status ' + res.status), (e) => 'blocked ' + e.name)

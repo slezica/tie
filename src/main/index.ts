@@ -4,7 +4,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRIVATE } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
-import { harden, setShellUrl, openExternal, shellIpc, serveShell, SHELL_URL, SHELL_PARTITION, noNetwork, noWebRtcUdp } from './security'
+import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION, noNetwork, noWebRtcUdp } from './security'
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
@@ -35,7 +35,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
-const ipc = shellIpc(() => win)
+const ipc = uiIpc(() => win)
 let quitting = false
 const pty = initPty(() => (win && !win.isDestroyed() ? win.webContents : null))
 // Put on PATH in Tie terminals: the repo's bin/ in dev; Tie.app/Contents/Resources/bin when installed.
@@ -122,7 +122,7 @@ function createWindow(ses: Electron.Session) {
     show: false,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
-      session: ses, // in-memory (security.ts SHELL_PARTITION): content storage never on disk
+      session: ses, // in-memory (security.ts UI_PARTITION): content storage never on disk
       sandbox: true,
       contextIsolation: true,
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
@@ -150,11 +150,11 @@ function createWindow(ses: Electron.Session) {
   win.on('close', () => !quitting && app.quit())
   win.on('closed', () => (win = null))
   if (process.env.ELECTRON_RENDERER_URL) {
-    setShellUrl(process.env.ELECTRON_RENDERER_URL)
+    setUiUrl(process.env.ELECTRON_RENDERER_URL)
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    setShellUrl(SHELL_URL)
-    win.loadURL(SHELL_URL)
+    setUiUrl(UI_URL)
+    win.loadURL(UI_URL)
   }
 }
 
@@ -211,7 +211,7 @@ harden()
 app.whenReady().then(async () => {
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
-  const ses = session.fromPartition(SHELL_PARTITION)
+  const ses = session.fromPartition(UI_PARTITION)
   serveShell(ses, join(import.meta.dirname, '../renderer'))
   serveContent(ses)
   await noNetwork(ses, dev ? process.env.ELECTRON_RENDERER_URL : undefined)

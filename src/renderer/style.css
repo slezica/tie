@@ -379,7 +379,7 @@ body.dragging-tab .tab {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 /* Link strip (Host.hint): the hovered link's real target, bottom-left of the tile, over the body,
-   in the shell (content can't draw it). */
+   in the UI (content can't draw it). */
 .link-strip {
   position: absolute;
   left: 0;
@@ -635,7 +635,7 @@ body.resizing-col .border.col:hover::after {
 
 /* Drag shield: tile content ignores the pointer during any drag. Content frames and guests from
    pointerdown on (track()): they'd swallow moves and the release. OS drags (main.ts): drops land in
-   the shell. */
+   the UI. */
 body.dragging .body,
 body.dragging .tile.shelved.revealed,
 body.tracking .body iframe,

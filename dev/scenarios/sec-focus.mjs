@@ -1,7 +1,7 @@
 // Security: content frames can't take focus by script. An html page's own script calling
 // window.focus() / el.focus() (on load, from timers) is refused by Blink (permissions policy
 // focus-without-user-activation 'none' + BlockingFocusWithoutUserActivation): the frame never
-// becomes the shell's activeElement, so no gesture verb passes (no dialog, no file opened), the
+// becomes the UI's activeElement, so no gesture verb passes (no dialog, no file opened), the
 // tile isn't activated, and typing stays in the terminal. After a real click the page is focused;
 // window.open then shows the dialog: site address in bold, a long link called out, Open disabled
 // at first (no click-through). Hidden window: real input routing. Playwright's evaluate carries a

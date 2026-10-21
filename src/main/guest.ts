@@ -20,7 +20,7 @@ const sinceInput = (wc: WebContents | undefined): number | null => {
 
 // SECURITY: device choosers. Web Bluetooth: Electron picks the first device found unless the event
 // is prevented (a page could pair with whatever is nearby after one click). Cancelled here, for
-// guests and the shell window alike. USB / HID / serial go through setDevicePermissionHandler
+// guests and the UI window alike. USB / HID / serial go through setDevicePermissionHandler
 // (harden(): denied).
 export function noDeviceChoosers(wc: WebContents) {
   wc.on('select-bluetooth-device', (e, _devices, cb) => {
@@ -30,16 +30,16 @@ export function noDeviceChoosers(wc: WebContents) {
   })
 }
 
-// SECURITY: <webview> attach (will-attach-webview on the embedder). Only the shell window's page
+// SECURITY: <webview> attach (will-attach-webview on the embedder). Only the UI window's page
 // may embed guests (Electron sets up the tag in main frames only; content frames are sandboxed,
 // preload-less and out of process). Whatever the tag asked for, the guest gets these prefs, rebuilt
 // from nothing: no preload, no Node, sandboxed, isolated, no nested webviews, web security on, the
-// browser partition (never the shell's session). Attributes other than src are dropped (Electron's
+// browser partition (never the UI's session). Attributes other than src are dropped (Electron's
 // internal instanceId kept); src must be http(s) or about:blank.
-export function attachGuest(e: Electron.Event, prefs: Electron.WebPreferences, params: Record<string, string>, fromShell: boolean) {
+export function attachGuest(e: Electron.Event, prefs: Electron.WebPreferences, params: Record<string, string>, fromUi: boolean) {
   const src = guestSrc(params.src)
-  if (!fromShell || !src) {
-    log('security', 'blocked webview', fromShell ? 'src' : 'embedder', String(params.src ?? ''))
+  if (!fromUi || !src) {
+    log('security', 'blocked webview', fromUi ? 'src' : 'embedder', String(params.src ?? ''))
     return e.preventDefault()
   }
   const asked = Object.keys(prefs).filter((k) => k !== 'offscreen')
@@ -84,7 +84,7 @@ export function guardGuest(guest: WebContents) {
     log('security', 'blocked guest redirect', e.url)
     e.preventDefault()
   })
-  // Loads the shell starts (src, location bar, back/forward) skip will-frame-navigate. The shell
+  // Loads the UI starts (src, location bar, back/forward) skip will-frame-navigate. The UI
   // already checks them (core/guest locationUrl); a refused URL is still stopped here.
   // (did-start-navigation also fires, first, for navigations will-frame-navigate then refuses.)
   guest.on('did-start-navigation', (d) => {
@@ -112,7 +112,7 @@ export function guardGuest(guest: WebContents) {
   // Shortcuts: the guest's own before-input-event (the window's never sees keys typed in a guest).
   watchKeys(guest)
   guest.on('render-process-gone', (_e, d) => log('guest', 'gone', guest.id, d.reason))
-  // Hung page: the shell shows an error and drops the guest; its renderer is killed (a stuck
+  // Hung page: the UI shows an error and drops the guest; its renderer is killed (a stuck
   // thread never exits by itself). Same-site guests sharing that process crash too.
   guest.on('unresponsive', () => {
     log('guest', 'unresponsive', guest.id)
@@ -158,7 +158,7 @@ export function initBrowserSession(): Session {
   return ses
 }
 
-// SECURITY: the shell's session never downloads (content frames lack allow-downloads; this is the
+// SECURITY: the UI's session never downloads (content frames lack allow-downloads; this is the
 // second layer).
 export function noDownloads(ses: Session) {
   ses.on('will-download', (e, item) => {
@@ -168,13 +168,13 @@ export function noDownloads(ses: Session) {
 }
 
 // Dev socket method `guest {action}` (harness): `list`; `crash`, `key`, `click` on guest `id`;
-// `proxy {url}`: how the shell's and the browser's sessions reach a URL.
-export async function guestMethod(params: unknown, shell: Session | null): Promise<unknown> {
+// `proxy {url}`: how the UI's and the browser's sessions reach a URL.
+export async function guestMethod(params: unknown, ui: Session | null): Promise<unknown> {
   const p = (params ?? {}) as { action?: string; id?: number; x?: number; y?: number; keyCode?: string; modifiers?: string[]; url?: string }
   if (p.action === 'list') return [...guests].map((g) => ({ id: g.id, url: g.getURL(), partition: g.session.storagePath ?? null, focused: g.isFocused(), crashed: g.isCrashed(), userAgent: g.getUserAgent() }))
   if (p.action === 'proxy') {
     const url = String(p.url)
-    return { shell: shell ? await shell.resolveProxy(url) : null, browser: await session.fromPartition(BROWSER_PARTITION).resolveProxy(url) }
+    return { ui: ui ? await ui.resolveProxy(url) : null, browser: await session.fromPartition(BROWSER_PARTITION).resolveProxy(url) }
   }
   const g = [...guests].find((x) => x.id === p.id)
   if (!g) throw new Error(`no guest ${p.id}`)

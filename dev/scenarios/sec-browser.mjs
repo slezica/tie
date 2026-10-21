@@ -1,9 +1,9 @@
 // Security: browser tiles (<webview> guests). Guest realm has no bridge; can't load tie:,
-// tie-content:, file:, chrome: (navigation, redirects, subresources); the shell's own loads are
+// tie-content:, file:, chrome: (navigation, redirects, subresources); the UI's own loads are
 // stopped too; attach rebuilds prefs whatever the tag asks (preload, nodeintegration, partition...),
 // refuses bad src and content frames; popups: blocked without input, system browser right after a
 // real click; downloads land in the (harness) downloads folder under a safe unique name; permissions
-// denied; the shell session has no network while the guest does; a crash is an error, the rest
+// denied; the UI session has no network while the guest does; a crash is an error, the rest
 // keeps working. Hidden window: real clicks reach the guest.
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -80,7 +80,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     const frameUrls = await g.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => { try { return f.contentWindow.location.href } catch { return 'cross-origin' } }))
     h.assert(frameUrls.every((u) => !/^(file|tie):/.test(u)), `subframes never load local schemes: ${frameUrls}`)
 
-    // The shell's own loads (src, location bar, back/forward: browser-initiated) are checked too.
+    // The UI's own loads (src, location bar, back/forward: browser-initiated) are checked too.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] webview`).loadURL('file:///etc/hosts').catch(() => {}), b2)
     await ctx.sleep(800)
     const after = (await guests()).find((x) => x.url.startsWith('file:') || x.url.startsWith(s.url + '/frames'))
@@ -120,7 +120,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await ctx.sleep(800)
     h.assert((log().match(/blocked webview src/g) ?? []).length >= 3, 'bad src refused at attach')
     await ctx.page.evaluate(() => document.querySelectorAll('webview.bad').forEach((w) => w.remove()))
-    // A content frame can't create guests (no <webview> outside the shell's main frame).
+    // A content frame can't create guests (no <webview> outside the UI's main frame).
     const probe = (await ctx.tie('open', 'probe')).id
     const pf = await h.probeFrame(ctx, probe)
     const tag = await pf.evaluate((src) => {
@@ -198,11 +198,11 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     })
     for (const [k, v] of Object.entries(perms)) h.assert(/^denied/.test(v), `guest permission ${k}: ${v}`)
 
-    // Network: the guest has it (DIRECT), the shell's session doesn't (dead proxy).
+    // Network: the guest has it (DIRECT), the UI's session doesn't (dead proxy).
     const proxy = await rpc(ctx.instance, 'guest', { action: 'proxy', url: s.url + '/' })
-    h.assert(proxy.shell === 'PROXY 127.0.0.1:1' && proxy.browser === 'DIRECT', `proxies: ${JSON.stringify(proxy)}`)
+    h.assert(proxy.ui === 'PROXY 127.0.0.1:1' && proxy.browser === 'DIRECT', `proxies: ${JSON.stringify(proxy)}`)
 
-    // Crash: error state; the shell and other tiles keep working.
+    // Crash: error state; the UI and other tiles keep working.
     await rpc(ctx.instance, 'guest', { action: 'crash', id: (await h.tileOf(ctx, p)).web.guest })
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, p)).error === 'Page crashed', 'crash → error')
     h.assert(!(await ctx.page.$(`.tile[data-id="${p}"] webview`)), 'crashed guest removed')

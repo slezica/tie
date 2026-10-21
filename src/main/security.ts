@@ -2,15 +2,15 @@
 import { app, shell, ipcMain, protocol, net, type Session, type WebContents, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { log } from './env'
 import { pathToFileURL } from 'node:url'
-import { isShellSender, externalUrl, sameDocument, resolveInside } from '../core/security'
+import { isUiSender, externalUrl, sameDocument, resolveInside } from '../core/security'
 import { CONTENT_SCHEME } from '../core/content'
 import { contentFrameAllowed } from './content'
 import { attachGuest, guardGuest, noDeviceChoosers } from './guest'
 
-// The shell's own URL (file://.../index.html, or the dev server). Set before the window loads.
-let shellUrl = ''
-export function setShellUrl(url: string) {
-  shellUrl = url
+// The UI's own URL (file://.../index.html, or the dev server). Set before the window loads.
+let uiUrl = ''
+export function setUiUrl(url: string) {
+  uiUrl = url
 }
 
 export function harden() {
@@ -25,7 +25,7 @@ export function harden() {
   ])
   app.on('web-contents-created', (_e, wc) => guard(wc))
   // SECURITY: Electron grants every permission by default (notifications, clipboard read, camera,
-  // mic, geolocation, external protocol launch...). The shell needs none; content tiles get none.
+  // mic, geolocation, external protocol launch...). The UI needs none; content tiles get none.
   // Every session, including partitions created later for content.
   app.on('session-created', (s) => {
     s.setPermissionRequestHandler((_wc, permission, cb) => {
@@ -49,12 +49,12 @@ function guard(wc: WebContents) {
   // Browser tile guests: their own guards (http(s) navigation, popups, keys: guest.ts).
   if (wc.getType() === 'webview') return guardGuest(wc)
   // SECURITY: the preload (`window.tie`, can spawn ptys) attaches to the main frame whatever URL it
-  // shows. Any navigation away from the shell hands that power to foreign content. Only reloads of
-  // the shell itself (dev HMR) pass; links, location changes, meta refresh, forms are refused.
+  // shows. Any navigation away from the UI hands that power to foreign content. Only reloads of
+  // the UI itself (dev HMR) pass; links, location changes, meta refresh, forms are refused.
   // `will-frame-navigate` covers the main frame and subframes; redirects are checked separately.
   // Subframes: only content tiles' own viewers (nav lock: contentFrameAllowed, content.ts).
   wc.on('will-frame-navigate', (e) => {
-    if (e.isMainFrame && sameDocument(e.url, shellUrl)) return
+    if (e.isMainFrame && sameDocument(e.url, uiUrl)) return
     if (!e.isMainFrame && contentFrameAllowed(e.url, e.frame, wc.mainFrame)) return
     log('security', 'blocked navigation', e.isMainFrame ? 'main' : 'subframe', e.url)
     e.preventDefault()
@@ -68,30 +68,30 @@ function guard(wc: WebContents) {
     log('security', 'blocked window.open', d.url)
     return { action: 'deny' }
   })
-  // SECURITY: <webview> guests (browser tiles) only from the shell window's own page, prefs rebuilt
+  // SECURITY: <webview> guests (browser tiles) only from the UI window's own page, prefs rebuilt
   // (attachGuest, guest.ts). Any other embedder: refused.
-  wc.on('will-attach-webview', (e, prefs, params) => attachGuest(e, prefs, params, isShellContents(wc)))
+  wc.on('will-attach-webview', (e, prefs, params) => attachGuest(e, prefs, params, isUiContents(wc)))
   noDeviceChoosers(wc)
 }
 
-// The shell window's page (offscreen in harness instances): the one webContents showing the shell.
-const isShellContents = (wc: WebContents) => (wc.getType() === 'window' || wc.getType() === 'offscreen') && sameDocument(wc.getURL(), shellUrl)
+// The UI window's page (offscreen in harness instances): the one webContents showing the UI.
+const isUiContents = (wc: WebContents) => (wc.getType() === 'window' || wc.getType() === 'offscreen') && sameDocument(wc.getURL(), uiUrl)
 
-// SECURITY: the shell window runs on its own in-memory session (SHELL_PARTITION: no `persist:`
+// SECURITY: the UI window runs on its own in-memory session (UI_PARTITION: no `persist:`
 // prefix): whatever content stores (html pages: localStorage, IndexedDB, Cache Storage under their
 // token origins) lives in memory only and is gone when Tie quits. Chromium's data removal skips
 // custom schemes, so clearing on close isn't possible; never writing is (sec-storage). Protocols
 // (tie, tie-content), the no-network guard and permissions all apply to this session.
-export const SHELL_PARTITION = 'tie-shell'
+export const UI_PARTITION = 'tie-ui'
 
-// SECURITY: the shell's session (the shell and every content frame) needs no network: Tie's own
+// SECURITY: the UI's session (the UI and every content frame) needs no network: Tie's own
 // pages come from tie:// and tie-content://, which no proxy touches. CSPs keep content off the
 // network, but WebRTC isn't covered by any CSP directive Chromium enforces (STUN over UDP, TURN over
 // TCP reached local probes from an html page: sec-html). So: WebRTC may not use UDP unless
 // proxied, and everything proxied (loopback included) goes to a closed local port: no connection
 // leaves. External links go through the OS (openExternal), not this session. The browser tile (P4)
 // gets its own partition.
-// Dev server mode (`tie-dev run --hot`): the shell itself loads from the dev server, so exactly
+// Dev server mode (`tie-dev run --hot`): the UI itself loads from the dev server, so exactly
 // that host:port is exempt (dev builds only; every other loopback address stays dead).
 export const DEAD_PROXY = '127.0.0.1:1'
 export async function noNetwork(ses: Session, devServer?: string) {
@@ -111,14 +111,14 @@ export function openExternal(url: unknown) {
   if (!process.env.TIE_BACKGROUND) shell.openExternal(href)
 }
 
-// SECURITY: every IPC channel goes through here: handlers run only for the shell's main frame in
-// the shell window. Register channels with `ipc.on` / `ipc.handle`, never `ipcMain` directly.
+// SECURITY: every IPC channel goes through here: handlers run only for the UI's main frame in
+// the UI window. Register channels with `ipc.on` / `ipc.handle`, never `ipcMain` directly.
 type Handler<E> = (e: E, ...args: any[]) => unknown
-export function shellIpc(win: () => BrowserWindow | null) {
+export function uiIpc(win: () => BrowserWindow | null) {
   const trusted = (e: IpcMainEvent | IpcMainInvokeEvent) => {
     const w = win()
     const f = e.senderFrame
-    const ok = !!w && e.sender === w.webContents && isShellSender(f && { url: f.url, parent: f.parent }, shellUrl)
+    const ok = !!w && e.sender === w.webContents && isUiSender(f && { url: f.url, parent: f.parent }, uiUrl)
     if (!ok) log('security', 'rejected ipc from', f?.url ?? '(gone)')
     return ok
   }
@@ -129,11 +129,11 @@ export function shellIpc(win: () => BrowserWindow | null) {
   }
 }
 
-// SECURITY: the shell is served from tie://app/, never file://. file:// pages get universal file
+// SECURITY: the UI is served from tie://app/, never file://. file:// pages get universal file
 // access (fuse grantFileProtocolExtraPrivileges, on by default: turned off when packaging), so any
-// script in a file:// shell could read every file on disk. tie://app serves only `root`
+// script in a file:// UI could read every file on disk. tie://app serves only `root`
 // (out/renderer) through resolveInside (traversal-safe); other hosts are refused.
-export const SHELL_URL = 'tie://app/index.html'
+export const UI_URL = 'tie://app/index.html'
 export function serveShell(ses: Session, root: string) {
   ses.protocol.handle('tie', async (req) => {
     const u = new URL(req.url)

@@ -19,7 +19,7 @@
 - `test --e2e`: each scenario on a fresh instance; trace folder per run (below).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (shell vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -76,7 +76,7 @@ EOF
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
-| `probe`, `shellUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); shell URL |
+| `probe`, `uiUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); UI URL |
 | `frames`, `probeFrame(id)` | window frame tree (`tie frames`: url, origin, pid, out-of-process); Playwright frame inside a probe tile, once its handshake is done |
 | `press(chord)`, `keyDown(key)`, `keyUp(key)` | keys through main (dev socket `input` → `sendInputEvent`): pass `before-input-event` like real keys. Use for shortcuts; CDP `ctx.page.keyboard` skips it (fine for typing) |
 | `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |

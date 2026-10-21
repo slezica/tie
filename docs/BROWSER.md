@@ -7,30 +7,30 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 | Piece | Does |
 |---|---|
 | `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupVerdict` (+ `POPUP_INPUT_MS`, `GESTURE_INPUTS`), `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
-| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, shell loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (shell session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
+| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, UI-started loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (UI session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
 | `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state); `initGuests` (hang reports) |
-| `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (shell page only) |
+| `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (UI page only) |
 | `main/keys.ts` | `watchKeys(wc)`: the shortcut matcher on each guest's own `before-input-event` |
 
 ## Guest (`main/guest.ts`)
 
-- Attach (`will-attach-webview` on the embedder): only the shell window's page (`isShellContents`: window/offscreen contents showing the shell URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (`sec-browser`).
+- Attach (`will-attach-webview` on the embedder): only the UI window's page (`isUiContents`: window/offscreen contents showing the UI URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (`sec-browser`).
 - Prefs rebuilt from nothing: `sandbox`, `contextIsolation`, no Node (`nodeIntegration*` off), `webviewTag` off, `webSecurity` on, no insecure content, no experimental features, no navigate-on-drop, safe dialogs, partition `persist:browser`. Every attribute but `src` dropped (`preload`, `nodeintegration`, `webpreferences`, `partition`, `allowpopups`, `disablewebsecurity`, `useragent`, `httpreferrer`, blink features; Electron's internal `instanceId` kept). `src`: http(s) or `about:blank` (`guestSrc`), else refused.
 - Navigation (`will-frame-navigate`): main frame http(s) (+ `about:blank`); subframes also `about:`, `data:`, `blob:`. Refused: `file:`, `tie:`, `tie-content:`, `chrome:`, `devtools:`, OS handlers (`mailto:`...: refused v1). Redirects: same rule (`will-redirect`; Chromium itself refuses http → `file:`).
-- Shell-started loads (`src`, `loadURL`, back/forward: no `will-frame-navigate`): `did-start-navigation` → refused URL → `stop()` (deferred: stopping inside the event crashes Electron; skipped when `will-frame-navigate` already refused it).
+- UI-started loads (`src`, `loadURL`, back/forward: no `will-frame-navigate`): `did-start-navigation` → refused URL → `stop()` (deferred: stopping inside the event crashes Electron; skipped when `will-frame-navigate` already refused it).
 - Popups (`setWindowOpenHandler`): always denied in Tie. http(s) + real input (mouse button, key: `input-event`, `GESTURE_INPUTS`) in that guest within 1 s (`POPUP_INPUT_MS`) → system browser (`openExternal`); else blocked + logged. Main sees input 2–4 ms before a click's popup (S5).
 - Keys: `watchKeys(guest)`: same keymap and blocking as the window (`INPUT.md`).
-- Crash (`render-process-gone`): logged; the tile shows "Page crashed" (DOM event). Hang (`unresponsive`): shell told (`guest:unresponsive`, by guest id) → "Page stopped responding"; renderer killed (`forcefullyCrashRenderer`; same-site guests sharing the process crash too).
+- Crash (`render-process-gone`): logged; the tile shows "Page crashed" (DOM event). Hang (`unresponsive`): UI told (`guest:unresponsive`, by guest id) → "Page stopped responding"; renderer killed (`forcefullyCrashRenderer`; same-site guests sharing the process crash too).
 
 ## Partition (`persist:browser`)
 
-- One for all browser tiles, per instance (`<userData>/Partitions/browser`): cookies, storage, logins survive restarts. Never the shell's session (in memory, no network).
-- Network: direct. The shell session's dead proxy (`noNetwork`) is not applied here (`sec-browser`: `resolveProxy` shell `PROXY 127.0.0.1:1`, browser `DIRECT`).
+- One for all browser tiles, per instance (`<userData>/Partitions/browser`): cookies, storage, logins survive restarts. Never the UI's session (in memory, no network).
+- Network: direct. The UI session's dead proxy (`noNetwork`) is not applied here (`sec-browser`: `resolveProxy` ui `PROXY 127.0.0.1:1`, browser `DIRECT`).
 - Protocols: none of Tie's (`tie:`, `tie-content:` have no handler on this session: requests fail).
 - Permissions: denied (`harden`, every session, this one included: `sec-browser`).
 - User agent: Electron's own token removed (sites refuse or degrade "Electron").
 - Hovered links (`update-target-url`): shown in the tile's link strip (`Host.hint`, text only).
-- Downloads (`will-download`): only within 10 s of real input in that guest (`downloadVerdict`; a script alone plants nothing, logged `blocked download`); saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The shell session refuses downloads (`noDownloads`).
+- Downloads (`will-download`): only within 10 s of real input in that guest (`downloadVerdict`; a script alone plants nothing, logged `blocked download`); saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The UI session refuses downloads (`noDownloads`).
 
 ## Surface (`renderer/guest.ts`)
 
@@ -51,7 +51,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 ## Scenarios
 
-- `browser`: open, title, real-click link + activation, back/forward (shell keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie open browser [url]`, CLI errors.
+- `browser`: open, title, real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie open browser [url]`, CLI errors.
 - `sec-browser`: below (`SECURITY.md` rows).
 
 ## Limitations

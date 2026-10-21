@@ -4,39 +4,39 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 
 ## Threat model
 
-- Shell renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
-- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html): any script inside their frame; browser tiles: any web site (its own webContents, `BROWSER.md`). Html pages run their own scripts (decision 2026-10-16: viewing is safe, running is a choice, content never reaches the shell): they must stay local (no network) and isolated (own origin, no shell, no other tile).
+- UI renderer holds `window.tie` (spawns ptys): any script there = RCE as the user.
+- Untrusted input: terminal output (OSC 8 links, titles), pasted and dropped data (incl. file names), content tiles (markdown, text, image, hex, html): any script inside their frame; browser tiles: any web site (its own webContents, `BROWSER.md`). Html pages run their own scripts (decision 2026-10-16: viewing is safe, running is a choice, content never reaches the UI): they must stay local (no network) and isolated (own origin, no UI access, no other tile).
 - Not a boundary: the `tie` socket. Reachable only by the user's own processes, which can already run code. Kept to them: the state dir is 0700 and the socket 0600 (other local accounts never reach it). Any process that can connect (incl. sandboxed agents inheriting `TIE_SOCKET`) has the user's full power (`tie open terminal --cmd`).
 
 ## Rules
 
-- Only our code runs in the shell. Content never shares its JS realm.
+- Only our code runs in the UI. Content never shares its JS realm.
 - Every guard has an e2e scenario `sec-*` (red first). Guards get lost in refactors otherwise.
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
-- New IPC: `ipc.on` / `ipc.handle` (`shellIpc`), never `ipcMain` directly.
+- New IPC: `ipc.on` / `ipc.handle` (`uiIpc`), never `ipcMain` directly.
 - Opening URLs: only `openExternal` in `src/main/security.ts`.
 - Pure checks in `src/core/security.ts`, `src/core/content.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/links.ts`, `src/core/kinds.ts` (renderer + main), unit-tested.
 - Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (page, sandbox, CSP, nav rule, assets, payload, size cap, bootstrap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
-- Never add `tie-content:` to shell `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
-- `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the shell's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
-- The shell window runs on an in-memory session (`SHELL_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. The browser kind has its own partition (`persist:browser`, network, none of Tie's protocols).
+- Never add `tie-content:` to the UI's `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
+- `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the UI's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
+- The UI window runs on an in-memory session (`UI_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. The browser kind has its own partition (`persist:browser`, network, none of Tie's protocols).
 - Browser guests: only through `attachGuest` (prefs rebuilt, attributes dropped) and `guardGuest`; URL rules only in `core/guest.ts`.
 
 ## Guards
 
 | Guard | Where | Test |
 |---|---|---|
-| Navigation (all frames), redirects: only shell reloads pass; subframes only via the content nav lock | `security.ts` `guard()` | `sec-navigate`, `sec-content-nav` |
-| Content frame nav lock: the kind's nav rule (`viewer-exact`: exact viewer URL) of a registered token, child of the shell, one frame per token | `content.ts` `contentFrameAllowed`, `@core/content` `navAllowed` | `sec-content-nav`, unit |
+| Navigation (all frames), redirects: only UI reloads pass; subframes only via the content nav lock | `security.ts` `guard()` | `sec-navigate`, `sec-content-nav` |
+| Content frame nav lock: the kind's nav rule (`viewer-exact`: exact viewer URL) of a registered token, child of the UI, one frame per token | `content.ts` `contentFrameAllowed`, `@core/content` `navAllowed` | `sec-content-nav`, unit |
 | Content frames: sandbox from the policy table (viewer rows `allow-scripts` only: opaque origin, no storage; html `+ allow-same-origin` on its token), own process, no `window.tie`, no top nav/popups | `@core/policy`, `frame.ts` | `sec-content-escape`, `sec-html`, unit |
 | Html document CSP: only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media; `blob:` workers), inline/eval scripts, `connect-src 'self'`, no frames/objects/forms/`<base>`, nothing remote; on every file of the token | `@core/policy` `documentCsp`, `content.ts` | `sec-html` (a CSP violation per vector; mutation `connect-src *` → red), unit (exact) |
-| Shell session in memory (`session.fromPartition('tie-shell')`): content storage (html localStorage, IndexedDB, Cache Storage) never on disk; protocols, permissions, no-network on it | `security.ts` `SHELL_PARTITION`, `index.ts` | `sec-storage` (red first: IndexedDB marker found in the profile) |
-| Shell session without network: proxy to a closed local port (loopback included), WebRTC without non-proxied UDP. Covers what no CSP does (WebRTC STUN/TURN) | `security.ts` `noNetwork`, `noWebRtcUdp` | `sec-html` (red first: STUN + TURN reached local probes; mutation → red) |
+| UI session in memory (`session.fromPartition('tie-ui')`): content storage (html localStorage, IndexedDB, Cache Storage) never on disk; protocols, permissions, no-network on it | `security.ts` `UI_PARTITION`, `index.ts` | `sec-storage` (red first: IndexedDB marker found in the profile) |
+| UI session without network: proxy to a closed local port (loopback included), WebRTC without non-proxied UDP. Covers what no CSP does (WebRTC STUN/TURN) | `security.ts` `noNetwork`, `noWebRtcUdp` | `sec-html` (red first: STUN + TURN reached local probes; mutation → red) |
 | Html nav lock `within-root`: `.html`/`.htm` of its own root, not `/_tie/`, not other tokens; away → frame-src refuses, main reports, the tile reloads; loops → error | `@core/content` `navAllowed`, `content.ts` `initContent`, `frame.ts` | `sec-html` (mutations: `/_tie/` allowed → red; loop guard removed → red), unit |
-| Html scripts off by default (setting `htmlScripts`): the document CSP allows only the bootstrap (per-response nonce); the title-bar pill turns a page's scripts on (new token, reload), remembered per file for the session; the pill and its state are the shell's | `@core/policy` `documentCsp(scripts, nonce)`, `content.ts`, `kinds/html.ts` `pill` | `html-scripts`, unit (exact CSP) |
+| Html scripts off by default (setting `htmlScripts`): the document CSP allows only the bootstrap (per-response nonce); the title-bar pill turns a page's scripts on (new token, reload), remembered per file for the session; the pill and its state are the UI's | `@core/policy` `documentCsp(scripts, nonce)`, `content.ts`, `kinds/html.ts` `pill` | `html-scripts`, unit (exact CSP) |
 | Html requests: bootstrap port invisible to the page (capture, first, stopped); `followLink` routed as hostile: web only through the confirm (below), other files beside (one per second), other schemes refused; no `allow-popups`, `window.open` → request; the page's `<title>` never names the tile (no `title` verb) | `html-bootstrap.ts`, `kinds/html.ts` | `sec-html` (mutations: port visible → red; confirm skipped → red), `html`, `html-scripts` |
 | Links out: every path to the system browser (file views, html pages, terminal cmd-click) goes through one confirm dialog (setting `confirmExternal`, on): full URL, site in bold, long links flagged, Cancel focused, Open disabled 600 ms, one at a time; then main's `openExternal` (http(s) only) | `renderer/external.ts` | `sec-links`, `markdown-links`, `sec-markdown`, `sec-html`, `sec-focus` |
-| Link strip: the hovered link's real target shown bottom-left of the tile by the shell (`Host.hint`); content can't draw the real one | `tile.ts`, `hover` verb, `update-target-url` | `sec-links`, `markdown-links`, `html-scripts` |
+| Link strip: the hovered link's real target shown bottom-left of the tile by the UI (`Host.hint`); content can't draw the real one | `tile.ts`, `hover` verb, `update-target-url` | `sec-links`, `markdown-links`, `html-scripts` |
 | `tie-content` `supportFetchAPI` (html fetches its folder); never `corsEnabled`: other tokens unreadable; opaque viewer frames can't fetch (no CORS + CSP) | `security.ts` `harden` | `sec-html` (mutation: probe same-origin + connect-src → red; either alone → green: two layers) |
 | `tie-content://`: privileges `standard`+`secure`+`supportFetchAPI`; token → root; root files inside the real root; root itself, other viewer files, unknown tokens refused | `content.ts`, `@core/content` | `sec-content-protocol`, `sec-html`, unit |
 | Content CSP: nothing by default, viewer scripts by per-response nonce, images from own token only; `nosniff` | `@core/policy` `contentCsp`, `serveContent` | `sec-content-escape`, unit (exact strings) |
@@ -55,29 +55,29 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 | Images (SVG included) only as `<img>` from the tile's token: no scripts, handlers or external loads (image context; CSP `img-src` own token) | `viewers/image.ts`, policy row | `sec-viewers` (probe untouched) |
 | Hex: bytes rendered from fixed tables (hex, escaped ASCII): no byte is markup | `viewers/hex.ts` | `hex` |
 | Opening files: main checks absolute, existing regular file, kind (extension, else sniff: text / hex), requested kind allowed (`canOpenAs`), size cap (policy row) before any read; reads capped again | `main/docs.ts` `fileViewer`, `@core/kinds` | `markdown-open`, `sec-viewers` (mutation: cap check removed → red), unit |
-| OS drags: content frames ignore the pointer while one is over the window (drops land in the shell) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
+| OS drags: content frames ignore the pointer while one is over the window (drops land in the UI) | `renderer/main.ts`, `style.css` | — (offscreen harness: drags never reach frames) |
 | Shortcuts in main: real keys only, blocked before any page (content can't swallow, fake or see them); Esc and editing combos pass | `main/keys.ts`, `@core/keymap` | `sec-keys`, unit |
 | `window.open`: always denied (child windows inherit preload) | `guard()` | `sec-navigate` |
-| `<webview>` attach: shell page only; prefs rebuilt from nothing (no preload, no Node, sandbox, isolation, no nested webviews, web security, partition `persist:browser`); every attribute but `src` dropped; `src` http(s) / `about:blank` only | `main/guest.ts` `attachGuest`, `@core/guest` `guestSrc` | `sec-browser` (mutations: prefs kept → `persist:evil` partition; partition forced but prefs kept → `preload` gave the guest `window.tie`; bad src allowed → red; content frames can't create `<webview>`: no tag outside the shell's main frame) |
+| `<webview>` attach: UI page only; prefs rebuilt from nothing (no preload, no Node, sandbox, isolation, no nested webviews, web security, partition `persist:browser`); every attribute but `src` dropped; `src` http(s) / `about:blank` only | `main/guest.ts` `attachGuest`, `@core/guest` `guestSrc` | `sec-browser` (mutations: prefs kept → `persist:evil` partition; partition forced but prefs kept → `preload` gave the guest `window.tie`; bad src allowed → red; content frames can't create `<webview>`: no tag outside the UI's main frame) |
 | Guest navigation: main frame http(s) (+ `about:blank`), subframes also `about:`/`data:`/`blob:`; redirects same rule; never `file:`, `tie:`, `tie-content:`, `chrome:`, `mailto:`... | `guardGuest` (`will-frame-navigate`, `will-redirect`), `@core/guest` `guestNavAllowed` | `sec-browser` (mutation: guard off → red; Tie's schemes still fail: no handlers on the partition, second layer), unit |
-| Guest loads started by the shell (`src`, `loadURL`, back/forward; no `will-frame-navigate`): refused URL → stopped | `guardGuest` (`did-start-navigation`, deferred `stop()`) | `sec-browser` (mutation → `file:///etc/hosts` loaded) |
+| Guest loads started by the UI (`src`, `loadURL`, back/forward; no `will-frame-navigate`): refused URL → stopped | `guardGuest` (`did-start-navigation`, deferred `stop()`) | `sec-browser` (mutation → `file:///etc/hosts` loaded) |
 | Location bar / CLI URLs: http(s) only, bare host → `https://`, no search | `@core/guest` `locationUrl`, `renderer/guest.ts`, `driver.ts` | `browser`, unit |
 | Guest popups: never a window; http(s) → system browser only within 1 s of real input (main `input-event`) in that guest; else blocked + logged | `guardGuest` (`setWindowOpenHandler`), `@core/guest` `popupVerdict` | `sec-browser` (mutation: always external → red), unit |
-| Downloads: only within 10 s of real input in that guest (scripts alone plant nothing); `~/Downloads` (harness: `TIE_DOWNLOADS`), sanitized unique name, no dialog, never opened; the shell session refuses downloads | `initBrowserSession`, `noDownloads`, `@core/guest` `downloadVerdict`, `downloadName`, `uniqueName` | `sec-browser` (red first: a page's script saved a file with no input; mutation: site's name as is → overwrite → red), unit |
+| Downloads: only within 10 s of real input in that guest (scripts alone plant nothing); `~/Downloads` (harness: `TIE_DOWNLOADS`), sanitized unique name, no dialog, never opened; the UI session refuses downloads | `initBrowserSession`, `noDownloads`, `@core/guest` `downloadVerdict`, `downloadName`, `uniqueName` | `sec-browser` (red first: a page's script saved a file with no input; mutation: site's name as is → overwrite → red), unit |
 | Device choosers: Web Bluetooth chooser cancelled (Electron's default picks the first device found); USB / HID / serial denied (device permission handler); client certificates never sent (Electron's default sends the first in the keychain) | `guest.ts` `noDeviceChoosers`, `harden()` | — (no device in the harness) |
 | Content protocol memory: root files streamed (never read whole into main: a page naming a multi-GB file of its folder costs a stream); html documents of a root read whole only up to the kind's cap | `content.ts` `serveContent`, `streamFile` | `sec-html` (document over the cap → refused; large asset streams) |
 | State dir private: `~/.config/tie` 0700, sockets / info / logs / settings 0600 (fixed up at start for older files); socket request lines capped at 1 MB | `env.ts` `PRIVATE`, `socket.ts` | `sec-state` |
-| Browser partition: permissions denied (as every session), network direct, shell session still dead-proxied | `harden()`, `noNetwork` (shell only) | `sec-browser` (mutations: permissions granted → red; dead proxy on the partition → red) |
+| Browser partition: permissions denied (as every session), network direct, UI session still dead-proxied | `harden()`, `noNetwork` (UI session only) | `sec-browser` (mutations: permissions granted → red; dead proxy on the partition → red) |
 | Guest shortcuts: matched in each guest's own `before-input-event`, blocked before the page | `main/keys.ts` `watchKeys` | `browser` (mutation: not attached → red) |
-| Guest crash → tile error, guest removed, shell and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
+| Guest crash → tile error, guest removed, UI and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
 | Permissions: all denied, every session | `harden()` | `sec-permissions` |
 | Terminal links: hover shows the URL in the link strip, cmd-click only, http(s) only, confirm | `kinds/terminal.ts` `linkHandler`, `external.ts` | `sec-links` |
 | Native drops: never navigate; on a terminal, quoted paths / text via guarded paste; files elsewhere → their viewer (main checks); text elsewhere: nothing | `renderer/main.ts`, `paste.ts`, `files.ts`, `kinds/terminal.ts` | `sec-drop`, `markdown-open` |
 | Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |
-| IPC: shell main frame of shell window only | `shellIpc`, `isShellSender` | unit |
-| Shell on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
-| Shell CSP: scripts from app only; frames only `tie-content:`; no objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp`, `sec-content-nav` |
+| IPC: UI main frame of UI window only | `uiIpc`, `isUiSender` | unit |
+| UI on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
+| UI CSP: scripts from app only; frames only `tie-content:`; no objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp`, `sec-content-nav` |
 | Fuses (below) | `electron-builder.yml` | `check-package` |
 
 ## Fuses

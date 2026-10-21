@@ -1,5 +1,5 @@
 // Terminal kind: xterm in the tile body, wired to a pty in main. docs/TERMINALS.md.
-// The one trusted kind: renders in the shell realm (content kinds get a sandboxed frame).
+// The one trusted kind: renders in the UI realm (content kinds get a sandboxed frame).
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { iconFor, SHELLS } from '../icons'
@@ -29,7 +29,7 @@ const byPty = new Map<number, Term>()
 
 // SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
 // xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
-// URL in the tile's link strip (shell realm), only cmd-click opens it, after the user confirms
+// URL in the tile's link strip (UI realm), only cmd-click opens it, after the user confirms
 // (external.ts), and only via main's openExternal (http(s) only). Non-http schemes pass xterm
 // (allowNonHttpProtocols) so the strip can show them as blocked.
 const webUrl = (uri: string) => /^https?:\/\//i.test(uri)

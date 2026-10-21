@@ -54,7 +54,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor`, `isQuitKey` (main + renderer). Tests: `keymap.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `shellIpc`, `openExternal`, `tie://` protocol, `SHELL_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling), `socket.ts` (JSON-RPC server), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, link/window.open requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
@@ -107,7 +107,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 - Mutate only through `ops.ts`; ops end in `render()`, which always renders `S.visible`. Other space: `withSpace(id, fn)`.
 - Async work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)` (kinds: `host.alive()`): it may have closed.
-- Shell code never reaches into a kind's state: only through `Surface`.
+- UI code never reaches into a kind's state: only through `Surface`.
 - `refocus()` after closing any modal/menu: keys to the active tile, or blur.
 - Tile elements never re-parent (xterm stays mounted); absolute window coords.
 - Keyed DOM reconcile where an element may hold pointer capture or hover (borders, shelf items, tabs).
@@ -121,7 +121,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Content kinds: only via `frameSurface` (`TILES.md`); what may differ per kind only in `core/policy.ts`; new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
 - New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, icon)` in `kinds/index.ts`.
 - Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
-- Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the shell realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
+- Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the UI realm; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
 - Harness shortcuts: `h.press(ctx, 'Meta+d')` (through main); `ctx.page.keyboard` only for typing. Frame and guest input (real clicks): `export const hiddenWindow = true`. Clicks into content frames: `h.clickIn` (Playwright `evaluate` carries a user gesture: test gesture-less script behaviour from page timers). Guest keys: `h.guestKey(ctx, id, 'Meta+d')`.

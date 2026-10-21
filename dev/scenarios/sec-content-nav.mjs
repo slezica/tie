@@ -1,5 +1,5 @@
 // Security: content frames load only their own viewer (registered token, exact URL, one frame each).
-// They can't navigate anywhere else; other frames can't load into the shell.
+// They can't navigate anywhere else; other frames can't load into the UI.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -44,7 +44,7 @@ export default async (ctx, h) => {
     h.assert(viewerIn().length === 1 && blocked(url), 'second frame for the same token refused')
 
     // From inside: no navigation away (location, meta refresh, link), not even to its own files.
-    // Shell CSP (frame-src) or the nav lock refuses; the frame may end on an error page (it only
+    // UI CSP (frame-src) or the nav lock refuses; the frame may end on an error page (it only
     // breaks itself), never on another URL. Fresh frame per attempt.
     const tryIn = async (what, fn, arg) => {
       const { token, url } = await page.evaluate((root) => window.tie.content.open(root, 'probe'), root)
@@ -64,10 +64,10 @@ export default async (ctx, h) => {
     await tryIn('other token', () => (location.href = `tie-content://${'e'.repeat(32)}/_tie/probe.html`))
     await p.assertUntouched('frame navigation')
 
-    // Shell CSP still refuses frames from anywhere else.
+    // UI CSP still refuses frames from anywhere else.
     await frame(p.url + '/shell-frame')
     await frame('tie://app/index.html')
-    await p.assertUntouched('shell frame-src')
+    await p.assertUntouched('UI frame-src')
     h.assert(!page.frames().some((f) => f.url().startsWith('tie://app/index.html') && f !== page.mainFrame()), 'no tie://app frame')
   } finally {
     await p.close()

@@ -100,7 +100,7 @@ export default async (ctx, h) => {
     h.assert(!(await h.tileOf(ctx, ok.out)).error, 'big text: no error')
     await ctx.tie('close', ok.out)
 
-    // Main never shows a file as another kind than allowed (canOpenAs), whatever the shell asks:
+    // Main never shows a file as another kind than allowed (canOpenAs), whatever the UI asks:
     // the doc bridge, called as a tile of that kind would.
     for (const [kind, file, err] of [
       ['image', join(dir, 'hostile.txt'), 'open as image'],

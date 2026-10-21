@@ -21,7 +21,7 @@ import { initPaste, dropOnTile } from './paste'
 
 // SECURITY: native drops (from Finder, browsers) are no-ops. Unclaimed, the browser navigates the
 // window to a dropped link/file (and the preload would follow), and dropped text lands in xterm's
-// textarea = typed into the shell. Capture phase: claimed before any element sees it.
+// textarea = typed into the UI. Capture phase: claimed before any element sees it.
 // Tie's own drags use pointer events, not HTML drag-and-drop.
 window.addEventListener('dragover', (e) => e.preventDefault(), true)
 window.addEventListener(
@@ -35,7 +35,7 @@ window.addEventListener(
   true,
 )
 // SECURITY: while an OS drag is over the window, content frames ignore the pointer (body.os-drag,
-// style.css): the drop lands in the shell (opens files beside the tile), and content never sees
+// style.css): the drop lands in the UI (opens files beside the tile), and content never sees
 // dropped files. A drag entering the window straight over a frame still reaches it (no dragenter
 // here first); viewers refuse drops.
 window.addEventListener('dragenter', () => document.body.classList.add('os-drag'), true)

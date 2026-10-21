@@ -6,14 +6,14 @@ import { log } from './env'
 
 export type KeyAction = Action | 'quit-press' | 'quit-release' | 'quit-cancel'
 
-// The shell has a text field or modal focused: its keys stay its own (⌘Q excepted).
+// The UI has a text field or modal focused: its keys stay its own (⌘Q excepted).
 let suspended = false
 export function setKeysSuspended(on: unknown) {
   suspended = on === true
 }
 
 // SECURITY: shortcuts act only on real input (synthetic KeyboardEvents never reach main) and are
-// blocked here, so neither the shell page, a content frame nor a browser guest ever sees them:
+// blocked here, so neither the UI page, a content frame nor a browser guest ever sees them:
 // content can't swallow, fake or observe them. Esc and editing combos are never in the keymap (they
 // pass). ⌘Q (hold to quit): reported on press, release (q or ⌘ up) and window blur. Its keydown is
 // not blocked: Chromium then drops the matching keyup, and the release is what quits.
@@ -53,7 +53,7 @@ export function watchKeys(wc: WebContents) {
 export function initKeys(win: BrowserWindow, push: (action: KeyAction) => void) {
   send = push
   watchKeys(win.webContents)
-  // Focus may sit in a content frame or guest, where the shell page sees no blur: cancel from here too.
+  // Focus may sit in a content frame or guest, where the UI page sees no blur: cancel from here too.
   win.on('blur', () => {
     if (!quitHeld) return
     quitHeld = false

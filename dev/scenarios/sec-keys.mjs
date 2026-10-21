@@ -13,7 +13,7 @@ export default async (ctx, h) => {
   await page.evaluate(listen)
   await f.evaluate(listen)
 
-  // Focus inside the frame (real click), then ⌘D: split, key never reaches shell or frame.
+  // Focus inside the frame (real click), then ⌘D: split, key never reaches UI or frame.
   const r = await h.rectOf(ctx, p)
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2)
   await ctx.sleep(300)
