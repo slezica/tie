@@ -7,6 +7,7 @@
 // requests, history (host-driven and the page's own navigations, reported by main), live reload on
 // folder changes, nav bar. docs/VIEWERS.md "Html".
 import { tie, debug, spaceOf, withSpace, type Kind } from '../state'
+import type { Glyph } from '../icons'
 import { untrusted } from '@core/log'
 import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
@@ -16,7 +17,7 @@ import { openExternal, confirmFile } from '../external'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from '.'
 
-const ICON = '🌐'
+const ICON: Glyph = 'html'
 const RELOAD_MS = 100 // folder change → reload (main already debounced)
 const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (a page can hold many links)
 

@@ -10,7 +10,7 @@ export function probeKind(host: Host, opts: OpenOpts): Surface {
     viewer: 'probe',
     root: opts.cwd || S.cwd,
     title: 'probe',
-    icon: '🧪',
+    icon: 'probe',
     handlers: { openLink: (r) => tie.openExternal(r.url) },
   })
 }

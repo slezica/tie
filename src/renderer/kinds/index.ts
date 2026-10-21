@@ -4,6 +4,7 @@
 import type { TileId } from '@core/layout'
 import type { Kind } from '../state'
 import type { Nav } from '../nav'
+import type { Glyph } from '../icons'
 import { terminalKind } from './terminal'
 import { fileView } from '../fileview'
 import { htmlKind } from './html'
@@ -37,7 +38,7 @@ export interface Surface {
   dispose(): void
   focus(): boolean // keys to this tile; false if it can't take them yet
   title(): string // automatic title
-  icon(): string // automatic icon ('' = kind glyph)
+  icon(): Glyph // automatic icon (built-in glyph; custom icons are the host's)
   dir?(): string | undefined // directory for tab titles (last known)
   cwd?(): Promise<string | undefined> // directory now, for tiles split from this one
   paste?(text: string): void
@@ -72,12 +73,12 @@ export interface KindSpec {
 export interface Template {
   id: 'terminal' | 'file' | 'browser'
   label: string
-  icon: string
+  icon: Glyph
 }
 export const TEMPLATES: readonly Template[] = [
-  { id: 'terminal', label: 'terminal', icon: '' },
-  { id: 'file', label: 'file', icon: '📂' },
-  { id: 'browser', label: 'browser', icon: '🧭' },
+  { id: 'terminal', label: 'terminal', icon: 'terminal' },
+  { id: 'file', label: 'file', icon: 'folder' },
+  { id: 'browser', label: 'browser', icon: 'browser' },
 ]
 
 const KINDS = new Map<string, KindSpec>()
@@ -88,13 +89,13 @@ export function registerKind(spec: KindSpec) {
 }
 
 // File kinds: the file view (fileview.ts) + the kind's viewer (src/viewers/<kind>.ts). One line each.
-const fileKind = (kind: Kind, icon: string): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file' })
+const fileKind = (kind: Kind, icon: Glyph): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file' })
 
 registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare' })
-registerKind(fileKind('markdown', '📝')) // docs/MARKDOWN.md
-registerKind(fileKind('text', '📄')) // docs/VIEWERS.md
-registerKind(fileKind('image', '🖼️'))
-registerKind(fileKind('hex', '🔢'))
+registerKind(fileKind('markdown', 'markdown')) // docs/MARKDOWN.md
+registerKind(fileKind('text', 'text')) // docs/VIEWERS.md
+registerKind(fileKind('image', 'image'))
+registerKind(fileKind('hex', 'hex'))
 registerKind({ kind: 'html', factory: htmlKind, opens: 'file' }) // docs/VIEWERS.md
 registerKind({ kind: 'browser', factory: browserKind, opens: 'url' }) // docs/BROWSER.md
 

@@ -18,7 +18,7 @@ export default async (ctx, h) => {
     const t = await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).doc, 'doc open')
     h.assert(t.path === f && /^[0-9a-f]{16}$/.test(t.rev) && !t.missing, `doc info: ${JSON.stringify(t)}`)
     const info = await h.tileOf(ctx, id)
-    h.assert(info.kind === 'markdown' && info.title === 'doc.md' && info.icon === '📝', `title/icon: ${info.title} ${info.icon}`)
+    h.assert(info.kind === 'markdown' && info.title === 'doc.md' && info.glyph === 'markdown' && info.icon === '', `title/icon: ${info.title} ${info.glyph} ${info.icon}`)
 
     // Render: headings, list, highlighted code in theme colors.
     const has = (title) => async () => (await h.mdState(ctx, id)).text.includes(title)

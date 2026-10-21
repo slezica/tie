@@ -2,7 +2,7 @@
 import type { TileId } from '@core/layout'
 import { S } from './state'
 import { setMeta, refocus } from './ops'
-import { displayTitle, displayIcon } from './tile'
+import { displayTitle } from './tile'
 
 let menu: HTMLElement | null = null
 let menuTile: TileId | null = null // tile the open menu acts on
@@ -25,7 +25,6 @@ export interface MetaTarget {
   customTitle?: string
   customIcon?: string
   title: string // current displayed title
-  icon: string // current displayed icon ('' = none/default)
   set: (meta: { title?: string | null; icon?: string | null }) => void
 }
 
@@ -33,7 +32,7 @@ export function showTileMenu(id: TileId, x: number, y: number) {
   const t = S.tiles.get(id)
   if (!t) return
   showMetaMenu(
-    { customTitle: t.customTitle, customIcon: t.customIcon, title: displayTitle(t), icon: displayIcon(t), set: (m) => S.tiles.has(id) && setMeta(id, m) },
+    { customTitle: t.customTitle, customIcon: t.customIcon, title: displayTitle(t), set: (m) => S.tiles.has(id) && setMeta(id, m) },
     x,
     y,
   )
@@ -78,7 +77,7 @@ export function showMetaMenu(t: MetaTarget, x: number, y: number) {
   }
 
   item('Rename…', () => prompt('Title (empty = automatic)', t.customTitle ?? t.title, (v) => t.set({ title: v || null })))
-  item('Set icon…', () => prompt('Emoji (empty = automatic)', t.customIcon ?? t.icon, (v) => t.set({ icon: v || null })))
+  item('Set icon…', () => prompt('Emoji (empty = automatic)', t.customIcon ?? '', (v) => t.set({ icon: v || null })))
   if (t.customTitle || t.customIcon) item('Reset title & icon', () => (t.set({ title: null, icon: null }), closeMenu()))
 
   // Keep inside window.

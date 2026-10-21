@@ -53,7 +53,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 `TileInfo` (also returned by `open`, `move`, `focus`, `ping`, `title`, `icon`):
 
-- `id`, `kind`, `title`, `icon`, `state` (`slotted|floating|shelved`), `tab` (space id).
+- `id`, `kind`, `title`, `icon` (custom icon; `""` = automatic), `glyph` (built-in icon name, `icons.ts` `GLYPH`), `state` (`slotted|floating|shelved`), `tab` (space id).
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).

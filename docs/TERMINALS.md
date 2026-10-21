@@ -49,6 +49,19 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 - `fitTerm()` skips bodies under 10 px (collapsed, hidden tab).
 - Resync after spawn: xterm may resize while the pty spawns.
 - `t.ptySize` = last size sent; `tie list --json` `term` shows both. Mismatch = bug (`assertPtySizes`).
+- Grid from the fit addon: parent (`.body`) border box minus `.xterm` padding minus 14 px (xterm's scrollbar, hidden here: right slack). So terminal tiles pad `.xterm` (`--tile-pad`), not `.body`: body padding was counted as space, last row cut up to 4 px.
+- Renderer: xterm's DOM renderer (no WebGL). xterm 6.0.0 bug: its width cache measures glyphs with integer `offsetWidth` (12 px: 7.1875 vs 7.2), the gap becomes row letter-spacing, text runs `cols × 0.0125` px past its `overflow: hidden` row, last column cut (2.8 px at 225 cols). `fixWidthCache()` measures fractionally (private API; no-op if it changes). Drop on xterm ≥ 6.1 (canvas measure upstream).
+- Fonts: system fonts only (`appearance.ts`), no web-font load to wait for.
+- Check: `terminal-fit` scenario (`termFit`, `assertTermFit`: screen inside body, no text past its row, full rows exactly `cols` cells; float size sweep).
+
+## Keys
+
+- Shortcuts: main, `before-input-event` (`INPUT.md`). Everything else: xterm's hidden textarea.
+- Why shift+letters: xterm cancels the keydown of printable keys (the text system never sees them, held lowercase repeats), except A-Z, left to `keypress` for macOS caps-lock input methods (`CoreBrowserTerminal.ts` "HACK: Process A-Z"). Those reach the text system, which shows the accent picker.
+- macOS press-and-hold (accent picker, e.g. holding shift+W in nvim → `Ŵ` bubble) off: main registers `ApplePressAndHoldEnabled = false` at startup (`systemPreferences.registerDefaults`), so held keys repeat.
+  - Registration domain: in memory, nothing written (dev bundle id `com.github.Electron` is shared); before any window, so no relaunch.
+  - User override: `defaults write com.salezica.tie ApplePressAndHoldEnabled -bool true` (app domain beats registration domain).
+  - Check: log `[keys] press-and-hold "0"` (`keys` scenario). The picker itself needs a held real key in a visible window: not drivable by the harness.
 
 ## Observe
 
@@ -61,7 +74,7 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 
 `displayTitle()`: `customTitle`, else `Surface.title()`: first of `oscTitle`, `cmd`, `proc`, `terminal`.
 
-`displayIcon()`: `customIcon`, else `Surface.icon()`: `PROGRAMS[proc]` (`icons.ts`), else `>_` glyph. Icons are escaped text, never markup; emoji grayscale.
+`displayIcon()`: `customIcon` (user text: escaped, never markup), else `Surface.icon()`: glyph `PROGRAMS[proc]` (`icons.ts`; name case-folded, version suffix dropped; related programs share one: `editor`, `runtime`, `package`, `python`, `git`, `remote`, `monitor`, `pager`, `ai`, `build`, `container`, `database`), else `terminal`. Glyphs: `GLYPH` line SVGs, muted `currentColor`.
 
 Meta changes: `host.changed()` → `refreshTitle()` → `tile-meta` event.
 

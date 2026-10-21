@@ -339,13 +339,10 @@ body.dragging-tab .tab {
   align-items: center;
   font-size: 13px;
 }
-.emoji {
-  filter: grayscale(1);
-}
+/* Icons (icons.ts iconHtml): .glyph = built-in SVG (currentColor), .emoji = custom icon (user text). */
 .glyph {
-  font: 600 11px 'SF Mono', Menlo, monospace;
-  color: var(--text);
-  letter-spacing: -0.04em;
+  display: flex;
+  color: var(--muted);
 }
 .titlebar .title {
   font-weight: 600;
@@ -421,6 +418,9 @@ body.dragging-tab .tab {
   padding: 0;
   cursor: pointer;
 }
+.btn[hidden] {
+  display: none; /* display: grid above beats the UA [hidden] rule */
+}
 .btn:hover {
   color: var(--text);
   background: var(--fg-b);
@@ -450,7 +450,7 @@ body.dragging-tab .tab {
 }
 .nav-btn {
   flex: none;
-  width: 20px;
+  width: 18px;
   height: 18px;
   display: grid;
   place-items: center;
@@ -537,8 +537,15 @@ body.dragging-tab .tab {
   white-space: pre-line;
   user-select: text;
 }
+/* Terminal: the padding sits on .xterm, not .body: the fit addon sizes the grid from the parent's
+   box (border-box: padding included) minus .xterm's own padding. On .body, rows overflowed by up
+   to the top padding and the last row was cut. TERMINALS.md "Size". */
+.tile[data-kind="terminal"] .body {
+  padding: 0;
+}
 .body .xterm {
   height: 100%;
+  padding: var(--tile-pad);
 }
 .body .xterm .xterm-scrollable-element > .scrollbar,
 .body .xterm .xterm-scrollable-element > .shadow {
@@ -573,6 +580,12 @@ body.dragging-tab .tab {
 .tile.collapsed-v .btn svg {
   transform: rotate(90deg);
 }
+/* Pill along the strip: its fixed height becomes its width. */
+.tile.collapsed-v .titlebar .pill {
+  width: 18px;
+  height: auto;
+  padding: 7px 0;
+}
 
 /* Floating resize handles */
 .rz {
@@ -601,9 +614,6 @@ body.dragging-tab .tab {
   visibility: visible;
   box-shadow: 0 12px 40px var(--shadow);
   border-color: var(--fg-d);
-}
-.tile.shelved.revealed:not(.pinned) {
-  pointer-events: none;
 }
 .tile.shelved.pinned {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
@@ -756,8 +766,12 @@ body.resizing-col { cursor: row-resize; }
 }
 .template .glyph,
 .item .glyph {
-  font-size: 14px;
   color: inherit;
+}
+.template .glyph svg,
+.item .glyph svg {
+  width: 18px;
+  height: 18px;
 }
 .template .lbl,
 .item .lbl {
@@ -1093,9 +1107,10 @@ body.empty #empty-hint {
   font-size: 14px;
   height: 18px;
 }
-:root.shelf-compact .template .glyph,
-:root.shelf-compact .item .glyph {
-  font-size: 11px;
+:root.shelf-compact .template .glyph svg,
+:root.shelf-compact .item .glyph svg {
+  width: 15px;
+  height: 15px;
 }
 :root.shelf-compact .item .dot,
 :root.shelf-compact .item .ping {

@@ -45,7 +45,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic. Tests: `layout.test.ts`.
+- `src/core/layout.ts`: pure slot-tree logic; shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused) (main). Tests: `callers.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
@@ -65,7 +65,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `ops.ts`: all mutations. `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).
   - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
   - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
@@ -76,7 +76,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus-direction. `quit.ts`: hold-⌘Q.
   - `driver.ts`: socket methods → ops.
-  - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs, program → emoji.
+  - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), program → glyph, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
@@ -94,12 +94,13 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
-  - `id` (`t1`...), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon`.
+  - `id` (`t1`...), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon` (user text).
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon`; optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle?}`: title-bar state, html "Scripts blocked").
-- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon}`). `OpenOpts`: `title`, `cwd`, `cmd`, `path`, `hash`, `url`.
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle?}`: title-bar state, html "Scripts blocked").
+- `Icon` (`icons.ts`): `{glyph: Glyph}` (built-in SVG, `GLYPH` key) | `{text}` (custom icon, escaped). `displayIcon(t)` → `Icon`; `iconHtml(icon)` renders it (title bar, shelf, tabs, ghost).
+- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `cwd`, `cmd`, `path`, `hash`, `url`.
 - `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
@@ -122,7 +123,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Never throw inside node-pty callbacks (aborts the process).
 - Browser tiles: only via `browserKind` + main `attachGuest`/`guardGuest`; URL rules only in `core/guest.ts`.
 - Content kinds: only via `frameSurface` (`TILES.md`); what may differ per kind only in `core/policy.ts`; new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
-- New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, icon)` in `kinds/index.ts`.
+- New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, glyph)` in `kinds/index.ts`.
 - Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the UI realm; socket callers by kernel lineage (`@core/callers`), never `TIE_TILE`; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.

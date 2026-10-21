@@ -4,8 +4,9 @@ import { S, GAP, TITLE, MIN, tie, boardRect, shelfRect, location, debug, type Ki
 import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, type Placement } from './ops'
 import { render } from './render'
 import { shelfItemEl } from './shelf'
-import { displayIcon, displayTitle, iconHtml } from './tile'
-import type { Template } from './kinds'
+import { displayIcon, displayTitle } from './tile'
+import { iconHtml } from './icons'
+import { TEMPLATES, type Template } from './kinds'
 import { infoDialog } from './dialog'
 
 export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; template: Template['id']; label: string }
@@ -172,7 +173,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     document.body.classList.add('dragging')
     if (S.revealed) (S.revealed = null), render()
     const label = src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
-    const icon = src.type === 'tile' ? displayIcon(S.tiles.get(src.id)!) : ''
+    const icon = src.type === 'tile' ? displayIcon(S.tiles.get(src.id)!) : { glyph: TEMPLATES.find((t) => t.id === src.template)!.icon }
     ghost.innerHTML = `${iconHtml(icon)}<span>${label.replace(/</g, '&lt;')}</span>`
     ghost.style.display = 'flex'
     debug('layout', 'drag start', src)

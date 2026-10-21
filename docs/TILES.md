@@ -6,11 +6,11 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Host (`renderer/tile.ts`)
 
-- `createTile(kind, opts)`: element (title bar with an optional kind pill, `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
+- `createTile(kind, opts)`: element (title bar: icon, title, optional kind pill, square 22 px `.btn`s collapse / zoom / close (`ICON` in `icons.ts`; collapse = arrows joining, expand = arrows parting, horizontal; rotated with a vertical title); `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
 - `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle?()}`: a labelled state in the title bar (html: a red "Scripts blocked" tag; a toggle only if `toggle` exists; empty label = hidden), refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
-- `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`.
+- `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`. `displayIcon` → `Icon` (`icons.ts`): `{glyph}` (built-in SVG, `GLYPH` key: what `Surface.icon()` returns) or `{text}` (custom icon, user text, escaped); `iconHtml(icon)` renders either (title bar, shelf, tabs, drag ghost).
 
 | `Host` (to the kind) | Does |
 |---|---|
@@ -37,7 +37,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 `Surface.nav?: Nav` = `{state(), back(), forward(), reload(), go?(input)}`; `state()` → `{location, back, forward, editable}`.
 
-- Nav bar: compact row (`--nav-h`) under the title bar: back / forward / reload buttons + location field. Only for surfaces with `nav` (terminals: none). Hidden when collapsed. Refreshed on `host.changed()`.
+- Nav bar: compact row (`--nav-h`) under the title bar: back / forward / reload buttons (square 18 px) + location field. Only for surfaces with `nav` (terminals: none). Hidden when collapsed. Refreshed on `host.changed()`.
 - Buttons never take focus (keys stay with the content). Disabled at the ends.
 - Location: read-only unless `editable` (then Enter → `go(input)`, Escape restores). Read-only paths scroll to their end (file name).
 - Keys (`INPUT.md`): `nav-back` / `nav-forward` / `nav-reload` / `nav-location` act on the active tile; no-op without `nav`; `cmd+L` no-op unless editable.

@@ -1,7 +1,8 @@
 // Shelf column: templates on top, shelved tile items below.
-import type { TileId } from '@core/layout'
+import { inRevealZone, type TileId } from '@core/layout'
 import { S, location, debug } from './state'
-import { displayIcon, displayTitle, iconHtml } from './tile'
+import { displayIcon, displayTitle } from './tile'
+import { iconHtml } from './icons'
 import { pin } from './ops'
 import { render } from './render'
 import { startDrag, isDragging } from './drag'
@@ -17,7 +18,7 @@ export function initShelf() {
     const el = document.createElement('div')
     el.className = 'template'
     el.dataset.kind = t.id
-    el.innerHTML = `<div class="ico">${iconHtml(t.icon)}</div><div class="lbl">${t.label}</div>`
+    el.innerHTML = `<div class="ico">${iconHtml({ glyph: t.icon })}</div><div class="lbl">${t.label}</div>`
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
       startDrag(e, { type: 'template', template: t.id, label: t.label })
@@ -40,6 +41,12 @@ export function initShelf() {
     true,
   )
 
+  // Hover reveal: dismissed once the pointer leaves the item, the reveal and the band between
+  // (core/layout inRevealZone). Over a frame or guest inside the reveal the UI gets no moves, but
+  // it does on the way out (the tile's border is UI), so the last position is always known.
+  document.addEventListener('pointermove', (e) => keepReveal(e.clientX, e.clientY), true)
+  document.documentElement.addEventListener('pointerleave', () => S.revealed && dismissReveal())
+
   document.addEventListener('tile-meta', (e) => {
     const id = (e as CustomEvent).detail as TileId
     if (items.has(id)) updateItem(id)
@@ -48,6 +55,21 @@ export function initShelf() {
 
 export function shelfItemEl(id: TileId): HTMLElement | undefined {
   return items.get(id)
+}
+
+function keepReveal(x: number, y: number) {
+  const id = S.revealed
+  if (!id || isDragging()) return
+  const item = items.get(id)?.getBoundingClientRect()
+  const reveal = S.rects.get(id)
+  if (item && reveal && inRevealZone(x, y, { x: item.x, y: item.y, w: item.width, h: item.height }, reveal)) return
+  dismissReveal()
+}
+
+function dismissReveal() {
+  debug('shelf', 'reveal dismissed', S.revealed)
+  S.revealed = null
+  render()
 }
 
 function createItem(id: TileId): HTMLElement {
@@ -62,11 +84,7 @@ function createItem(id: TileId): HTMLElement {
     if (t) t.activity = false
     render()
   })
-  el.addEventListener('pointerleave', () => {
-    if (S.revealed !== id) return
-    S.revealed = null
-    render()
-  })
+  el.addEventListener('pointerleave', (e) => S.revealed === id && keepReveal(e.clientX, e.clientY))
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return
     startDrag(e, { type: 'tile', id }, () => {
@@ -85,10 +103,10 @@ function updateItem(id: TileId) {
   const t = S.tiles.get(id)
   const el = items.get(id)
   if (!t || !el) return
-  const icon = displayIcon(t)
+  const icon = iconHtml(displayIcon(t))
   const title = displayTitle(t)
   const ico = el.querySelector('.ico') as HTMLElement
-  if (ico.dataset.icon !== icon || !ico.innerHTML) (ico.innerHTML = iconHtml(icon)), (ico.dataset.icon = icon)
+  if (ico.dataset.icon !== icon) (ico.innerHTML = icon), (ico.dataset.icon = icon)
   const lbl = el.querySelector('.lbl') as HTMLElement
   if (lbl.textContent !== title) lbl.textContent = title
   el.title = title

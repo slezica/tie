@@ -3,7 +3,7 @@ import { contains, type Side, type TileId } from '@core/layout'
 import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { tabTitle, switchTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
-import { displayTitle, displayIcon } from './tile'
+import { displayTitle } from './tile'
 import { kindSpec } from './kinds'
 import { locationUrl } from '@core/guest'
 
@@ -38,7 +38,8 @@ function tileInfo(id: TileId) {
     id,
     kind: t.kind,
     title: displayTitle(t),
-    icon: displayIcon(t),
+    icon: t.customIcon ?? '', // custom icon (user text); '' = automatic
+    glyph: t.surface.icon(), // built-in icon (icons.ts GLYPH)
     state: location(id),
     tab: sp?.id ?? null,
     collapsed: !!sp?.collapsed.has(id),

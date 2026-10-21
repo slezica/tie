@@ -5,13 +5,14 @@
 // (never re-parented, like every tile body), title from the page, nav bar (editable location:
 // core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
 import { tie, debug } from './state'
+import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
 import { infoDialog, confirmDialog } from './dialog'
 import { openExternal } from './external'
 import { guestSrc, locationUrl, pageTitle, BROWSER_PARTITION } from '@core/guest'
 import type { Host, OpenOpts, Surface } from './kinds'
 
-const ICON = '🧭'
+const ICON: Glyph = 'browser'
 
 type Webview = Electron.WebviewTag
 

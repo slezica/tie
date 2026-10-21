@@ -35,7 +35,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 ## Surface (`renderer/guest.ts`)
 
 - `<webview class="guest">` appended once to the body (never re-parented, like every tile body). Background `--web-canvas` (the web's default white: pages without a background expect it). `setBackgroundColor` on the guest hangs the attach in a real window: not used.
-- Title: page title (`page-title-updated`, `pageTitle`: control characters out, 200 chars), else the host, else `browser`. Icon 🧭 (no favicon: v1).
+- Title: page title (`page-title-updated`, `pageTitle`: control characters out, 200 chars), else the host, else `browser`. Icon: `browser` glyph (globe; no favicon: v1).
 - Nav bar: location = committed URL (`did-navigate`, `did-navigate-in-page`), editable. Enter → `locationUrl`: http(s) as typed, bare `host[:port][/path]` → `https://`, `about:blank`; else dialog "Not a web address" (no search). Back / forward / reload: webview API (no-ops before `dom-ready`).
 - Focus: `focus()` → the page; an empty tile (`about:blank`) → its location field (templates, `--focus`). A click in the guest activates the tile (`initFrames` blur handler: `activeElement` = `WEBVIEW`).
 - Pointer shield: `body.tracking` / `body.os-drag` / `body.dragging` → `webview` ignores the pointer (`style.css`).

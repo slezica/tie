@@ -1,6 +1,6 @@
 // Tile host: element, title bar, nav bar (nav.ts), error state, lifecycle. The body belongs to the tile's kind
 // (kinds/). Elements live in one layer and are never re-parented.
-import { ICON } from './icons'
+import { ICON, iconHtml, type Icon } from './icons'
 import { S, type Tile, type Kind, newId, debug } from './state'
 import { kindSpec, type Host, type OpenOpts } from './kinds'
 import { noteActivity } from './shelf'
@@ -11,14 +11,8 @@ export function displayTitle(t: Tile): string {
   return t.customTitle || t.surface.title()
 }
 
-export function displayIcon(t: Tile): string {
-  return t.customIcon || t.surface.icon()
-}
-
-// Icons are user text (CLI, menu): escaped, never markup.
-export function iconHtml(icon: string): string {
-  const esc = icon.replace(/&/g, '&amp;').replace(/</g, '&lt;')
-  return icon ? `<span class="emoji">${esc}</span>` : `<span class="glyph">&gt;_</span>`
+export function displayIcon(t: Tile): Icon {
+  return t.customIcon ? { text: t.customIcon } : { glyph: t.surface.icon() }
 }
 
 export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {

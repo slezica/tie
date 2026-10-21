@@ -4,7 +4,8 @@ import { render } from './render'
 import { activate } from './ops'
 import { showMetaMenu } from './menu'
 import { infoDialog } from './dialog'
-import { displayTitle, iconHtml } from './tile'
+import { displayTitle } from './tile'
+import { iconHtml } from './icons'
 import { ICON } from './icons'
 import { track } from './drag'
 
@@ -134,7 +135,7 @@ function createTabEl(id: string): HTMLElement {
     const sp = space(id)
     if (!sp) return
     showMetaMenu(
-      { customTitle: sp.customTitle, customIcon: sp.customIcon, title: tabTitle(sp), icon: sp.customIcon ?? '', set: (m) => setTabMeta(id, m) },
+      { customTitle: sp.customTitle, customIcon: sp.customIcon, title: tabTitle(sp), set: (m) => setTabMeta(id, m) },
       e.clientX,
       e.clientY,
     )
@@ -163,7 +164,7 @@ export function renderTabs() {
     if (t.textContent !== title) t.textContent = title
     el.title = title
     const icon = el.querySelector('.tab-icon') as HTMLElement
-    const iconMarkup = sp.customIcon ? iconHtml(sp.customIcon) : ''
+    const iconMarkup = sp.customIcon ? iconHtml({ text: sp.customIcon }) : ''
     if (icon.dataset.icon !== iconMarkup) (icon.innerHTML = iconMarkup), (icon.dataset.icon = iconMarkup)
   })
 }

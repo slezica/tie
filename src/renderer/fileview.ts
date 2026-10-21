@@ -7,6 +7,7 @@
 // and folder (token) switching, link routing, title / dir / cwd, activity, the theme message.
 // docs/TILES.md "File view".
 import { S, tie, debug, spaceOf, withSpace, type Kind } from './state'
+import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
 import { frameSurface } from './frame'
 import { appearance, fontStack } from './appearance'
@@ -55,7 +56,7 @@ export function themeMessage() {
 
 export interface FileKindSpec {
   kind: Kind // content kind: viewer name, policy row, debug tag
-  icon: string
+  icon: Glyph
 }
 
 export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surface {
