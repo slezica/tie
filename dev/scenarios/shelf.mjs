@@ -1,4 +1,4 @@
-// Shelve by drag, hover reveal, pin/unpin, activity, unshelve by drag.
+// Shelve by drag, hover reveal, pin (survives clicks elsewhere) / unpin, activity, unshelve by drag.
 export default async (ctx, h) => {
   const [a, b, c] = await h.threeWaySplit(ctx)
   await h.shelve(ctx, c, { during: () => ctx.shot('shelve-preview') })
@@ -18,10 +18,13 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.type('echo pinned-input\n')
   await ctx.sleep(300)
   await ctx.shot('pinned-typed')
-  await ctx.page.mouse.click(300, 300) // outside
+  await ctx.page.mouse.click(300, 300) // another tile on the board
   await ctx.sleep(150)
   l = await h.list(ctx)
-  h.assert(!l.tiles.find((t) => t.id === c).pinned, 'outside click unpins')
+  h.assert(l.active !== c && l.tiles.find((t) => t.id === c).pinned, `click on another tile activates it, pin stays (active ${l.active})`)
+  await h.pin(ctx, c) // item click
+  l = await h.list(ctx)
+  h.assert(!l.tiles.find((t) => t.id === c).pinned, 'item click unpins')
   // Activity dot: shelf a tile running output.
   const d = (await ctx.tie('open', 'terminal', '--shelved', '--cmd', 'for i in 1 2 3 4 5; do echo $i; sleep 0.3; done')).id
   await ctx.sleep(1200)

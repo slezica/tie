@@ -52,7 +52,7 @@ tiles.addEventListener('pointerdown', (e) => {
   if (!id || !S.tiles.has(id)) return
   if (location(id) !== 'shelved' || S.pinned === id) {
     if (S.active !== id) activate(id)
-  } else if (S.revealed === id) pin(id) // a click into a hover reveal pins it (SHELF.md)
+  } else if (S.revealed === id && !target.closest('.btn.pin')) pin(id) // a click into a hover reveal pins it (SHELF.md); Pin acts on click
   if (target.closest('.rz')) return startFloatResize(e, id)
   if (e.button !== 0 || target.closest('.btn') || !target.closest('.titlebar')) return
   startDrag(e, { type: 'tile', id }, () => onTitleClick(id))
@@ -75,6 +75,7 @@ tiles.addEventListener('click', (e) => {
   if (btn.classList.contains('close')) closeTile(id)
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
+  else if (btn.classList.contains('pin')) pin(S.pinned === id ? null : id)
   else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pill?.toggle?.()
 })
 

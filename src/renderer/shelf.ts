@@ -26,20 +26,7 @@ export function initShelf() {
     tpl.appendChild(el)
   }
 
-  // Unpin when clicking anywhere outside the pinned tile and its item.
-  document.addEventListener(
-    'pointerdown',
-    (e) => {
-      if (!S.pinned) return
-      const target = e.target as HTMLElement
-      const tileEl = S.tiles.get(S.pinned)?.el
-      if (tileEl?.contains(target) || shelfItemEl(S.pinned)?.contains(target)) return
-      if (target.closest('.menu')) return
-      debug('shelf', 'unpin (outside click)', S.pinned)
-      pin(null)
-    },
-    true,
-  )
+  // A pin stays until released: item click, the title bar's Unpin, close, unshelve, `tie move` (SHELF.md).
 
   // Hover reveal: dismissed once the pointer leaves the item, the reveal and the band between
   // (core/layout inRevealZone). Over a frame or guest inside the reveal the UI gets no moves, but

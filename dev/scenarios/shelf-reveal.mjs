@@ -1,7 +1,7 @@
 // Shelf hover reveal: the pointer travels from the item into the reveal and it stays (terminal,
 // markdown frame, browser guest); keys stay with the active tile until a click inside, which pins
-// and interacts; leaving item + reveal + band dismisses; pin survives focus keys; reveal above a
-// zoomed tile. Hidden window: real pointer input into frames and guests.
+// and interacts; leaving item + reveal + band (or the window) dismisses; title bar Pin / Unpin; a pin
+// survives outside clicks, focus keys, tie focus; reveal above a zoomed tile. Hidden window: real pointer input into frames and guests.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
@@ -93,9 +93,15 @@ export default async (ctx, h) => {
     l = await L()
     h.assert((await info(md)).pinned && l.active === md, `click in markdown reveal pins + activates (active ${l.active})`)
     await ctx.shot('markdown-pinned')
-    await page.mouse.click(60, 300) // outside click (terminal a)
+    const mp = await center(md)
+    await page.mouse.click(60, 300) // click outside: terminal a
     await ctx.sleep(200)
-    h.assert(!(await info(md)).pinned, 'outside click unpins')
+    l = await L()
+    h.assert(l.active === a && (await info(md)).pinned, `outside click activates a, pin stays (active ${l.active})`)
+    h.assert((await under(mp.x, mp.y)) === md, 'pinned markdown stays on top')
+    await h.clickButton(ctx, md, 'pin') // Unpin
+    l = await L()
+    h.assert(!(await info(md)).pinned && l.active === a, 'Unpin button unpins')
     await away()
 
     // Browser (guest): kept over the guest; a real click inside pins.
@@ -109,6 +115,53 @@ export default async (ctx, h) => {
     h.assert((await info(w)).pinned && l.active === w, `click in browser reveal pins + activates (active ${l.active})`)
     await h.pin(ctx, w)
     h.assert(!(await info(w)).pinned, 'unpinned')
+    await away()
+
+    // Title bar Pin / Unpin: hidden on the board, shown on reveals.
+    const pinBtn = (id) => page.evaluate((id) => {
+      const b = document.querySelector(`.tile[data-id="${id}"] .btn.pin`)
+      return b && getComputedStyle(b).display !== 'none' ? b.title : null
+    }, id)
+    h.assert((await pinBtn(a)) === null, 'no pin button on a board tile')
+    p = await into(c)
+    h.assert((await pinBtn(c)) === 'Pin', 'hover reveal shows Pin')
+    await h.clickButton(ctx, c, 'pin')
+    l = await L()
+    h.assert((await info(c)).pinned && l.active === c && (await pinBtn(c)) === 'Unpin', 'Pin button pins + activates')
+    await away()
+    // Pin survives focus keys, tie focus of a board tile, and a click on a board terminal.
+    await h.press(ctx, 'Meta+ArrowLeft')
+    await ctx.sleep(200)
+    l = await L()
+    h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, `focus key: a active, pin stays on top (active ${l.active})`)
+    await page.mouse.click(p.x, p.y) // back into the pinned reveal
+    await ctx.sleep(200)
+    h.assert((await L()).active === c, 'click in pinned reveal activates it')
+    await ctx.tie('focus', a)
+    await ctx.sleep(200)
+    l = await L()
+    h.assert(l.active === a && (await info(c)).pinned, 'tie focus of a board tile keeps the pin')
+    await page.mouse.click(p.x, p.y)
+    await ctx.sleep(200)
+    await page.mouse.click(60, 300) // terminal a
+    await ctx.sleep(200)
+    l = await L()
+    h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, 'click on a board terminal: pin stays on top')
+    await page.keyboard.type('echo after-pin\n')
+    await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('after-pin'), 'keys go to the clicked terminal')
+    await page.mouse.click(p.x, p.y)
+    await ctx.sleep(200)
+    await h.clickButton(ctx, c, 'pin') // Unpin while active: focus moves back to the board
+    l = await L()
+    h.assert(!(await info(c)).pinned && l.active === a, `Unpin button unpins, focusNext (active ${l.active})`)
+    await away()
+
+    // Pointer leaving the window ends a hover reveal.
+    p = await into(c)
+    const vw = await page.evaluate(() => window.innerWidth)
+    await page.mouse.move(vw + 20, p.y, { steps: 8 })
+    await ctx.sleep(200)
+    h.assert((await revealed()) === null, 'leaving the window dismisses')
     await away()
 
     // Above a zoomed tile; the pin survives keyboard focus moving off it.

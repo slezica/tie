@@ -25,16 +25,17 @@ Right-hand column per space: `#templates` (`TEMPLATES` in `kinds/index.ts`: `ter
 |---|---|---|---|
 | Hidden | default | `visibility: hidden` | no |
 | Revealed | hover item (`S.revealed`) | shown next to item, above every tile | yes; keys stay with the active tile until a click |
-| Pinned | click item, or click inside the reveal (`S.pinned`) | shown, active | yes |
+| Pinned | click item, click inside the reveal, title bar Pin, `tie focus` (`S.pinned`) | shown, active, until unpinned | yes |
 
 - Hover zone: item ∪ reveal ∪ band between them (reveal's right edge to item's left edge, spanning both vertically; `inRevealZone`, `core/layout.ts`). The pointer can travel from the item into the reveal (across the gap and `#peak`); leaving the zone (or the window) dismisses.
 - Zone check: document `pointermove` (capture) + item `pointerleave`, against the item's box and the reveal's rect (`S.rects`). Over a frame or guest inside the reveal the UI gets no moves; leaving it crosses the tile's UI border, so the check still runs.
 - Click inside a hover reveal = pin (UI realm: delegated `pointerdown`, `main.ts`; frame or guest: window `blur` → `frame.ts`). It then stays when the pointer leaves, like a click on the item.
-- Unpin: click item again, or pointerdown outside tile and item (menu excluded). Unpinning an active shelved tile → `focusNext()`. Clicks into another tile's frame or guest don't reach the UI: they activate that tile, the pin stays.
-- Keyboard focus changes (focus keys, `tie focus` of a board tile, new tiles) keep the pin; the reveal stays on top, unfocused.
+- Title bar pin button (`.btn.pin`, `setButtons` in `render.ts`): shown only on a shown shelved tile. Hover reveal → Pin (pins + activates, on click; pointerdown on it doesn't pin); pinned → Unpin. Hidden for slotted / floating tiles.
+- A pin stays until released. Unpin paths: item click, Unpin button, closing the tile, unshelving by drag, `tie move` (`detach`). Unpinning an active shelved tile → `focusNext()`.
+- Nothing else unpins: clicks outside (board tiles, frames, guests: they activate that tile), focus keys, `tie focus` of a board tile, new tiles. The reveal stays on top, unfocused.
 - `tie focus <shelved id>` pins (switches tab first).
 - Hover reveal cleared on drag start and when leaving the tab.
-- Reveal shows only the close button.
+- Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
 - Position: left of shelf, vertically centered on its item (`getBoundingClientRect()` in `render.ts`), clamped into the board.
 - z-order: reveal 2000 (hovered +1), above zoomed (1000) and floating tiles, browser guests included (`<webview>` composites in the DOM).
