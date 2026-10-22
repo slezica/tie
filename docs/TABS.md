@@ -35,11 +35,10 @@ Title (`tabTitle`), first match:
 ## Open and close
 
 - New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (root slot, default cwd `S.cwd`, like a template on an empty board). Boot: same, first space gets a terminal (`main.ts`).
-- Auto-close: `closeTile` of a space's last tile (board, floats and shelf all empty), by any path (close button, cmd+W, `tie close`, shell exit) → `dropSpace`. No focus pass inside the closing space.
-- `dropSpace(id)`: visible → switch to the tab before; hidden (e.g. CLI in a background tab) → removed, visible tab kept, `S.current` back to visible.
-- Never zero tabs: the only tab dropped → fresh space + terminal (net effect: a fresh terminal).
-- Loop guard: at most one replacement terminal per second (`REPLACE_MS`). A shell that exits at once (`shell: true`) gets one, then the tab stays empty (`empty` title; `quit-empty` scenario).
-- Close (`closeTab`: tab ×, cmd+shift+W): only empty tabs. Else info dialog "Tab not empty". With auto-close, only the loop guard's empty tab qualifies.
+- Empty tab: closing its last tile (any path) leaves the tab, board empty (notice), title `empty`.
+- Close (`closeTab`: tab ×, cmd+shift+W): only empty tabs. Else info dialog "Tab not empty".
+- `dropSpace(id)`: visible → switch to the tab before; hidden → removed, visible tab kept, `S.current` back to visible.
+- Never zero tabs: the only tab closed → fresh space + terminal.
 
 ## Limitations
 

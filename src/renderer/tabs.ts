@@ -1,5 +1,5 @@
 // Tabs: one per space, in the window's top bar.
-import { S, newSpace, spaceOf, debug, type Space } from './state'
+import { S, newSpace, spaceOf, type Space } from './state'
 import { render } from './render'
 import { activate, openTile } from './ops'
 import { showMetaMenu } from './menu'
@@ -48,15 +48,9 @@ export function newTab(): string {
 
 const openTerminal = () => openTile('terminal', { type: 'slot', at: null, side: 'r' })
 
-// Replacing the only tab: at most one fresh terminal per second. A shell that exits at once
-// (e.g. `shell: true`) would otherwise close and replace its tab forever; the tab stays empty.
-const REPLACE_MS = 1000
-let lastReplace = -Infinity
-
-// Remove an empty space: its tiles are gone (last one closed) or it had none. The visible one
-// hands over to the tab before it; never zero tabs (a fresh one with a terminal replaces the last).
-// Inside withSpace on a hidden space: the visible tab stays.
-export function dropSpace(id: string) {
+// Remove a space. The visible one hands over to the tab before it; never zero tabs (a fresh one,
+// with a terminal like any new tab, replaces the last). A hidden one: the visible tab stays.
+function dropSpace(id: string) {
   const sp = space(id)
   if (!sp) return
   const i = S.spaces.indexOf(sp)
@@ -65,9 +59,6 @@ export function dropSpace(id: string) {
     const fresh = newSpace()
     S.spaces.push(fresh)
     switchTab(fresh.id)
-    const now = performance.now()
-    if (now - lastReplace < REPLACE_MS) return debug('layout', 'replacement tab left empty (terminal closed at once)')
-    lastReplace = now
     return void openTerminal()
   }
   if (S.visible === id) return switchTab(S.spaces[Math.max(0, i - 1)].id)

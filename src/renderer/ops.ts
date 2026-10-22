@@ -5,7 +5,6 @@ import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
 import { render } from './render'
 import { closeTileMenu } from './menu'
-import { dropSpace } from './tabs'
 
 export type Placement =
   | { type: 'slot'; at: TileId | null; side: Side }
@@ -113,8 +112,6 @@ export function closeTile(id: TileId) {
     disposeTile(t)
     closeTileMenu(id)
     S.mru = S.mru.filter((m) => m !== id)
-    // Last tile of its space (board, floats, shelf): the tab closes (TABS.md).
-    if (!S.tree && S.floats.length === 0 && S.shelf.length === 0) return dropSpace(S.current)
     if (S.active === id) focusNext()
     else render()
   })

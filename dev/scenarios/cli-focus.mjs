@@ -1,5 +1,5 @@
 // CLI open/move never take the user's input unless --focus (an agent showing something must not
-// redirect typing). Empty board (only shelved tiles): the new tile activates (nothing to take input from).
+// redirect typing). Empty board: the new tile activates (nothing to take input from).
 export default async (ctx, h) => {
   const active = async () => (await h.list(ctx)).active
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
@@ -19,11 +19,9 @@ export default async (ctx, h) => {
   await ctx.sleep(200)
   h.assert((await active()) === b, 'move --focus: moved tile takes input')
 
-  // Empty board (a shelved tile keeps the tab open): the opened tile activates.
-  await ctx.tie('move', a, '--shelve')
-  for (const id of [b, c]) await ctx.tie('close', id)
+  // Empty board (new tab): the opened tile activates.
+  for (const id of [a, b, c]) await ctx.tie('close', id)
   await ctx.sleep(300)
-  h.assert((await active()) === null, 'board empty: nothing active')
   const d = (await ctx.tie('open', 'terminal')).id
   await ctx.sleep(300)
   h.assert((await active()) === d, 'empty board: new tile active')

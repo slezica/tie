@@ -92,7 +92,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered).
 - `Space` also: `id` (`s1`...), `customTitle`, `customIcon`.
-- Spaces never empty: new ones get a terminal; the last tile closing closes its space (`dropSpace`); never zero spaces (only tab → fresh one + terminal). Exception: loop guard's empty tab (`TABS.md`).
+- New spaces get a terminal; a space may be empty (last tile closed: the tab stays); never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
