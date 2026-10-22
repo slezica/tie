@@ -38,7 +38,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 - Electron 44 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
 - xterm.js 6 + fit addon; node-pty 1.1 (rebuilt for Electron on install).
-- `native/peer` (`tie-peer`, N-API via node-addon-api, rebuilt for Electron on install): socket peer pid/uid, parent pid. Main only.
+- `native/peer` (`tie-peer`, N-API via node-addon-api, rebuilt for Electron on install): socket peer pid/uid, parent pid, child pids (busy terminals). Main only.
 - Markdown viewer (bundled into its IIFE): markdown-it 15 (+ footnote, deflist, emoji plugins), DOMPurify 3, highlight.js 11 (core + common languages). Diagrams: `@mermaid-js/tiny` 12.2.0 (pinned; separate asset, loaded on demand). Live updates: morphdom 2.7.8 (keyed DOM diff).
 - Vitest (unit), Playwright over CDP (scenarios = e2e).
 - No UI framework: plain objects + `render()`.
@@ -79,7 +79,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `driver.ts`: socket methods → ops.
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
-- `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
+- `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
 - `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
