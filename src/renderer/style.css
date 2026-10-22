@@ -272,6 +272,23 @@ body.dragging-tab .tab {
 .dialog.external-open .dialog-body p.url .host {
   font-weight: 700;
 }
+.dialog:focus {
+  outline: none;
+}
+/* Busy tiles (close.ts, quit.ts): `title — command` per line, grouped by tab when quitting. */
+.dialog .dialog-body ul.running {
+  margin: 0 0 12px;
+  padding: 0 0 0 18px;
+  max-height: 40vh;
+  overflow: auto;
+  color: var(--text);
+  line-height: 1.5;
+}
+.dialog .dialog-body p.group {
+  margin: 0 0 2px;
+  color: var(--text);
+  font-weight: 600;
+}
 .dialog .dialog-body p.warn {
   color: var(--text);
 }

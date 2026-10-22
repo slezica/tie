@@ -1,9 +1,9 @@
 // Tabs: one per space, in the window's top bar.
 import { S, newSpace, spaceOf, type Space } from './state'
 import { render } from './render'
-import { activate, openTile } from './ops'
+import { activate, openTile, closeTile } from './ops'
 import { showMetaMenu } from './menu'
-import { infoDialog } from './dialog'
+import { requestCloseTab } from './close'
 import { displayTitle } from './tile'
 import { iconHtml } from './icons'
 import { ICON } from './icons'
@@ -91,16 +91,18 @@ export function cycleTab(delta: number) {
   switchTab(S.spaces[(i + delta + n) % n].id)
 }
 
-// Only empty tabs close (safety); otherwise explain.
-export async function closeTab(id = S.visible): Promise<boolean> {
+// Close a tab with every tile in it (board, floats, shelf); no questions (requestCloseTab asks).
+export function closeTab(id = S.visible) {
   const sp = space(id)
-  if (!sp) return false
-  if (!isEmpty(sp)) {
-    await infoDialog('Tab not empty', 'Only empty tabs can be closed. Close or move its tiles (board and shelf) first.')
-    return false
-  }
+  if (!sp) return
+  for (const t of [...S.tiles.keys()].filter((t) => spaceOf(t) === sp)) closeTile(t)
   dropSpace(id)
-  return true
+}
+
+// ⌘W with nothing active: an empty tab closes, unless it's the only one.
+export function closeEmptyTab() {
+  const sp = space(S.visible)
+  if (sp && isEmpty(sp) && S.spaces.length > 1) closeTab(sp.id)
 }
 
 export function setTabMeta(id: string, meta: { title?: string | null; icon?: string | null }) {
@@ -153,7 +155,7 @@ function createTabEl(id: string): HTMLElement {
     switchTab(id)
     dragTab(e, id)
   })
-  el.querySelector('.tab-close')!.addEventListener('click', () => closeTab(id))
+  el.querySelector('.tab-close')!.addEventListener('click', () => void requestCloseTab(id))
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault()
     const sp = space(id)

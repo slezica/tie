@@ -76,6 +76,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus-direction. `quit.ts`: hold-⌘Q.
+  - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.
   - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
@@ -100,7 +101,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `tip` (title tooltip), `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle?}`: title-bar state, html "Scripts blocked").
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `tip` (title tooltip), `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `busy` (→ `{what}` or null: terminals, `TERMINALS.md`), `unload` (→ may close: browser beforeunload), `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pill` (`{label, title, on, toggle?}`: title-bar state, html "Scripts blocked").
 - `Icon` (`icons.ts`): `{glyph: Glyph}` (built-in SVG, `GLYPH` key) | `{text}` (custom icon, escaped). `displayIcon(t)` → `Icon`; `iconHtml(icon)` renders it (title bar, shelf, tabs, ghost).
 - `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `cwd`, `cmd`, `path`, `hash`, `url`.
 - `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
@@ -112,6 +113,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 ## Patterns
 
 - Mutate only through `ops.ts`; ops end in `render()`, which always renders `S.visible`. Other space: `withSpace(id, fn)`.
+- Closing on the user's behalf: `requestCloseTile` / `requestCloseTab` (`close.ts`: asks if busy); scripted (`tie close`, exits): `closeTile`.
 - Async work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)` (kinds: `host.alive()`): it may have closed.
 - UI code never reaches into a kind's state: only through `Surface`.
 - `refocus()` after closing any modal/menu: keys to the active tile, or blur.

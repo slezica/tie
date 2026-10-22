@@ -1,7 +1,8 @@
 import '@xterm/xterm/css/xterm.css'
 import { S, tie, location } from './state'
 import { render } from './render'
-import { openTile, activate, closeTile, toggleCollapse, toggleZoom, pin } from './ops'
+import { openTile, activate, toggleCollapse, toggleZoom, pin } from './ops'
+import { requestCloseTile } from './close'
 import { initTerminals } from './kinds/terminal'
 import { initFileViews } from './fileview'
 import { registerKind } from './kinds'
@@ -72,7 +73,7 @@ tiles.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('.btn')
   const id = tileId(btn)
   if (!btn || !id) return
-  if (btn.classList.contains('close')) closeTile(id)
+  if (btn.classList.contains('close')) void requestCloseTile(id)
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
   else if (btn.classList.contains('pin')) pin(S.pinned === id ? null : id)

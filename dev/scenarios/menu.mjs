@@ -19,12 +19,12 @@ export default async (ctx, h) => {
   await ctx.tie('move', a, '--shelve')
   await ctx.shot('shelved-custom')
 
-  // Info dialog (close non-empty tab) gives focus back too.
-  await ctx.tie('open', 'terminal')
+  // A dialog (close a busy tile, cancelled) gives focus back too.
+  await ctx.tie('open', 'terminal', '--cmd', 'sleep 30', '--focus')
   await ctx.sleep(500)
-  await h.press(ctx, 'Meta+Shift+w')
+  await h.press(ctx, 'Meta+w')
   await ctx.page.waitForSelector('.dialog')
-  await ctx.page.keyboard.press('Enter')
+  await ctx.page.keyboard.press('Escape')
   const act = (await h.list(ctx)).active
   h.assert(act && (await focused()) === act, `terminal refocused after dialog: ${await focused()}`)
 }

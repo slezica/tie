@@ -36,9 +36,9 @@
 |---|---|
 | `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
 | `cmd+←/→/↑/↓` | Focus neighbor |
-| `cmd+W` | Close active tile |
+| `cmd+W` | Close active tile (busy: asks); nothing active on an empty tab: close the tab (only tab: no-op) |
 | `cmd+T` | New tab |
-| `cmd+shift+W` | Close tab (empty only) |
+| `cmd+shift+W` | Close tab with its tiles (busy ones: asks) |
 | `cmd+1..8` / `cmd+9` | Tab by position / last |
 | `cmd+[` / `cmd+]` | Back / forward in the active tile (kinds with navigation; no-op elsewhere) |
 | `cmd+R` | Reload the active tile (kinds with navigation: file views re-read their file; html reloads the page, scroll kept) |
@@ -59,11 +59,18 @@
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)
 
-- Menu targets: tile title bar, shelf item, tab. Items: `Rename…`, `Set icon…`, `Reset title & icon` (if custom).
+- Menu targets: tile title bar, shelf item, tab. Items: `Rename…`, `Set icon…`, `Reset title & icon` (if custom), `Close` (tiles: `requestCloseTile`).
 - Rename / icon swap the menu for an input: Enter applies (empty = automatic), Escape closes.
 - Menu closes on outside pointerdown, Escape, or its tile closing. Clamped into the window. `refocus()` on close if it held focus.
 - `infoDialog(title, message)`: modal OK; Enter / Escape / backdrop close, then `refocus()`.
-- `confirmDialog({cls, title, body, confirm})` → bool: Cancel focused (Enter cancels); Escape / backdrop = false.
+- `confirmDialog({cls, title, body, confirm, cancel?, focus?, arm?})` → bool. Enter presses the focused button; Escape / backdrop = false. Default Cancel focused (Enter cancels: links out, downloads, pastes). `focus: 'confirm'` (close, quit, leave page): Enter confirms. `arm` ms: confirm disabled meanwhile (the dialog holds focus).
+
+## Closing (`close.ts`)
+
+- User closes (`requestCloseTile`: cmd+W, title-bar ×, menu Close; `requestCloseTab`: tab ×, cmd+shift+W): immediate unless something would be lost. One question at a time.
+- Tile: busy terminal (`TERMINALS.md` "Busy") → `.dialog.close-busy` "Close <title>?" "<command> is running." (unknown: "A process is running."), Close / Cancel. Then a browser page's beforeunload (`BROWSER.md`).
+- Tab: busy tiles (any location) → "Close tab <name>?" "Currently running:" + `title — command` list, Close tab / Cancel. Then each browser page's beforeunload. Then `closeTab` (`TABS.md`).
+- Scripted (`tie close`, shell exit): `closeTile`, never asks.
 
 ## OS drops (`paste.ts` → `Surface.drop`)
 
@@ -72,7 +79,3 @@
 - Files anywhere else on the board or shelf (incl. content tiles): opened in their kind (by extension or content, `VIEWERS.md`), placed like a template dropped there (`placementAt`); outside board and shelf: beside the active tile. Folder, missing, too large → modal with the reason (`files.ts`).
 - Text anywhere else: nothing. Never navigates (`SECURITY.md`).
 - While an OS drag is over the window (`body.os-drag`): content frames ignore the pointer, so drops over them land in the UI. A drag entering straight over a frame goes to the frame (viewers refuse drops).
-
-## Limitations
-
-- No confirmation before closing a tile with a running program.

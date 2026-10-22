@@ -77,6 +77,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 | Native drops: never navigate; on a terminal, quoted paths / text via guarded paste; files elsewhere → their viewer (main checks); text elsewhere: nothing | `renderer/main.ts`, `paste.ts`, `files.ts`, `kinds/terminal.ts` | `sec-drop`, `markdown-open` |
 | Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |
 | IPC: UI main frame of UI window only | `uiIpc`, `isUiSender` | unit |
+| `pty:busy`: only booleans + foreground name, only for Tie's own ptys (other pids: not busy), ≤ 256 per call; child pids from the kernel (`native/peer` `childrenOf`), never returned | `main/index.ts`, `pty.ts` `busy` | `close-busy` |
 | UI on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol`, unit |
 | UI CSP: scripts from app only; frames only `tie-content:`; no objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp`, `sec-content-nav` |
 | Fuses (below) | `electron-builder.yml` | `check-package` |

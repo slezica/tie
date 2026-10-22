@@ -1,5 +1,5 @@
-// Tabs: new (with a terminal), switch, per-tab board + shelf, cwd-derived titles, rename, close only
-// when empty, emptied tab stays.
+// Tabs: new (with a terminal), switch, per-tab board + shelf, cwd-derived titles, rename, close with
+// tiles (idle: no question), emptied tab stays, cmd+W on an empty tab closes it (only tab: no-op).
 export default async (ctx, h) => {
   const k = async (chord) => {
     await h.press(ctx, chord)
@@ -47,21 +47,25 @@ export default async (ctx, h) => {
   l = await L()
   h.assert(l.tab === l.tabs[1].id && l.tiles.find((t) => t.id === d).tab === l.tabs[0].id, 'CLI targets background tab without switching')
 
-  // Close: refused while tiles exist (tab 2 has a shelved tile).
+  // Close: tab 2 holds only a shelved idle terminal: cmd+shift+W closes the tab with it, no question.
+  await ctx.sleep(500) // its shell settled (startup children would count as busy)
   await k('Meta+Shift+w')
-  h.assert(await ctx.page.isVisible('.dialog'), 'dialog explains non-empty tab')
-  await ctx.shot('close-refused')
-  await ctx.page.keyboard.press('Enter')
-  h.assert((await L()).tabs.length === 2, 'tab kept')
-  // Last tile gone: the tab stays (empty), cmd+shift+W closes it.
-  await ctx.tie('close', b)
-  await ctx.sleep(200)
   l = await L()
-  h.assert(l.tabs.length === 2 && l.tab === l.tabs[1].id && !l.active, `emptied tab stays: ${JSON.stringify(l.tabs)}`)
+  h.assert(!(await ctx.page.isVisible('.dialog')), 'nothing running: no dialog')
+  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id && !l.tiles.some((t) => t.id === b), 'tab closed with its tile, back to tab 1')
+
+  // Last tile closed: the tab stays, empty; cmd+W there (nothing active) closes it.
+  await k('Meta+t')
+  await ctx.sleep(800)
+  const e = (await L()).active
+  await k('Meta+w')
+  l = await L()
+  h.assert(l.tabs.length === 2 && l.tab === l.tabs[1].id && !l.active && !l.tiles.some((t) => t.id === e), `emptied tab stays: ${JSON.stringify(l.tabs)}`)
   h.assert((await tabTitles())[1] === 'empty', 'titled empty')
-  await k('Meta+Shift+w')
+  await ctx.shot('empty-tab')
+  await k('Meta+w')
   l = await L()
-  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id, 'empty tab closed, back to tab 1')
+  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id, 'cmd+W on the empty tab closes it, back to tab 1')
 
   // Rename via right-click.
   const tab = await ctx.page.locator('.tab').first().boundingBox()
@@ -105,4 +109,14 @@ export default async (ctx, h) => {
   // A tab holding only shelved tiles isn't titled "empty".
   const cur = await ctx.page.$eval('.tab.current .tab-title', (e) => e.textContent)
   h.assert(cur !== 'empty', `shelf-only tab title: ${cur}`)
+
+  // Every tile closed over the CLI: tabs stay (empty); cmd+W closes them one by one; on the only
+  // tab it does nothing (never zero tabs).
+  for (const t of (await L()).tiles) await ctx.tie('close', t.id)
+  await ctx.sleep(200)
+  h.assert((await L()).tabs.length > 1, 'emptied tabs stay')
+  for (let i = 0; i < 10 && (await L()).tabs.length > 1; i++) await k('Meta+w')
+  await k('Meta+w')
+  l = await L()
+  h.assert(l.tabs.length === 1 && l.tiles.length === 0, `only tab kept, empty: ${l.tabs.length} tabs, ${l.tiles.length} tiles`)
 }

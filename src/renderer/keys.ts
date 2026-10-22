@@ -1,8 +1,9 @@
 // Keyboard shortcuts: actions from main (keymap: @core/keymap, matched in src/main/keys.ts).
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, tie, location, getTile, spaceOf, withSpace } from './state'
-import { openTile, activate, closeTile, cwdOf } from './ops'
-import { newTab, closeTab, cycleTab, switchTabIndex } from './tabs'
+import { openTile, activate, cwdOf } from './ops'
+import { newTab, closeEmptyTab, cycleTab, switchTabIndex } from './tabs'
+import { requestCloseTile, requestCloseTab } from './close'
 import { quitPressed, quitReleased, quitCancelled } from './quit'
 import type { Action } from '@core/keymap'
 import { kindSpec } from './kinds'
@@ -57,11 +58,11 @@ export function run(action: Action) {
     case 'focus-down':
       return focusDirection('b')
     case 'close-tile':
-      return void (S.active && closeTile(S.active))
+      return S.active ? void requestCloseTile(S.active) : closeEmptyTab()
     case 'new-tab':
       return void newTab()
     case 'close-tab':
-      return void closeTab()
+      return void requestCloseTab()
     case 'next-tab':
       return cycleTab(1)
     case 'prev-tab':
