@@ -217,7 +217,7 @@ case "$cmd" in
     fi
     # Refuse only to replace the copy that is actually running.
     if pgrep -f "^$dest/Contents/MacOS/Tie" >/dev/null; then
-      echo "Tie is running from $dest: quit it first (hold cmd+Q)"; exit 1
+      echo "Tie is running from $dest: quit it first (cmd+Q)"; exit 1
     fi
     rm -rf "$dest"
     ditto "$APP_OUT" "$dest"

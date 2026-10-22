@@ -13,14 +13,14 @@
 
 - Window: `sandbox`, `contextIsolation`, `webviewTag` (guests only via `attachGuest`), CSP `script-src 'self'`, served from `tie://app/`, session `tie-ui` (in memory, no network). One per instance. Guards: `SECURITY.md`.
 - Sessions: `tie-ui` (UI + content frames: in memory, dead proxy, Tie's protocols); `persist:browser` (guests: on disk, network, no Tie protocols). Permissions denied on both.
-- Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` + renderer hold-to-quit). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
+- Menu: no `windowMenu` (its cmd+W would close the window). Quit's cmd+Q shown but not registered (main's `keys.ts` matches it, guests included). Shortcuts: `before-input-event` in main (`INPUT.md`). Reload/DevTools in dev only.
 - Data flow: input (mouse/keys/socket) → `ops.ts` → `S` → `render()` → DOM.
 
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
-- Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill|navigated|navfailed|changed`, `guest:unresponsive`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
+- Channels: `app:info|quit|ask-quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill|navigated|navfailed|changed`, `guest:unresponsive`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
 - Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd, `pty:busy(pids)` → `{[pid]: {busy, proc}}` (`TERMINALS.md` "Busy").
-- Main → renderer: `pty:data|exit|process|cwd`, `doc:changed(id, {text, rev} | {missing})`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
+- Main → renderer: `app:ask-quit` (quit requested: ask), `pty:data|exit|process|cwd`, `doc:changed(id, {text, rev} | {missing})`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
 
 ## Instances (`src/main/env.ts`)
@@ -53,8 +53,10 @@ Other env (main):
 
 ## Quit
 
-- `before-quit`: prevent once, remove socket + info file, `pty.killAll()` (SIGKILL after 1.5 s), `app.exit(0)`.
-- SIGTERM / SIGINT / window close → `app.quit()`.
+- Asks first, always: cmd+Q (`quit` action → `askQuit`), menu Quit, window close (red button: `close` prevented → `app.quit()`), Dock / logout all reach `before-quit`, which (unconfirmed, UI up) prevents and sends `app:ask-quit` → `askQuit`.
+- `askQuit` (`renderer/quit.ts`): `.dialog.quit` "Quit Tie?", Quit / Cancel (Enter / Esc). Busy terminals (`TERMINALS.md` "Busy"), any tab, shelf included: "Currently running:" + `title — command`, grouped by tab when there are several tabs. No tiles: still asks. Then each browser page's beforeunload (`BROWSER.md`; Stay aborts). Confirmed → `app:quit`. While any dialog is open: nothing (no second dialog).
+- Confirmed (`app:quit`) or SIGTERM / SIGINT (harness `stop`): `before-quit` proceeds: remove socket + info file, `pty.killAll()` (SIGKILL after 1.5 s), `app.exit(0)`.
+- No question when the UI isn't up (booting, reloading, crashed: `uiUp`) or there is no window.
 - Page (re)load (e.g. HMR) kills all ptys, forgets content tokens and closes docs (watchers): fresh UI has no tiles. On `did-navigate` (committed), so blocked navigations don't.
 - Why: node-pty callbacks into a torn-down JS env abort the process (`2026-10-09-electron-crash-on-quit.md`).
 

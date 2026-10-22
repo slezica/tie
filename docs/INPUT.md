@@ -44,7 +44,7 @@
 | `cmd+R` | Reload the active tile (kinds with navigation: file views re-read their file; html reloads the page, scroll kept) |
 | `cmd+L` | Focus the active tile's location field (only if editable: browser; no-op otherwise) |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
-| `cmd+Q` | Quit on release (`quit.ts`) |
+| `cmd+Q` | Quit (asks first: `quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |
 
 - Matched in main (`before-input-event` on the window's webContents, and on each browser guest's own: `watchKeys`): sees real keys before any page, content frames and guests included. Matching keydowns are blocked (no page sees them) and sent as `keys:action`; the renderer runs them (`run()`).
@@ -54,7 +54,7 @@
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
-- Quit: main reports `quit-press` (cmd+Q keydown, not repeats), `quit-release` (Q or ⌘ keyup), `quit-cancel` (window blur); never suspended. The keydown is not blocked (a blocked keydown loses its keyup, and the release is what quits); the renderer keeps it from xterm. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels (UI page `blur`, and main's window `blur` for when a frame has focus). Menu Quit by mouse is immediate.
+- Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)

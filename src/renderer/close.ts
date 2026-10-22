@@ -40,7 +40,7 @@ export async function runningIn(ids: TileId[]): Promise<Running[]> {
 export const tilesOf = (sp: Space): TileId[] => [...S.tiles.keys()].filter((id) => spaceOf(id) === sp)
 
 // Pages that object to unloading (beforeunload) ask, one by one; false = the user kept one.
-async function unloadAll(ids: TileId[]): Promise<boolean> {
+export async function unloadAll(ids: TileId[]): Promise<boolean> {
   for (const id of ids) {
     const t = S.tiles.get(id)
     if (t?.surface.unload && !(await t.surface.unload())) return false

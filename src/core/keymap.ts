@@ -7,6 +7,7 @@ export type Action =
   | 'close-tile'
   | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
   | 'nav-back' | 'nav-forward' | 'nav-reload' | 'nav-location' // active tile's navigation (Surface.nav); no-op elsewhere
+  | 'quit' // asks first (renderer quit.ts); never suspended (main/keys.ts)
   | `tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
 
 // Defaults; settings will override per chord later. Chord: modifiers (Cmd, Ctrl, Alt, Shift) + key.
@@ -27,6 +28,7 @@ export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+]': 'nav-forward',
   'Cmd+R': 'nav-reload',
   'Cmd+L': 'nav-location',
+  'Cmd+Q': 'quit',
   ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`Cmd+${n}`, `tab-${n}` as Action])),
 }
 
@@ -49,9 +51,4 @@ export function chord(k: KeyInput): string {
 export function actionFor(k: KeyInput, keymap: Record<string, Action> = DEFAULT_KEYMAP): Action | undefined {
   const c = chord(k)
   return Object.hasOwn(keymap, c) ? keymap[c] : undefined
-}
-
-// ⌘Q: hold to quit (own handling: press, release, cancel). Not in the keymap.
-export function isQuitKey(k: KeyInput): boolean {
-  return k.meta && k.key.toLowerCase() === 'q'
 }

@@ -27,7 +27,11 @@ type RpcCb = (reqId: number, method: string, params: unknown) => void
 const api = {
   info: () => ipcRenderer.invoke('app:info'),
   ready: () => ipcRenderer.send('renderer:ready'),
+  // Quit now (the user confirmed). `onAskQuit`: main wants to quit (menu, red button, Dock): ask.
   quit: () => ipcRenderer.send('app:quit'),
+  onAskQuit: (cb: () => void) => {
+    ipcRenderer.on('app:ask-quit', () => cb())
+  },
   // Main validates the scheme (http/https only).
   openExternal: (url: string) => ipcRenderer.send('external:open', url),
   // Absolute path of a dropped file ('' if not a real file).

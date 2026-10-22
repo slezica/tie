@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chord, actionFor, isQuitKey, DEFAULT_KEYMAP } from './keymap'
+import { chord, actionFor, DEFAULT_KEYMAP } from './keymap'
 
 const k = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean }> = {}) => ({ key, meta: false, control: false, alt: false, shift: false, ...mods })
 
@@ -26,22 +26,14 @@ describe('actionFor', () => {
     expect(actionFor(k('r', { meta: true }))).toBe('nav-reload')
     expect(actionFor(k('l', { meta: true }))).toBe('nav-location')
     expect(actionFor(k('r', { meta: true, shift: true }))).toBe(undefined)
+    expect(actionFor(k('q', { meta: true }))).toBe('quit')
   })
   it('never takes Esc, plain keys, or editing combos', () => {
-    for (const x of [k('Escape'), k('d'), k('c', { meta: true }), k('v', { meta: true }), k('x', { meta: true }), k('a', { meta: true }), k('z', { meta: true }), k('Z', { meta: true, shift: true }), k('q', { meta: true }), k('Enter')])
+    for (const x of [k('Escape'), k('d'), k('c', { meta: true }), k('v', { meta: true }), k('x', { meta: true }), k('a', { meta: true }), k('z', { meta: true }), k('Z', { meta: true, shift: true }), k('Enter')])
       expect(actionFor(x)).toBe(undefined)
   })
   it('has no prototype keys', () => {
     expect(actionFor(k('toString'))).toBe(undefined)
     expect(Object.keys(DEFAULT_KEYMAP).every((c) => c.includes('+'))).toBe(true)
-  })
-})
-
-describe('isQuitKey', () => {
-  it('cmd+Q only', () => {
-    expect(isQuitKey(k('q', { meta: true }))).toBe(true)
-    expect(isQuitKey(k('Q', { meta: true, shift: true }))).toBe(true)
-    expect(isQuitKey(k('q'))).toBe(false)
-    expect(isQuitKey(k('w', { meta: true }))).toBe(false)
   })
 })

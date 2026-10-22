@@ -33,14 +33,14 @@ export default async (ctx, h) => {
   await ctx.sleep(400)
   h.assert((await count()) === n, `synthetic keys ran a shortcut (${await count()} tiles, was ${n})`)
 
-  // Hold-⌘Q with the frame focused: a tap shows the hint (the frame can't hide it from main).
+  // ⌘Q with the frame focused: the quit question (the frame can't keep it from main); Esc cancels.
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2)
   await ctx.sleep(200)
-  await h.keyDown(ctx, 'Meta')
-  await h.press(ctx, 'q')
-  await h.keyUp(ctx, 'Meta')
-  await ctx.sleep(150)
-  h.assert(await page.isVisible('#quit-hold'), 'cmd+Q hint with frame focused')
+  await h.press(ctx, 'Meta+q')
+  await ctx.sleep(300)
+  h.assert(await page.isVisible('.dialog.quit'), 'cmd+Q asks with frame focused')
+  await page.keyboard.press('Escape')
+  await ctx.sleep(200)
 
   // Esc and editing combos reach the page.
   await page.evaluate(() => (document.activeElement?.blur(), (window.__keys = [])))

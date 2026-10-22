@@ -20,7 +20,7 @@
 - pty leak check: `drive` counts `/dev/ttys*` before launch and after stop; a positive difference is logged (`ptys=N` in `drive.log`, `ptys leaked: +N` on stderr) and `test --e2e` appends `(ptys +N)` to the scenario line. Not a failure: another process may have opened a pty meanwhile; a repeatable leak is. `tie-dev ptys`: live count and spawn-helpers stuck in the kernel (the pty wedge, `docs/2026-10-21-pty-wedge.md`).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 

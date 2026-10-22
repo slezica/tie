@@ -4,7 +4,7 @@ import { S, tie, location, getTile, spaceOf, withSpace } from './state'
 import { openTile, activate, cwdOf } from './ops'
 import { newTab, closeEmptyTab, cycleTab, switchTabIndex } from './tabs'
 import { requestCloseTile, requestCloseTab } from './close'
-import { quitPressed, quitReleased, quitCancelled } from './quit'
+import { askQuit } from './quit'
 import type { Action } from '@core/keymap'
 import { kindSpec } from './kinds'
 import { navAction, focusLocation } from './nav'
@@ -31,14 +31,10 @@ export function initKeys() {
   new MutationObserver(sync).observe(document.body, { childList: true })
 
   tie.keys.onAction((a) => {
-    if (a === 'quit-press') return quitPressed()
-    if (a === 'quit-release') return quitReleased()
-    if (a === 'quit-cancel') return quitCancelled()
+    if (a === 'quit') return void askQuit() // also with settings open; never a second dialog (quit.ts)
     if (!modalOpen()) run(a as Action) // never act behind a modal, even if main's view lagged
   })
-  window.addEventListener('blur', () => quitCancelled())
-  // ⌘Q reaches the page (main can't block it, see main/keys.ts): keep it from xterm.
-  window.addEventListener('keydown', (e) => e.metaKey && e.key.toLowerCase() === 'q' && (e.preventDefault(), e.stopPropagation()), true)
+  tie.onAskQuit(() => void askQuit())
 }
 
 const active = () => (S.active ? S.tiles.get(S.active) : undefined)
@@ -75,6 +71,8 @@ export function run(action: Action) {
       return active() && navAction(active()!, 'reload')
     case 'nav-location':
       return active() && focusLocation(active()!)
+    case 'quit':
+      return void askQuit()
     default:
       if (action.startsWith('tab-')) return switchTabIndex(Number(action.slice(4)))
   }

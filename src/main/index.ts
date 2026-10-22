@@ -57,7 +57,11 @@ const binDir = app.isPackaged ? join(process.resourcesPath, 'bin') : join(app.ge
 // Calls wait until the renderer has registered its driver.
 let rendererReady: () => void
 const ready = new Promise<void>((r) => (rendererReady = r))
-ipc.on('renderer:ready', () => rendererReady())
+let uiUp = false // the UI page is booted (asks before quitting); false while it reloads or after a crash
+ipc.on('renderer:ready', () => {
+  uiUp = true
+  rendererReady()
+})
 
 let nextReq = 1
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
@@ -115,7 +119,7 @@ ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
 ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('guest:download-ok', (_e, url: unknown, guest: unknown) => allowDownload(url, guest))
-ipc.on('app:quit', () => app.quit())
+ipc.on('app:quit', () => quitNow())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
@@ -154,6 +158,7 @@ function createWindow(ses: Electron.Session) {
   // SECURITY: on commit (`did-navigate`), not `did-start-loading`: the latter also fires for
   // navigations the guards then block, so hostile content could kill every terminal.
   win.webContents.on('did-navigate', () => {
+    uiUp = false // until the fresh page says ready
     clearContent()
     clearDocs()
     if (pty.count()) {
@@ -166,7 +171,13 @@ function createWindow(ses: Electron.Session) {
   initContent(win.webContents, (channel, ...args) => win?.webContents.send(channel, ...args))
   applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
-  win.on('close', () => !quitting && app.quit())
+  win.webContents.on('render-process-gone', () => (uiUp = false))
+  // Red button: the same question as ⌘Q (before-quit asks the UI).
+  win.on('close', (e) => {
+    if (quitting) return
+    e.preventDefault()
+    app.quit()
+  })
   win.on('closed', () => (win = null))
   if (process.env.ELECTRON_RENDERER_URL) {
     setUiUrl(process.env.ELECTRON_RENDERER_URL)
@@ -180,9 +191,11 @@ function createWindow(ses: Electron.Session) {
 // Dev builds only, answered by main (harness): `frames` (tie-dev frames), `input`: a key or mouse
 // event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
 // real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
-// instances (null = cancel; docs.ts). `guest {action}`: browser guests (guest.ts).
+// instances (null = cancel; docs.ts). `guest {action}`: browser guests (guest.ts). `window-close`:
+// the window's close, as its red button.
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
+  'window-close': () => void win?.close(), // as the red button (close event)
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
   guest: (params) => guestMethod(params, shellSession), // browser guests (guest.ts)
@@ -211,7 +224,7 @@ function setMenu() {
           { role: 'hideOthers' },
           { role: 'unhide' },
           { type: 'separator' },
-          // ⌘Q shown but not registered: the UI handles it (hold-to-quit while tiles are open).
+          // ⌘Q shown but not registered: main's keys.ts matches it (in guests too). Both ask (before-quit).
           { label: 'Quit Tie', accelerator: 'CmdOrCtrl+Q', registerAccelerator: false, click: () => app.quit() },
         ],
       },
@@ -248,15 +261,25 @@ app.whenReady().then(async () => {
   log('app', 'ready', { instance, socketPath, debugPort })
 })
 
+// Quit asks first (⌘Q, menu, red button, Dock): any app.quit() lands here and, until the user
+// confirmed in the UI (quit.ts → app:quit), only shows the question. Signals, a UI not up (booting,
+// reloading, crashed) or no window: no question.
+let confirmed = false
+function quitNow() {
+  confirmed = true
+  app.quit()
+}
+
 // Graceful quit: stop ptys and wait for their exit callbacks before Electron tears down.
 app.on('before-quit', (e) => {
   if (quitting) return
   e.preventDefault()
+  if (!confirmed && uiUp && win && !win.isDestroyed()) return win.webContents.send('app:ask-quit')
   quitting = true
   rmSync(socketPath, { force: true })
   rmSync(infoPath, { force: true })
   // exit (not quit): skips a second quit cycle, ptys are already gone.
   pty.killAll().finally(() => app.exit(0))
 })
-process.on('SIGTERM', () => app.quit())
-process.on('SIGINT', () => app.quit())
+process.on('SIGTERM', () => quitNow())
+process.on('SIGINT', () => quitNow())
