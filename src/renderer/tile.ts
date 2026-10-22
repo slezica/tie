@@ -26,11 +26,11 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   el.innerHTML = `
     <div class="titlebar">
       <span class="icon"></span>
-      <span class="tile-dot"></span>
       <span class="title"></span>
       <span class="status"></span>
       <span class="spacer"></span>
       <button class="btn pill" hidden></button>
+      <button class="btn pin" title="Pin">${ICON.pin}</button>
       <button class="btn collapse" title="Collapse">${ICON.collapse}</button>
       <button class="btn zoom" title="Zoom">${ICON.zoom}</button>
       <button class="btn close" title="Close">${ICON.close}</button>
@@ -78,7 +78,9 @@ export async function mountTile(t: Tile) {
 
 export function refreshTitle(t: Tile) {
   const title = displayTitle(t)
-  ;(t.el.querySelector('.title') as HTMLElement).textContent = title
+  const titleEl = t.el.querySelector('.title') as HTMLElement
+  titleEl.textContent = title
+  titleEl.title = (!t.customTitle && t.surface.tip?.()) || ''
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
   const pill = t.el.querySelector('.pill') as HTMLButtonElement

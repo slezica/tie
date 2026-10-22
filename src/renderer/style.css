@@ -577,8 +577,8 @@ body.dragging-tab .tab {
 .tile.collapsed-v .titlebar .icon {
   writing-mode: horizontal-tb;
 }
-.tile.collapsed-v .btn svg {
-  transform: rotate(90deg);
+.tile.collapsed-v .btn.zoom svg {
+  transform: rotate(90deg); /* collapse / expand: never rotated (their axis is picked in render.ts) */
 }
 /* Pill along the strip: its fixed height becomes its width. */
 .tile.collapsed-v .titlebar .pill {
@@ -1054,8 +1054,7 @@ body.empty #empty-hint {
   --shadow: rgba(0, 0, 0, 0.18);
 }
 
-/* Title-bar dot: yellow = pinged (tie ping), accent = active. Ping clears on activation. */
-.tile-dot,
+/* Tab ping dot (yellow). */
 .tab-ping {
   display: none;
   flex: none;
@@ -1065,15 +1064,22 @@ body.empty #empty-hint {
   background: var(--yellow);
   box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
 }
-.tile.pinged .tile-dot,
 .tab.pinged .tab-ping {
   display: block;
 }
-/* Active tile: same dot in accent. Exclusive with ping (activation clears it). */
-.tile.active .tile-dot {
-  display: block;
-  background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
+/* Title-bar icon glow: yellow = pinged (tie ping), accent = active. Exclusive (activation clears ping).
+   On the icon, not an extra element: the title text never moves. Emoji (custom icon) glows too. */
+.tile.pinged .titlebar .glyph {
+  color: var(--yellow);
+}
+.tile.pinged .titlebar .icon {
+  filter: drop-shadow(0 0 1.5px var(--yellow)) drop-shadow(0 0 4px color-mix(in srgb, var(--yellow) 80%, transparent));
+}
+.tile.active .titlebar .glyph {
+  color: var(--accent);
+}
+.tile.active .titlebar .icon {
+  filter: drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 80%, transparent));
 }
 .item .ping {
   display: none;

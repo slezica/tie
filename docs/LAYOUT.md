@@ -38,6 +38,7 @@
 ## Collapse
 
 - Shape: slotted in `col` → bar (`collapsed-h`); in `row` → vertical strip, rotated title (`collapsed-v`); floating → title bar (`collapsed-h`).
+- Button arrows follow the shrinking axis: horizontal in `row`, vertical in `col` / floating (`render.ts` `setButtons`). Kind icon stays upright on the strip.
 - Not for a root slotted tile or shelved tiles (button hidden). Slotted tile left without siblings: collapse cleared.
 - Expand: title click, button, `tie focus`.
 
@@ -60,7 +61,7 @@
 `tie ping [id] [--clear]`: soft attention mark (`Tile.pinged`). Strong counterpart: `tie focus`.
 
 - No focus, layout or tab change. Ignored for the active tile of the visible tab.
-- Yellow dot (`--yellow`): title bar (where the active accent dot goes), shelf item (hides activity dot), tab (non-current tabs only).
+- Yellow (`--yellow`): title-bar icon glow (the active tile's icon glows accent; no extra element, title text never moves), shelf item dot (hides activity dot), tab dot (non-current tabs only).
 - Cleared by `activate()` (click, focus keys, `tie focus`, pin, switching to its tab) or `--clear`.
 
 ## Geometry

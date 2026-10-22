@@ -2,12 +2,14 @@
 // The one trusted kind: renders in the UI realm (content kinds get a sandboxed frame).
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { iconFor, SHELLS } from '../icons'
+import { SHELLS } from '../icons'
 import { S, tie, debug } from '../state'
 import { termOptions } from '../appearance'
 import { activate } from '../ops'
 import { pasteInto } from '../paste'
 import { openExternal } from '../external'
+import { prefs } from '../prefs'
+import { prettyDir, tildePath } from '../tabs'
 import { shellQuote } from '@core/paste'
 import type { Host, OpenOpts, Surface } from '.'
 
@@ -26,6 +28,9 @@ interface Term {
 }
 
 const byPty = new Map<number, Term>()
+
+// Last known directory: polled, else the start directory.
+const dirOf = (t: Term) => t.cwdNow || t.cwd || S.cwd
 
 // SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
 // xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
@@ -76,12 +81,14 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       return true
     },
     title: () => {
-      if (t.oscTitle) return t.oscTitle
+      if (prefs.terminalTitle === 'directory') return prettyDir(dirOf(t))
+      if (prefs.terminalTitle === 'auto' && t.oscTitle) return t.oscTitle
       if (t.cmd) return t.cmd
       if (t.proc && !SHELLS.has(t.proc)) return t.proc
       return t.proc || 'terminal'
     },
-    icon: () => iconFor(t.proc),
+    tip: () => (prefs.terminalTitle === 'directory' ? tildePath(dirOf(t)) : ''),
+    icon: () => 'terminal', // same for every program (no per-program icons)
     dir: () => t.cwdNow,
     // Where the shell is right now (fresh read, not the 2 s poll).
     cwd: async () => {

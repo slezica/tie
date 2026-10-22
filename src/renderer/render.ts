@@ -1,5 +1,5 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
-import { compute, type Rect, type TileId } from '@core/layout'
+import { compute, parentDir, type Rect, type TileId } from '@core/layout'
 import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
 import { renderTabs } from './tabs'
 import { ICON } from './icons'
@@ -24,13 +24,23 @@ function setRect(el: HTMLElement, r: Rect) {
   el.style.height = `${r.h}px`
 }
 
-function setButtons(t: Tile, opts: { collapse: boolean; zoom: boolean }) {
+// pin: shelved and shown (hover reveal → Pin, pinned → Unpin); off the shelf, hidden.
+function setButtons(t: Tile, opts: { collapse: boolean; zoom: boolean; pin?: 'pin' | 'unpin' }) {
   const c = t.el.querySelector('.btn.collapse') as HTMLElement
   const z = t.el.querySelector('.btn.zoom') as HTMLElement
+  const p = t.el.querySelector('.btn.pin') as HTMLElement
   c.style.display = opts.collapse ? '' : 'none'
   z.style.display = opts.zoom ? '' : 'none'
+  p.style.display = opts.pin ? '' : 'none'
+  if (opts.pin && p.dataset.state !== opts.pin) {
+    p.innerHTML = ICON[opts.pin]
+    p.title = opts.pin === 'pin' ? 'Pin' : 'Unpin'
+    p.dataset.state = opts.pin
+  }
   const collapsed = S.collapsed.has(t.id)
-  const ci = collapsed ? ICON.expand : ICON.collapse
+  // Arrows along the axis the tile shrinks on: row split → horizontal; col split or floating → vertical.
+  const across = parentDir(S.tree, t.id) === 'row'
+  const ci = collapsed ? (across ? ICON.expand : ICON.expandV) : across ? ICON.collapse : ICON.collapseV
   if (c.dataset.icon !== ci) (c.innerHTML = ci), (c.dataset.icon = ci)
   const zi = S.zoomed === t.id ? ICON.unzoom : ICON.zoom
   if (z.dataset.icon !== zi) (z.innerHTML = zi), (z.dataset.icon = zi)
@@ -106,7 +116,7 @@ function renderVisible() {
       pinned,
       active: S.active === id,
     })
-    setButtons(S.tiles.get(id)!, { collapse: false, zoom: false })
+    setButtons(S.tiles.get(id)!, { collapse: false, zoom: false, pin: pinned ? 'unpin' : shown ? 'pin' : undefined })
     if (shown && (S.revealed === id || !S.revealed)) {
       peak.style.display = 'block'
       peak.style.left = `${x + size.w}px` // sticks out of the reveal's right edge

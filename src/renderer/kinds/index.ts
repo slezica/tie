@@ -38,6 +38,7 @@ export interface Surface {
   dispose(): void
   focus(): boolean // keys to this tile; false if it can't take them yet
   title(): string // automatic title
+  tip?(): string // title tooltip (e.g. full path when the title is its basename)
   icon(): Glyph // automatic icon (built-in glyph; custom icons are the host's)
   dir?(): string | undefined // directory for tab titles (last known)
   cwd?(): Promise<string | undefined> // directory now, for tiles split from this one

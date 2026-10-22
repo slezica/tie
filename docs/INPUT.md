@@ -4,7 +4,7 @@
 
 - Tile pointerdown: activate; a hover-revealed shelved tile pins instead (`SHELF.md`); hidden shelved tiles take no pointer. Clicks inside content frames and browser guests never reach the shell: the window blur + `activeElement` activate (or pin) instead (`initFrames`).
 - Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
-- Title buttons: collapse / zoom / close.
+- Title buttons: pin / unpin (shelf reveals only, `SHELF.md`) / collapse / zoom / close.
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; Enter loads, Escape restores; refused input → dialog).
 - Border between slotted tiles: drag resizes neighbors.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
@@ -54,7 +54,7 @@
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
-- Quit: main reports `quit-press` (cmd+Q keydown, not repeats), `quit-release` (Q or ⌘ keyup), `quit-cancel` (window blur); never suspended. The keydown is not blocked (a blocked keydown loses its keyup, and the release is what quits); the renderer keeps it from xterm. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold. Window blur cancels (UI page `blur`, and main's window `blur` for when a frame has focus). Menu Quit by mouse is immediate.
+- Quit: main reports `quit-press` (cmd+Q keydown, not repeats), `quit-release` (Q or ⌘ keyup), `quit-cancel` (window blur); never suspended. The keydown is not blocked (a blocked keydown loses its keyup, and the release is what quits); the renderer keeps it from xterm. Quits on release (held key would repeat into the app behind). Tiles open (any tab): hold 1 s first (hint, progress, "Release to quit"); a tap only shows the hint. No tiles: no hold (rare since tabs auto-close and the last one is replaced by a terminal: only the loop guard's empty tab, `TABS.md`). Window blur cancels (UI page `blur`, and main's window `blur` for when a frame has focus). Menu Quit by mouse is immediate.
 - Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)

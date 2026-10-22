@@ -6,7 +6,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Host (`renderer/tile.ts`)
 
-- `createTile(kind, opts)`: element (title bar: icon, title, optional kind pill, square 22 px `.btn`s collapse / zoom / close (`ICON` in `icons.ts`; collapse = arrows joining, expand = arrows parting, horizontal; rotated with a vertical title); `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
+- `createTile(kind, opts)`: element (title bar: icon, title, optional kind pill, square 22 px `.btn`s pin / collapse / zoom / close (`ICON` in `icons.ts`; pin only on a shown shelved tile: Pin on a hover reveal, Unpin (crossed pin) when pinned, `SHELF.md`; collapse = arrows joining, expand = arrows parting, along the axis the tile shrinks on: horizontal in a row split, vertical (`collapseV` / `expandV`) in a col split or floating; never rotated, kind icon upright on a vertical strip too). Active / pinged: the icon glows accent / yellow (no extra element: title text never moves); `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
 - `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pill?: {label(), title(), on(), toggle?()}`: a labelled state in the title bar (html: a red "Scripts blocked" tag; a toggle only if `toggle` exists; empty label = hidden), refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
@@ -27,6 +27,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `mount`, `resize`, `dispose` | host lifecycle |
 | `focus()` → bool | `refocus()`, `openTile` |
 | `title()`, `icon()` | title bar, shelf, tabs, `tie list` |
+| `tip?()` | title bar tooltip (terminal, directory mode: full path) |
 | `dir?()`, `cwd?()` | tab titles; new tiles split from it (`cwdOf`) |
 | `paste?(text)`, `drop?(dataTransfer)` | `paste.ts` routing |
 | `appearance?()` | settings changes (`appearance.ts`) |

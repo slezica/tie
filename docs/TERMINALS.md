@@ -72,9 +72,18 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 | Foreground process | node-pty `process`, polled 500 ms | `proc` |
 | Shell cwd | one batched `lsof -d cwd` every 2 s | `cwdNow` (tab title) |
 
-`displayTitle()`: `customTitle`, else `Surface.title()`: first of `oscTitle`, `cmd`, `proc`, `terminal`.
+`displayTitle()`: `customTitle`, else `Surface.title()`, by setting `terminalTitle` (`SETTINGS.md`, read from `prefs`):
 
-`displayIcon()`: `customIcon` (user text: escaped, never markup), else `Surface.icon()`: glyph `PROGRAMS[proc]` (`icons.ts`; name case-folded, version suffix dropped; related programs share one: `editor`, `runtime`, `package`, `python`, `git`, `remote`, `monitor`, `pager`, `ai`, `build`, `container`, `database`), else `terminal`. Glyphs: `GLYPH` line SVGs, muted `currentColor`.
+| `terminalTitle` | Title (first match) | Tooltip |
+|---|---|---|
+| `auto` | `oscTitle`, `cmd`, `proc` (shells too: `zsh`), `terminal` | none |
+| `command` (default) | `cmd`, `proc`, `terminal` (program titles ignored) | none |
+| `directory` | basename of `cwdNow`, else start dir (`cwd`, `S.cwd`); `~` for home | full path, `~`-abbreviated (`Surface.tip`) |
+
+- Basename + tooltip: titles ellipsize at the end (title bar, shelf, tab), so a full path would hide its last part.
+- Setting saved: panel calls `refreshTitle` on every tile.
+
+`displayIcon()`: `customIcon` (user text: escaped, never markup), else `Surface.icon()`: always glyph `terminal`, whatever the program (no per-program icons). Glyphs: `GLYPH` line SVGs, muted `currentColor`.
 
 Meta changes: `host.changed()` → `refreshTitle()` → `tile-meta` event.
 
