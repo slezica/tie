@@ -46,9 +46,8 @@ export default async (ctx, h) => {
   await ctx.sleep(500)
   h.assert(!(await txt(a)).includes('TYPED_INTO'), 'keys not sent to previous tile')
 
-  // A collapsed tile left alone on the board drops its collapse (fresh tab for a clean board).
+  // A collapsed tile left alone on the board drops its collapse (fresh tab: just its terminal).
   await h.press(ctx, 'Meta+t')
-  await h.press(ctx, 'Meta+d')
   await ctx.sleep(300)
   const lone = (await h.list(ctx)).active
   const q = (await ctx.tie('open', 'terminal', '--at', lone, '--side', 'r')).id

@@ -1,6 +1,8 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
 // Pages: Appearance (app-wide look) | Terminal | Security (socket callers, links out).
-import { tie } from './state'
+import { S, tie } from './state'
+import { refreshTitle } from './tile'
+import type { Settings } from '../preload'
 import { refocus } from './ops'
 import { THEMES, theme } from './themes'
 import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
@@ -81,6 +83,13 @@ export async function toggleSettings() {
           <label for="set-shell">Shell command</label>
           <input id="set-shell" spellcheck="false" />
           <p class="hint">Used for new terminals.</p>
+          <label for="set-terminal-title">Terminal title</label>
+          <select id="set-terminal-title">
+            <option value="auto">Automatic</option>
+            <option value="command">Command</option>
+            <option value="directory">Directory</option>
+          </select>
+          <p class="hint">Automatic: the title the program sets, else the command.</p>
           <h3>Paste</h3>
           <label class="check"><input id="set-warn-control" type="checkbox" /> Confirm control characters <span class="scope">pastes and drops</span></label>
           <label class="check"><input id="set-warn-run" type="checkbox" /> Confirm pastes that would run commands <span class="scope">newlines, program without bracketed paste</span></label>
@@ -111,6 +120,7 @@ export async function toggleSettings() {
   const shelfStyle = $<HTMLSelectElement>('#set-shelf-style')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
+  const terminalTitle = $<HTMLSelectElement>('#set-terminal-title')
   const warnControl = $<HTMLInputElement>('#set-warn-control')
   const warnRun = $<HTMLInputElement>('#set-warn-run')
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
@@ -133,6 +143,7 @@ export async function toggleSettings() {
   shelfStyle.value = settings.shelfStyle
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
+  terminalTitle.value = settings.terminalTitle
   warnControl.checked = settings.warnPasteControl
   warnRun.checked = settings.warnPasteRun
   confirmExternal.checked = settings.confirmExternal
@@ -153,6 +164,7 @@ export async function toggleSettings() {
     borderless: borderless.checked,
     tabBar: tabBar.value as 'top' | 'bottom',
     shelfStyle: shelfStyle.value as 'normal' | 'compact',
+    terminalTitle: terminalTitle.value as Settings['terminalTitle'],
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
     confirmExternal: confirmExternal.checked,
@@ -185,8 +197,8 @@ export async function toggleSettings() {
 
   // Bottom status line: settings file path, or problems blocking save.
   const status = $('.status')
-  const fields: Record<string, HTMLElement> = { shell }
-  const pageOf: Record<string, string> = { shell: 'terminal' }
+  const fields: Record<string, HTMLElement> = { shell, terminalTitle }
+  const pageOf: Record<string, string> = { shell: 'terminal', terminalTitle: 'terminal' }
   const clearErrors = () => {
     status.textContent = path
     status.classList.remove('error')
@@ -206,6 +218,7 @@ export async function toggleSettings() {
     const res = await tie.settings.set({ ...draft(), shell: shell.value.trim() })
     if (res.ok) {
       applyPrefs(res.settings)
+      for (const t of S.tiles.values()) refreshTitle(t) // titles may depend on settings (terminalTitle)
       return close()
     }
     showErrors(res.errors)

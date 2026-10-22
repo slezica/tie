@@ -1,7 +1,7 @@
 // Tabs: one per space, in the window's top bar.
-import { S, newSpace, spaceOf, type Space } from './state'
+import { S, newSpace, spaceOf, debug, type Space } from './state'
 import { render } from './render'
-import { activate } from './ops'
+import { activate, openTile } from './ops'
 import { showMetaMenu } from './menu'
 import { infoDialog } from './dialog'
 import { displayTitle } from './tile'
@@ -15,9 +15,15 @@ export const setHome = (h: string) => (home = h)
 const space = (id: string) => S.spaces.find((x) => x.id === id)
 const isEmpty = (sp: Space) => !sp.tree && sp.floats.length === 0 && sp.shelf.length === 0
 
-function prettyDir(dir: string): string {
+// Basename, `~` for home.
+export function prettyDir(dir: string): string {
   if (home && dir === home) return '~'
   return dir.split('/').filter(Boolean).pop() ?? '/'
+}
+
+// Full path, home abbreviated to `~`.
+export function tildePath(dir: string): string {
+  return home && (dir === home || dir.startsWith(home + '/')) ? '~' + dir.slice(home.length) : dir
 }
 
 // Custom title, else the active (or first shelved) terminal's working directory, else its title.
@@ -30,12 +36,43 @@ export function tabTitle(sp: Space): string {
   return 'empty'
 }
 
+// A new tab starts with a terminal (like a template dropped on an empty board: default cwd).
 export function newTab(): string {
   const sp = newSpace()
   const at = S.spaces.findIndex((x) => x.id === S.visible)
   S.spaces.splice(at + 1, 0, sp)
   switchTab(sp.id)
+  openTerminal()
   return sp.id
+}
+
+const openTerminal = () => openTile('terminal', { type: 'slot', at: null, side: 'r' })
+
+// Replacing the only tab: at most one fresh terminal per second. A shell that exits at once
+// (e.g. `shell: true`) would otherwise close and replace its tab forever; the tab stays empty.
+const REPLACE_MS = 1000
+let lastReplace = -Infinity
+
+// Remove an empty space: its tiles are gone (last one closed) or it had none. The visible one
+// hands over to the tab before it; never zero tabs (a fresh one with a terminal replaces the last).
+// Inside withSpace on a hidden space: the visible tab stays.
+export function dropSpace(id: string) {
+  const sp = space(id)
+  if (!sp) return
+  const i = S.spaces.indexOf(sp)
+  S.spaces.splice(i, 1)
+  if (S.spaces.length === 0) {
+    const fresh = newSpace()
+    S.spaces.push(fresh)
+    switchTab(fresh.id)
+    const now = performance.now()
+    if (now - lastReplace < REPLACE_MS) return debug('layout', 'replacement tab left empty (terminal closed at once)')
+    lastReplace = now
+    return void openTerminal()
+  }
+  if (S.visible === id) return switchTab(S.spaces[Math.max(0, i - 1)].id)
+  if (S.current === id) S.current = S.visible
+  render()
 }
 
 export function switchTab(id: string) {
@@ -71,11 +108,7 @@ export async function closeTab(id = S.visible): Promise<boolean> {
     await infoDialog('Tab not empty', 'Only empty tabs can be closed. Close or move its tiles (board and shelf) first.')
     return false
   }
-  const i = S.spaces.indexOf(sp)
-  S.spaces.splice(i, 1)
-  if (S.spaces.length === 0) S.spaces.push(newSpace())
-  if (S.visible === id) switchTab(S.spaces[Math.max(0, i - 1)].id)
-  else render()
+  dropSpace(id)
   return true
 }
 

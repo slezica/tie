@@ -5,6 +5,10 @@ import { join, delimiter } from 'node:path'
 import { stateDir, instance, log, PRIVATE } from './env'
 import { untrusted } from '../core/log'
 
+// Terminal tile title: program's own (OSC) else command | foreground command | working directory.
+export const TERMINAL_TITLES = ['auto', 'command', 'directory'] as const
+export type TerminalTitle = (typeof TERMINAL_TITLES)[number]
+
 export interface Settings {
   shell: string // terminal tiles: command line for new terminals; '' = default
   theme: string // app-wide: theme id (renderer/themes.ts)
@@ -15,13 +19,14 @@ export interface Settings {
   borderless: boolean // app-wide: hide window controls (kitty hide_window_decorations)
   tabBar: 'top' | 'bottom' // app-wide: tab bar position
   shelfStyle: 'normal' | 'compact' // app-wide: compact = narrow, icons only
+  terminalTitle: TerminalTitle // terminal tiles: what the title shows (TERMINALS.md)
   warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
   confirmExternal: boolean // all tiles: confirm before a link opens in the system browser
   allowExternalControl: boolean // app-wide: socket callers outside Tie terminals may run commands
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -74,6 +79,7 @@ function sanitize(s: Settings): Settings {
     borderless: typeof s.borderless === 'boolean' ? s.borderless : DEFAULTS.borderless,
     tabBar: s.tabBar === 'bottom' ? 'bottom' : 'top',
     shelfStyle: s.shelfStyle === 'compact' ? 'compact' : 'normal',
+    terminalTitle: TERMINAL_TITLES.includes(s.terminalTitle) ? s.terminalTitle : DEFAULTS.terminalTitle,
     warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
     warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,
     confirmExternal: typeof s.confirmExternal === 'boolean' ? s.confirmExternal : DEFAULTS.confirmExternal,
@@ -147,5 +153,7 @@ export function validateSettings(s: Partial<Settings>): SettingsError[] {
     const [bin] = parseCommand(s.shell.trim())
     if (!resolveExecutable(bin)) errors.push({ field: 'shell', message: `Shell not found or not executable: ${bin}` })
   }
+  if (s.terminalTitle !== undefined && !TERMINAL_TITLES.includes(s.terminalTitle))
+    errors.push({ field: 'terminalTitle', message: `Unknown terminal title mode: ${String(s.terminalTitle)}` })
   return errors
 }

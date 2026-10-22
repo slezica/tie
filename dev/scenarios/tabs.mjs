@@ -1,4 +1,5 @@
-// Tabs: new (empty), switch, per-tab board + shelf, cwd-derived titles, rename, close only when empty.
+// Tabs: new (with a terminal), switch, per-tab board + shelf, cwd-derived titles, rename, close only
+// when empty, auto-close when the last tile goes (visible, hidden, only tab).
 export default async (ctx, h) => {
   const k = async (chord) => {
     await h.press(ctx, chord)
@@ -17,11 +18,10 @@ export default async (ctx, h) => {
   await k('Meta+t')
   let l = await L()
   h.assert(l.tabs.length === 2 && l.tab === l.tabs[1].id, 'cmd+T: new tab, switched')
-  h.assert((await visibleTiles()).length === 0, 'new tab empty, tab 1 tiles hidden')
+  const b = l.active
+  h.assert(l.tiles.find((t) => t.id === b)?.kind === 'terminal' && l.tiles.find((t) => t.id === b).tab === l.tabs[1].id, 'new tab starts with a terminal, active')
+  h.assert((await visibleTiles()).join() === b, 'only the new terminal shown, tab 1 tiles hidden')
   await ctx.shot('new-tab')
-  await k('Meta+d')
-  const b = (await L()).active
-  h.assert((await visibleTiles()).join() === b, 'cmd+D on empty tab opens first tile there')
   await ctx.tie('move', b, '--shelve')
   await ctx.sleep(200)
   h.assert((await ctx.page.$$('.item')).length === 1, 'shelf item in tab 2')
@@ -53,10 +53,21 @@ export default async (ctx, h) => {
   await ctx.shot('close-refused')
   await ctx.page.keyboard.press('Enter')
   h.assert((await L()).tabs.length === 2, 'tab kept')
+  // Last tile gone (here: shelved, via CLI): the tab closes itself, back to the tab before.
   await ctx.tie('close', b)
-  await k('Meta+Shift+w')
+  await ctx.sleep(200)
   l = await L()
-  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id, 'empty tab closed, back to tab 1')
+  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id, `emptied tab closed, back to tab 1: ${JSON.stringify(l.tabs)}`)
+  h.assert(l.active === a || l.tiles.some((t) => t.id === l.active), 'tab 1 has an active tile')
+
+  // A hidden tab emptied over the CLI closes without switching the visible one.
+  await k('Meta+t')
+  const bg = (await L()).active
+  await k('Meta+1')
+  await ctx.tie('close', bg)
+  await ctx.sleep(200)
+  l = await L()
+  h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id && !l.tiles.some((t) => t.id === bg), 'hidden emptied tab closed, visible unchanged')
 
   // Rename via right-click.
   const tab = await ctx.page.locator('.tab').first().boundingBox()
@@ -100,4 +111,23 @@ export default async (ctx, h) => {
   // A tab holding only shelved tiles isn't titled "empty".
   const cur = await ctx.page.$eval('.tab.current .tab-title', (e) => e.textContent)
   h.assert(cur !== 'empty', `shelf-only tab title: ${cur}`)
+
+  // Every tile closed (cmd+W in the visible tab, CLI elsewhere): never zero tabs, a fresh tab with
+  // a terminal in the default directory.
+  const old = new Set((await L()).tiles.map((t) => t.id))
+  for (let i = 0; i < 20; i++) {
+    l = await L()
+    const left = l.tiles.filter((t) => old.has(t.id))
+    if (!left.length) break
+    const vis = left.find((t) => t.tab === l.tab && t.id === l.active)
+    if (vis) await k('Meta+w')
+    else await ctx.tie('close', left[0].id)
+    await ctx.sleep(150)
+  }
+  await ctx.sleep(1000) // fresh shell up
+  l = await L()
+  h.assert(l.tabs.length === 1 && l.tiles.length === 1, `one tab, one tile: ${l.tabs.length} tabs, ${l.tiles.map((t) => t.id)}`)
+  const fresh = l.tiles[0]
+  h.assert(!old.has(fresh.id) && fresh.kind === 'terminal' && l.active === fresh.id && fresh.term?.pty, 'fresh terminal, active, running')
+  h.assert(await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id) === fresh.id, 'keys go to it')
 }

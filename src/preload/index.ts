@@ -10,6 +10,7 @@ export interface Settings {
   borderless: boolean
   tabBar: 'top' | 'bottom'
   shelfStyle: 'normal' | 'compact'
+  terminalTitle: 'auto' | 'command' | 'directory'
   warnPasteControl: boolean
   warnPasteRun: boolean
   confirmExternal: boolean

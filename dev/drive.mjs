@@ -66,7 +66,7 @@ try {
   const conn = await connectPage(instance)
   browser = conn.browser
   const page = conn.page
-  await page.waitForSelector('.tile')
+  await page.waitForSelector('.tab') // booted (first render; the boot terminal may already be gone: quit-empty)
   await sleep(500)
   let n = 0
   const ctx = {

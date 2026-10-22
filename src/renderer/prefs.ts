@@ -4,9 +4,11 @@ import type { Settings } from '../preload'
 
 export interface Prefs {
   confirmExternal: boolean // confirm before opening a link in the system browser
+  terminalTitle: Settings['terminalTitle'] // what terminal titles show (kinds/terminal.ts)
 }
-export const prefs: Prefs = { confirmExternal: true }
+export const prefs: Prefs = { confirmExternal: true, terminalTitle: 'command' }
 
-export function applyPrefs(s: Pick<Settings, 'confirmExternal'>) {
+export function applyPrefs(s: Pick<Settings, 'confirmExternal' | 'terminalTitle'>) {
   prefs.confirmExternal = s.confirmExternal
+  prefs.terminalTitle = s.terminalTitle
 }

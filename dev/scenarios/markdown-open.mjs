@@ -42,7 +42,10 @@ export default async (ctx, h) => {
     }
     h.assert((await cli('open', 'terminal')).code === 0, 'tie open terminal still opens a terminal')
     h.assert((await tiles()).length === 4, 'failures opened nothing')
-    for (const t of await tiles()) await ctx.tie('close', t.id)
+    // Empty board: one terminal shelved (closing every tile would close the tab: TABS.md), the rest closed.
+    const keep = (await tiles()).find((t) => t.kind === 'terminal').id
+    await ctx.tie('move', keep, '--shelve')
+    for (const t of await tiles()) if (t.id !== keep) await ctx.tie('close', t.id)
     await ctx.sleep(200)
 
     // Finder drop on the empty board: root tile.
@@ -63,7 +66,7 @@ export default async (ctx, h) => {
     // kind (text here).
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [dir] })
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'modal for a folder')
-    h.assert((await ctx.page.textContent('.dialog p')) === `Not a file: ${dir}` && (await tiles()).length === 2, 'says why, opens nothing')
+    h.assert((await ctx.page.textContent('.dialog p')) === `Not a file: ${dir}` && (await tiles()).length === 3, 'says why, opens nothing')
     await ctx.shot('not-a-file')
     await ctx.page.click('.dialog .ok')
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [dir, md] })

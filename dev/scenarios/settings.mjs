@@ -96,7 +96,42 @@ export default async (ctx, h) => {
   h.assert((await tabsX()) < x0 - 40, `tab bar shifted left (${x0} -> ${await tabsX()})`)
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
 
+  await terminalTitle(ctx, h, open)
   await securityPage(ctx, h, open)
+}
+
+// Terminal title setting: command (default: foreground program, program titles ignored) | auto
+// (program's OSC title) | directory (basename, full path as tooltip). Applies live to open terminals.
+async function terminalTitle(ctx, h, open) {
+  const x = (await ctx.tie('open', 'terminal', '--focus')).id
+  await ctx.sleep(800)
+  await ctx.page.keyboard.type("cd /tmp\nprintf '\\e]0;hello\\a'\n")
+  await ctx.sleep(2600) // cwd poll
+  const title = async () => (await h.tileOf(ctx, x)).title
+  const tip = () => ctx.page.$eval(`.tile[data-id="${x}"] .titlebar .title`, (e) => e.title)
+  const mode = async (v) => {
+    await open()
+    await ctx.page.locator('nav button[data-page="terminal"]').click()
+    await ctx.page.selectOption('#set-terminal-title', v)
+    await ctx.page.locator('.save').click()
+    await ctx.sleep(200)
+  }
+  h.assert(/(^|\/)bash$/.test(await title()), `command (default): shell name, OSC title ignored: ${await title()}`)
+  await mode('auto')
+  h.assert((await title()) === 'hello', `auto: program's title: ${await title()}`)
+  await mode('directory')
+  h.assert((await title()) === 'tmp' && (await tip()).endsWith('/tmp'), `directory: basename + path tooltip: ${await title()} / ${await tip()}`)
+  await ctx.shot('title-directory')
+  await mode('command')
+  h.assert((await tip()) === '', 'no tooltip outside directory mode')
+  await ctx.page.keyboard.type('/bin/sleep 5\n') // absolute: PATH may alias sleep to gsleep
+  await ctx.sleep(1200) // process poll
+  h.assert((await title()) === 'sleep', `command: foreground program: ${await title()}`)
+  await open()
+  await ctx.page.locator('nav button[data-page="terminal"]').click()
+  h.assert((await ctx.page.inputValue('#set-terminal-title')) === 'command', 'terminal title persisted')
+  await ctx.page.keyboard.press('Escape')
+  await ctx.tie('close', x)
 }
 
 // Security page: socket callers + links out; no Content page. The external-control switch applies

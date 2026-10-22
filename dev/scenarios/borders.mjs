@@ -36,6 +36,8 @@ export default async (ctx, h) => {
 
   await midDrag(() => h.press(ctx, 'Meta+t'))
   const l = await h.list(ctx)
-  h.assert(l.tabs.length === 2 && l.tiles.every((t) => t.tab === l.tabs[0].id), 'tiles stay in tab 1')
-  h.assert(!(await ctx.tie('state')).tree, 'new tab board stays empty')
+  const fresh = l.tiles.filter((t) => t.tab === l.tabs[1].id)
+  h.assert(l.tabs.length === 2 && fresh.length === 1 && fresh[0].kind === 'terminal', 'tiles stay in tab 1; new tab has only its terminal')
+  const tree = (await ctx.tie('state')).tree
+  h.assert(tree?.type === 'leaf' && tree.id === fresh[0].id, `new tab board: just its terminal: ${JSON.stringify(tree)}`)
 }
