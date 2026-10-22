@@ -48,6 +48,13 @@ export interface Surface {
   info?(): Record<string, unknown> // extra fields for `tie list --json`
   nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
   pill?: Pill // a state the kind shows in its title bar (html: "Scripts blocked"); a toggle if it has one
+  busy?(): Promise<Busy | null> // running something closing would kill (terminals); null = idle. Asked at close / quit time
+  unload?(): Promise<boolean> // may the content go? (browser: the page's beforeunload, the user asked); false = keep the tile
+}
+
+// What a busy tile is running: a name for dialogs, null if unknown (e.g. a background job).
+export interface Busy {
+  what: string | null
 }
 
 // Title-bar pill: a labelled toggle for one per-tile state (tile.ts renders it, `changed()` refreshes it).

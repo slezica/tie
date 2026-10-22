@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process'
 import type { WebContents } from 'electron'
 import { homedir } from 'node:os'
 import { statSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { shellArgv, resolveExecutable } from './settings'
 import { log } from './env'
 import { untrusted } from '../core/log'
@@ -30,6 +31,22 @@ const procNames = new Map<number, string>()
 // (core/callers.ts) walks a caller's ancestors up to one of these pids.
 const tileOf = new Map<number, string>()
 const cwds = new Map<number, string>()
+const cmds = new Set<number>() // ptys running `--cmd` (not an interactive shell)
+const shellNames = new Map<number, string>() // foreground name at spawn (the shell)
+
+// Child pids (native/peer). Missing (not built): a shell counts as busy when its foreground
+// process isn't the shell (misses background jobs; logged).
+let childrenOf: ((pid: number) => number[] | null) | null = null
+try {
+  childrenOf = (createRequire(import.meta.url)('tie-peer') as { childrenOf(pid: number): number[] | null }).childrenOf
+} catch (e) {
+  log('pty', 'child lookup unavailable', String(e))
+}
+
+export interface Busy {
+  busy: boolean
+  proc: string // foreground process name, read now ('' if unknown)
+}
 
 export function initPty(wc: () => WebContents | null) {
   // Never throw here: an exception inside node-pty's native callbacks aborts the process.
@@ -98,6 +115,10 @@ export function initPty(wc: () => WebContents | null) {
       }
       ptys.set(p.pid, p)
       if (o.env.TIE_TILE) tileOf.set(p.pid, o.env.TIE_TILE)
+      if (o.cmd) cmds.add(p.pid)
+      try {
+        shellNames.set(p.pid, p.process)
+      } catch {}
       log('pty', 'spawn', p.pid, untrusted(shell), untrusted(args), untrusted(o.cwd))
       p.onData((d) => send('pty:data', p.pid, d))
       p.onExit(({ exitCode }) => {
@@ -106,6 +127,8 @@ export function initPty(wc: () => WebContents | null) {
         tileOf.delete(p.pid)
         procNames.delete(p.pid)
         cwds.delete(p.pid)
+        cmds.delete(p.pid)
+        shellNames.delete(p.pid)
         send('pty:exit', p.pid, exitCode)
       })
       return p.pid
@@ -145,6 +168,21 @@ export function initPty(wc: () => WebContents | null) {
         }
         await new Promise((r) => setTimeout(r, 100))
       }
+    },
+    // Busy terminals (TERMINALS.md "Busy"), read now (not the polls): a `--cmd` pty while alive;
+    // a shell while it has child processes (foreground command, pipeline, background or
+    // suspended job). Exited / unknown pids: not busy.
+    busy(id: number): Busy {
+      const p = ptys.get(id)
+      if (!p) return { busy: false, proc: '' }
+      let proc = ''
+      try {
+        proc = p.process
+      } catch {}
+      if (cmds.has(id)) return { busy: true, proc }
+      const kids = childrenOf?.(id)
+      if (kids) return { busy: kids.length > 0, proc }
+      return { busy: !!proc && proc !== shellNames.get(id), proc }
     },
     count: () => ptys.size,
     // Live pty pids → their tiles (socket caller identity).

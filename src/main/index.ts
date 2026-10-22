@@ -89,6 +89,12 @@ ipc.on('pty:write', (_e, id: number, data: string) => pty.write(id, data))
 ipc.on('pty:resize', (_e, id: number, cols: number, rows: number) => pty.resize(id, cols, rows))
 ipc.on('pty:kill', (_e, id: number) => pty.kill(id))
 ipc.handle('pty:cwd', (_e, id: number) => pty.cwd(id))
+// SECURITY: reports only booleans + the foreground name about Tie's own ptys (by pid; other pids:
+// not busy). Asked at close / quit time (TERMINALS.md "Busy"). At most 256 pids per call.
+ipc.handle('pty:busy', (_e, ids: unknown) => {
+  const list = Array.isArray(ids) ? ids.filter((x): x is number => Number.isInteger(x)).slice(0, 256) : []
+  return Object.fromEntries(list.map((id) => [id, pty.busy(id)]))
+})
 ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags, dev }))
 ipc.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
 ipc.handle('settings:set', (_e, patch) => {

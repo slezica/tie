@@ -97,9 +97,25 @@ Meta changes: `host.changed()` → `refreshTitle()` → `tile-meta` event.
 - Spawn failure (shell, cwd, throw): `host.error()` → `showError()`: "Error" + message replaces content. Tile stays open; `tie list --json` shows `error`.
 - Settings refuse to save an invalid shell (`SETTINGS.md`).
 
+## Busy
+
+A terminal is busy when closing it would kill something (`Surface.busy()`, asked at close / quit time):
+
+| Tile | Busy |
+|---|---|
+| Shell (no `cmd`) | the shell has at least one child process: foreground command, pipeline member, background or suspended job |
+| `--cmd` | the command is alive (pty not exited) |
+| Exited (`exit !== null`) | never |
+
+- Synchronous at decision time (not the polls): renderer `tie.pty.busy([pid])` → main `pty:busy` → `pty.busy(pid)` → `childrenOf(pid)` (`native/peer`, libproc `proc_listchildpids`).
+- `what`: the command (`cmd`), else node-pty's foreground name read now unless it's a shell (`SHELLS`; a background job: unknown, dialogs say "running").
+- `native/peer` missing: busy = foreground process isn't the shell (background jobs missed).
+- Shell plugins that keep a child (async prompt workers) make that shell always busy.
+- `tie list --json` `term.pid`: the pty pid (harness).
+
 ## Close
 
-`closeTile()` → `disposeTile()`: `Surface.dispose()` (kill pty, dispose xterm), remove element, drop from `S.tiles`.
+`closeTile()` → `disposeTile()`: `Surface.dispose()` (kill pty, dispose xterm), remove element, drop from `S.tiles`. Confirm before closing a busy one: `TABS.md`, `INPUT.md`.
 
 ## Limitations
 

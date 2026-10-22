@@ -104,6 +104,8 @@ const api = {
     resize: (id: number, cols: number, rows: number) => ipcRenderer.send('pty:resize', id, cols, rows),
     kill: (id: number) => ipcRenderer.send('pty:kill', id),
     cwd: (id: number): Promise<string | null> => ipcRenderer.invoke('pty:cwd', id),
+    // Busy now (main: `--cmd` alive, or the shell has children), by pty id; foreground name.
+    busy: (ids: number[]): Promise<Record<number, { busy: boolean; proc: string }>> => ipcRenderer.invoke('pty:busy', ids),
     onData: (cb: DataCb) => {
       ipcRenderer.on('pty:data', (_e, id, d) => cb(id, d))
     },

@@ -19,7 +19,7 @@
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
 - Channels: `app:info|quit`, `external:open`, `renderer:ready`, `settings:get|set|open`, `window:borderless-preview`, `pty:*`, `content:open|close|kill|navigated|navfailed|changed`, `guest:unresponsive`, `doc:viewer|open|close|pick|changed` (read-only: no doc writes), `keys:action|suspend`, `rpc:request|reply`, `log`.
-- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd.
+- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind)` → `{token, url}` or `{error}`, `doc:viewer(path)` → `{kind, path}` or `{error}`, `doc:open(path)` → `{id, text, rev}` or `{error}`, `doc:pick(dir)` → path or null, `settings:get|set` (`SETTINGS.md`), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd, `pty:busy(pids)` → `{[pid]: {busy, proc}}` (`TERMINALS.md` "Busy").
 - Main → renderer: `pty:data|exit|process|cwd`, `doc:changed(id, {text, rev} | {missing})`, `settings:open`, `keys:action` (shortcuts, `INPUT.md`), `rpc:request` (socket calls, `CLI.md`).
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
 

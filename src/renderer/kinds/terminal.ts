@@ -11,7 +11,7 @@ import { openExternal } from '../external'
 import { prefs } from '../prefs'
 import { prettyDir, tildePath } from '../tabs'
 import { shellQuote } from '@core/paste'
-import type { Host, OpenOpts, Surface } from '.'
+import type { Busy, Host, OpenOpts, Surface } from '.'
 
 // Per-terminal state, reached by pty id (events from main).
 interface Term {
@@ -25,6 +25,7 @@ interface Term {
   cmd?: string // `--cmd`: run instead of an interactive shell
   cwd?: string // start directory
   cwdNow?: string // shell's current directory (polled)
+  exited?: boolean // pty exited
 }
 
 const byPty = new Map<number, Term>()
@@ -112,8 +113,18 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       activate(host.id)
       paste(t, text)
     },
-    info: () => ({ term: { cols: term.cols, rows: term.rows, pty: t.ptySize ?? null } }), // mismatch = sizing bug
+    info: () => ({ term: { cols: term.cols, rows: term.rows, pty: t.ptySize ?? null, pid: t.pty } }), // pty vs cols/rows mismatch = sizing bug
+    busy: () => busy(t),
   }
+}
+
+// Busy (TERMINALS.md "Busy"), asked of main now: `--cmd` alive, or the shell has child processes.
+// What: the command, else the foreground program unless it's the shell (background job: unknown).
+async function busy(t: Term): Promise<Busy | null> {
+  if (t.pty === null || t.exited) return null
+  const r = (await tie.pty.busy([t.pty]).catch(() => ({}) as Record<number, undefined>))[t.pty]
+  if (!r?.busy || t.exited) return null
+  return { what: t.cmd ?? (r.proc && !SHELLS.has(r.proc) ? r.proc : null) }
 }
 
 // Open xterm into the body and start the pty (the element has a size by now).
@@ -198,6 +209,7 @@ export function initTerminals() {
   tie.pty.onExit((pid, code) => {
     const t = byPty.get(pid)
     if (!t) return
+    t.exited = true
     t.term.write(`\r\n\x1b[90m[process exited with code ${code}]\x1b[0m`)
     t.host.exit(code)
     if (!t.cmd) t.host.close()
