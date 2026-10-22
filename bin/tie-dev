@@ -120,7 +120,9 @@ case "$cmd" in
     cat "$INFO"; echo ;;
   stop)
     [[ -f "$INFO" ]] || { echo "not running"; exit 0; }
-    kill "$(node -p "require('$INFO').pid")" 2>/dev/null || true
+    # The UI's own quit over the debugging port (no question: a visible instance asks on SIGTERM), else SIGTERM.
+    TIE_INSTANCE="$TIE_INSTANCE" node --input-type=module -e "import { quitInstance } from '$ROOT/dev/lib.mjs'; await quitInstance(process.env.TIE_INSTANCE)" 2>/dev/null \
+      || kill "$(node -p "require('$INFO').pid")" 2>/dev/null || true
     for _ in $(seq 1 50); do [[ -f "$INFO" ]] || break; sleep 0.1; done
     rm -f "$INFO"; echo "stopped $TIE_INSTANCE" ;;
   status)

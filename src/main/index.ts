@@ -174,11 +174,11 @@ function createWindow(ses: Electron.Session) {
   applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
   win.webContents.on('render-process-gone', () => (uiUp = false))
-  // Red button: the same question as ⌘Q (before-quit asks the UI).
+  // Red button: the same question as ⌘Q.
   win.on('close', (e) => {
     if (quitting) return
     e.preventDefault()
-    app.quit()
+    askQuit()
   })
   win.on('closed', () => (win = null))
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -226,8 +226,8 @@ function setMenu() {
           { role: 'hideOthers' },
           { role: 'unhide' },
           { type: 'separator' },
-          // ⌘Q shown but not registered: main's keys.ts matches it (in guests too). Both ask (before-quit).
-          { label: 'Quit Tie', accelerator: 'CmdOrCtrl+Q', registerAccelerator: false, click: () => app.quit() },
+          // ⌘Q shown but not registered: main's keys.ts matches it (in guests too). Both ask.
+          { label: 'Quit Tie', accelerator: 'CmdOrCtrl+Q', registerAccelerator: false, click: () => askQuit() },
         ],
       },
       { role: 'editMenu' },
@@ -264,25 +264,30 @@ app.whenReady().then(async () => {
   log('app', 'ready', { instance, socketPath, debugPort })
 })
 
-// Quit asks first (⌘Q, menu, red button, Dock): any app.quit() lands here and, until the user
-// confirmed in the UI (quit.ts → app:quit), only shows the question. Signals, a UI not up (booting,
-// reloading, crashed) or no window: no question.
+// Quit asks first. ⌘Q (renderer), menu Quit and the red button ask the UI directly (askQuit);
+// anything else reaching before-quit unconfirmed (Dock, logout, signals: Electron turns SIGTERM /
+// SIGINT into app.quit(), Node never sees them) asks too, except in background (harness) instances,
+// where signals are how the harness stops Tie. The user's yes: app:quit → quitNow. No question
+// when the UI isn't up (booting, reloading, crashed) or there is no window.
 let confirmed = false
 function quitNow() {
   confirmed = true
   app.quit()
+}
+function askQuit() {
+  if (uiUp && win && !win.isDestroyed()) win.webContents.send('app:ask-quit')
+  else quitNow()
 }
 
 // Graceful quit: stop ptys and wait for their exit callbacks before Electron tears down.
 app.on('before-quit', (e) => {
   if (quitting) return
   e.preventDefault()
-  if (!confirmed && uiUp && win && !win.isDestroyed()) return win.webContents.send('app:ask-quit')
+  if (!confirmed && !background && uiUp && win && !win.isDestroyed()) return win.webContents.send('app:ask-quit')
   quitting = true
   rmSync(socketPath, { force: true })
   rmSync(infoPath, { force: true })
   // exit (not quit): skips a second quit cycle, ptys are already gone.
   pty.killAll().finally(() => app.exit(0))
 })
-process.on('SIGTERM', () => quitNow())
-process.on('SIGINT', () => quitNow())
+

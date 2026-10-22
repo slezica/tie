@@ -53,10 +53,10 @@ Other env (main):
 
 ## Quit
 
-- Asks first, always: cmd+Q (`quit` action → `askQuit`), menu Quit, window close (red button: `close` prevented → `app.quit()`), Dock / logout all reach `before-quit`, which (unconfirmed, UI up) prevents and sends `app:ask-quit` → `askQuit`.
+- Asks first, always: cmd+Q (`quit` action → `askQuit`), menu Quit and window close (red button: `close` prevented) send `app:ask-quit` directly. Anything else reaching `before-quit` unconfirmed (Dock, logout, signals: Electron turns SIGTERM / SIGINT into `app.quit()`, Node never sees them) is prevented and asks too, except in background (harness) instances: there signals stop Tie.
 - `askQuit` (`renderer/quit.ts`): `.dialog.quit` "Quit Tie?", Quit / Cancel (Enter / Esc). Busy terminals (`TERMINALS.md` "Busy"), any tab, shelf included: "Currently running:" + `title — command`, grouped by tab when there are several tabs. No tiles: still asks. Then each browser page's beforeunload (`BROWSER.md`; Stay aborts). Confirmed → `app:quit`. While any dialog is open: nothing (no second dialog).
-- Confirmed (`app:quit`) or SIGTERM / SIGINT (harness `stop`): `before-quit` proceeds: remove socket + info file, `pty.killAll()` (SIGKILL after 1.5 s), `app.exit(0)`.
-- No question when the UI isn't up (booting, reloading, crashed: `uiUp`) or there is no window.
+- Confirmed (`app:quit` → `quitNow`) or unasked (background, UI not up: booting, reloading, crashed; no window): `before-quit` proceeds: remove socket + info file, `pty.killAll()` (SIGKILL after 1.5 s), `app.exit(0)`.
+- A visible instance under SIGTERM shows the question (a second signal: Electron exits). `tie-dev stop`: the UI's own `tie.quit()` over the debugging port (`lib.mjs` `quitInstance`), else SIGTERM.
 - Page (re)load (e.g. HMR) kills all ptys, forgets content tokens and closes docs (watchers): fresh UI has no tiles. On `did-navigate` (committed), so blocked navigations don't.
 - Why: node-pty callbacks into a torn-down JS env abort the process (`2026-10-09-electron-crash-on-quit.md`).
 

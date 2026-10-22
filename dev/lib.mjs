@@ -95,6 +95,14 @@ export async function connectPage(instance) {
   throw lastErr
 }
 
+// Quit a dev instance without the quit question (a visible one asks on SIGTERM): the UI page's own
+// `tie.quit()` (= the user's yes), over the debugging port.
+export async function quitInstance(instance) {
+  const { browser, page } = await connectPage(instance)
+  await page.evaluate(() => window.tie.quit()).catch(() => {})
+  await browser.close().catch(() => {})
+}
+
 // Launch a fresh built instance in the background; returns { instance, stop }.
 // A port nobody is listening on right now (instance-name hashing can collide).
 function freePort() {
@@ -159,7 +167,15 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     try {
       process.kill(pid, 'SIGTERM')
     } catch {}
-    for (let i = 0; i < 50 && existsSync(infoPath(instance)); i++) await sleep(100)
+    // Gone, not just quitting (the info file goes first; Electron may still write its userData).
+    const alive = () => {
+      try {
+        return process.kill(pid, 0)
+      } catch {
+        return false
+      }
+    }
+    for (let i = 0; i < 50 && alive(); i++) await sleep(100)
     if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
     rmSync(env.TIE_DOWNLOADS, { recursive: true, force: true })
