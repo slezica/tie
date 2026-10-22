@@ -160,6 +160,7 @@ Commands:
                            --keep leaves fresh instance running.
   scenarios                List scenarios
   ptys                     Live pty count (/dev/ttys*) and spawn-helpers stuck in the kernel (pty wedge: reboot)
+  ptydump [dir]            Snapshot for a pty wedge: processes, stacks, probes, power + kernel logs, Tie state (out/log/ptydump/)
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind

@@ -30,6 +30,7 @@ Commands:
                            --keep leaves fresh instance running.
   scenarios                List scenarios
   ptys                     Live pty count (/dev/ttys*) and spawn-helpers stuck in the kernel (pty wedge: reboot)
+  ptydump [dir]            Snapshot for a pty wedge: processes, stacks, probes, power + kernel logs, Tie state (out/log/ptydump/)
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
@@ -234,6 +235,8 @@ case "$cmd" in
     done
     iconutil -c icns tmp/icon.iconset -o build/icon.icns
     echo "build/icon.png build/icon.icns" ;;
+  ptydump)
+    exec dev/ptydump.sh "$@" ;;
   ptys)
     # Wedge signature (2026-10-21): every openpty() blocks in the kernel; spawn-helpers pile up in
     # state U (ttyname → lstat /dev/ttysNNN never returns); only a reboot clears it.
