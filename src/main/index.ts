@@ -8,7 +8,7 @@ import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
-import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup } from './guest'
+import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
 const dev = !app.isPackaged
@@ -119,6 +119,8 @@ ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
 ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('guest:download-ok', (_e, url: unknown, guest: unknown) => allowDownload(url, guest))
+ipc.handle('guest:unload', (_e, guest: unknown) => unloadGuest(guest))
+ipc.on('guest:leave', (_e, guest: unknown) => leaveGuest(guest))
 ipc.on('app:quit', () => quitNow())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
@@ -251,6 +253,7 @@ app.whenReady().then(async () => {
   shellSession = ses
   initBrowserSession((d) => win?.webContents.send('guest:download', d))
   onPopup((p) => win?.webContents.send('guest:popup', p))
+  onPreventUnload((g) => win?.webContents.send('guest:prevent-unload', g))
   createWindow(ses)
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)), {
     tiles: pty.tiles,

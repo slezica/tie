@@ -7,7 +7,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 | Piece | Does |
 |---|---|
 | `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupUrl`, `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
-| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, UI-started loads, popups, keys, crash / hang), `initBrowserSession` (downloads, user agent), `noDownloads` (UI session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
+| `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, UI-started loads, popups, keys, crash / hang, held unloads), `unloadGuest`, `leaveGuest` (beforeunload), `initBrowserSession` (downloads, user agent), `noDownloads` (UI session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
 | `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state); `initGuests` (hang reports) |
 | `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (UI page only) |
 | `main/keys.ts` | `watchKeys(wc)`: the shortcut matcher on each guest's own `before-input-event` |
@@ -43,6 +43,16 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Hidden tiles: other tabs (`display: none`) and shelved (`visibility: hidden`) keep the page (no reload: `browser` scenario).
 - `tie list --json`: `web {url, title, loading, ready, guest (webContents id), back, forward}`.
 
+## Leaving a page (beforeunload)
+
+- A page may hold its unload (`beforeunload` handler; Chromium: only after a user activation). Tie asks: `.dialog.leave-page` "Leave page?" "Unsaved changes may be lost.", Leave / Stay (Enter leaves, Esc stays). Only the user's Leave lets the page go.
+- Closing the tile (`Surface.unload`, from `close.ts` / `quit.ts`): main `unloadGuest` loads `about:blank` (beforeunload runs; the tile is removed right after): held → `will-prevent-unload` → 'blocked' → ask; Leave → the tile closes (removing the guest asks nothing more). Not `webContents.close({waitForBeforeUnload})`: on a guest it destroys the page even when held (Electron 44). No answer in 3 s: closes.
+- UI navigations (reload, back, forward, location; `navigate()` in `renderer/guest.ts`): held → `guest:prevent-unload` → ask; Leave → `leaveGuest` (main lets that guest's next unload through, once, 10 s) → the navigation is redone. Stay → location back to the committed URL.
+- The page's own navigation (link, script): same prompt, Leave armed 600 ms (a prompt timed under a keystroke); Leave allows the next try (the page's navigation isn't redone: unknown to Tie; the user repeats it).
+- Tab close, quit: after their own question, each browser tile in turn; Stay aborts (tiles whose page already went stay closed).
+- One prompt at a time; a page's prompt while any dialog is open: dropped (= Stay).
+- Harness: Playwright auto-attaches to guests and would answer their dialogs itself (and crash): `browser-unload` registers a no-op `dialog` listener. In the harness the prompt came without a real click too (Playwright's `evaluate` gives activation; maybe CDP attach): the activation rule isn't covered.
+
 ## Opening
 
 - `tie open <http(s) URL>`, `tie open browser [url]` (bare host → `https://`; refused: `Not a web address: <url> (http(s) only)`, exit 1). Driver: `resolveOpen` (`locationUrl`), kind `opens: 'url'`.
@@ -53,6 +63,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 - `browser`: open, title, real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie open browser [url]`, CLI errors.
 - `sec-browser`: below (`SECURITY.md` rows).
+- `browser-unload`: beforeunload on close (Stay keeps the same page, Leave closes), reload (Stay / Leave), the page's own link (armed, next try passes), quit (Stay aborts, Leave quits).
 
 ## Limitations
 

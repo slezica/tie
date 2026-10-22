@@ -19,9 +19,11 @@ type Webview = Electron.WebviewTag
 // Main's reports by guest webContents id (initGuests): a hung page; a download to confirm.
 const byGuest = new Map<number, () => void>()
 const titleOf = new Map<number, () => string>()
+const heldBy = new Map<number, () => void>() // a page held an unload (beforeunload)
 let askingDownload = false
 export function initGuests() {
   tie.guest.onUnresponsive((id) => byGuest.get(id)?.())
+  tie.guest.onPreventUnload((id) => heldBy.get(id)?.())
   // SECURITY: a site's popup is a link out: the same confirm as links from files and terminals.
   tie.guest.onPopup((p) => void openExternal(p.url, titleOf.get(p.guest)?.() ?? 'A browser tile'))
   // SECURITY: a site started a download: nothing is saved until the user says so, here (one dialog
@@ -42,6 +44,20 @@ export function initGuests() {
   })
 }
 
+// beforeunload (BROWSER.md "Leaving a page"): Leave / Stay, Enter leaves. A page's own navigation
+// (not the user's request here): Leave armed 600 ms (a prompt timed under a keystroke can't be
+// accepted by it). One at a time; while any dialog is open, a page's prompt is dropped (Stay).
+let askingLeave = false
+async function askLeave(o: { page: boolean }): Promise<boolean> {
+  askingLeave = true
+  try {
+    const body = [Object.assign(document.createElement('p'), { textContent: 'Unsaved changes may be lost.' })]
+    return await confirmDialog({ cls: 'leave-page', title: 'Leave page?', body, confirm: 'Leave', cancel: 'Stay', focus: 'confirm', arm: o.page ? 600 : undefined })
+  } finally {
+    askingLeave = false
+  }
+}
+
 const hostOf = (url: string) => {
   try {
     return new URL(url).host
@@ -55,6 +71,8 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
   let wv: Webview | null = null
   let ready = false // dom-ready seen: webview methods usable
   let url = start // committed main-frame URL (or the one being loaded)
+  let committed = start // last committed main-frame URL (a held unload restores the location to it)
+  let pending: { redo: () => void; at: number } | null = null // last UI navigation: redone after Leave
   let title = ''
   let loading = false
   let gid: number | null = null // guest webContents id
@@ -71,12 +89,35 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
   }
   const changed = () => host.alive() && host.changed()
 
+  // The UI's own navigations (reload, back, forward, location): remembered, so a page holding the
+  // unload can be left by redoing it.
+  const navigate = (fn: () => void) => {
+    pending = { redo: fn, at: performance.now() }
+    fn()
+  }
+  // SECURITY: the page held an unload: only the user's Leave lets the guest go (main allows its
+  // next unload once), then the UI's navigation is redone; a page's own one (no recent UI
+  // navigation) is left to the page to retry. Stay: location back to the committed URL.
+  const held = async () => {
+    const redo = pending && performance.now() - pending.at < 5000 ? pending.redo : null
+    pending = null
+    if (askingLeave || document.querySelector('.dialog-backdrop')) return debug('guest', 'unload prompt dropped (dialog open)', host.id)
+    const leave = await askLeave({ page: !redo })
+    if (!host.alive() || dead || gid === null) return
+    if (!leave) {
+      url = committed
+      return changed()
+    }
+    tie.guest.leave(gid)
+    redo?.()
+  }
+
   // SECURITY: a crashed or hung page is the site failing: the guest goes away (main kills a hung
   // renderer), the failure stays visible, nothing restarts it. The user reopens the tile.
   const fail = (message: string, why: string) => {
     if (dead || !host.alive()) return
     dead = true
-    if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid))
+    if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid), heldBy.delete(gid))
     wv?.remove()
     wv = null
     debug('guest', why, host.id)
@@ -108,17 +149,18 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
           gid = el.getWebContentsId()
           byGuest.set(gid, () => fail('Page stopped responding', 'unresponsive'))
           titleOf.set(gid, () => `${hostOf(url) || 'A browser tile'} (${host.id})`)
+          heldBy.set(gid, () => void held())
         }
         changed()
       })
       el.addEventListener('did-navigate', (e) => {
-        url = e.url
+        url = committed = e.url
         title = ''
         changed()
       })
       el.addEventListener('did-navigate-in-page', (e) => {
         if (!e.isMainFrame) return
-        url = e.url
+        url = committed = e.url
         changed()
       })
       el.addEventListener('page-title-updated', (e) => {
@@ -137,7 +179,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
     resize: () => {}, // fills the body (CSS)
     dispose: () => {
       dead = true
-      if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid))
+      if (gid !== null) (byGuest.delete(gid), titleOf.delete(gid), heldBy.delete(gid))
       wv?.remove()
       wv = null
     },
@@ -160,9 +202,9 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
         forward: call((w) => w.canGoForward(), false),
         editable: true,
       }),
-      back: () => call((w) => w.goBack(), undefined),
-      forward: () => call((w) => w.goForward(), undefined),
-      reload: () => call((w) => w.reload(), undefined),
+      back: () => navigate(() => call((w) => w.goBack(), undefined)),
+      forward: () => navigate(() => call((w) => w.goForward(), undefined)),
+      reload: () => navigate(() => call((w) => w.reload(), undefined)),
       // SECURITY: typed input → http(s) only (bare host → https://), no search, no other scheme.
       // Main stops anything else too (guest.ts).
       go: (input) => {
@@ -171,8 +213,16 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
           debug('guest', 'refused location', host.id, untrusted(input))
           return void infoDialog("Can't open", `Not a web address: ${input.trim()}\nhttp(s) addresses only (no search).`)
         }
-        load(u)
+        navigate(() => load(u))
       },
+    },
+    // Closing: the page's beforeunload runs (main closes the guest as the page allows). Held → ask;
+    // Leave: the caller closes the tile (removing the guest asks nothing more).
+    unload: async () => {
+      if (gid === null || dead || !ready) return true
+      const r = await tie.guest.unload(gid)
+      if (r !== 'blocked') return true
+      return host.alive() ? askLeave({ page: false }) : true
     },
     info: () => ({ web: { url, title, loading, ready, guest: gid, back: call((w) => w.canGoBack(), false), forward: call((w) => w.canGoForward(), false) } }),
   }

@@ -39,11 +39,14 @@ export async function runningIn(ids: TileId[]): Promise<Running[]> {
 // Every tile of a space: board, floats, shelf.
 export const tilesOf = (sp: Space): TileId[] => [...S.tiles.keys()].filter((id) => spaceOf(id) === sp)
 
-// Pages that object to unloading (beforeunload) ask, one by one; false = the user kept one.
+// Pages that object to unloading (beforeunload) ask, one by one; false = the user kept one. Each
+// page that goes closes its tile at once (its guest may be gone already): a later Stay keeps the rest.
 export async function unloadAll(ids: TileId[]): Promise<boolean> {
   for (const id of ids) {
     const t = S.tiles.get(id)
-    if (t?.surface.unload && !(await t.surface.unload())) return false
+    if (!t?.surface.unload) continue
+    if (!(await t.surface.unload())) return false
+    if (S.tiles.has(id)) closeTile(id)
   }
   return true
 }

@@ -91,6 +91,13 @@ const api = {
       ipcRenderer.on('guest:popup', (_e, p) => cb(p))
     },
     download: (url: string, guest: number) => ipcRenderer.send('guest:download-ok', url, guest),
+    // beforeunload: close the guest as its page allows ('blocked': the page held it, ask); the
+    // user's Leave allows the guest's next unload once; a page held one the UI didn't close.
+    unload: (guest: number): Promise<'closed' | 'blocked' | 'gone'> => ipcRenderer.invoke('guest:unload', guest),
+    leave: (guest: number) => ipcRenderer.send('guest:leave', guest),
+    onPreventUnload: (cb: (guest: number) => void) => {
+      ipcRenderer.on('guest:prevent-unload', (_e, g) => cb(g))
+    },
   },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
   // or modal has focus, its keys stay its own.

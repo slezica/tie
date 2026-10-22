@@ -69,9 +69,73 @@ export function onPopup(fn: (p: PopupAsk) => void) {
   popup = fn
 }
 
+// Main → UI: a page held an unload the UI didn't start through `unloadGuest` (its own navigation,
+// or the UI's reload / back / forward / location load): the UI asks Leave / Stay.
+let preventUnload: (guest: number) => void = () => {}
+export function onPreventUnload(fn: (guest: number) => void) {
+  preventUnload = fn
+}
+
+// SECURITY: beforeunload (BROWSER.md "Leaving a page"). A page may only hold its own unload; Tie
+// asks the user (HTML dialog in the UI) and only the user's Leave lets it go: once, for that guest,
+// expiring (`leaveGuest`). `will-prevent-unload` is synchronous: the unload is cancelled now
+// (default) and redone after Leave. Closing a tile goes through `unloadGuest` instead.
+const leaveOk = new Map<number, ReturnType<typeof setTimeout>>()
+const LEAVE_MS = 10_000
+const unloading = new Map<number, (r: 'closed' | 'blocked') => void>()
+export function leaveGuest(id: unknown) {
+  const g = [...guests].find((x) => x.id === id)
+  if (!g || g.isDestroyed()) return
+  clearTimeout(leaveOk.get(g.id))
+  leaveOk.set(g.id, setTimeout(() => leaveOk.delete(g.id), LEAVE_MS))
+  log('guest', 'leave allowed', g.id)
+}
+
+// Unload a guest's page as it allows, before its tile closes: beforeunload runs (a load of
+// about:blank, which the tile never shows: the UI removes it next). A held unload → 'blocked' (the
+// page stays, the UI asks; Leave = the UI removes the tile, which destroys the guest without asking
+// again). No answer in 3 s (hung handler): 'closed'. (webContents.close({waitForBeforeUnload}) on
+// a guest destroys it even when the page holds the unload: Electron 44.)
+export function unloadGuest(id: unknown): Promise<'closed' | 'blocked' | 'gone'> {
+  const g = [...guests].find((x) => x.id === id)
+  if (!g || g.isDestroyed()) return Promise.resolve('gone')
+  return new Promise((resolve) => {
+    const started = (d: Electron.Event<Electron.WebContentsDidStartNavigationEventParams>) => d.isMainFrame && d.url === 'about:blank' && finish('closed')
+    const finish = (r: 'closed' | 'blocked') => {
+      if (unloading.get(g.id) !== finish) return
+      unloading.delete(g.id)
+      clearTimeout(timer)
+      if (!g.isDestroyed()) g.off('did-start-navigation', started)
+      log('guest', 'unload', g.id, r)
+      resolve(r)
+    }
+    const timer = setTimeout(() => finish('closed'), 3000)
+    unloading.set(g.id, finish)
+    g.once('destroyed', () => finish('closed'))
+    g.on('did-start-navigation', started)
+    g.loadURL('about:blank').catch(() => {}) // held: aborted
+  })
+}
+
 export function guardGuest(guest: WebContents) {
   guests.add(guest)
-  guest.once('destroyed', () => guests.delete(guest))
+  guest.once('destroyed', () => {
+    guests.delete(guest)
+    clearTimeout(leaveOk.get(guest.id))
+    leaveOk.delete(guest.id)
+  })
+  guest.on('will-prevent-unload', (e) => {
+    const closing = unloading.get(guest.id)
+    if (closing) return closing('blocked')
+    if (leaveOk.has(guest.id)) {
+      clearTimeout(leaveOk.get(guest.id))
+      leaveOk.delete(guest.id)
+      log('guest', 'unload: user said leave', guest.id)
+      return e.preventDefault() // lets the unload proceed
+    }
+    log('guest', 'unload held by the page', guest.id)
+    preventUnload(guest.id)
+  })
   // Navigation: main frame http(s) only (about:blank: the empty tile); subframes also about:,
   // data:, blob:. Never file:, tie:, tie-content:, chrome:, OS handlers (mailto:...).
   let refused = '' // last main-frame URL will-frame-navigate refused (did-start-navigation: no stop)
