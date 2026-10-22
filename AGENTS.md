@@ -31,6 +31,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-14-security-research.md`: prior art (Wave, VS Code, Joplin, Hyper/Tabby, Electron), methodology.
 - `docs/2026-10-15-tile-host-plan.md`: tile host, frame isolation, keys in main; phased plan.
 - `docs/2026-10-16-viewers-and-browser-plan.md`: text, image, hex, html, browser kinds; architecture, dependency graph.
+- `docs/2026-10-21-pty-wedge.md`: macOS pty subsystem wedge (every `openpty` blocks in the kernel); diagnosis, harness check.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
@@ -156,6 +157,7 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
+  ptys                     Live pty count (/dev/ttys*) and spawn-helpers stuck in the kernel (pty wedge: reboot)
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind

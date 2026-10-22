@@ -29,6 +29,7 @@ Commands:
                            Fresh instance by default; --attach uses running instance;
                            --keep leaves fresh instance running.
   scenarios                List scenarios
+  ptys                     Live pty count (/dev/ttys*) and spawn-helpers stuck in the kernel (pty wedge: reboot)
   package                  Build out/package/mac-arm64/Tie.app (arm64, signed ad hoc), then check-package
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
@@ -138,6 +139,8 @@ case "$cmd" in
           name="$(basename "$s" .mjs)"
           if TIE_RUN_DIR="$run/$name" node dev/drive.mjs "$s" >/dev/null 2>&1; then line="ok   $name"
           else line="FAIL $name ($run/$name/)"; fail=1; fi
+          leaked="$(sed -n 's/^ptys=//p' "$run/$name/drive.log" 2>/dev/null || true)"
+          [[ "${leaked:-0}" -gt 0 ]] && line="$line (ptys +$leaked)"
           echo "$line" | tee -a "$run/summary.txt"
         done
         echo "trace: $run"
@@ -229,6 +232,13 @@ case "$cmd" in
     done
     iconutil -c icns tmp/icon.iconset -o build/icon.icns
     echo "build/icon.png build/icon.icns" ;;
+  ptys)
+    # Wedge signature (2026-10-21): every openpty() blocks in the kernel; spawn-helpers pile up in
+    # state U (ttyname → lstat /dev/ttysNNN never returns); only a reboot clears it.
+    echo "ptys: $(ls /dev | grep -c '^ttys') of $(sysctl -n kern.tty.ptmx_max)"
+    stuck="$(ps -eo pid,stat,etime,command | awk '$2 ~ /^U/ && /spawn-helper/' || true)"
+    if [[ -n "$stuck" ]]; then echo "stuck spawn-helpers (pty subsystem wedged, reboot):"; echo "$stuck" | cut -c1-120; exit 1; fi
+    echo "no stuck spawn-helpers" ;;
   scenarios)
     for s in dev/scenarios/*.mjs; do echo "$(basename "$s" .mjs)  $(head -1 "$s" | sed 's|^// *||')"; done ;;
   ""|-h|--help|help)

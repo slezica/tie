@@ -167,3 +167,11 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   }
   return { instance, stop }
 }
+
+// Live pty count: /dev/ttysNNN nodes exist only while a master is open (macOS removes them on close).
+// The runner compares before launch / after stop: a scenario that leaves ptys behind leaked them
+// (or the machine's pty subsystem is wedged: `tie-dev ptys`).
+import { readdirSync } from 'node:fs'
+export function ptys() {
+  return readdirSync('/dev').filter((n) => n.startsWith('ttys')).length
+}

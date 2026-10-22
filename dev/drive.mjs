@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, sleep, tie, connectPage, launch, plainLog } from './lib.mjs'
+import { ROOT, sleep, tie, connectPage, launch, plainLog, ptys } from './lib.mjs'
 import * as helpers from './helpers.mjs'
 
 const args = process.argv.slice(2)
@@ -54,6 +54,7 @@ for (const k of ['log', 'error']) {
     orig(...a)
   }
 }
+const ptys0 = ptys()
 const fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
 const shotDir = join(runDir, 'shots')
@@ -93,7 +94,13 @@ try {
   code = 1
 } finally {
   await browser?.close().catch(() => {})
-  if (fresh && !keep) await fresh.stop()
+  if (fresh && !keep) {
+    await fresh.stop()
+    // ptys left behind after the instance is gone: a leak in Tie, or the wedge (`tie-dev ptys`).
+    const leaked = ptys() - ptys0
+    appendFileSync(join(runDir, 'drive.log'), `ptys=${leaked}\n`)
+    if (leaked > 0) console.error(`ptys leaked: +${leaked}`)
+  }
   if (fresh && keep) console.log(`kept instance: ${instance}`)
   appendFileSync(join(runDir, 'drive.log'), `exit=${code}\n`)
   process.stderr.write(`trace: ${runDir}\n`)
