@@ -1,9 +1,23 @@
 # Topic
 
-Security pass done (2026-10-17): `docs/2026-10-17-security-review.md`, report `docs/2026-10-17-security-report.html` (artifact https://claude.ai/artifact/GNrT91W5aB3uwXz7ne96QR), explainer `docs/EXECUTION-AND-SECURITY.html` (artifact https://claude.ai/artifact/NpWRuM8j8YBJrdzFyDrTvJ). Now: socket caller identity, then the fact-check items as design changes.
+Release testing. v0.3.0 released + installed 2026-10-22 (`git tag v0.3.0`). Next: manual checks of 0.3.0 (list below), then whatever the testing notes bring. If terminals stop starting: `tie-dev ptydump` + the printed `sudo spindump` BEFORE rebooting (`docs/2026-10-21-pty-wedge.md`).
+Earlier: security pass (2026-10-17): `docs/2026-10-17-security-review.md`, report `docs/2026-10-17-security-report.html` (artifact https://claude.ai/artifact/GNrT91W5aB3uwXz7ne96QR), explainer `docs/EXECUTION-AND-SECURITY.html` (artifact https://claude.ai/artifact/NpWRuM8j8YBJrdzFyDrTvJ). Now: socket caller identity, then the fact-check items as design changes.
 Earlier: live file viewer tiles; plan record `docs/2026-10-15-tile-host-plan.md`. Backlog: `docs/PENDING.md`.
 
 # Settled
+
+## Release testing 0.2.0 → 0.3.0 (2026-10-21/22, done, 66/66 e2e)
+
+- Fixed from notes: empty pill circle (`.btn[hidden]`); terminal right/bottom clipping (xterm 6.0 DOM renderer width-cache bug, workaround until 6.1; padding on `.xterm`); macOS press-and-hold popup (`registerDefaults ApplePressAndHoldEnabled=false`, in memory, like kitty).
+- Icons: SVG set (`GLYPH`), kind icons only (program icons removed), user emoji stay; collapse/expand arrows follow the collapse direction, tile icon upright on strips; active = glow on icon (no dot, title position fixed).
+- Shelf: hover reveal takes the pointer (geometry zone `inRevealZone`), click pins; pin/unpin title-bar button; pin stays until released (item click, button, close, unshelve, `tie move`). Outside clicks never unpin.
+- Tabs: new tab opens a terminal. Empty-tab auto-close tried and reverted (user: empty board + notice stays). ⌘W on empty tab closes it, only tab no-op. Tab × / ⌘⇧W close with tiles.
+- Terminal title setting: Automatic (OSC) / Command (default) / Directory (basename + path tooltip).
+- Close/quit: hold-⌘Q removed. ⌘Q / red button / menu → dialog always, "Currently running" list by tab. ⌘W/×/menu Close ask only if busy; `tie close` never asks. Busy = shell has children (`tie-peer childrenOf`, libproc, synchronous) or `cmd` alive. Browser `beforeunload` → Leave/Stay.
+- Known: `kill` on a visible Tie shows the quit dialog (Electron maps SIGTERM to `app.quit`); `tie-dev stop` quits via debug port. Shell plugins keeping a child alive read as busy. Browser close via `about:blank` load (`webContents.close({waitForBeforeUnload})` broken for webview guests in Electron 44).
+- pty wedge (2026-10-21): system-wide, every `openpty` blocks in kernel `lstat` of `/dev/ttysNNN`; reboot only. Not Tie, not harness (idle 19:10–22:13); onset after a clamshell sleep (19:31–20:34). Harness: per-scenario pty leak count, `tie-dev ptys`, `tie-dev ptydump`.
+- Manual checks pending on 0.3.0: Shift+W held in nvim (repeat, no popup); terminal right edge; ⌘Q dialog; ⌘W on a running command; shelf hover → click → pin button; `tie-dev ptys` now and then.
+- Icon nits unresolved: active glow subtle on Tie Dark (`style.css` drop-shadow ~1074).
 
 ## Batch 3 (2026-10-21, done): rename shell→UI; html static only (option B) + "Scripts blocked" tag; downloads always ask; explainer fact-checked and corrected.
 
