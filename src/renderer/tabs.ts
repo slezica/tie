@@ -1,4 +1,4 @@
-// Tabs: one per space, in the window's top bar.
+// Tabs: one per space, the tab list in the toolbar (scrolls when they don't fit).
 import { S, newSpace, spaceOf, type Space } from './state'
 import { render } from './render'
 import { activate, openTile, closeTile } from './ops'
@@ -169,10 +169,12 @@ function createTabEl(id: string): HTMLElement {
   return el
 }
 
+let shownCurrent = '' // last tab scrolled into view, and the list's content width then
+let shownWidth = 0
+
 // Keyed reconcile, like the shelf.
 export function renderTabs() {
-  const bar = document.getElementById('tabs')!
-  const add = document.getElementById('tab-add')!
+  const bar = document.getElementById('tab-list')!
   for (const [id, el] of tabEls) {
     if (!space(id)) {
       el.remove()
@@ -182,7 +184,7 @@ export function renderTabs() {
   S.spaces.forEach((sp, i) => {
     let el = tabEls.get(sp.id)
     if (!el) tabEls.set(sp.id, (el = createTabEl(sp.id)))
-    if (bar.children[i] !== el) bar.insertBefore(el, bar.children[i] ?? add)
+    if (bar.children[i] !== el) bar.insertBefore(el, bar.children[i] ?? null)
     el.classList.toggle('current', sp.id === S.visible)
     el.classList.toggle('pinged', sp.id !== S.visible && [...S.tiles.values()].some((t) => t.pinged && spaceOf(t.id)?.id === sp.id))
     const title = tabTitle(sp)
@@ -193,10 +195,47 @@ export function renderTabs() {
     const iconMarkup = sp.customIcon ? iconHtml({ text: sp.customIcon }) : ''
     if (icon.dataset.icon !== iconMarkup) (icon.innerHTML = iconMarkup), (icon.dataset.icon = iconMarkup)
   })
+  // Keep the current tab in view when it changes or tabs resize (titles); a user scroll stays.
+  const list = document.getElementById('tab-list')!
+  if (shownCurrent !== S.visible || shownWidth !== list.scrollWidth) {
+    shownCurrent = S.visible
+    shownWidth = list.scrollWidth
+    showTab(S.visible)
+  }
+  syncOverflow()
+}
+
+// Scroll the list so the tab is fully visible (never scrolls anything else).
+function showTab(id: string) {
+  const el = tabEls.get(id)
+  const list = document.getElementById('tab-list')!
+  if (!el) return
+  const left = el.offsetLeft
+  const right = left + el.offsetWidth
+  if (left < list.scrollLeft) list.scrollLeft = left
+  else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth
+}
+
+// Overflow state: `#tabs.overflow` (divider toward the shelf), fades on the sides with more tabs.
+function syncOverflow() {
+  const tabs = document.getElementById('tabs')!
+  const list = document.getElementById('tab-list')!
+  const over = list.scrollWidth > list.clientWidth + 1
+  tabs.classList.toggle('overflow', over)
+  list.classList.toggle('more-left', over && list.scrollLeft > 1)
+  list.classList.toggle('more-right', over && list.scrollLeft + list.clientWidth < list.scrollWidth - 1)
 }
 
 export function initTabs() {
   document.getElementById('tab-add')!.addEventListener('click', () => newTab())
+  const list = document.getElementById('tab-list')!
+  list.addEventListener('scroll', syncOverflow)
+  // A vertical wheel scrolls the list sideways (trackpads scroll sideways already).
+  list.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+    list.scrollLeft += e.deltaY
+    e.preventDefault()
+  })
   // Titles derive from tile metadata (cwd, process): refresh on changes.
   document.addEventListener('tile-meta', () => renderTabs())
 }

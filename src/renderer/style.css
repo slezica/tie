@@ -117,10 +117,38 @@ body {
   min-width: var(--tabs-min);
   display: flex;
   align-items: center;
-  gap: 2px;
   height: 100%;
   padding: 5px 0;
-  overflow: hidden;
+}
+/* Tabs that don't fit scroll (no bar); fades show there is more; the divider toward the shelf
+   appears only then. */
+#tab-list {
+  --fade-l: 0px;
+  --fade-r: 0px;
+  position: relative; /* tabs' offsetLeft relative to the list */
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+}
+#tab-list::-webkit-scrollbar {
+  display: none;
+}
+#tab-list.more-left {
+  --fade-l: 24px;
+}
+#tab-list.more-right {
+  --fade-r: 24px;
+}
+#tabs.overflow {
+  padding-right: 6px;
+  border-right: 1px solid var(--fg-c);
 }
 .tab,
 #tab-add,
@@ -129,6 +157,7 @@ body {
   -webkit-app-region: no-drag;
 }
 .tab {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -188,6 +217,7 @@ body.dragging-tab .tab {
   cursor: grabbing;
 }
 #tab-add {
+  flex: none;
   width: 26px;
   height: 100%;
   border: 0;

@@ -313,6 +313,13 @@ export const tileOf = async (ctx, id) => (await list(ctx)).tiles.find((t) => t.i
 // Next file picker answer in this harness instance (path, or null = cancel). Main, dev socket.
 export const pickNext = (ctx, path) => rpc(ctx.instance, 'pick', { path })
 
+// Resize the window (dev socket `window-size`); waits for the renderer to re-layout.
+export async function resizeWindow(ctx, w, h) {
+  await rpc(ctx.instance, 'window-size', { w, h })
+  await ctx.page.waitForFunction(([w, h]) => window.innerWidth === w && window.innerHeight === h, [w, h])
+  await ctx.sleep(200)
+}
+
 // OS drag-and-drop at a point (CDP): data = { files: [paths] } or { items: [{ mimeType, data }] }.
 export async function osDrop(ctx, at, data) {
   const cdp = await ctx.page.context().newCDPSession(ctx.page)

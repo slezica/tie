@@ -194,10 +194,14 @@ function createWindow(ses: Electron.Session) {
 // event through webContents.sendInputEvent. Unlike CDP input, it passes before-input-event like
 // real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
 // instances (null = cancel; docs.ts). `guest {action}`: browser guests (guest.ts). `window-close`:
-// the window's close, as its red button.
+// the window's close, as its red button. `window-size {w, h}`: resize the window (layout tests).
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
   'window-close': () => void win?.close(), // as the red button (close event)
+  'window-size': (params) => {
+    const { w, h } = params as { w: number; h: number }
+    win?.setSize(Math.round(w), Math.round(h))
+  },
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
   guest: (params) => guestMethod(params, shellSession), // browser guests (guest.ts)
