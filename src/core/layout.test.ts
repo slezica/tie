@@ -132,7 +132,7 @@ describe('dropSide', () => {
 })
 
 describe('inRevealZone', () => {
-  // Reveal left of the shelf, item in the shelf column, a 20 px gap between.
+  // Side by side: reveal left of the item, a 20 px gap between.
   const reveal = { x: 100, y: 100, w: 400, h: 300 }
   const item = { x: 520, y: 230, w: 60, h: 40 }
   it('covers item, reveal and the band between', () => {
@@ -142,7 +142,7 @@ describe('inRevealZone', () => {
     expect(inRevealZone(510, 110, item, reveal)).toBe(true) // gap, diagonal toward the reveal's top
   })
   it('excludes the rest', () => {
-    expect(inRevealZone(550, 300, item, reveal)).toBe(false) // shelf column below the item
+    expect(inRevealZone(550, 300, item, reveal)).toBe(false) // below the item
     expect(inRevealZone(550, 200, item, reveal)).toBe(false) // above the item
     expect(inRevealZone(90, 250, item, reveal)).toBe(false) // left of the reveal
     expect(inRevealZone(510, 420, item, reveal)).toBe(false) // band x, below both

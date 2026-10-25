@@ -22,7 +22,7 @@ export const ICON = {
   unpin: svg('<path d="M5.5 2h5M6.5 2v4.5L4 9.5h8L9.5 6.5V2M8 9.5V14M2.5 2.5l11 11"/>'),
 }
 
-// Built-in icons of tiles (Surface.icon()) and shelf templates.
+// Built-in icons of tiles (Surface.icon()) and templates.
 export const GLYPH = {
   terminal: svg('<path d="M3 4.5L6.5 8 3 11.5M8.5 12H13"/>'),
   folder: svg('<path d="M1.5 4.5a1 1 0 0 1 1-1h3.5L7.5 5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/>'),

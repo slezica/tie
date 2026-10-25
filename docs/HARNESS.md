@@ -21,7 +21,7 @@
 - `tie-dev ptydump [dir]` (`dev/ptydump.sh`): run the moment terminals stop starting, before rebooting. One folder (`out/log/ptydump/<time>/`, `summary.txt` first): stuck processes with `sample` stacks, probes (`stat` of a tty, `openpty`, `script`, `lsof`), sleep/wake log, kernel log (2h, tty-filtered copy), Tie instance files, logs, `tie list`, samples. Every step time-boxed: a probe that hangs is reported as `HUNG` and left behind (unkillable). Then `sudo spindump -notarget 3 -file <dir>/spindump-full.txt` for kernel stacks (printed by the command).
 - `scenarios`: name + first-line description of each scenario.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -75,6 +75,7 @@ EOF
 | `dragTitle(id, target, side)` | move tile by title |
 | `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags |
 | `hoverShelf`, `pin`, `shelfItem`, `template`, `boxOf(selector)` | shelf + DOM points |
+| `resizeWindow(w, h)` | window size (dev socket `window-size`), waits for the re-layout |
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |

@@ -125,7 +125,7 @@ ipc.on('app:quit', () => quitNow())
 ipc.on('external:open', (_e, url: unknown) => openExternal(url))
 ipc.on('log', (_e, tag: string, ...args: unknown[]) => log(tag, ...args))
 
-// Borderless: hide the traffic lights (title bar is already hidden; the top bar stays draggable).
+// Borderless: hide the traffic lights (title bar is already hidden; the strips stay draggable).
 function applyWindowSettings() {
   if (process.platform === 'darwin' && win && !win.isDestroyed()) win.setWindowButtonVisibility(!getSettings().borderless)
 }

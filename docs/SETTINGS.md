@@ -12,8 +12,7 @@
 |---|---|---|---|
 | `theme` | `tie-dark` | app | theme id |
 | `borderless` | false | app | hide window controls |
-| `tabBar` | `top` | app | `top` \| `bottom` |
-| `shelfStyle` | `normal` | app | `normal` \| `compact` |
+| `toolbar` | `bottom` | app | `top` \| `bottom` |
 | `fontFamily` | `''` | all tiles | `''` = default stack |
 | `fontSize` | 12 | all tiles | 8–32 px (markdown: base text size) |
 | `lineHeight` | 1.15 | all tiles | 1–2 |
@@ -60,6 +59,5 @@
 
 `applyAppearance()` toggles `:root` classes; layout re-reads geometry, terminals refit.
 
-- `borderless`: traffic lights hidden live; tab bar starts at left edge. Square corners need `frame: false` at window creation, so corners change on next launch. Top bar stays the drag region.
-- `tabBar: bottom` (`.tabs-bottom`): `#tabs` moves to `#bottom` (drag region). Top strip stays for traffic lights; with `borderless` it collapses (`--top-h: 0`).
-- `shelfStyle: compact` (`.shelf-compact`): `--shelf-w-compact`, icons only.
+- `borderless`: traffic lights hidden live; a top toolbar starts at the left edge. Square corners need `frame: false` at window creation, so corners change on next launch. The strips stay the drag region.
+- `toolbar: bottom` (`.toolbar-bottom`, default): `#toolbar` in `#bottom`; the top strip shrinks to the system title bar (`--titlebar-h`) for the traffic lights, 0 with `borderless`. `top`: `#toolbar` in `#top`, no bottom strip (`TABS.md` "Toolbar").

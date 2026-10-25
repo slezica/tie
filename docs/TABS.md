@@ -17,13 +17,23 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 - Clears hover reveal of the tab left.
 - Hidden spaces' tiles: `display: none`; terminals keep running, fit skipped.
 
-## Tab bar
+## Toolbar
 
-- In `#top` (after traffic lights), or `#bottom` with `tabBar: bottom` (`SETTINGS.md`). Its bar is the window drag region.
+One `#toolbar`, in the bottom strip `#bottom` (default) or the top strip `#top` after the traffic lights (`toolbar` setting, `SETTINGS.md`; `appearance.ts` moves it). Both strips are the window drag region; everything in the toolbar is `no-drag`. Height `--toolbar-h` (40 px).
+
+Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the tab list `#tab-list` + `#tab-add`), `#shelf` (`SHELF.md`), `#templates`. Flex: the tab list takes what is left (`flex: 1`), the shelf keeps its content width, templates never shrink.
+
 - Tab: ping dot, custom icon, title, close button. `+` adds a tab.
 - Pointerdown switches; drag sideways reorders (live, 4 px threshold).
 - Right-click: rename / set icon menu.
-- `#brand` (right): instance name when not `default`.
+
+## Overflow
+
+- Tabs never shrink (`flex: none`, `max-width: 200px`). When they don't fit, `#tab-list` scrolls sideways (no scrollbar): trackpad, or a vertical wheel mapped to `scrollLeft`.
+- `#tabs.overflow` (list `scrollWidth > clientWidth`): divider toward the shelf (right border). Fades (`mask-image`) at the list's ends where more tabs are: `.more-left` / `.more-right`, synced on scroll and every `renderTabs()`.
+- The current tab is scrolled into view (`showTab`, list-only scroll) when it changes or when the list's content width changes (titles, new tabs); a user's scroll otherwise stays.
+- Floor: `#tabs` `min-width: var(--tabs-min)` (140 px: one tab and `+`). Below it the shelf gives way (`SHELF.md` "Space").
+- Not yet: auto-scroll while dragging a tab near the list's edges (`PENDING.md`).
 
 Title (`tabTitle`), first match:
 

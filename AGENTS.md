@@ -1,13 +1,13 @@
 # Tie: Tiled Integrated Environment
 
-Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames: live markdown, text, image, hex, local html; browser guests) in a slot tree + floating, with a shelf for parking tiles, scriptable via the `tie` CLI.
+Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames: live markdown, text, image, hex, local html; browser guests) in a slot tree + floating, with a shelf for parking tiles (icons in the toolbar, with the tabs), scriptable via the `tie` CLI.
 
 ## Guides
 
 - `docs/ARCHITECTURE.md`: processes, IPC, instances, env, startup/quit.
 - `docs/LAYOUT.md`: slot tree, floats, collapse, zoom, focus, ping, geometry.
-- `docs/SHELF.md`: templates, reveal/pin, activity.
-- `docs/TABS.md`: spaces, `withSpace`, tab bar.
+- `docs/SHELF.md`: the shelf (concept + strip), templates, reveal/pin, activity.
+- `docs/TABS.md`: spaces, `withSpace`, toolbar, tab list overflow.
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
 - `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
@@ -33,6 +33,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-16-viewers-and-browser-plan.md`: text, image, hex, html, browser kinds; architecture, dependency graph.
 - `docs/2026-10-21-pty-wedge.md`: macOS pty subsystem wedge (every `openpty` blocks in the kernel); diagnosis, harness check.
 - `docs/2026-10-24-terminal-block-glyphs.md`: QR/block-char gaps (DOM renderer draws with font); options; WebGL renderer research.
+- `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
@@ -58,7 +59,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor` (main + renderer). Tests: `keymap.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile), `socket.ts` (JSON-RPC server, caller gate), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit, dev socket methods incl. `window-size`), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile), `socket.ts` (JSON-RPC server, caller gate), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, link/window.open requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
@@ -75,7 +76,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `files.ts`: OS file drops → viewer tiles.
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
-  - `shelf.ts`, `tabs.ts`, `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
+  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus-direction. `quit.ts`: quit question (`askQuit`).
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.

@@ -28,7 +28,7 @@ USAGE
 
 DESCRIPTION
   Tie is the user's full-screen workspace: tabs of tiles (terminals, file viewers, web pages) laid out
-  side by side, floating, or parked on a shelf at the right edge. Shells running in Tie can drive
+  side by side, floating, or parked on the shelf (an icon strip in the toolbar). Shells running in Tie can drive
   it with this command. Changes appear on the user's screen immediately.
 
   Use it to:

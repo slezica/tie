@@ -56,7 +56,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 ## Opening
 
 - `tie open <http(s) URL>`, `tie open browser [url]` (bare host → `https://`; refused: `Not a web address: <url> (http(s) only)`, exit 1). Driver: `resolveOpen` (`locationUrl`), kind `opens: 'url'`.
-- Shelf template `browser`: empty tile, location focused.
+- Template `browser` (toolbar): empty tile, location focused.
 - Links elsewhere (decision 2026-10-16, unchanged): markdown/text http(s) links → system browser; html → confirm → system browser. Nothing opens a browser tile by itself.
 
 ## Scenarios

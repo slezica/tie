@@ -5,14 +5,16 @@
 - Html dynamic pages: not supported (static only, decision 2026-10-21; option B of the security review). Revisit if real use needs sandboxed JS with no network; the alternative is a local server + browser tile.
 - Settings panel review: three pages now (Appearance, Terminal, Content); structure, naming and scopes deserve a pass before more settings land.
 - Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/core/keymap.ts`) from the settings panel.
-- Move tile to another tab: drop a dragged tile onto a tab in the tab bar.
+- Move tile to another tab: drop a dragged tile onto a tab in the toolbar.
+- Tab list: auto-scroll while dragging a tab near its edges (deferred 2026-10-25, `2026-10-25-shelf-in-toolbar.md`).
+- Shelf drop polish: a ghost of the item's icon at the landing slot instead of the insert line (wysiwyg); a dashed "+" slot at the shelf's left edge while a tile is dragged, swapped for the ghost when over it (`2026-10-25-shelf-in-toolbar.md`).
 - Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
 
 ## Alerts
 
 - Logs in the UI: comfortable access to the instance log (at least the always-on `[security]` lines), filter by tag, follow mode. Today: `tie-dev logs -f` / the file under `~/.config/tie/log/`.
 
-- New system: notifications floating top-right of board, next to shelf. Title, body, x to close, swipe to close.
+- New system: notifications floating in a corner of the board, by the toolbar. Title, body, x to close, swipe to close.
 - Ephemeral for now. Later maybe history.
 - First use: explain blocked actions the user may not understand (refused link scheme, denied permission, blocked navigation).
 

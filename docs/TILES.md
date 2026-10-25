@@ -45,7 +45,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Kind registry (`renderer/kinds/index.ts`)
 
-`KindSpec {kind, factory, opens: 'bare' | 'file' | 'url'}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`. Shelf templates: `TEMPLATES` (`terminal`, `file`, `browser`; decision 2026-10-17: not one per kind).
+`KindSpec {kind, factory, opens: 'bare' | 'file' | 'url'}`. `registerKind(spec)`; `kindSpec(kind)`, `needsFile(kind)`. Templates (toolbar template list): `TEMPLATES` (`terminal`, `file`, `browser`; decision 2026-10-17: not one per kind).
 
 | Reader | Uses |
 |---|---|

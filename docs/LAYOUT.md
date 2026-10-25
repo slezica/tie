@@ -54,7 +54,7 @@
 - After close or shelve: `focusNext()` = MRU tile still on the board.
 - `activate()` calls `refocus()` only if its space is visible.
 - `refocus()`: keys to the active tile; blur if none, collapsed, or xterm not opened.
-- Empty board: hint "Drag a terminal from the shelf, or press ⌘D".
+- Empty board: hint "Drag a terminal from the toolbar, or press ⌘D".
 
 ## Ping
 
@@ -68,15 +68,16 @@
 
 CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
 
-- `--top-h`: top strip (= `--top-bar`, 36px; 0 with `borderless` + tabs bottom). `--bottom-h`: bottom tab bar (0 unless tabs bottom).
-- `--pad` (window edge), `--gap` (between tiles; board ↔ shelf), `--title-h` (title bar, collapsed thickness), `--shelf-w`, `--peak` (reveal arrow).
+- `--top-h`: top strip: the toolbar (`--toolbar-h`, 40px) when it is on top; else the system title bar (`--titlebar-h`, 28px, traffic lights), 0 with `borderless`. `--bottom-h`: the toolbar at the bottom (default), else 0.
+- `--pad` (window edge), `--gap` (between tiles), `--title-h` (title bar, collapsed thickness), `--peak` (reveal arrow), `--slot` (shelf item / template square), `--tabs-min` (tab list floor; CSS only).
 - `--tile-pad`: CSS only. `MIN` (80) and `REVEAL` (0.3 × 0.5) are constants in `state.ts`.
 
 ```
 top   = max(top-h, pad);  bottom = max(bottom-h, pad)
-board = { x: pad,                y: top, w: W - shelf-w - 2·pad - gap, h: H - top - bottom }
-shelf = { x: W - shelf-w - pad,  y: top, w: shelf-w,                   h: H - top - bottom }
+board = { x: pad, y: top, w: W - 2·pad, h: H - top - bottom }
 ```
+
+- `shelfRect()`: the shelf strip's DOM box inside the toolbar (drop target, reveal anchor; `SHELF.md`).
 
 ## Rendering
 

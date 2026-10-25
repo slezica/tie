@@ -14,7 +14,7 @@
 
 | Pointer over | Shift | Result | Preview |
 |---|---|---|---|
-| Shelf | any | Shelf at insert line | accent line |
+| Shelf strip (toolbar) | any | Shelved at insert line | accent line |
 | Board | yes | Float, grabbed at pointer | float rect |
 | Board, no slotted tiles (or only the dragged one) | no | Root slot | whole board |
 | Slotted tile | no | Slot on nearest edge (`dropSide`) | resulting rect |
