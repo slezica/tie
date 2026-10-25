@@ -14,7 +14,9 @@ Requested:
 
 # Pending
 
-(none)
+1. Full e2e run in progress (background); phases 1–4 committed (`f6018ea`, `b543d32`, `b9b1834`).
+2. Polish pass (section below) not started.
+3. Tune after use: toolbar height 40, title strip 28, slot 28, tab floor 140.
 
 # Settled
 

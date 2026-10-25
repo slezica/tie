@@ -85,15 +85,15 @@ export default async (ctx, h) => {
   await ctx.sleep(200)
   h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel')
 
-  // Borderless: tab bar moves to the left edge (traffic lights hidden by main), persists.
-  const tabsX = () => ctx.page.evaluate(() => document.getElementById('tabs').getBoundingClientRect().x)
-  const x0 = await tabsX()
+  // Borderless: the title strip goes (traffic lights hidden by main), the board reaches the top; persists.
+  const boardY = async () => (await h.list(ctx)).board.y
+  const y0 = await boardY()
   await open()
   await ctx.page.locator('nav button[data-page="appearance"]').click()
   await ctx.page.check('#set-borderless')
   await ctx.page.locator('.save').click()
   await ctx.sleep(200)
-  h.assert((await tabsX()) < x0 - 40, `tab bar shifted left (${x0} -> ${await tabsX()})`)
+  h.assert((await boardY()) < y0 - 10, `board reaches the top (${y0} -> ${await boardY()})`)
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
 
   await terminalTitle(ctx, h, open)
