@@ -17,8 +17,7 @@ export interface Settings {
   fontSize: number // all tiles: content font size (px)
   cellWidth: number // all tiles: character width, percent (kitty cell_width)
   borderless: boolean // app-wide: hide window controls (kitty hide_window_decorations)
-  tabBar: 'top' | 'bottom' // app-wide: tab bar position
-  shelfStyle: 'normal' | 'compact' // app-wide: compact = narrow, icons only
+  toolbar: 'top' | 'bottom' // app-wide: toolbar (tabs, shelf, templates) position
   terminalTitle: TerminalTitle // terminal tiles: what the title shows (TERMINALS.md)
   warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
@@ -26,7 +25,7 @@ export interface Settings {
   allowExternalControl: boolean // app-wide: socket callers outside Tie terminals may run commands
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, tabBar: 'top', shelfStyle: 'normal', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -77,8 +76,7 @@ function sanitize(s: Settings): Settings {
     cellWidth: num(s.cellWidth, 70, 150, DEFAULTS.cellWidth),
     fontFamily: str(s.fontFamily, DEFAULTS.fontFamily).trim(),
     borderless: typeof s.borderless === 'boolean' ? s.borderless : DEFAULTS.borderless,
-    tabBar: s.tabBar === 'bottom' ? 'bottom' : 'top',
-    shelfStyle: s.shelfStyle === 'compact' ? 'compact' : 'normal',
+    toolbar: s.toolbar === 'top' ? 'top' : 'bottom',
     terminalTitle: TERMINAL_TITLES.includes(s.terminalTitle) ? s.terminalTitle : DEFAULTS.terminalTitle,
     warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
     warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,

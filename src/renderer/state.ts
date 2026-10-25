@@ -12,12 +12,11 @@ declare global {
 export const tie = window.tie
 
 // Geometry (px), read from CSS vars in style.css :root (readGeometry, called by render).
-export let TOP = 36 // --top-h: top strip (traffic lights / tab bar); 0 when tabs bottom + borderless
-export let BOTTOM = 0 // --bottom-h: bottom tab bar, when tabs are at the bottom
+export let TOP = 40 // --top-h: top strip: the toolbar, or the system title bar (traffic lights); 0 when toolbar bottom + borderless
+export let BOTTOM = 0 // --bottom-h: the toolbar, when at the bottom
 export let PAD = 6 // --pad: board edge padding
-export let GAP = 6 // --gap: between tiles, and between board and shelf
+export let GAP = 6 // --gap: between tiles
 export let TITLE = 30 // --title-h: title bar height; also collapsed bar thickness
-export let SHELF_W = 68 // --shelf-w
 export let PEAK = 8 // --peak: reveal ">" size
 export const MIN = 80 // min slotted tile size along split axis
 export const REVEAL = { w: 0.3, h: 0.5 } // max fraction of board
@@ -33,7 +32,6 @@ export function readGeometry() {
   PAD = px('--pad', PAD)
   GAP = px('--gap', GAP)
   TITLE = px('--title-h', TITLE)
-  SHELF_W = px('--shelf-w', SHELF_W)
   PEAK = px('--peak', PEAK)
 }
 
@@ -157,13 +155,13 @@ export function boardRect(): Rect {
   const W = window.innerWidth
   const H = window.innerHeight
   const top = Math.max(TOP, PAD)
-  return { x: PAD, y: top, w: W - SHELF_W - PAD * 2 - GAP, h: H - top - Math.max(BOTTOM, PAD) } // GAP before shelf, like between tiles
+  return { x: PAD, y: top, w: W - PAD * 2, h: H - top - Math.max(BOTTOM, PAD) }
 }
 
+// The shelf strip in the toolbar (its DOM box): drop target, and what reveals open next to.
 export function shelfRect(): Rect {
-  const W = window.innerWidth
-  const top = Math.max(TOP, PAD)
-  return { x: W - SHELF_W - PAD, y: top, w: SHELF_W, h: window.innerHeight - top - Math.max(BOTTOM, PAD) }
+  const r = document.getElementById('shelf')!.getBoundingClientRect()
+  return { x: r.x, y: r.y, w: r.width, h: r.height }
 }
 
 // Size of a shelved tile's reveal; independent of item position so pty size stays stable.

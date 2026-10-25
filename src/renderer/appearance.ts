@@ -9,9 +9,8 @@ export interface Appearance {
   fontFamily: string // '' = default stack
   fontSize: number
   cellWidth: number // percent of natural character width (kitty's cell_width)
-  borderless?: boolean // window controls hidden: tab bar starts at the left edge
-  tabBar?: 'top' | 'bottom'
-  shelfStyle?: 'normal' | 'compact'
+  borderless?: boolean // window controls hidden: the toolbar starts at the left edge
+  toolbar?: 'top' | 'bottom'
 }
 
 const FALLBACK_FONTS = '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace'
@@ -103,11 +102,11 @@ export function applyAppearance(a: Appearance) {
   document.documentElement.classList.toggle('light', !t.dark)
   const cl = document.documentElement.classList
   cl.toggle('borderless', !!a.borderless)
-  cl.toggle('tabs-bottom', a.tabBar === 'bottom')
-  cl.toggle('shelf-compact', a.shelfStyle === 'compact')
-  const tabs = document.getElementById('tabs')
-  const bar = document.getElementById(a.tabBar === 'bottom' ? 'bottom' : 'top')
-  if (tabs && bar && tabs.parentElement !== bar) bar.prepend(tabs)
+  const bottom = a.toolbar !== 'top'
+  cl.toggle('toolbar-bottom', bottom)
+  const toolbar = document.getElementById('toolbar')
+  const strip = document.getElementById(bottom ? 'bottom' : 'top')
+  if (toolbar && strip && toolbar.parentElement !== strip) strip.appendChild(toolbar)
   for (const tile of S.tiles.values()) tile.surface.appearance?.()
-  render() // bars and shelf width move the board
+  render() // the bars move the board
 }

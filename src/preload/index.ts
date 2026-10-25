@@ -8,8 +8,7 @@ export interface Settings {
   fontSize: number
   cellWidth: number
   borderless: boolean
-  tabBar: 'top' | 'bottom'
-  shelfStyle: 'normal' | 'compact'
+  toolbar: 'top' | 'bottom'
   terminalTitle: 'auto' | 'command' | 'directory'
   warnPasteControl: boolean
   warnPasteRun: boolean

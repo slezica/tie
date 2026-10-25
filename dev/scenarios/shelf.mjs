@@ -25,15 +25,17 @@ export default async (ctx, h) => {
   await h.pin(ctx, c) // item click
   l = await h.list(ctx)
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'item click unpins')
-  // Activity dot: shelf a tile running output.
+  // Activity dot: shelf a tile running output. The pointer leaves the shelf first: items grow
+  // leftward, so a new one would land under it and be revealed (no dot while revealed).
+  await ctx.page.mouse.move(400, 400)
   const d = (await ctx.tie('open', 'terminal', '--shelved', '--cmd', 'for i in 1 2 3 4 5; do echo $i; sleep 0.3; done')).id
   await ctx.sleep(1200)
   h.assert(await ctx.page.locator(`.item[data-id="${d}"].activity`).count() === 1, 'activity dot')
   await ctx.sleep(1500)
   await ctx.shot('activity-exit')
-  // Reorder: drag d above c.
+  // Reorder: drag d before c.
   const ci = await h.shelfItem(ctx, c)
-  await h.drag(ctx, await h.shelfItem(ctx, d), { x: ci.x, y: ci.box.y + 4 })
+  await h.drag(ctx, await h.shelfItem(ctx, d), { x: ci.box.x + 4, y: ci.y })
   l = await h.list(ctx)
   h.assert(l.shelf.join() === [d, c].join(), 'reorder')
   await h.unshelve(ctx, c, a, 'b', { during: () => ctx.shot('unshelve-preview') })

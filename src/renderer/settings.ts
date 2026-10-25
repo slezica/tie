@@ -49,16 +49,8 @@ export async function toggleSettings() {
           <h3>Window</h3>
           <label class="check"><input id="set-borderless" type="checkbox" /> Borderless <span class="scope">no window controls, square corners</span></label>
           <p class="hint">Corners change on next launch.</p>
-          <div class="row">
-            <div>
-              <label for="set-tab-bar">Tab bar</label>
-              <select id="set-tab-bar"><option value="top">Top</option><option value="bottom">Bottom</option></select>
-            </div>
-            <div>
-              <label for="set-shelf-style">Shelf</label>
-              <select id="set-shelf-style"><option value="normal">Normal</option><option value="compact">Compact</option></select>
-            </div>
-          </div>
+          <label for="set-toolbar">Toolbar <span class="scope">tabs, shelf, templates</span></label>
+          <select id="set-toolbar"><option value="bottom">Bottom</option><option value="top">Top</option></select>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
           <select id="set-font"></select>
@@ -116,8 +108,7 @@ export async function toggleSettings() {
   const font = $<HTMLSelectElement>('#set-font')
   const cellWidth = $<HTMLInputElement>('#set-cell-width')
   const borderless = $<HTMLInputElement>('#set-borderless')
-  const tabBar = $<HTMLSelectElement>('#set-tab-bar')
-  const shelfStyle = $<HTMLSelectElement>('#set-shelf-style')
+  const toolbar = $<HTMLSelectElement>('#set-toolbar')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   const terminalTitle = $<HTMLSelectElement>('#set-terminal-title')
@@ -139,8 +130,7 @@ export async function toggleSettings() {
   monospaceFonts().then((fonts) => panel && fillFonts(fonts))
   cellWidth.value = String(settings.cellWidth)
   borderless.checked = settings.borderless
-  tabBar.value = settings.tabBar
-  shelfStyle.value = settings.shelfStyle
+  toolbar.value = settings.toolbar
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   terminalTitle.value = settings.terminalTitle
@@ -162,8 +152,7 @@ export async function toggleSettings() {
     fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
     cellWidth: Math.min(150, Math.max(70, Number(cellWidth.value) || 100)),
     borderless: borderless.checked,
-    tabBar: tabBar.value as 'top' | 'bottom',
-    shelfStyle: shelfStyle.value as 'normal' | 'compact',
+    toolbar: toolbar.value as 'top' | 'bottom',
     terminalTitle: terminalTitle.value as Settings['terminalTitle'],
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
@@ -177,8 +166,7 @@ export async function toggleSettings() {
     tie.settings.previewBorderless(borderless.checked)
   }
   themeSel.addEventListener('change', preview)
-  tabBar.addEventListener('change', preview)
-  shelfStyle.addEventListener('change', preview)
+  toolbar.addEventListener('change', preview)
   for (const el of [lineHeight, font, fontSize, cellWidth, borderless]) el.addEventListener('input', preview)
   swatches()
 

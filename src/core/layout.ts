@@ -148,14 +148,28 @@ export function dropSide(rect: Rect, px: number, py: number): Side {
 }
 
 // Shelf hover reveal: kept open while the pointer is over its item, the reveal, or the band
-// between them (reveal's right edge to item's left edge, spanning both vertically), so the pointer
-// can travel from the item into the reveal (SHELF.md). `slack`: px of tolerance around each.
+// between them (the gap, spanning both along the other axis), so the pointer can travel from the
+// item into the reveal whichever side it opens on (SHELF.md). `slack`: px of tolerance around each.
 export function inRevealZone(px: number, py: number, item: Rect, reveal: Rect, slack = 2): boolean {
   const inside = (r: Rect) => px >= r.x - slack && px <= r.x + r.w + slack && py >= r.y - slack && py <= r.y + r.h + slack
-  const a = reveal.x + reveal.w
-  const top = Math.min(reveal.y, item.y)
-  const band = { x: Math.min(a, item.x), y: top, w: Math.abs(item.x - a), h: Math.max(reveal.y + reveal.h, item.y + item.h) - top }
-  return inside(item) || inside(reveal) || inside(band)
+  const band = gapBetween(item, reveal)
+  return inside(item) || inside(reveal) || (band !== null && inside(band))
+}
+
+// The gap between two separated rects, spanning both along the other axis: side by side → a vertical
+// band; one above the other → a horizontal band. Overlapping rects: none.
+function gapBetween(a: Rect, b: Rect): Rect | null {
+  const x0 = Math.min(a.x, b.x)
+  const x1 = Math.max(a.x + a.w, b.x + b.w)
+  const y0 = Math.min(a.y, b.y)
+  const y1 = Math.max(a.y + a.h, b.y + b.h)
+  const left = Math.min(a.x + a.w, b.x + b.w) // inner edges
+  const right = Math.max(a.x, b.x)
+  const top = Math.min(a.y + a.h, b.y + b.h)
+  const bottom = Math.max(a.y, b.y)
+  if (left <= right) return { x: left, y: y0, w: right - left, h: y1 - y0 }
+  if (top <= bottom) return { x: x0, y: top, w: x1 - x0, h: bottom - top }
+  return null
 }
 
 export interface LayoutOptions {

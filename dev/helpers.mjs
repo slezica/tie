@@ -59,12 +59,10 @@ export async function boxOf(ctx, selector) {
 export const shelfItem = (ctx, id) => boxOf(ctx, `.item[data-id="${id}"]`)
 export const template = (ctx, kind = 'terminal') => boxOf(ctx, `.template[data-kind="${kind}"]`)
 
-// Drop a tile onto the shelf (below existing items).
+// Drop a tile onto the shelf (after existing items: its right end).
 export async function shelve(ctx, id, opts) {
-  const items = await ctx.page.locator('#items').boundingBox()
   const shelf = await ctx.page.locator('#shelf').boundingBox()
-  const y = Math.min(items.y + items.height + 30, shelf.y + shelf.height - 10)
-  await drag(ctx, await titlePoint(ctx, id), { x: shelf.x + shelf.width / 2, y }, opts)
+  await drag(ctx, await titlePoint(ctx, id), { x: shelf.x + shelf.width - 4, y: shelf.y + shelf.height / 2 }, opts)
 }
 
 export async function unshelve(ctx, id, targetId, side, opts) {

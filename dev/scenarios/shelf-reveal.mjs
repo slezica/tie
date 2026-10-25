@@ -67,7 +67,7 @@ export default async (ctx, h) => {
     h.assert(!(await info(c)).pinned, 'item click unpins')
     await away()
 
-    // Leaving dismisses: out of the reveal's far side; back over the band to the item, then down the shelf.
+    // Leaving dismisses: out of the reveal's far side; back over the band to the item, then along the toolbar.
     await into(c)
     await away()
     h.assert((await revealed()) === null, 'leaving the reveal dismisses')
@@ -76,10 +76,9 @@ export default async (ctx, h) => {
     await page.mouse.move(it.x, it.y, { steps: 15 })
     await ctx.sleep(150)
     h.assert((await revealed()) === c, 'back across the band to the item: kept')
-    const shelf = await page.locator('#shelf').boundingBox()
-    await page.mouse.move(it.x, shelf.y + shelf.height - 10, { steps: 6 })
+    await page.mouse.move(it.x - 200, it.y, { steps: 6 })
     await ctx.sleep(200)
-    h.assert((await revealed()) === null, 'down the shelf column: dismissed')
+    h.assert((await revealed()) === null, 'along the toolbar, off the item: dismissed')
 
     // Markdown (content frame): kept while the pointer is over the frame; a click inside pins.
     p = await into(md)

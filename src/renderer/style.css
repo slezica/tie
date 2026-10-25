@@ -24,19 +24,20 @@
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --shadow: rgba(0, 0, 0, 0.6);
   --web-canvas: #fff; /* browser tiles: the web's default page background (not themed: pages expect it) */
-  /* Effective bar heights (derived from settings classes; layout code reads these). */
-  --top-h: var(--top-bar);
+  /* Effective strip heights (derived from settings classes; layout code reads these). */
+  --top-h: var(--toolbar-h);
   --bottom-h: 0px;
   --app-bg: color-mix(in srgb, var(--bg) 80%, black); /* behind tiles: 20% darker */
   --radius: 0; /* tiles and drop preview: square */
   /* Spacing (px). Layout code reads these too: tweak freely. */
-  --top-bar: 36px; /* height of the bar holding tabs (top or bottom) */
-  --shelf-w-compact: 40px; /* shelf width in compact style */
+  --toolbar-h: 40px; /* the toolbar: tabs, shelf, templates (top or bottom) */
+  --titlebar-h: 28px; /* top strip left for the traffic lights when the toolbar is at the bottom */
+  --tabs-min: 140px; /* the tab list never shrinks below this: one tab and + */
   --pad: 6px; /* board edge padding */
-  --gap: 6px; /* between tiles, and between board and shelf */
+  --gap: 6px; /* between tiles */
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
   --nav-h: 24px; /* nav bar under the title bar (kinds that navigate) */
-  --shelf-w: 68px;
+  --slot: 28px; /* shelf item / template: square icon button */
   --peak: 8px; /* shelf reveal arrow */
   --tile-pad: 4px 0 0 6px; /* inside tile content: top right bottom left */
   --ui-font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
@@ -57,58 +58,74 @@ body {
   -webkit-user-select: none;
 }
 
-:root.tabs-bottom {
-  --bottom-h: var(--top-bar);
+:root.toolbar-bottom {
+  --top-h: var(--titlebar-h); /* traffic lights only */
+  --bottom-h: var(--toolbar-h);
 }
-:root.tabs-bottom.borderless {
-  --top-h: 0px; /* nothing left up top: no traffic lights, no tabs */
+:root.toolbar-bottom.borderless {
+  --top-h: 0px; /* nothing left up top */
 }
-:root.shelf-compact {
-  --shelf-w: var(--shelf-w-compact);
-}
-#top {
+/* Window strips: the toolbar lives in one of them (appearance.ts moves it); both drag the window. */
+#top,
+#bottom {
   position: absolute;
-  inset: 0 0 auto 0;
-  height: var(--top-h);
-  overflow: hidden;
-  -webkit-app-region: drag;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+#top {
+  top: 0;
+  height: var(--top-h);
   padding-left: 84px; /* room for the traffic lights */
 }
 #bottom {
-  display: none;
-  position: absolute;
-  inset: auto 0 0 0;
+  bottom: 0;
   height: var(--bottom-h);
   padding-left: var(--pad);
-  align-items: center;
-  -webkit-app-region: drag; /* the tab bar is the window's drag handle wherever it is */
-}
-:root.tabs-bottom #bottom {
-  display: flex;
 }
 :root.borderless #top {
   padding-left: var(--pad);
 }
+
+/* Toolbar: [brand][tab list →][space][← shelf][template list]. Flex resolves the contest: the
+   shelf keeps its content width and the tab list takes what is left down to --tabs-min; past
+   that the shelf shrinks (and scrolls). */
+#toolbar {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: var(--pad);
+}
 #brand {
-  margin: 0 12px 0 auto;
+  flex: none;
+  margin-right: 6px;
   color: var(--faint);
   font-size: 11px;
   font-weight: 600;
 }
-
-/* Tabs, in the OS title bar area (which stays draggable around them) */
+#brand:empty {
+  display: none;
+}
 #tabs {
+  flex: 1 1 0;
+  min-width: var(--tabs-min);
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 0;
   height: 100%;
   padding: 5px 0;
+  overflow: hidden;
 }
 .tab,
-#tab-add {
+#tab-add,
+#shelf,
+#templates {
   -webkit-app-region: no-drag;
 }
 .tab {
@@ -640,8 +657,11 @@ body.dragging-tab .tab {
   position: absolute;
   display: none;
   background: var(--fg-d);
-  clip-path: polygon(0 0, 100% 50%, 0 100%); /* ">" pointing at the shelf item */
+  clip-path: polygon(0 0, 100% 0, 50% 100%); /* "v" pointing down at the shelf item */
   pointer-events: none;
+}
+#peak.up {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%); /* toolbar on top: "^" */
 }
 #peak.pinned {
   background: var(--accent);
@@ -703,7 +723,7 @@ body.resizing-col { cursor: row-resize; }
 #shelf-line {
   position: absolute;
   display: none;
-  height: 2px;
+  width: 2px;
   z-index: 5000;
   background: var(--accent);
   border-radius: 1px;
@@ -725,41 +745,39 @@ body.resizing-col { cursor: row-resize; }
   white-space: nowrap;
 }
 
-/* Shelf (Wave's right widget bar) */
-#shelf {
-  position: absolute;
-  top: max(var(--top-h), var(--pad));
-  right: var(--pad);
-  bottom: max(var(--bottom-h), var(--pad));
-  width: var(--shelf-w);
+/* Shelf strip and template list: square icon slots in the toolbar. The shelf is where shelved tiles
+   live (S.shelf), shown here; it yields to nothing but the tab list's minimum, then scrolls. */
+#shelf,
+#templates {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 2px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-#shelf .sep {
-  height: 1px;
-  margin: 6px 10px;
-  background: var(--fg-c);
   flex: none;
 }
-#items {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+#shelf {
+  flex: 0 1 auto;
+  min-width: var(--slot); /* an empty shelf still takes a drop */
+  min-height: var(--slot);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+#shelf::-webkit-scrollbar {
+  display: none;
+}
+#templates {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--fg-c);
 }
 .template,
 .item {
   position: relative;
   flex: none;
-  height: 54px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
+  width: var(--slot);
+  height: var(--slot);
+  display: grid;
+  place-items: center;
   border-radius: 6px;
   color: var(--muted);
   cursor: grab;
@@ -776,8 +794,7 @@ body.resizing-col { cursor: row-resize; }
 }
 .template .ico,
 .item .ico {
-  font-size: 18px;
-  height: 22px;
+  font-size: 15px;
   display: flex;
   align-items: center;
 }
@@ -787,24 +804,16 @@ body.resizing-col { cursor: row-resize; }
 }
 .template .glyph svg,
 .item .glyph svg {
-  width: 18px;
-  height: 18px;
-}
-.template .lbl,
-.item .lbl {
-  max-width: 62px;
-  font-size: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 16px;
+  height: 16px;
 }
 .item .dot {
   display: none;
   position: absolute;
-  top: 7px;
-  right: 10px;
-  width: 7px;
-  height: 7px;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--accent);
 }
@@ -813,9 +822,9 @@ body.resizing-col { cursor: row-resize; }
 }
 .item .exit {
   position: absolute;
-  top: 4px;
-  left: 8px;
-  font-size: 10px;
+  top: 0;
+  left: 3px;
+  font-size: 9px;
   font-weight: 700;
 }
 .item .exit.ok {
@@ -827,7 +836,7 @@ body.resizing-col { cursor: row-resize; }
 
 #empty-hint {
   position: absolute;
-  inset: max(var(--top-h), var(--pad)) calc(var(--shelf-w) + var(--pad) + var(--gap)) max(var(--bottom-h), var(--pad)) var(--pad);
+  inset: max(var(--top-h), var(--pad)) var(--pad) max(var(--bottom-h), var(--pad)) var(--pad);
   display: none;
   place-items: center;
   color: var(--faint);
@@ -1101,10 +1110,10 @@ body.empty #empty-hint {
 .item .ping {
   display: none;
   position: absolute;
-  top: 7px;
-  right: 10px;
-  width: 8px;
-  height: 8px;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--yellow);
   box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
@@ -1114,33 +1123,4 @@ body.empty #empty-hint {
 }
 .item.pinged .dot {
   display: none; /* ping outranks activity */
-}
-
-/* Compact shelf: icons only */
-:root.shelf-compact .template,
-:root.shelf-compact .item {
-  height: 34px;
-}
-:root.shelf-compact .template .lbl,
-:root.shelf-compact .item .lbl {
-  display: none;
-}
-:root.shelf-compact .template .ico,
-:root.shelf-compact .item .ico {
-  font-size: 14px;
-  height: 18px;
-}
-:root.shelf-compact .template .glyph svg,
-:root.shelf-compact .item .glyph svg {
-  width: 15px;
-  height: 15px;
-}
-:root.shelf-compact .item .dot,
-:root.shelf-compact .item .ping {
-  top: 4px;
-  right: 4px;
-}
-:root.shelf-compact .item .exit {
-  top: 2px;
-  left: 4px;
 }

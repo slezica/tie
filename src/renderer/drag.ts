@@ -68,21 +68,22 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   const srcId = src.type === 'tile' ? src.id : null
 
   if (inside(sr, x, y)) {
-    // Insert index among shelf items by vertical midpoint.
+    // Insert index among shelf items by horizontal midpoint; the line marks the slot.
     const ids = S.shelf
     let index = ids.length
     for (let i = 0; i < ids.length; i++) {
       const r = shelfItemEl(ids[i])?.getBoundingClientRect()
-      if (r && y < r.top + r.height / 2) {
+      if (r && x < r.left + r.width / 2) {
         index = i
         break
       }
     }
-    const els = document.getElementById('items')!
-    const er = els.getBoundingClientRect()
     const ref = ids[index] ? shelfItemEl(ids[index])!.getBoundingClientRect() : null
-    const ly = ref ? ref.top - 3 : ids.length ? shelfItemEl(ids[ids.length - 1])!.getBoundingClientRect().bottom + 2 : er.top + 2
-    return { placement: { type: 'shelf', index }, preview: null, line: { x: sr.x + 6, y: ly, w: sr.w - 12, h: 2 } }
+    const last = ids.length ? shelfItemEl(ids[ids.length - 1])!.getBoundingClientRect() : null
+    const lx = ref ? ref.left - 2 : last ? last.right : sr.x + 2
+    const slot = ref ?? last
+    const line = slot ? { x: lx, y: slot.top, w: 2, h: slot.height } : { x: lx, y: sr.y + 4, w: 2, h: sr.h - 8 }
+    return { placement: { type: 'shelf', index }, preview: null, line }
   }
 
   if (!inside(b, x, y)) return null
@@ -163,9 +164,10 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     preview.classList.toggle('float', target?.placement.type === 'float')
     const l = target?.line
     line.style.display = l ? 'block' : 'none'
-    if (l) Object.assign(line.style, { left: `${l.x}px`, top: `${l.y}px`, width: `${l.w}px` })
-    ghost.style.left = `${lx + 12}px`
-    ghost.style.top = `${ly + 12}px`
+    if (l) Object.assign(line.style, { left: `${l.x}px`, top: `${l.y}px`, width: `${l.w}px`, height: `${l.h}px` })
+    // Beside the pointer, kept inside the window (dragging along the bottom toolbar).
+    ghost.style.left = `${Math.min(lx + 12, window.innerWidth - ghost.offsetWidth - 4)}px`
+    ghost.style.top = `${Math.min(ly + 12, window.innerHeight - ghost.offsetHeight - 4)}px`
   }
 
   const begin = () => {

@@ -148,6 +148,20 @@ describe('inRevealZone', () => {
     expect(inRevealZone(510, 420, item, reveal)).toBe(false) // band x, below both
     expect(inRevealZone(300, 401, item, reveal, 0)).toBe(false)
   })
+  // Reveal above the item (toolbar at the bottom), a 20 px gap between.
+  const above = { x: 100, y: 100, w: 400, h: 300 }
+  const below = { x: 280, y: 420, w: 40, h: 30 }
+  it('vertical: covers item, reveal and the band between', () => {
+    expect(inRevealZone(300, 430, below, above)).toBe(true) // item
+    expect(inRevealZone(120, 110, below, above)).toBe(true) // reveal
+    expect(inRevealZone(300, 410, below, above)).toBe(true) // gap, over the item
+    expect(inRevealZone(110, 410, below, above)).toBe(true) // gap, diagonal toward the reveal's left
+  })
+  it('vertical: excludes the rest', () => {
+    expect(inRevealZone(350, 430, below, above)).toBe(false) // toolbar beside the item
+    expect(inRevealZone(300, 90, below, above)).toBe(false) // above the reveal
+    expect(inRevealZone(510, 410, below, above)).toBe(false) // band y, right of both
+  })
 })
 
 describe('compute', () => {

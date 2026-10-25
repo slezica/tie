@@ -1,4 +1,4 @@
-// Shelf column: templates on top, shelved tile items below.
+// Shelf strip and template list in the toolbar: one icon per shelved tile; templates to spawn from.
 import { inRevealZone, type TileId } from '@core/layout'
 import { S, location, debug } from './state'
 import { displayIcon, displayTitle } from './tile'
@@ -18,7 +18,8 @@ export function initShelf() {
     const el = document.createElement('div')
     el.className = 'template'
     el.dataset.kind = t.id
-    el.innerHTML = `<div class="ico">${iconHtml({ glyph: t.icon })}</div><div class="lbl">${t.label}</div>`
+    el.title = t.label
+    el.innerHTML = `<div class="ico">${iconHtml({ glyph: t.icon })}</div>`
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
       startDrag(e, { type: 'template', template: t.id, label: t.label })
@@ -63,7 +64,7 @@ function createItem(id: TileId): HTMLElement {
   const el = document.createElement('div')
   el.className = 'item'
   el.dataset.id = id
-  el.innerHTML = `<div class="ico"></div><div class="lbl"></div><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
+  el.innerHTML = `<div class="ico"></div><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
   el.addEventListener('pointerenter', () => {
     if (isDragging()) return
     S.revealed = id
@@ -94,9 +95,7 @@ function updateItem(id: TileId) {
   const title = displayTitle(t)
   const ico = el.querySelector('.ico') as HTMLElement
   if (ico.dataset.icon !== icon) (ico.innerHTML = icon), (ico.dataset.icon = icon)
-  const lbl = el.querySelector('.lbl') as HTMLElement
-  if (lbl.textContent !== title) lbl.textContent = title
-  el.title = title
+  el.title = title // icon-only: the title is the tooltip
   el.classList.toggle('activity', t.activity)
   el.classList.toggle('pinged', t.pinged)
   el.classList.toggle('pinned', S.pinned === id)
@@ -108,7 +107,7 @@ function updateItem(id: TileId) {
 
 // Keyed reconcile so hovered elements survive re-renders.
 export function syncShelf() {
-  const list = document.getElementById('items')!
+  const list = document.getElementById('shelf')!
   for (const [id, el] of items) {
     if (!S.shelf.includes(id)) {
       el.remove()

@@ -96,18 +96,20 @@ function renderVisible() {
     setButtons(S.tiles.get(f.id)!, { collapse: true, zoom: true })
   })
 
-  // Shelf column, then reveals positioned next to their items.
+  // Shelf strip, then reveals next to their items: above (toolbar at the bottom) or below (top),
+  // horizontally centered on the item, clamped into the board.
   syncShelf()
   const sr = shelfRect()
   const size = revealSize()
+  const below = sr.y < b.y // toolbar on top: reveals open downward
   const peak = document.getElementById('peak')!
   peak.style.display = 'none'
   for (const id of S.shelf) {
     const item = shelfItemEl(id)
     const ir = item?.getBoundingClientRect()
-    const cy = ir ? ir.top + ir.height / 2 : b.y + b.h / 2
-    const x = sr.x - PEAK - size.w - 2
-    const y = Math.max(b.y, Math.min(cy - size.h / 2, b.y + b.h - size.h))
+    const cx = ir ? ir.left + ir.width / 2 : b.x + b.w / 2
+    const x = Math.max(b.x, Math.min(cx - size.w / 2, b.x + b.w - size.w))
+    const y = below ? b.y + PEAK + 2 : b.y + b.h - PEAK - size.h - 2
     const pinned = S.pinned === id
     const shown = pinned || S.revealed === id
     place(id, { x, y, ...size }, Z.reveal + (S.revealed === id ? 1 : 0), {
@@ -119,12 +121,13 @@ function renderVisible() {
     setButtons(S.tiles.get(id)!, { collapse: false, zoom: false, pin: pinned ? 'unpin' : shown ? 'pin' : undefined })
     if (shown && (S.revealed === id || !S.revealed)) {
       peak.style.display = 'block'
-      peak.style.left = `${x + size.w}px` // sticks out of the reveal's right edge
-      peak.style.top = `${cy - PEAK}px`
-      peak.style.width = `${PEAK}px`
-      peak.style.height = `${PEAK * 2}px`
+      peak.style.left = `${cx - PEAK}px`
+      peak.style.top = `${below ? y - PEAK : y + size.h}px` // sticks out of the reveal's edge facing the item
+      peak.style.width = `${PEAK * 2}px`
+      peak.style.height = `${PEAK}px`
       peak.style.zIndex = String(Z.reveal + 2)
       peak.classList.toggle('pinned', pinned)
+      peak.classList.toggle('up', below)
     }
   }
 

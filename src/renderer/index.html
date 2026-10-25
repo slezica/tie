@@ -14,17 +14,16 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div id="top">
-      <div id="tabs"><button id="tab-add" title="New tab">+</button></div>
-      <span id="brand"></span>
+    <div id="top"></div>
+    <div id="bottom">
+      <div id="toolbar">
+        <span id="brand"></span>
+        <div id="tabs"><button id="tab-add" title="New tab">+</button></div>
+        <div id="shelf"></div>
+        <div id="templates"></div>
+      </div>
     </div>
-    <div id="bottom"></div>
-    <div id="shelf">
-      <div id="templates"></div>
-      <div class="sep"></div>
-      <div id="items"></div>
-    </div>
-    <div id="empty-hint">Drag a terminal from the shelf, or press ⌘D</div>
+    <div id="empty-hint">Drag a terminal from the toolbar, or press ⌘D</div>
     <div id="tiles"></div>
     <div id="borders"></div>
     <div id="peak"></div>
