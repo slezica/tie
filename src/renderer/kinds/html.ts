@@ -176,11 +176,14 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     cwd: async () => root,
     // The page had scripts; Tie didn't run them. A tag, not a switch: html tiles are static by
     // design (dynamic pages: serve them and open a browser tile).
-    pill: {
-      label: () => (blocked ? 'Scripts blocked' : ''),
-      title: () => `This page has scripts (${blocked} blocked). Tie shows html files static. For a dynamic page, run a server and open it in a browser tile.`,
-      on: () => false,
-    },
+    pills: [
+      {
+        label: () => (blocked ? 'Scripts blocked' : ''),
+        title: () => `This page has scripts (${blocked} blocked). Tie shows html files static. For a dynamic page, run a server and open it in a browser tile.`,
+        on: () => false,
+        color: 'red',
+      },
+    ],
     nav: {
       state: () => ({ location: path, back: history.index > 0, forward: history.index < history.list.length - 1, editable: false }),
       back: () => step(-1),

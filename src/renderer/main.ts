@@ -78,7 +78,7 @@ tiles.addEventListener('click', (e) => {
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
   else if (btn.classList.contains('pin')) pin(S.pinned === id ? null : id)
-  else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pill?.toggle?.()
+  else if (btn.classList.contains('pill')) S.tiles.get(id)?.surface.pills?.[Number((btn as HTMLElement).dataset.pill)]?.toggle?.()
 })
 
 tiles.addEventListener('contextmenu', (e) => {

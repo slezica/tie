@@ -1,6 +1,6 @@
 // Markdown tile: tie open renders (headings, lists, highlighted code, theme colors), live reload for
-// every writer (in place, temp + rename, backup rename + new file), scroll kept, deleted → frozen,
-// recreated → updates, shelved → activity dot, theme changes reach the frame.
+// every writer (in place, temp + rename, backup rename + new file), scroll kept, deleted → frozen +
+// Missing pill, recreated → updates, shelved → activity dot, theme changes reach the frame.
 import { mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -68,13 +68,19 @@ export default async (ctx, h) => {
       h.assert(!(await h.tileOf(ctx, id)).doc.missing, `${how}: never missing`)
     }
 
-    // Deleted: last render stays, tile knows; recreated: updates.
+    // Deleted: last render stays, tile knows (red "Missing" pill); recreated: updates, pill gone.
+    const pill = () => ctx.page.evaluate((id) => [...document.querySelectorAll(`.tile[data-id="${id}"] .pill`)].filter((p) => !p.hidden).map((p) => ({ text: p.textContent, color: p.dataset.color, static: p.classList.contains('static') })), id)
+    h.assert(!(await pill()).length, 'no pill while present')
     rmSync(f)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).doc.missing, 'missing reported')
     h.assert((await h.mdState(ctx, id)).text.includes('Fourth'), 'frozen on last render')
+    const p = await pill()
+    h.assert(p.length === 1 && p[0].text === 'Missing' && p[0].color === 'red' && p[0].static, `Missing pill: ${JSON.stringify(p)}`)
+    await ctx.shot('missing')
     writeFileSync(f, body('Fifth'))
     await h.waitFor(ctx, has('Fifth'), 'recreated file shows')
     h.assert(!(await h.tileOf(ctx, id)).doc.missing, 'not missing after recreate')
+    h.assert(!(await pill()).length, 'pill gone after recreate')
 
     // Shelved: a change marks the shelf item.
     await ctx.tie('move', id, '--shelve')

@@ -29,7 +29,6 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
       <span class="title"></span>
       <span class="status"></span>
       <span class="spacer"></span>
-      <button class="btn pill" hidden></button>
       <button class="btn pin" title="Pin">${ICON.pin}</button>
       <button class="btn collapse" title="Collapse">${ICON.collapse}</button>
       <button class="btn zoom" title="Zoom">${ICON.zoom}</button>
@@ -83,17 +82,45 @@ export function refreshTitle(t: Tile) {
   titleEl.title = (!t.customTitle && t.surface.tip?.()) || ''
   ;(t.el.querySelector('.icon') as HTMLElement).innerHTML = iconHtml(displayIcon(t))
   ;(t.el.querySelector('.status') as HTMLElement).textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : `✗ ${t.exit}`
-  const pill = t.el.querySelector('.pill') as HTMLButtonElement
-  const label = t.surface.pill?.label() ?? ''
-  pill.hidden = !label
-  if (t.surface.pill && label) {
-    pill.textContent = label
-    pill.title = t.surface.pill.title()
-    pill.classList.toggle('on', t.surface.pill.on())
-    pill.classList.toggle('static', !t.surface.pill.toggle)
-  }
+  refreshPills(t)
   refreshNav(t)
   document.dispatchEvent(new CustomEvent('tile-meta', { detail: t.id }))
+}
+
+// Kind pills (Surface.pills), keyed by index: an element per pill, kept while the pill stays (a
+// toggle may be under the pointer). Gravity left: after the title, before the spacer; right
+// (default): after the spacer, before the buttons. Empty label = hidden.
+function refreshPills(t: Tile) {
+  const bar = t.el.querySelector('.titlebar') as HTMLElement
+  const pills = t.surface.pills ?? []
+  const els: HTMLButtonElement[] = []
+  for (const el of bar.querySelectorAll<HTMLButtonElement>('.pill')) {
+    const i = Number(el.dataset.pill)
+    if (i < pills.length) els[i] = el
+    else el.remove()
+  }
+  pills.forEach((p, i) => {
+    const el = (els[i] ??= Object.assign(document.createElement('button'), { className: 'btn pill' }))
+    el.dataset.pill = String(i)
+    const label = p.label()
+    el.hidden = !label
+    if (!label) return
+    el.textContent = label
+    el.title = p.title()
+    el.dataset.color = p.color ?? 'muted'
+    el.classList.toggle('on', p.on())
+    el.classList.toggle('static', !p.toggle)
+  })
+  // Place each group in index order before its anchor; moves only what is out of place.
+  const place = (group: HTMLButtonElement[], anchor: Element) => {
+    let next = anchor
+    for (const el of group.reverse()) {
+      if (el.nextElementSibling !== next) bar.insertBefore(el, next)
+      next = el
+    }
+  }
+  place(els.filter((_, i) => pills[i].gravity === 'left'), bar.querySelector('.spacer')!)
+  place(els.filter((_, i) => pills[i].gravity !== 'left'), bar.querySelector('.btn.pin')!)
 }
 
 // Error state: centered message replaces the tile's content; the tile stays open.

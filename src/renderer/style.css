@@ -425,7 +425,8 @@ body.dragging-tab .tab {
 .titlebar .spacer {
   flex: 1;
 }
-/* Kind pill (Surface.pill): a labelled toggle, e.g. html "Scripts: off". */
+/* Kind pills (Surface.pills): labelled states, toggles if clickable (html "Scripts blocked", file
+   "Missing"). Color from data-color (Pill.color), a theme token; default muted. */
 .titlebar .pill {
   width: auto;
   height: 18px;
@@ -433,16 +434,30 @@ body.dragging-tab .tab {
   border-radius: 9px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--muted);
+  --pill: var(--muted);
+  color: var(--pill);
   font: 600 10.5px var(--ui-font);
   letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
 }
+.titlebar .pill[data-color='accent'] {
+  --pill: var(--accent);
+}
+.titlebar .pill[data-color='red'] {
+  --pill: var(--red);
+}
+.titlebar .pill[data-color='green'] {
+  --pill: var(--green);
+}
+.titlebar .pill[data-color='yellow'] {
+  --pill: var(--yellow);
+}
+.titlebar .pill:not([data-color='muted']) {
+  border-color: color-mix(in srgb, var(--pill) 50%, transparent);
+}
 .titlebar .pill.static {
   cursor: default;
-  color: var(--red);
-  border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .titlebar .pill.on {
   color: var(--text);

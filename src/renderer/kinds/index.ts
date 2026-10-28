@@ -47,7 +47,7 @@ export interface Surface {
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
   nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
-  pill?: Pill // a state the kind shows in its title bar (html: "Scripts blocked"); a toggle if it has one
+  pills?: Pill[] // states the kind shows in its title bar (html: "Scripts blocked"; file kinds: "Missing"); toggles if they have one
   busy?(): Promise<Busy | null> // running something closing would kill (terminals); null = idle. Asked at close / quit time
   unload?(): Promise<boolean> // may the content go? (browser: the page's beforeunload, the user asked); false = keep the tile
 }
@@ -57,13 +57,17 @@ export interface Busy {
   what: string | null
 }
 
-// Title-bar pill: a labelled toggle for one per-tile state (tile.ts renders it, `changed()` refreshes it).
+// Title-bar pill: a labelled state of the tile, a toggle if it has one (tile.ts renders them, keyed
+// by index: the list is fixed per surface; `changed()` refreshes them).
 export interface Pill {
-  label(): string
+  label(): string // '' = hidden
   title(): string // tooltip
   on(): boolean // highlighted
   toggle?(): void // clickable
+  color?: PillColor // text + border; default muted
+  gravity?: 'left' | 'right' // left: after the title; right (default): before the buttons
 }
+export type PillColor = 'muted' | 'accent' | 'red' | 'green' | 'yellow' // theme tokens (style.css)
 
 export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 

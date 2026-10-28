@@ -105,14 +105,16 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     byDoc.set(d.id, (p) => {
       if ('missing' in p) {
         d.missing = true // last render stays (frozen); watching continues
-        return
+        return void host.changed() // the Missing pill
       }
+      const was = d.missing
       d.text = p.text
       d.bytes = p.bytes
       d.rev = p.rev
       d.missing = false
       sendDoc()
       host.activity()
+      if (was) host.changed()
     })
   }
 
@@ -240,6 +242,15 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
       forward: () => step(1),
       reload: () => void (doc && go(doc.path, 'reload')),
     },
+    // The file is gone: the last render stays (frozen) until it comes back.
+    pills: [
+      {
+        label: () => (doc?.missing ? 'Missing' : ''),
+        title: () => 'The file was deleted or moved. Showing its last render; it updates if the file comes back.',
+        on: () => false,
+        color: 'red',
+      },
+    ],
     info: () => ({ doc: doc && { path: doc.path, rev: doc.rev, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
   }
 }
