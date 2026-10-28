@@ -4,7 +4,7 @@
 
 ## Rules
 
-- Default instance `dev`. Never target `default` (installed app).
+- Default instance `dev`. Never target `default` (installed app): `run` / `start` refuse it unless `--instance default` is explicit. Inside a Tie terminal `TIE_INSTANCE` (exported by the hosting Tie, `TIE_TILE` set) is ignored, so `tie-dev run --hot` from the installed app's shell starts `dev` beside it.
 - `--instance NAME` / `--instance=NAME` anywhere in args. Empty name or other `--instance*`: error.
 - Prefer `tie-dev drive`: fresh offscreen instance, cleaned up after.
 - Never touch `~/.config/tie/settings*.json`.

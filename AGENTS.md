@@ -170,7 +170,8 @@ Commands:
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
 
-Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
+Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Inside a Tie
+terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" unless --instance says so. Each instance has its own
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 

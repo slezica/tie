@@ -38,22 +38,27 @@ Commands:
   install                  Package, then install to /Applications/Tie.app (Tie must not be running)
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
 
-Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Each instance has its own
+Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Inside a Tie
+terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" unless --instance says so. Each instance has its own
 socket, lock, debug port, log under ~/.config/tie/.
 EOF
 }
 
 # --instance NAME (or --instance=NAME) may appear anywhere (e.g. `tie-dev stop --instance x`);
 # never fall back silently.
+# Inside a Tie terminal, TIE_INSTANCE names the hosting Tie (it exports it), not the user's choice:
+# ignored, so `tie-dev run` from the installed app's shell starts "dev", not "default" (lock held).
+[[ -n "${TIE_TILE:-}" ]] && unset TIE_INSTANCE
+explicit=
 args=()
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == "--instance" ]]; then
     [[ -n "${2:-}" ]] || { echo "--instance needs a name"; exit 1; }
-    export TIE_INSTANCE="$2"
+    export TIE_INSTANCE="$2"; explicit=1
     shift 2
   elif [[ "$1" == --instance=* ]]; then
     [[ -n "${1#--instance=}" ]] || { echo "--instance needs a name"; exit 1; }
-    export TIE_INSTANCE="${1#--instance=}"
+    export TIE_INSTANCE="${1#--instance=}"; explicit=1
     shift
   elif [[ "$1" == --instance* ]]; then
     echo "unknown option: $1"; exit 1
@@ -101,6 +106,10 @@ free_port() { node -e "const s=require('net').createServer();s.listen(0,'127.0.0
 
 cmd="${1:-}"
 shift || true
+# "default" is the installed app: never launched from the repo unless asked by name.
+if [[ "$TIE_INSTANCE" == "default" && -z "$explicit" && ( "$cmd" == "run" || "$cmd" == "start" ) ]]; then
+  echo "tie-dev: refusing to $cmd instance \"default\" (the installed app); pass --instance default to insist"; exit 1
+fi
 case "$cmd" in
   run)
     export TIE_DEBUG_PORT="${TIE_DEBUG_PORT:-$(free_port)}"
