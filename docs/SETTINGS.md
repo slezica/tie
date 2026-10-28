@@ -39,7 +39,7 @@
 
 ## Themes (`themes.ts`)
 
-- Theme = `{label, dark, accent, palette}` (xterm colors + 16 ANSI). Add one: entry in `THEMES`, nothing else.
+- Theme = `{label, dark, accent, palette, code?}` (xterm colors + 16 ANSI; `code`: optional code token colors `{comment, keyword, string, regexp, number, symbol, title, section, type, builtin, attr, variable, self, tag, meta, link, deletion, operator, punctuation, params, escape}` → `{color, italic?, bold?}`, sent to viewers as `--code-<token>` / `-style` / `-weight`; absent tokens fall back to the ANSI mapping in `viewers/highlight.ts`). Add one: entry in `THEMES`, nothing else.
 - Content viewers get the theme over their port (markdown: bg, fg, accent, ANSI → code tokens; fonts: UI font for text, tile font for code). `MARKDOWN.md`.
 
 ## Color tokens

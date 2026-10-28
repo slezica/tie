@@ -9,11 +9,23 @@ export interface Palette {
   ansi: string[] // 16: black red green yellow blue magenta cyan white, then bright
 }
 
+// Code token colors (viewer code blocks, highlight.ts classes). Optional per theme: without
+// them tokens fall back to the ANSI palette. Keys = token names in highlight.ts.
+export type CodeToken =
+  | 'comment' | 'keyword' | 'string' | 'regexp' | 'number' | 'symbol' | 'title' | 'section' | 'type' | 'builtin' | 'attr' | 'variable' | 'self'
+  | 'tag' | 'meta' | 'link' | 'deletion' | 'operator' | 'punctuation' | 'params' | 'escape'
+export interface CodeStyle {
+  color: string
+  italic?: boolean
+  bold?: boolean
+}
+
 export interface Theme {
   label: string
   dark: boolean
   accent: string
   palette: Palette
+  code?: Partial<Record<CodeToken, CodeStyle>> // code block fg/bg stay the tile's; tokens only
 }
 
 const ansi = (s: string) => s.trim().split(/\s+/)
@@ -27,6 +39,32 @@ export const THEMES: Record<string, Theme> = {
       // Originally from the author's kitty.conf ("Elegant Dark")
       background: '#22252c', foreground: '#dbded8', cursor: '#dbded8', selectionBackground: '#fefefd', selectionForeground: '#000000',
       ansi: ansi('#686966 #eb5443 #bdfc69 #f9eb77 #a6cdfa #f6caf4 #7ef9fd #fefefd #686966 #eb5443 #bdfc69 #f9eb77 #a6cdfa #f6caf4 #7ef9fd #fefefd'),
+    },
+    // Code tokens after the author's Neovim (onedark.nvim "dark" + treesitter, 2026-10-28):
+    // comments grey italic, keywords purple, strings green, numbers orange, functions blue, types
+    // yellow, properties cyan, parameters / escapes red, punctuation light grey.
+    code: {
+      comment: { color: '#5c6370', italic: true },
+      keyword: { color: '#c678dd' },
+      string: { color: '#98c379' },
+      regexp: { color: '#d19a66' },
+      number: { color: '#d19a66' },
+      symbol: { color: '#56b6c2' },
+      title: { color: '#61afef' },
+      section: { color: '#d19a66', bold: true },
+      type: { color: '#e5c07b' },
+      builtin: { color: '#56b6c2' },
+      attr: { color: '#56b6c2' },
+      variable: { color: '#abb2bf' },
+      self: { color: '#e86671' },
+      tag: { color: '#c678dd' },
+      meta: { color: '#c678dd' },
+      link: { color: '#56b6c2' },
+      deletion: { color: '#e86671' },
+      operator: { color: '#abb2bf' },
+      punctuation: { color: '#848b98' },
+      params: { color: '#e86671' },
+      escape: { color: '#e86671' },
     },
   },
   dracula: {

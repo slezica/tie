@@ -57,6 +57,12 @@ export function themeMessage() {
     '--size': `${a.fontSize}px`,
   }
   p.ansi.forEach((c, i) => (vars[`--a${i}`] = c))
+  // Code tokens (highlight.ts): --code-<token>, -style, -weight; absent → ANSI fallbacks there.
+  for (const [k, c] of Object.entries(t.code ?? {})) {
+    vars[`--code-${k}`] = c.color
+    vars[`--code-${k}-style`] = c.italic ? 'italic' : 'normal'
+    vars[`--code-${k}-weight`] = c.bold ? '600' : '400'
+  }
   return { type: 'theme', dark: t.dark, vars }
 }
 

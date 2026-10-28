@@ -1,6 +1,6 @@
 // Code highlighting for viewers (markdown fences, text files): highlight.js core + common
-// languages only (bundle size), no auto-detect. Token colors: the theme's ANSI palette
-// (--a0..--a15). docs/MARKDOWN.md "Rendering".
+// languages only (bundle size), no auto-detect. Token colors: the theme's code token colors
+// (--code-<token>, themes.ts `code`), else the ANSI palette (--a0..--a15). docs/MARKDOWN.md "Rendering".
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
 import c from 'highlight.js/lib/languages/c'
@@ -36,15 +36,27 @@ export function highlight(code: string, lang: string): string {
 }
 
 style(`
-.hljs-comment, .hljs-quote { color: var(--muted); font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-meta .hljs-keyword { color: var(--a5); }
-.hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta .hljs-string { color: var(--a2); }
-.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--a3); }
-.hljs-title, .hljs-section, .hljs-title.function_ { color: var(--a4); }
-.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-selector-class, .hljs-selector-id { color: var(--a6); }
-.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-template-variable, .hljs-name { color: var(--a1); }
-.hljs-meta, .hljs-link { color: var(--a4); }
-.hljs-deletion { color: var(--a1); }
+.hljs-comment, .hljs-quote { color: var(--code-comment, var(--muted)); font-style: var(--code-comment-style, italic); font-weight: var(--code-comment-weight, 400); }
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-meta .hljs-keyword { color: var(--code-keyword, var(--a5)); font-style: var(--code-keyword-style, normal); font-weight: var(--code-keyword-weight, 400); }
+.hljs-string, .hljs-addition, .hljs-meta .hljs-string { color: var(--code-string, var(--a2)); font-style: var(--code-string-style, normal); font-weight: var(--code-string-weight, 400); }
+.hljs-regexp { color: var(--code-regexp, var(--code-string, var(--a2))); font-style: var(--code-regexp-style, normal); font-weight: var(--code-regexp-weight, 400); }
+.hljs-number, .hljs-literal, .hljs-bullet { color: var(--code-number, var(--a3)); font-style: var(--code-number-style, normal); font-weight: var(--code-number-weight, 400); }
+.hljs-symbol { color: var(--code-symbol, var(--code-number, var(--a3))); font-style: var(--code-symbol-style, normal); font-weight: var(--code-symbol-weight, 400); }
+.hljs-title, .hljs-title.function_ { color: var(--code-title, var(--a4)); font-style: var(--code-title-style, normal); font-weight: var(--code-title-weight, 400); }
+.hljs-section { color: var(--code-section, var(--code-title, var(--a4))); font-style: var(--code-section-style, normal); font-weight: var(--code-section-weight, 400); }
+.hljs-type, .hljs-title.class_, .hljs-title.class_.inherited__, .hljs-selector-class, .hljs-selector-id { color: var(--code-type, var(--a6)); font-style: var(--code-type-style, normal); font-weight: var(--code-type-weight, 400); }
+.hljs-built_in { color: var(--code-builtin, var(--code-type, var(--a6))); font-style: var(--code-builtin-style, normal); font-weight: var(--code-builtin-weight, 400); }
+.hljs-attr, .hljs-attribute, .hljs-property { color: var(--code-attr, var(--a1)); font-style: var(--code-attr-style, normal); font-weight: var(--code-attr-weight, 400); }
+.hljs-variable, .hljs-template-variable { color: var(--code-variable, var(--code-attr, var(--a1))); font-style: var(--code-variable-style, normal); font-weight: var(--code-variable-weight, 400); }
+.hljs-variable.language_ { color: var(--code-self, var(--code-variable, var(--a1))); font-style: var(--code-self-style, normal); font-weight: var(--code-self-weight, 400); }
+.hljs-name, .hljs-tag, .hljs-tag .hljs-attr { color: var(--code-tag, var(--code-keyword, var(--a5))); font-style: var(--code-tag-style, normal); font-weight: var(--code-tag-weight, 400); }
+.hljs-meta { color: var(--code-meta, var(--a4)); font-style: var(--code-meta-style, normal); font-weight: var(--code-meta-weight, 400); }
+.hljs-link { color: var(--code-link, var(--code-meta, var(--a4))); font-style: var(--code-link-style, normal); font-weight: var(--code-link-weight, 400); }
+.hljs-deletion { color: var(--code-deletion, var(--a1)); }
+.hljs-operator { color: var(--code-operator, currentColor); }
+.hljs-punctuation { color: var(--code-punctuation, currentColor); }
+.hljs-params { color: var(--code-params, currentColor); }
+.hljs-char.escape_, .hljs-subst { color: var(--code-escape, currentColor); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
 `)
