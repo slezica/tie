@@ -8,6 +8,8 @@
 - Move tile to another tab: drop a dragged tile onto a tab in the toolbar.
 - Shelf item drops in the toolbar (2026-10-28): onto the tab list's empty space (when full: its right edge) → new tab holding that tile; onto an existing tab → the tile joins that tab.
 - Shelf item dropped on a board tile's title bar: swap (the board tile goes to the shelf, the shelved one takes its slot).
+- cmd+S: shelve the active tile; when the active tile is a shown (pinned) shelved tile: unshelve it onto the board.
+- cmd+shift+arrows: move the active tile, swapping it with the tile that cmd+arrows (focus move) would land on.
 - Tab list: auto-scroll while dragging a tab near its edges (deferred 2026-10-25, `2026-10-25-shelf-in-toolbar.md`).
 - Shelf drop polish: a ghost of the item's icon at the landing slot instead of the insert line (wysiwyg); a dashed "+" slot at the shelf's left edge while a tile is dragged, swapped for the ghost when over it (`2026-10-25-shelf-in-toolbar.md`).
 - Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
