@@ -104,6 +104,11 @@ export async function cwdOf(id: TileId | null | undefined): Promise<string | und
   return t?.surface.cwd?.()
 }
 
+// A space emptied by closing its last tile closes too, unless it is the only one (tabs.ts owns
+// spaces: it registers the handler, TABS.md).
+let onEmptySpace: ((spaceId: string) => void) | null = null
+export const setEmptySpaceHandler = (fn: (spaceId: string) => void) => (onEmptySpace = fn)
+
 export function closeTile(id: TileId) {
   inTileSpace(id, () => {
     const t = getTile(id)
@@ -114,6 +119,7 @@ export function closeTile(id: TileId) {
     S.mru = S.mru.filter((m) => m !== id)
     if (S.active === id) focusNext()
     else render()
+    if (!S.tree && S.floats.length === 0 && S.shelf.length === 0 && S.spaces.length > 1) onEmptySpace?.(S.current)
   })
 }
 

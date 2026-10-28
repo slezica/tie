@@ -133,8 +133,9 @@ export function withSpace<T>(spaceId: string, fn: () => T): T {
   try {
     return fn()
   } finally {
-    // If fn switched tabs, ops now belong to the newly visible space.
-    S.current = S.visible !== prevVisible ? S.visible : prev
+    // If fn switched tabs, ops now belong to the newly visible space. A space fn dropped (emptied
+    // tab) can't be restored: the visible one then.
+    S.current = S.visible !== prevVisible || !S.spaces.some((x) => x.id === prev) ? S.visible : prev
   }
 }
 

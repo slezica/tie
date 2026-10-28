@@ -2,7 +2,7 @@
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, tie, location, getTile, spaceOf, withSpace } from './state'
 import { openTile, activate, cwdOf } from './ops'
-import { newTab, closeEmptyTab, cycleTab, switchTabIndex } from './tabs'
+import { newTab, cycleTab, switchTabIndex } from './tabs'
 import { requestCloseTile, requestCloseTab } from './close'
 import { askQuit } from './quit'
 import type { Action } from '@core/keymap'
@@ -54,7 +54,7 @@ export function run(action: Action) {
     case 'focus-down':
       return focusDirection('b')
     case 'close-tile':
-      return S.active ? void requestCloseTile(S.active) : closeEmptyTab()
+      return S.active ? void requestCloseTile(S.active) : undefined
     case 'new-tab':
       return void newTab()
     case 'close-tab':

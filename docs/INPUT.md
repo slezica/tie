@@ -36,7 +36,7 @@
 |---|---|
 | `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
 | `cmd+←/→/↑/↓` | Focus neighbor |
-| `cmd+W` | Close active tile (busy: asks); nothing active on an empty tab: close the tab (only tab: no-op) |
+| `cmd+W` | Close active tile (busy: asks); its tab, if that emptied it and it isn't the only one (`TABS.md`); nothing active: no-op |
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab with its tiles (busy ones: asks) |
 | `cmd+1..8` / `cmd+9` | Tab by position / last |

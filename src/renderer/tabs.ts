@@ -1,7 +1,7 @@
 // Tabs: one per space, the tab list in the toolbar (scrolls when they don't fit).
-import { S, newSpace, spaceOf, type Space } from './state'
+import { S, newSpace, spaceOf, debug, type Space } from './state'
 import { render } from './render'
-import { activate, openTile, closeTile } from './ops'
+import { activate, openTile, closeTile, setEmptySpaceHandler } from './ops'
 import { showMetaMenu } from './menu'
 import { requestCloseTab } from './close'
 import { displayTitle } from './tile'
@@ -13,7 +13,6 @@ let home = ''
 export const setHome = (h: string) => (home = h)
 
 const space = (id: string) => S.spaces.find((x) => x.id === id)
-const isEmpty = (sp: Space) => !sp.tree && sp.floats.length === 0 && sp.shelf.length === 0
 
 // Basename, `~` for home.
 export function prettyDir(dir: string): string {
@@ -92,17 +91,12 @@ export function cycleTab(delta: number) {
 }
 
 // Close a tab with every tile in it (board, floats, shelf); no questions (requestCloseTab asks).
+// Closing the last tile already drops the space (empty hook) unless it is the only tab: dropped here.
 export function closeTab(id = S.visible) {
   const sp = space(id)
   if (!sp) return
   for (const t of [...S.tiles.keys()].filter((t) => spaceOf(t) === sp)) closeTile(t)
-  dropSpace(id)
-}
-
-// ⌘W with nothing active: an empty tab closes, unless it's the only one.
-export function closeEmptyTab() {
-  const sp = space(S.visible)
-  if (sp && isEmpty(sp) && S.spaces.length > 1) closeTab(sp.id)
+  if (space(id)) dropSpace(id)
 }
 
 export function setTabMeta(id: string, meta: { title?: string | null; icon?: string | null }) {
@@ -227,6 +221,11 @@ function syncOverflow() {
 }
 
 export function initTabs() {
+  // A tab emptied by closing its last tile (any path) closes; the only tab stays, empty.
+  setEmptySpaceHandler((id) => {
+    debug('layout', 'empty tab closed', id)
+    dropSpace(id)
+  })
   document.getElementById('tab-add')!.addEventListener('click', () => newTab())
   const list = document.getElementById('tab-list')!
   list.addEventListener('scroll', syncOverflow)
