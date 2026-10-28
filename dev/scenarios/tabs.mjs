@@ -112,6 +112,7 @@ export default async (ctx, h) => {
   const tabBefore = l.tab
   await k('Meta+t')
   const fresh = (await L()).tab
+  await ctx.sleep(800) // its shell settled (startup children would count as busy: a question instead)
   await k('Meta+w') // its only terminal, idle: closes at once
   l = await L()
   h.assert(l.tabs.length === n0 && !l.tabs.some((t) => t.id === fresh) && l.tab === tabBefore, `emptied visible tab closed, back to the tab before (${l.tab})`)
