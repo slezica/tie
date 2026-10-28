@@ -36,6 +36,8 @@
 |---|---|
 | `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
 | `cmd+←/→/↑/↓` | Focus neighbor |
+| `cmd+shift+←/→/↑/↓` | Swap the active tile with the neighbor `cmd+arrows` would focus (`swap`, `LAYOUT.md`); stays active. No neighbor: no-op |
+| `cmd+S` | Shelve the active tile; a shown (pinned / revealed) shelved active tile: back on the board beside the active / recent slotted tile (`besidePlacement`). Nothing active: no-op |
 | `cmd+W` | Close active tile (busy: asks); its tab, if that emptied it and it isn't the only one (`TABS.md`); nothing active: no-op |
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab with its tiles (busy ones: asks) |
@@ -55,7 +57,7 @@
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
 - Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
-- Focus direction (i3-like): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
+- Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)
 

@@ -1,7 +1,7 @@
 // Keyboard shortcuts: actions from main (keymap: @core/keymap, matched in src/main/keys.ts).
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, tie, location, getTile, spaceOf, withSpace } from './state'
-import { openTile, activate, cwdOf } from './ops'
+import { openTile, activate, cwdOf, swap, place, besidePlacement } from './ops'
 import { newTab, cycleTab, switchTabIndex } from './tabs'
 import { requestCloseTile, requestCloseTab } from './close'
 import { askQuit } from './quit'
@@ -53,6 +53,16 @@ export function run(action: Action) {
       return focusDirection('t')
     case 'focus-down':
       return focusDirection('b')
+    case 'swap-left':
+      return swapDirection('l')
+    case 'swap-right':
+      return swapDirection('r')
+    case 'swap-up':
+      return swapDirection('t')
+    case 'swap-down':
+      return swapDirection('b')
+    case 'toggle-shelf':
+      return toggleShelf()
     case 'close-tile':
       return S.active ? void requestCloseTile(S.active) : undefined
     case 'new-tab':
@@ -92,12 +102,12 @@ async function splitActive(side: Side) {
   withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))
 }
 
-// Nearest visible tile in a direction (slotted and floating). Prefers tiles overlapping on the
-// perpendicular axis, then the smallest gap along the axis, then the smallest perpendicular offset,
-// then the most recently used (like i3).
-function focusDirection(dir: Side) {
+// Nearest visible tile in a direction from the active one (slotted and floating), or null. Prefers
+// tiles overlapping on the perpendicular axis, then the smallest gap along the axis, then the
+// smallest perpendicular offset, then the most recently used (like i3).
+function neighbor(dir: Side): TileId | null {
   const from = S.active ? S.rects.get(S.active) : null
-  if (!from || !S.active) return
+  if (!from || !S.active) return null
   const horizontal = dir === 'l' || dir === 'r'
   const sign = dir === 'r' || dir === 'b' ? 1 : -1
   const cx = (r: Rect) => r.x + r.w / 2
@@ -119,8 +129,27 @@ function focusDirection(dir: Side) {
     const score = [overlap > 0 ? 0 : 1, Math.max(0, gap), Math.round(offset), mru < 0 ? Infinity : mru] // ties: most recently used
     if (!best || compare(score, best.score) < 0) best = { id, score }
   }
-  if (!best) return
-  activate(best.id)
+  return best?.id ?? null
+}
+
+function focusDirection(dir: Side) {
+  const to = neighbor(dir)
+  if (to) activate(to)
+}
+
+// Swap the active tile with the one cmd+arrow would focus; it stays active.
+function swapDirection(dir: Side) {
+  const to = neighbor(dir)
+  if (to && S.active) swap(S.active, to)
+}
+
+// cmd+S: a shown (pinned or revealed) shelved active tile goes back beside the active / recent
+// slotted tile; a board tile is shelved. A hidden shelved tile can't be active in practice: no-op.
+function toggleShelf() {
+  const id = S.active
+  if (!id) return
+  if (location(id) !== 'shelved') return place(id, { type: 'shelf' })
+  if (S.pinned === id || S.revealed === id) place(id, besidePlacement(null))
 }
 
 function compare(a: number[], b: number[]): number {

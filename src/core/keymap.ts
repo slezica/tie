@@ -4,6 +4,8 @@
 export type Action =
   | 'split-right' | 'split-down'
   | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
+  | 'swap-left' | 'swap-right' | 'swap-up' | 'swap-down' // with the tile focus-* would reach
+  | 'toggle-shelf' // shelve the active tile; shown shelved: unshelve
   | 'close-tile'
   | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
   | 'nav-back' | 'nav-forward' | 'nav-reload' | 'nav-location' // active tile's navigation (Surface.nav); no-op elsewhere
@@ -19,6 +21,11 @@ export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+Right': 'focus-right',
   'Cmd+Up': 'focus-up',
   'Cmd+Down': 'focus-down',
+  'Cmd+Shift+Left': 'swap-left',
+  'Cmd+Shift+Right': 'swap-right',
+  'Cmd+Shift+Up': 'swap-up',
+  'Cmd+Shift+Down': 'swap-down',
+  'Cmd+S': 'toggle-shelf',
   'Cmd+T': 'new-tab',
   'Cmd+W': 'close-tile',
   'Cmd+Shift+W': 'close-tab',
