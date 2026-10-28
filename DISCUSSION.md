@@ -15,7 +15,7 @@ Requested:
 # Pending
 
 1. Full e2e green (67 scenarios; `settings` fixed for the bottom toolbar). Phases 1–4 committed.
-2. Polish pass done (ghost slot, "+" hint slot, hidden drag source, pointer label hidden over the strip); full e2e re-run in progress.
+2. Polish pass done (ghost slot, "+" hint slot, hidden drag source, pointer label hidden over the strip); full e2e green after it (67/67).
 3. Tune after use: toolbar height 40, title strip 28, slot 28, tab floor 140.
 
 # Settled
