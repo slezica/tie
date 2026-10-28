@@ -42,6 +42,15 @@ export default async (ctx, h) => {
     // Prose root = tile font × --scale (1.15: 12 → 13.8 px); h1 = 2em of it (Pico scale).
     h.assert(dom.bg === 'rgb(34, 37, 44)' && !/mono/i.test(dom.font.split(',')[0]) && Math.abs(parseFloat(dom.size) - 13.8) < 0.1 && Math.abs(parseFloat(dom.h1size) - 27.6) < 0.2, `theme bg, proportional font, scaled sizes: ${JSON.stringify(dom)}`)
     await ctx.shot('rendered')
+    // A theme without code token colors (Dracula): tokens fall back to its ANSI palette.
+    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
+    await ctx.page.waitForSelector('.settings')
+    await ctx.page.locator('nav button[data-page="appearance"]').click()
+    await ctx.page.selectOption('#set-theme', 'dracula')
+    await ctx.page.locator('.save').click()
+    await ctx.sleep(400)
+    const dr = await (await h.contentFrame(ctx, id)).evaluate(() => getComputedStyle(document.querySelector('pre code .hljs-string')).color)
+    h.assert(dr === 'rgb(80, 250, 123)', `Dracula: string in its ANSI green (${dr})`)
 
     // In place, scrolled down: text updates, scroll kept.
     await fr.evaluate(() => scrollTo(0, 600))

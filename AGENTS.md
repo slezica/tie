@@ -34,6 +34,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-21-pty-wedge.md`: macOS pty subsystem wedge (every `openpty` blocks in the kernel); diagnosis, harness check.
 - `docs/2026-10-24-terminal-block-glyphs.md`: QR/block-char gaps (DOM renderer draws with font); options; WebGL renderer research.
 - `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
+- `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
@@ -80,7 +81,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus-direction. `quit.ts`: quit question (`askQuit`).
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.
-  - `themes.ts`, `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
+  - `themes.ts` (`Theme {label, dark, accent, palette, code?}`: `code` = per-token colors for viewer code blocks, else ANSI fallback), `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
@@ -95,7 +96,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered).
 - `Space` also: `id` (`s1`...), `customTitle`, `customIcon`.
-- New spaces get a terminal; a space emptied by a close drops itself; only the last space may be empty; never zero spaces (`TABS.md`).
+- Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
+- New spaces get a terminal; a space emptied by `closeTile` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):

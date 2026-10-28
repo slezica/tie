@@ -124,6 +124,18 @@ export default async (ctx, h) => {
   await ctx.sleep(200)
   l = await L()
   h.assert(!l.tabs.some((t) => t.id === hidden) && l.tab === l.tabs[0].id, 'hidden tab emptied over the CLI: gone, visible tab kept')
+  // A tab's own shell closing its tile (`tie close` from inside) while the tab is hidden: the
+  // socket call runs in that space, which the close drops; ops then land on the visible space.
+  await k('Meta+t')
+  await ctx.sleep(800)
+  const self = (await L()).tab
+  await ctx.page.keyboard.type('sleep 1; tie close $TIE_TILE\n')
+  await k('Meta+1')
+  await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === self), 'hidden tab closed by its own shell')
+  l = await L()
+  h.assert(l.tab === l.tabs[0].id, 'visible tab kept')
+  await ctx.tie('open', 'terminal') // ops still work on the visible space afterwards
+  h.assert((await L()).tiles.length > 0, 'open after the drop lands on the visible tab')
   for (const t of (await L()).tiles) await ctx.tie('close', t.id)
   await ctx.sleep(200)
   l = await L()

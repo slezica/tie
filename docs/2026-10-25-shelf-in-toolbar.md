@@ -33,3 +33,10 @@ Move the shelf out of the right sidebar into a single toolbar with the tabs; rem
 3. **Tabs overflow**: scroll, wheel → horizontal, floor, fade + divider, current into view; shelf scroll past max. Scenario.
 4. **Sweep + docs**: every "shelf" mention (concept vs location); `SHELF.md`, `LAYOUT.md`, `TABS.md`, `SETTINGS.md`, `INPUT.md`, `CLI.md`, `bin/tie`, `AGENTS.md`, `PENDING.md`.
 5. **Polish** (separate): wysiwyg icon ghost at the landing spot instead of the insert line; dashed "+" slot at the shelf's left edge while a tile is dragged.
+
+## Outcome (2026-10-28)
+
+- Plan phases 1–5 landed, including the polish pass: ghost slot at the landing spot, dashed "+" hint slot while dragging, dragged item hidden, pointer label hidden over the strip. Insert line removed.
+- Also landed on the way: emptied tabs close themselves (`TABS.md`), `tie-dev` ignores the hosting Tie's `TIE_INSTANCE` and refuses `run`/`start` of `default`, hot viewer reload (`HARNESS.md` "Hot"), `window-size` dev method + `h.resizeWindow`.
+- Deferred to `PENDING.md`: tab list auto-scroll while dragging a tab; shelf item drops on tabs; swap on a title bar; cmd+S shelve/unshelve; cmd+shift+arrows swap.
+- Tuned after use: toolbar 40 px, title strip 28 px, slot 28 px, tab floor 140 px (unchanged so far).

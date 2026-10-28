@@ -92,6 +92,8 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
       const s = document.documentElement.style
       const vars = (m.vars ?? {}) as Record<string, unknown>
       const theme: Theme = { vars: {}, dark: !!m.dark }
+      // The message is the whole set: vars the new theme doesn't send go (optional ones, code tokens).
+      for (const k of Object.keys(state.theme.vars)) if (!(k in vars)) s.removeProperty(k)
       for (const [k, v] of Object.entries(vars)) if (/^--[a-z0-9-]+$/.test(k) && typeof v === 'string') s.setProperty(k, (theme.vars[k] = v))
       s.colorScheme = theme.dark ? 'dark' : 'light'
       state.theme = theme

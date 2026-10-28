@@ -27,7 +27,7 @@
 - Kinds add custom title-bar buttons (first use: back/forward, maybe reload, beside hotkeys).
 - Visual feedback for a content tile whose file is missing (today: frozen last render; `tie list` `doc.missing`).
 - Markdown: images outside the file's folder (`../img.png`) never load (root = the file's directory). Option: root = repo / nearest common ancestor.
-- Markdown: scroll memory lost across a frame reload (back/forward between directories → top). Option: viewer reports scroll on navigation.
+- Markdown: scroll memory lost across a frame reload (back/forward between directories → top). Partly done 2026-10-28: the viewer reports its scroll (`scrolled`), the host restores it after a viewer reload. Left: a per-path map in the host so back/forward across directories restores too.
 - Markdown: link target shown on hover (like terminal links), outline, search.
 - Terminal block/box chars show row gaps (QR codes): DOM renderer uses font glyphs. Undecided whether to fix now; options in `2026-10-24-terminal-block-glyphs.md`. Sixel (`@xterm/addon-image`) separate.
 
