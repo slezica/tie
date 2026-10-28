@@ -39,7 +39,8 @@ export default async (ctx, h) => {
     h.assert(dom.h1 === 'First' && dom.h2 === 'user-content-items', `headings: ${JSON.stringify(dom)}`)
     h.assert(dom.items.join() === 'one,two', `list: ${dom.items}`)
     h.assert(dom.str === "'str'" && dom.a2 === '#bdfc69' && dom.strColor === 'rgb(189, 252, 105)', `code highlighted in ANSI green: ${JSON.stringify(dom)}`)
-    h.assert(dom.bg === 'rgb(34, 37, 44)' && !/mono/i.test(dom.font.split(',')[0]) && dom.size === '12px' && parseFloat(dom.h1size) <= 17, `theme bg, proportional font, small sizes: ${JSON.stringify(dom)}`)
+    // Prose root = tile font × --scale (1.15: 12 → 13.8 px); h1 = 2em of it (Pico scale).
+    h.assert(dom.bg === 'rgb(34, 37, 44)' && !/mono/i.test(dom.font.split(',')[0]) && Math.abs(parseFloat(dom.size) - 13.8) < 0.1 && Math.abs(parseFloat(dom.h1size) - 27.6) < 0.2, `theme bg, proportional font, scaled sizes: ${JSON.stringify(dom)}`)
     await ctx.shot('rendered')
 
     // In place, scrolled down: text updates, scroll kept.

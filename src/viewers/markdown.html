@@ -6,45 +6,80 @@
     <!-- Nonce placeholders are replaced per response by main (content.ts): only tagged styles and
          scripts apply. Colors and fonts arrive from the host (theme message) as custom properties. -->
     <style nonce="%NONCE%">
-      /* Markdown typography. Shared parts come from the viewer modules (each injects its own nonce'd
-         style): base colors, selection, focus (runtime.ts), change marks (marks.ts), code tokens
-         (highlight.ts). */
+      /* Markdown typography, after Pico CSS v2 (classless): one root font-size knob; type sizes in
+         em (follow the text), layout spacing in rem (follows the root), so the knob scales all.
+         Shared parts come from the viewer modules (each injects its own nonce'd style): base
+         colors, selection, focus (runtime.ts), change marks (marks.ts), code tokens (highlight.ts). */
       :root {
+        --scale: 1.15; /* prose over the tile font size (--size, the host's setting) */
+        --space: 1rem; /* Pico's --pico-spacing / typography-spacing-vertical: the rhythm unit */
         --rule: color-mix(in srgb, var(--fg) 16%, var(--bg));
         --code-bg: color-mix(in srgb, var(--fg) 7%, var(--bg));
-        font: var(--size) / 1.5 var(--font);
+        font-family: var(--font);
+        font-size: calc(var(--size) * var(--scale));
+        line-height: 1.5;
+        font-weight: 400;
       }
       body {
         margin: 0;
-        padding: 8px 14px 24px;
+        padding: calc(var(--space) * 0.75) var(--space) calc(var(--space) * 2);
         overflow-wrap: anywhere;
       }
+      #doc > :first-child { margin-top: 0 !important; }
 
-      h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.25; margin: 1em 0 0.4em; }
-      h1 { font-size: 1.35em; }
-      h2 { font-size: 1.2em; }
-      h3 { font-size: 1.08em; }
-      h4, h5, h6 { font-size: 1em; }
+      /* Blocks: no top margin, one unit below; a heading after a block gets its own top space. */
+      p, ul, ol, dl, blockquote, pre, table, hr, .diagram { margin: 0 0 var(--space); }
+      h1, h2, h3, h4, h5, h6 { margin: 0 0 var(--space); font-weight: 700; }
+      h1 { font-size: 2em; line-height: 1.125; }
+      h2 { font-size: 1.75em; line-height: 1.15; }
+      h3 { font-size: 1.5em; line-height: 1.175; }
+      h4 { font-size: 1.25em; line-height: 1.2; }
+      h5 { font-size: 1.125em; line-height: 1.225; }
+      h6 { font-size: 1em; line-height: 1.25; }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h1 { margin-top: calc(var(--space) * 3); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h2 { margin-top: calc(var(--space) * 2.625); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h3 { margin-top: calc(var(--space) * 2.25); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h4 { margin-top: calc(var(--space) * 1.875); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h5 { margin-top: calc(var(--space) * 1.6875); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h6 { margin-top: calc(var(--space) * 1.5); }
       h6 { color: var(--muted); }
-      h1, h2 { padding-bottom: 0.2em; border-bottom: 1px solid var(--rule); }
-      #doc > :first-child { margin-top: 0.3em; }
-      p, ul, ol, dl, blockquote, pre, table { margin: 0 0 0.7em; }
-      ul, ol { padding-left: 1.5em; }
-      li > ul, li > ol { margin-bottom: 0; }
-      li + li { margin-top: 0.15em; }
+
+      /* Lists: Pico's square bullets, a quarter unit between items and before a nested list. */
+      ul, ol { padding-left: var(--space); }
+      ul li { list-style: square; }
+      li { margin-bottom: calc(var(--space) * 0.25); }
+      :is(ul, ol, dl) :is(ul, ol, dl) { margin: calc(var(--space) * 0.25) 0 0; }
+      li > p { margin-bottom: calc(var(--space) * 0.5); }
+      li > p:last-child { margin-bottom: 0; }
+
+      /* Definition lists (Pico leaves them alone): terms bold, half a unit between terms, a quarter
+         between a term's definitions, like list items. */
+      dt { font-weight: 600; margin-top: calc(var(--space) * 0.5); }
+      dt:first-child { margin-top: 0; }
+      dd { margin: calc(var(--space) * 0.25) 0 0 var(--space); }
+      dd > p { margin-bottom: calc(var(--space) * 0.25); }
+      dd > p:last-child { margin-bottom: 0; }
+
       a { color: var(--accent); text-decoration: none; cursor: pointer; }
       a:hover { text-decoration: underline; }
-      hr { border: 0; border-top: 1px solid var(--rule); margin: 1em 0; }
-      img { max-width: 100%; }
-      blockquote { margin-left: 0; padding-left: 0.8em; border-left: 3px solid var(--rule); color: var(--muted); }
-      table { border-collapse: collapse; display: block; overflow-x: auto; }
-      th, td { border: 1px solid var(--rule); padding: 0.2em 0.6em; }
-      th { background: var(--code-bg); font-weight: 600; }
+      hr { border: 0; border-top: 1px solid var(--rule); height: 0; }
+      img { max-width: 100%; height: auto; vertical-align: middle; }
+      blockquote {
+        margin: var(--space) 0;
+        padding: var(--space);
+        border-left: 0.25rem solid var(--rule);
+        color: var(--muted);
+      }
+      blockquote > :last-child { margin-bottom: 0; }
+      table { width: 100%; border-collapse: collapse; border-spacing: 0; display: block; overflow-x: auto; }
+      th, td { padding: calc(var(--space) / 2) var(--space); border-bottom: 1px solid var(--rule); text-align: left; }
+      thead th, thead td { font-weight: 600; border-bottom-width: 0.1875rem; }
 
-      code, pre { font-family: var(--mono); }
-      code { font-size: 0.92em; background: var(--code-bg); padding: 0.1em 0.3em; border-radius: 3px; }
-      pre { background: var(--code-bg); padding: 0.6em 0.8em; border-radius: 4px; overflow-x: auto; line-height: 1.35; }
-      pre code { background: none; padding: 0; font-size: 0.9em; }
+      /* Code: 0.875em mono; inline as a small pill, blocks padded one unit. */
+      code, pre, kbd, samp { font-family: var(--mono); font-size: 0.875em; border-radius: 0.25rem; }
+      code { display: inline-block; padding: 0.125em 0.375em; background: var(--code-bg); line-height: 1.4; }
+      pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: 1.5; }
+      pre > code { display: block; padding: var(--space); background: none; font-size: 1em; line-height: inherit; }
 
       /* Task lists: the box sits where the bullet was. Display-only (read-only tiles): drawn as a
          flat glyph, no hover, no pointer, never focusable (disabled). */
@@ -59,7 +94,7 @@
         margin: 0 0.5em 0 -1.3em;
         vertical-align: middle; /* same spot checked or not (the ✓ would move the baseline) */
         border: 1px solid var(--muted);
-        border-radius: 2px;
+        border-radius: 0.125rem;
         background: none;
         pointer-events: none;
         cursor: default;
@@ -70,28 +105,23 @@
       /* Front matter: shown as-is, never parsed; quieter than code. */
       pre.front-matter { background: none; border: 1px dashed var(--rule); color: var(--muted); }
 
-      /* Definition lists. */
-      dt { font-weight: 600; }
-      dd { margin: 0 0 0.3em 1.5em; }
-
       /* Footnotes: smaller, after a rule; refs are superscript links. */
-      sup.footnote-ref { line-height: 0; }
-      hr.footnotes-sep { margin-top: 1.5em; }
-      section.footnotes { font-size: 0.9em; color: var(--muted); }
-      section.footnotes ol { padding-left: 1.5em; }
-      .footnote-item p { margin-bottom: 0.3em; }
+      sup.footnote-ref { position: relative; top: -0.5em; font-size: 0.75em; line-height: 0; vertical-align: baseline; }
+      hr.footnotes-sep { margin-top: calc(var(--space) * 2); }
+      section.footnotes { font-size: 0.875em; color: var(--muted); }
+      section.footnotes ol { padding-left: var(--space); }
+      .footnote-item p { margin-bottom: calc(var(--space) * 0.25); }
 
       /* Diagrams (```mermaid): source as code until rendered (and on error); the SVG carries its own
          colors (theme passed to Mermaid). */
-      .diagram { margin: 0 0 0.7em; }
       .diagram > pre.diagram-src { margin: 0; }
       .diagram.rendered > pre.diagram-src { display: none; }
       .diagram-svg { overflow-x: auto; }
       .diagram-svg > svg { display: block; margin: 0 auto; height: auto; }
-      .diagram-error { margin-top: 0.3em; color: var(--a1); font-size: 0.9em; }
+      .diagram-error { margin-top: calc(var(--space) * 0.25); color: var(--a1); font-size: 0.875em; }
 
       /* Remote (or out-of-folder) image: never requested; alt text / URL instead. */
-      .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 3px; color: var(--muted); font-size: 0.9em; }
+      .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 0.25rem; color: var(--muted); font-size: 0.875em; }
     </style>
   </head>
   <body>
