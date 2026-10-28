@@ -17,6 +17,7 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 | Drag tile onto the shelf strip | Shelved at the ghost slot (slot under the pointer) |
 | Drag item within the strip | Reorder |
 | Drag item onto board | Unshelve, normal drop rules (`INPUT.md`) |
+| Drag item onto a board tile's title bar | Swap: the item takes that slot, the tile is shelved at the item's index |
 | Drag item onto a tab | Joins that tab's board (its own tab: back on the board), `TABS.md` "Drops onto tabs" |
 | `tie open/move --shelve` | Appended |
 

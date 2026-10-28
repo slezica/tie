@@ -1,7 +1,7 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropSide, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, type Kind } from './state'
-import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
+import { place, swap, activate, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab } from './tabs'
 import { render } from './render'
@@ -57,12 +57,14 @@ export const isDragging = () => dragging
 
 const inside = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
 
-// What a drop does: land at a placement; join a tab (space id, null = a new tab).
-type Drop = Placement | { type: 'tab'; space: string | null }
+// What a drop does: land at a placement; swap with a slotted tile (its title bar); join a tab
+// (space id, null = a new tab).
+type Drop = Placement | { type: 'swap'; with: TileId } | { type: 'tab'; space: string | null }
 
 interface Target {
   drop: Drop
   preview: Rect | null // window coords
+  also?: Rect // swap: the source's own rect (on the board), second preview
   slot?: number // shelf: visual slot of the ghost (among the items shown)
 }
 
@@ -109,6 +111,11 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   for (const [id, r] of layout.tiles) {
     if (!inside(r, x, y)) continue
     if (id === srcId) return null
+    // A tile onto a title bar (a collapsed tile is all title bar): swap places with it.
+    if (srcId && (S.collapsed.has(id) || y < r.y + TITLE)) {
+      const own = location(srcId) !== 'shelved' ? S.rects.get(srcId) : undefined
+      return { drop: { type: 'swap', with: id }, preview: r, also: own }
+    }
     const side: Side = dropSide(r, x, y)
     const probe = srcId ?? '__new__'
     const tree = srcId && contains(S.tree, srcId) ? move(S.tree, srcId, id, side) : insert(S.tree, id, side, probe)
@@ -126,6 +133,11 @@ async function applyDrop(src: DragSource, t: Target) {
   // Source or target tile may have closed (or moved) mid-drag.
   if (src.type === 'tile' && !S.tiles.has(src.id)) return
   if (d.type === 'tab') return dropOnTab(src, d.space)
+  if (d.type === 'swap') {
+    if (src.type !== 'tile' || !contains(S.tree, d.with)) return
+    swap(src.id, d.with)
+    return activate(src.id) // like any drop: the dragged tile is active
+  }
   if (d.type === 'slot' && d.at && !contains(S.tree, d.at)) return
   if (src.type === 'tile') return place(src.id, d)
   // Template dropped next to a tile: start where that tile's shell is (like cmd+D).
@@ -164,7 +176,7 @@ async function dropOnTab(src: DragSource, space: string | null) {
 // Where a template dropped at (x, y) would land (OS file drops use the same rules; not the tabs).
 export function placementAt(x: number, y: number): Placement | null {
   const d = computeTarget({ type: 'template', template: 'terminal', label: '' }, x, y, false, { dx: 120, dy: 14 })?.drop
-  return d && d.type !== 'tab' ? d : null
+  return d && d.type !== 'tab' && d.type !== 'swap' ? d : null
 }
 
 // Pointer-down on a draggable: becomes a drag past THRESHOLD, otherwise a click.
@@ -179,6 +191,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   let ly = sy
   let target: Target | null = null
   const preview = document.getElementById('preview')!
+  const preview2 = document.getElementById('preview2')!
   const ghost = document.getElementById('ghost')!
   const icon = () => (src.type === 'tile' ? displayIcon(S.tiles.get(src.id)!) : { glyph: TEMPLATES.find((t) => t.id === src.template)!.icon })
 
@@ -189,6 +202,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
       if (p) Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` })
     }
     show(preview, target?.preview)
+    show(preview2, target?.also)
     preview.classList.toggle('float', target?.drop.type === 'float')
     markTabDrop(target?.drop.type === 'tab' ? target.drop.space : undefined)
     // Over the strip the ghost slot shows the landing; the pointer label would only cover it.
@@ -236,7 +250,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     stopTracking()
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keyup', onKey, true)
-    preview.style.display = ghost.style.display = 'none'
+    preview.style.display = preview2.style.display = ghost.style.display = 'none'
     markTabDrop(undefined)
     clearShelfGhost()
     hideShelfItem(null)

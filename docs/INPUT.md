@@ -20,11 +20,12 @@
 | Own tab (board tile) | any | Nothing | none |
 | Board | yes | Float, grabbed at pointer | float rect |
 | Board, no slotted tiles (or only the dragged one) | no | Root slot | whole board |
+| Slotted tile's title bar (top `--title-h`; collapsed tile: all of it), tile dragged | no | Swap with it (`swap`, `LAYOUT.md`); dragged tile active | target rect + the dragged tile's own (`#preview2`, board sources only) |
 | Slotted tile | no | Slot on nearest edge (`dropSide`) | resulting rect |
 | Dragged tile itself, elsewhere | - | Nothing | none |
 
 - Floats are not targets; the slotted tile under them is.
-- Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`).
+- Templates follow the same rows (title bar: the normal slot rules): a new tile of that kind lands there (tab: `TABS.md`).
 - Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 

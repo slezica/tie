@@ -766,7 +766,9 @@ body.dragging {
 body.resizing-row { cursor: col-resize; }
 body.resizing-col { cursor: row-resize; }
 
-#preview {
+/* Drop preview; #preview2: a swap's second rect (the dragged tile's own place). */
+#preview,
+#preview2 {
   position: absolute;
   display: none;
   z-index: 5000;
