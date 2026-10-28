@@ -22,7 +22,7 @@
       }
       body {
         margin: 0;
-        padding: calc(var(--space) * 0.75) var(--space) calc(var(--space) * 2);
+        padding: calc(var(--space) * 0.75) calc(var(--space) * 2) calc(var(--space) * 2);
         overflow-wrap: anywhere;
       }
       #doc > :first-child { margin-top: 0 !important; }
@@ -44,9 +44,28 @@
       :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h6 { margin-top: calc(var(--space) * 1.5); }
       h6 { color: var(--muted); }
 
-      /* Lists: Pico's square bullets, a quarter unit between items and before a nested list. */
-      ul, ol { padding-left: var(--space); }
-      ul li { list-style: square; }
+      /* Lists: markers drawn by us, flush with the text's left edge (numbers left-aligned: "1." and
+         "10." start on the same line); item text one fixed indent in (em: follows the text), wrapped
+         lines hang under the first. Numbers: the list-item counter (honors start / value, restarts
+         per list). Pico's square bullets; a quarter unit between items and before a nested list. */
+      :root { --indent: 2em; } /* fits "10." with a gap at the prose font */
+      ul, ol { padding-left: 0; list-style: none; }
+      :is(ul, ol) > li { position: relative; padding-left: var(--indent); }
+      ul > li::before {
+        content: '';
+        position: absolute;
+        left: 0.1em;
+        top: calc((1.5em - 0.35em) / 2); /* centered on the first line (line-height 1.5) */
+        width: 0.35em;
+        height: 0.35em;
+        background: currentColor;
+      }
+      ol > li::before {
+        content: counter(list-item) '.';
+        position: absolute;
+        left: 0;
+        font-variant-numeric: tabular-nums;
+      }
       li { margin-bottom: calc(var(--space) * 0.25); }
       :is(ul, ol, dl) :is(ul, ol, dl) { margin: calc(var(--space) * 0.25) 0 0; }
       li > p { margin-bottom: calc(var(--space) * 0.5); }
@@ -81,9 +100,10 @@
       pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: 1.5; }
       pre > code { display: block; padding: var(--space); background: none; font-size: 1em; line-height: inherit; }
 
-      /* Task lists: the box sits where the bullet was. Display-only (read-only tiles): drawn as a
-         flat glyph, no hover, no pointer, never focusable (disabled). */
-      li.task { list-style: none; }
+      /* Task lists: the box sits where the bullet was (flush left, centered on the first line).
+         Display-only (read-only tiles): drawn as a flat glyph, no hover, no pointer, never focusable
+         (disabled). */
+      li.task::before { content: none; }
       input.task-box {
         appearance: none;
         display: inline-grid;
@@ -91,13 +111,19 @@
         box-sizing: border-box;
         width: 0.9em;
         height: 0.9em;
-        margin: 0 0.5em 0 -1.3em;
+        margin: 0 0.5em 0 0;
         vertical-align: middle; /* same spot checked or not (the ✓ would move the baseline) */
         border: 1px solid var(--muted);
         border-radius: 0.125rem;
         background: none;
         pointer-events: none;
         cursor: default;
+      }
+      li.task > input.task-box, li.task > p:first-child > input.task-box {
+        position: absolute;
+        left: 0;
+        top: calc((1.5em - 0.9em) / 2);
+        margin: 0;
       }
       input.task-box:checked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
       input.task-box:checked::before { content: '✓'; color: var(--accent); font: 700 0.75em / 1 var(--font); }
@@ -109,7 +135,6 @@
       sup.footnote-ref { position: relative; top: -0.5em; font-size: 0.75em; line-height: 0; vertical-align: baseline; }
       hr.footnotes-sep { margin-top: calc(var(--space) * 2); }
       section.footnotes { font-size: 0.875em; color: var(--muted); }
-      section.footnotes ol { padding-left: var(--space); }
       .footnote-item p { margin-bottom: calc(var(--space) * 0.25); }
 
       /* Diagrams (```mermaid): source as code until rendered (and on error); the SVG carries its own

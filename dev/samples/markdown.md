@@ -57,8 +57,24 @@ Footnotes[^1] attach notes at the bottom[^long].
    2. Another
 3. Third
 
+A list starting at seven (a paragraph before it: otherwise it continues the list above):
+
 7. Starts at seven
 8. Eight
+9. Nine
+10. Ten: two digits, left-aligned with the single digits above; this item is long enough to wrap
+    onto a second line, which hangs under the first line's text, not under the number.
+11. Eleven
+    - Nested bullet under a two-digit number
+    - Another, with a deeper ordered list:
+      1. Restarts at one
+      2. Two
+
+A paragraph, then a list right after it:
+
+- First bullet, long enough to wrap onto a second line so the hanging indent shows: the wrapped
+  text lines up with the first line's text, not with the bullet.
+- Second bullet
 
 * Asterisk bullets
 + Plus bullets

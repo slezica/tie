@@ -13,10 +13,11 @@ Restyle of the markdown viewer: prose typography after a reference stylesheet, c
 
 1. Pico CSS v2 (classless) as the reference: one root font-size knob; type sizes in em, layout spacing in rem (`--space` = 1rem), so the knob scales everything.
 2. Root = tile font × `--scale` (1.15): 12 → 13.8 px. Line height 1.5. Headings h1 2em … h6 1em with Pico's per-level line heights; a heading after a block gets Pico's top space (3 … 1.5 units).
-3. Body padding smaller than Pico's: 0.75rem top, 1rem sides, 2rem bottom.
+3. Body padding: 0.75rem top, 2rem sides (was 1rem; widened 2026-10-28, `2026-10-28-tile-management.md`), 2rem bottom.
 4. Lists: square bullets, a quarter unit between items. Definition lists (Pico leaves them unstyled): terms bold, half a unit between terms, a quarter between a term's definitions.
 5. Code token colors per theme (`Theme.code`, `SETTINGS.md`): tie-dark after the author's Neovim (onedark.nvim `dark` + treesitter + overrides; verified headless). Token rules split where nvim differs: regexp ≠ string, symbol ≠ number, section ≠ title, built-in ≠ type, variable ≠ property, link ≠ meta. Themes without `code` keep the ANSI mapping.
 6. Plain code text stays the tile's fg (not nvim's dimmer `#abb2bf`).
+7. Lists (2026-10-28): markers flush with the text's left edge, numbers left-aligned ("1." and "10." start on one line), item text one fixed indent in (`--indent` 2em: fits "10." with a gap), wrapped lines hang under the first. Technique: `list-style: none`, `li` relative + `padding-left: var(--indent)`, `li::before` absolute at left 0: `counter(list-item) '.'` (tabular nums; honors `start` / `value`, restarts per list), or a 0.35em square (currentColor, centered on the first line, 0.1em in: optical). Task boxes take the marker's place (absolute, `li.task::before` none). Nested lists indent from the parent's text edge. 3+ digit numbers overflow the indent into the text gap (accepted: rare).
 
 ## Open
 
