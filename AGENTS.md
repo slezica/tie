@@ -35,6 +35,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-24-terminal-block-glyphs.md`: QR/block-char gaps (DOM renderer draws with font); options; WebGL renderer research.
 - `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
 - `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
+- `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
