@@ -24,6 +24,7 @@ Commands:
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
+  sample [name]            Open dev/samples/<name>.md (default markdown) in the instance: style iteration fixture
   drive <scenario|-> [--attach] [--keep]
                            Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
                            Fresh instance by default; --attach uses running instance;
@@ -165,6 +166,9 @@ case "$cmd" in
     exec node dev/layout.mjs "$@" ;;
   screenshot)
     exec node dev/screenshot.mjs "$@" ;;
+  sample)
+    # TIE_SOCKET would point at the hosting Tie (a Tie terminal): the instance by name instead.
+    exec env -u TIE_SOCKET TIE_INSTANCE="$TIE_INSTANCE" "$ROOT/bin/tie" open "$ROOT/dev/samples/${1:-markdown}.md" ;;
   frames)
     exec node dev/frames.mjs ;;
   drive)
