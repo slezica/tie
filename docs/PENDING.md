@@ -31,6 +31,10 @@
 - Markdown: link target shown on hover (like terminal links), outline, search.
 - Terminal block/box chars show row gaps (QR codes): DOM renderer uses font glyphs. Undecided whether to fix now; options in `2026-10-24-terminal-block-glyphs.md`. Sixel (`@xterm/addon-image`) separate.
 
+## Install
+
+- Staged install (auto-updater pattern, 2026-10-28): `tie-dev install --next` stages `/Applications/Tie.app.next` (packaging done while Tie runs); Tie's quit path, seeing a staged bundle beside its own, spawns a detached script that waits for the process to exit, moves the old bundle aside, moves the staged one into place and relaunches. Replacing or moving the bundle while running is unsafe (lazy `app.asar` reads, helpers spawned from the bundle path).
+
 ## CLI
 
 - `tie` resolution relies on PATH. macOS `path_helper` (login shells) moves Tie's `bin/` behind system dirs, so another `tie` earlier on PATH (e.g. the installed app's, from rc files) would win in a dev instance's shells (same socket, older CLI). Trusted for now; if it bites: `TIE_BIN` (absolute path of the matching CLI) + every `tie` re-execs `TIE_BIN` when it isn't it.
