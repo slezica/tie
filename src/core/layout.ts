@@ -128,6 +128,21 @@ export function move(root: Node | null, id: TileId, targetId: TileId, side: Side
   return insert(remove(root, id), targetId, side, id)
 }
 
+// Exchange two tile ids in the tree: each takes the other's leaf (size, place, donor links follow
+// the position). Only one present: that leaf takes the other id (a tile coming in from a float or
+// the shelf). Neither, or a === b: unchanged.
+export function swapLeaves(root: Node | null, a: TileId, b: TileId): Node | null {
+  if (!root || a === b || (!contains(root, a) && !contains(root, b))) return root
+  const other = (id: TileId) => (id === a ? b : id === b ? a : id)
+  const visit = (node: Node): Node => {
+    if (node.type === 'split') return { ...node, children: node.children.map(visit), sizes: [...node.sizes] }
+    const out: Leaf = { type: 'leaf', id: other(node.id) }
+    if (node.donor !== undefined) out.donor = other(node.donor)
+    return out
+  }
+  return normalize(visit(root))
+}
+
 // Parent split direction of a leaf, or null if root/absent.
 export function parentDir(root: Node | null, id: TileId): Dir | null {
   if (!root || root.type === 'leaf') return null

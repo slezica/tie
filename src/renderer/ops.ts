@@ -1,5 +1,5 @@
 // Space operations. Every mutation of S goes through here, then render().
-import { insert, remove, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
+import { insert, remove, swapLeaves, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
 import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
@@ -80,6 +80,34 @@ export function place(id: TileId, p: Placement, o: { activate?: boolean } = {}) 
   } else {
     activate(id)
   }
+}
+
+// Exchange two tiles' locations within one space: slot, float rect or shelf index (any pair). Each
+// tile keeps its own state (collapse, zoom) where its new place allows it. The active tile stays
+// active; moved to the shelf: focusNext (as `place`).
+export function swap(a: TileId, b: TileId) {
+  const sa = spaceOf(a)
+  if (a === b || !sa || sa !== spaceOf(b)) return debug('layout', 'swap refused', a, b)
+  inTileSpace(a, () => {
+    debug('layout', 'swap', a, location(a), b, location(b))
+    const other = (id: TileId) => (id === a ? b : id === b ? a : id)
+    S.tree = swapLeaves(S.tree, a, b)
+    S.floats = S.floats.map((f) => (f.id === a || f.id === b ? { ...f, id: other(f.id) } : f))
+    S.shelf = S.shelf.map(other)
+    for (const id of [a, b]) {
+      if (location(id) === 'shelved') {
+        S.collapsed.delete(id)
+        if (S.zoomed === id) S.zoomed = null
+        getTile(id).activity = false
+      } else {
+        if (S.collapsed.has(id) && !canCollapse(id)) S.collapsed.delete(id)
+        if (S.pinned === id) S.pinned = null
+        if (S.revealed === id) S.revealed = null
+      }
+    }
+    if ((S.active === a || S.active === b) && location(S.active) === 'shelved') focusNext()
+    else render()
+  })
 }
 
 export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { activate?: boolean } = {}): TileId {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, resize, type Node } from './layout'
+import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, resize, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -108,6 +108,55 @@ describe('move', () => {
   it('is a no-op onto itself', () => {
     const t = insert(leaf('a'), 'a', 'r', 'b')
     expect(move(t, 'a', 'a', 'l')).toBe(t)
+  })
+})
+
+describe('swapLeaves', () => {
+  // a | (b over c), sizes 0.5 / 0.5, inner 0.5 / 0.5
+  const tree = () => insert(insert(leaf('a'), 'a', 'r', 'b'), 'b', 'b', 'c')
+
+  it('exchanges two leaves, sizes stay with the positions', () => {
+    const t = resize(tree(), [], 0, -20, 100, 10)
+    const s = swapLeaves(t, 'a', 'c') as any
+    expect(leaves(s)).toEqual(['c', 'b', 'a'])
+    expect(s.sizes).toEqual((t as any).sizes)
+    expect(s.children[1].sizes).toEqual((t as any).children[1].sizes)
+  })
+
+  it('returns a new tree, input untouched', () => {
+    const t = tree()
+    const before = structuredClone(t)
+    const s = swapLeaves(t, 'a', 'b')
+    expect(s).not.toBe(t)
+    expect(t).toEqual(before)
+  })
+
+  it('donor links follow the positions', () => {
+    const s = swapLeaves(tree(), 'b', 'c')! // c had donor b; now b sits there with donor c
+    expect(leaves(s)).toEqual(['a', 'c', 'b'])
+    expect(leaves(remove(s, 'b'))).toEqual(['a', 'c'])
+    expect(remove(s, 'b')).toMatchObject({ sizes: [0.5, 0.5] })
+  })
+
+  it('swapping twice restores the tree', () => {
+    const t = tree()
+    expect(swapLeaves(swapLeaves(t, 'a', 'c'), 'a', 'c')).toEqual(t)
+  })
+
+  it('one present: that leaf takes the other id', () => {
+    expect(leaves(swapLeaves(tree(), 'b', 'x'))).toEqual(['a', 'x', 'c'])
+    expect(leaves(swapLeaves(tree(), 'x', 'c'))).toEqual(['a', 'b', 'x'])
+  })
+
+  it('neither present, same id, or empty: unchanged', () => {
+    const t = tree()
+    expect(swapLeaves(t, 'x', 'y')).toBe(t)
+    expect(swapLeaves(t, 'a', 'a')).toBe(t)
+    expect(swapLeaves(null, 'a', 'b')).toBe(null)
+  })
+
+  it('root leaf', () => {
+    expect(swapLeaves(leaf('a'), 'a', 'b')).toEqual(leaf('b'))
   })
 })
 
