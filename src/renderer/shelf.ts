@@ -11,6 +11,10 @@ import { TEMPLATES } from './kinds'
 
 const items = new Map<TileId, HTMLElement>()
 
+// Ghost slot: where a dragged tile or template would land (wysiwyg), in the strip at that slot.
+const ghost = document.createElement('div')
+ghost.className = 'item ghost'
+
 export function initShelf() {
   const tpl = document.getElementById('templates')!
   // Templates (kinds/index.ts): the file template picks a file on drop.
@@ -43,6 +47,27 @@ export function initShelf() {
 
 export function shelfItemEl(id: TileId): HTMLElement | undefined {
   return items.get(id)
+}
+
+// Show the ghost at visual slot `slot` (among the items shown: the dragged one is hidden) with the
+// dragged thing's icon; the "+" hint slot gives way to it (CSS: #shelf.landing).
+export function setShelfGhost(slot: number, icon: string) {
+  const list = document.getElementById('shelf')!
+  if (ghost.dataset.icon !== icon) (ghost.innerHTML = icon), (ghost.dataset.icon = icon)
+  const kids = [...list.children].filter((e) => e !== ghost && !e.classList.contains('drag-source'))
+  const before = kids[slot] ?? null
+  if (ghost.parentElement !== list || ghost.nextSibling !== before) list.insertBefore(ghost, before)
+  list.classList.add('landing')
+}
+
+export function clearShelfGhost() {
+  ghost.remove()
+  document.getElementById('shelf')!.classList.remove('landing')
+}
+
+// A shelf item being dragged is hidden: the ghost stands for it.
+export function hideShelfItem(id: TileId | null) {
+  for (const el of items.values()) el.classList.toggle('drag-source', el.dataset.id === id)
 }
 
 function keepReveal(x: number, y: number) {
@@ -117,7 +142,8 @@ export function syncShelf() {
   S.shelf.forEach((id, i) => {
     let el = items.get(id)
     if (!el) items.set(id, (el = createItem(id)))
-    if (list.children[i] !== el) list.insertBefore(el, list.children[i] ?? null)
+    const kids = [...list.children].filter((e) => e !== ghost) // the ghost keeps its slot
+    if (kids[i] !== el) list.insertBefore(el, kids[i] ?? null)
     updateItem(id)
   })
 }

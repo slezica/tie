@@ -1,9 +1,9 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropSide, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
-import { S, GAP, TITLE, MIN, tie, boardRect, shelfRect, location, debug, type Kind } from './state'
+import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, debug, type Kind } from './state'
 import { place, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, type Placement } from './ops'
 import { render } from './render'
-import { shelfItemEl } from './shelf'
+import { setShelfGhost, clearShelfGhost, hideShelfItem } from './shelf'
 import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
 import { TEMPLATES, type Template } from './kinds'
@@ -58,7 +58,7 @@ const inside = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && 
 interface Target {
   placement: Placement
   preview: Rect | null // window coords
-  line?: Rect // shelf insertion marker
+  slot?: number // shelf: visual slot of the ghost (among the items shown)
 }
 
 // Where would the source land if dropped at (x, y)?
@@ -68,22 +68,15 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   const srcId = src.type === 'tile' ? src.id : null
 
   if (inside(sr, x, y)) {
-    // Insert index among shelf items by horizontal midpoint; the line marks the slot.
-    const ids = S.shelf
-    let index = ids.length
-    for (let i = 0; i < ids.length; i++) {
-      const r = shelfItemEl(ids[i])?.getBoundingClientRect()
-      if (r && x < r.left + r.width / 2) {
-        index = i
-        break
-      }
-    }
-    const ref = ids[index] ? shelfItemEl(ids[index])!.getBoundingClientRect() : null
-    const last = ids.length ? shelfItemEl(ids[ids.length - 1])!.getBoundingClientRect() : null
-    const lx = ref ? ref.left - 2 : last ? last.right : sr.x + 2
-    const slot = ref ?? last
-    const line = slot ? { x: lx, y: slot.top, w: 2, h: slot.height } : { x: lx, y: sr.y + 4, w: 2, h: sr.h - 8 }
-    return { placement: { type: 'shelf', index }, preview: null, line }
+    // Slot under the pointer, by pitch from the strip's left edge (the strip holds the "+" hint or
+    // the ghost as one more slot, so its width is stable while dragging). The dragged item is
+    // hidden: the slot counts the items shown; the index is into S.shelf (place() detaches first).
+    const list = document.getElementById('shelf')!
+    const shown = S.shelf.filter((id) => id !== srcId)
+    const slot = Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
+    const srcIdx = srcId ? S.shelf.indexOf(srcId) : -1
+    const index = srcIdx >= 0 && slot > srcIdx ? slot + 1 : slot
+    return { placement: { type: 'shelf', index }, preview: null, slot }
   }
 
   if (!inside(b, x, y)) return null
@@ -153,8 +146,8 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   let ly = sy
   let target: Target | null = null
   const preview = document.getElementById('preview')!
-  const line = document.getElementById('shelf-line')!
   const ghost = document.getElementById('ghost')!
+  const icon = () => (src.type === 'tile' ? displayIcon(S.tiles.get(src.id)!) : { glyph: TEMPLATES.find((t) => t.id === src.template)!.icon })
 
   const update = () => {
     target = computeTarget(src, lx, ly, shift, grab)
@@ -162,9 +155,11 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     preview.style.display = p ? 'block' : 'none'
     if (p) Object.assign(preview.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` })
     preview.classList.toggle('float', target?.placement.type === 'float')
-    const l = target?.line
-    line.style.display = l ? 'block' : 'none'
-    if (l) Object.assign(line.style, { left: `${l.x}px`, top: `${l.y}px`, width: `${l.w}px`, height: `${l.h}px` })
+    // Over the strip the ghost slot shows the landing; the pointer label would only cover it.
+    const onShelf = target?.slot !== undefined
+    if (onShelf) setShelfGhost(target!.slot!, iconHtml(icon()))
+    else clearShelfGhost()
+    ghost.style.display = onShelf ? 'none' : 'flex'
     // Beside the pointer, kept inside the window (dragging along the bottom toolbar).
     ghost.style.left = `${Math.min(lx + 12, window.innerWidth - ghost.offsetWidth - 4)}px`
     ghost.style.top = `${Math.min(ly + 12, window.innerHeight - ghost.offsetHeight - 4)}px`
@@ -172,11 +167,11 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
 
   const begin = () => {
     started = dragging = true
-    document.body.classList.add('dragging')
+    document.body.classList.add('dragging', 'tile-drag') // tile-drag: the shelf shows its "+" hint slot
     if (S.revealed) (S.revealed = null), render()
+    if (src.type === 'tile' && location(src.id) === 'shelved') hideShelfItem(src.id)
     const label = src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
-    const icon = src.type === 'tile' ? displayIcon(S.tiles.get(src.id)!) : { glyph: TEMPLATES.find((t) => t.id === src.template)!.icon }
-    ghost.innerHTML = `${iconHtml(icon)}<span>${label.replace(/</g, '&lt;')}</span>`
+    ghost.innerHTML = `${iconHtml(icon())}<span>${label.replace(/</g, '&lt;')}</span>`
     ghost.style.display = 'flex'
     debug('layout', 'drag start', src)
   }
@@ -205,8 +200,10 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     stopTracking()
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keyup', onKey, true)
-    preview.style.display = line.style.display = ghost.style.display = 'none'
-    document.body.classList.remove('dragging')
+    preview.style.display = ghost.style.display = 'none'
+    clearShelfGhost()
+    hideShelfItem(null)
+    document.body.classList.remove('dragging', 'tile-drag')
     dragging = false
   }
   const onUp = () => {

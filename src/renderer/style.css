@@ -38,6 +38,7 @@
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
   --nav-h: 24px; /* nav bar under the title bar (kinds that navigate) */
   --slot: 28px; /* shelf item / template: square icon button */
+  --slot-gap: 2px; /* between slots (layout code reads it: drop slot by pitch) */
   --peak: 8px; /* shelf reveal arrow */
   --tile-pad: 4px 0 0 6px; /* inside tile content: top right bottom left */
   --ui-font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
@@ -750,15 +751,6 @@ body.resizing-col { cursor: row-resize; }
   border-style: dashed;
   transition: none;
 }
-#shelf-line {
-  position: absolute;
-  display: none;
-  width: 2px;
-  z-index: 5000;
-  background: var(--accent);
-  border-radius: 1px;
-  pointer-events: none;
-}
 #ghost {
   position: absolute;
   display: none;
@@ -781,8 +773,35 @@ body.resizing-col { cursor: row-resize; }
 #templates {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--slot-gap);
   flex: none;
+}
+/* While a tile or template is dragged (or an OS file), a dashed "+" slot at the strip's left end
+   says it can be dropped here; over the strip, the ghost slot takes its place (same width). */
+#shelf::before {
+  content: '+';
+  display: none;
+  flex: none;
+  width: var(--slot);
+  height: var(--slot);
+  place-items: center;
+  border: 1px dashed var(--fg-d);
+  border-radius: 6px;
+  color: var(--faint);
+  font-size: 16px;
+}
+body.tile-drag #shelf:not(.landing)::before,
+body.os-drag #shelf:not(.landing)::before {
+  display: grid;
+}
+.item.ghost {
+  background: var(--accent-soft);
+  color: var(--accent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.item.drag-source {
+  display: none;
 }
 #shelf {
   flex: 0 1 auto;
