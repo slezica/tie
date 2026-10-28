@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, remove, swapLeaves, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
+import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
 import { render } from './render'
@@ -137,6 +137,11 @@ export async function cwdOf(id: TileId | null | undefined): Promise<string | und
 let onEmptySpace: ((spaceId: string) => void) | null = null
 export const setEmptySpaceHandler = (fn: (spaceId: string) => void) => (onEmptySpace = fn)
 
+// The space has no tiles left: it closes, unless it is the only one.
+function dropIfEmpty(sp: Space) {
+  if (!sp.tree && sp.floats.length === 0 && sp.shelf.length === 0 && S.spaces.length > 1 && S.spaces.includes(sp)) onEmptySpace?.(sp.id)
+}
+
 export function closeTile(id: TileId) {
   inTileSpace(id, () => {
     const t = getTile(id)
@@ -147,8 +152,32 @@ export function closeTile(id: TileId) {
     S.mru = S.mru.filter((m) => m !== id)
     if (S.active === id) focusNext()
     else render()
-    if (!S.tree && S.floats.length === 0 && S.shelf.length === 0 && S.spaces.length > 1) onEmptySpace?.(S.current)
+    dropIfEmpty(S.sp)
   })
+}
+
+// Move a tile into another space (a drop onto its tab): there beside the active / recent slotted
+// tile (`besidePlacement`), active in that space (keys follow only if it is the visible one: the
+// caller switches first, tabs.ts `moveToTab`). The space it left: focusNext if it was active there;
+// emptied, it closes (as closeTile). Same space: a shelved tile comes back to the board the same
+// way; a board tile stays put.
+export function moveToSpace(id: TileId, spaceId: string) {
+  const from = spaceOf(id)
+  const to = S.spaces.find((x) => x.id === spaceId)
+  if (!from || !to) return debug('layout', 'move to space refused', id, spaceId)
+  if (from === to) {
+    if (location(id) === 'shelved') withSpace(to.id, () => place(id, besidePlacement(null)))
+    return
+  }
+  debug('layout', 'move to space', id, from.id, '->', to.id)
+  detach(id)
+  getTile(id).activity = false
+  withSpace(from.id, () => {
+    S.mru = S.mru.filter((m) => m !== id)
+    if (S.active === id) focusNext()
+  })
+  withSpace(to.id, () => place(id, besidePlacement(null)))
+  dropIfEmpty(from)
 }
 
 export function activate(id: TileId): void {

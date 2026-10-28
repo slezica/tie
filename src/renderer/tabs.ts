@@ -1,7 +1,7 @@
 // Tabs: one per space, the tab list in the toolbar (scrolls when they don't fit).
 import { S, newSpace, spaceOf, debug, type Space } from './state'
 import { render } from './render'
-import { activate, openTile, closeTile, setEmptySpaceHandler } from './ops'
+import { activate, openTile, closeTile, moveToSpace, setEmptySpaceHandler } from './ops'
 import { showMetaMenu } from './menu'
 import { requestCloseTab } from './close'
 import { displayTitle } from './tile'
@@ -36,13 +36,22 @@ export function tabTitle(sp: Space): string {
 }
 
 // A new tab starts with a terminal (like a template dropped on an empty board: default cwd).
-export function newTab(): string {
+// `empty`: no terminal, for a tile dropped onto the tab list (the caller fills it at once).
+export function newTab(o: { empty?: boolean } = {}): string {
   const sp = newSpace()
   const at = S.spaces.findIndex((x) => x.id === S.visible)
   S.spaces.splice(at + 1, 0, sp)
   switchTab(sp.id)
-  openTerminal()
+  if (!o.empty) openTerminal()
   return sp.id
+}
+
+// A tile dropped onto a tab: that tab is shown, the tile joins it, active (ops `moveToSpace`).
+// Switching first: the emptied source tab, now hidden, just goes away.
+export function moveToTab(id: string, spaceId: string) {
+  if (!space(spaceId)) return
+  switchTab(spaceId)
+  moveToSpace(id, spaceId)
 }
 
 const openTerminal = () => openTile('terminal', { type: 'slot', at: null, side: 'r' })
@@ -218,6 +227,31 @@ function syncOverflow() {
   tabs.classList.toggle('overflow', over)
   list.classList.toggle('more-left', over && list.scrollLeft > 1)
   list.classList.toggle('more-right', over && list.scrollLeft + list.clientWidth < list.scrollWidth - 1)
+}
+
+// Tile / template drags over the tab area (drag.ts): a tab under x (gaps: the nearest one) → its
+// space; the rest of #tabs (the + button, empty space, the overflow edge) → null: a new tab.
+// Not over #tabs: undefined.
+export function tabDropAt(x: number, y: number): string | null | undefined {
+  const r = document.getElementById('tabs')!.getBoundingClientRect()
+  if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined
+  const list = document.getElementById('tab-list')!.getBoundingClientRect()
+  if (x < list.left || x > list.right) return null
+  let best: string | null = null
+  let dist = Infinity
+  for (const [id, el] of tabEls) {
+    const b = el.getBoundingClientRect()
+    const d = x < b.left ? b.left - x : x > b.right ? x - b.right : 0
+    if (d < dist) (dist = d), (best = id)
+  }
+  return best
+}
+
+// Drop highlight: the tab (`.tab.drop`) or, for a new tab, the + button (`#tab-add.drop`);
+// undefined clears.
+export function markTabDrop(target: string | null | undefined) {
+  for (const [id, el] of tabEls) el.classList.toggle('drop', target === id)
+  document.getElementById('tab-add')!.classList.toggle('drop', target === null)
 }
 
 export function initTabs() {

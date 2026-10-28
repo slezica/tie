@@ -4,7 +4,7 @@ The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === '
 
 Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; each a `GLYPH` SVG: prompt, folder, globe), not part of the shelf.
 
-- Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto the shelf → new shelved tile.
+- Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
 - `file` template: the drop opens a file picker first (any file; starts in the target tile's directory); cancel → no tile. Its kind as for `tie open` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
 - Item: icon only (`displayIcon`, `TERMINALS.md`: built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
@@ -17,6 +17,7 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 | Drag tile onto the shelf strip | Shelved at the ghost slot (slot under the pointer) |
 | Drag item within the strip | Reorder |
 | Drag item onto board | Unshelve, normal drop rules (`INPUT.md`) |
+| Drag item onto a tab | Joins that tab's board (its own tab: back on the board), `TABS.md` "Drops onto tabs" |
 | `tie open/move --shelve` | Appended |
 
 - The drop zone is the strip itself (`shelfRect()`); an empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.

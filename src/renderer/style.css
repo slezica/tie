@@ -232,6 +232,20 @@ body.dragging-tab .tab {
   background: var(--fg-a);
   color: var(--text);
 }
+/* Tile / template drags (drag.ts): + is a drop target (a new tab), dashed like the shelf's hint;
+   the tab or + under the pointer takes the accent (what you drop on). */
+body.tile-drag #tab-add {
+  border: 1px dashed var(--fg-d);
+}
+.tab.drop,
+body.tile-drag #tab-add.drop {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+body.tile-drag #tab-add.drop {
+  border-color: transparent;
+}
 
 /* Message dialog */
 .dialog-backdrop {

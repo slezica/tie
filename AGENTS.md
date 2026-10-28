@@ -97,7 +97,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered).
 - `Space` also: `id` (`s1`...), `customTitle`, `customIcon`.
 - Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
-- New spaces get a terminal; a space emptied by `closeTile` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
+- New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):

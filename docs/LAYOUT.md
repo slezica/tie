@@ -11,6 +11,7 @@
   - Each tile keeps its own collapse / zoom where the new place allows (`canCollapse`); onto the shelf: collapse, zoom, activity cleared; off the shelf: pin, reveal cleared.
   - Active tile stays active; moved to the shelf: `focusNext`.
   - Keys: `cmd+shift+arrows` (`INPUT.md`).
+- `moveToSpace(id, spaceId)` (`ops.ts`): into another space (drop onto its tab, `TABS.md`): `detach`, then `place(besidePlacement(null))` there (active in that space); the source space `focusNext`s if it was active there, and closes if emptied. Same space: shelved → unshelved beside; else no-op.
 
 ## Slot tree (`src/core/layout.ts`)
 
