@@ -22,8 +22,20 @@ export default async (ctx, h) => {
   const shelf0 = await box('#shelf')
   h.assert(!(await cls('#tabs')).includes('overflow'), 'one tab: no overflow')
 
-  for (let i = 0; i < 5; i++) await k('Meta+t')
-  h.assert((await h.list(ctx)).tabs.length === 6, 'six tabs')
+  // Tab titles are the terminals' cwd (this run's directory name; "terminal", then the shell's
+  // name, until the cwd arrives), so the count that overflows a 900px window varies: open tabs
+  // until the list overflows with settled titles, i.e. all like the first tab's (capped).
+  const settled = () => ctx.page.evaluate(() => {
+    const [first, ...rest] = [...document.querySelectorAll('.tab')].map((t) => t.textContent)
+    return rest.every((t) => t === first)
+  })
+  let n = 1
+  while (!(await cls('#tabs')).includes('overflow') && n < 24) {
+    await k('Meta+t')
+    await h.waitFor(ctx, settled, 'tab title settled')
+    n++
+  }
+  h.assert((await h.list(ctx)).tabs.length === n, `${n} tabs`)
   h.assert((await cls('#tabs')).includes('overflow'), 'tabs overflow: divider state')
   let s = await scroll('#tab-list')
   h.assert(s.width > s.client, `tab list scrolls (${s.width} > ${s.client})`)
