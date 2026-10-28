@@ -12,7 +12,7 @@ tie-dev - Tie development toolkit
 Usage: tie-dev [--instance NAME] <command> [args]
 
 Commands:
-  run [--hot]              Run in foreground; --hot: dev server, UI hot-reloads on change
+  run [--hot]              Run in foreground; --hot: dev server, UI hot-reloads on change, viewers rebuild + tiles reload
   build                    Build to out/
   start                    Build if needed, launch app in background
   stop                     Stop instance
@@ -114,7 +114,12 @@ fi
 case "$cmd" in
   run)
     export TIE_DEBUG_PORT="${TIE_DEBUG_PORT:-$(free_port)}"
-    if [[ "${1:-}" == "--hot" ]]; then exec npx electron-vite dev; fi
+    if [[ "${1:-}" == "--hot" ]]; then
+      # Viewers aren't in the dev server's graph: their own watcher rebuilds them (main reloads frames).
+      node dev/viewers.mjs --watch & VW=$!
+      trap 'kill $VW 2>/dev/null' EXIT
+      npx electron-vite dev; exit $?
+    fi
     if needs_build; then build; fi
     exec node_modules/electron/dist/Electron.app/Contents/MacOS/Electron . ;;
   build)

@@ -62,6 +62,10 @@ const api = {
     onChanged: (cb: (token: string) => void) => {
       ipcRenderer.on('content:changed', (_e, token) => cb(token))
     },
+    // Dev builds: a viewer (out/viewers/<kind>) was rebuilt; its frames reload.
+    onViewer: (cb: (kind: string) => void) => {
+      ipcRenderer.on('content:viewer', (_e, kind) => cb(kind))
+    },
   },
   // Files in viewer tiles (file view). Main checks paths, reads and watches. Read-only: no writes.
   doc: {

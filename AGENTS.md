@@ -84,7 +84,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 
 ## Model
@@ -144,7 +144,7 @@ tie-dev - Tie development toolkit
 Usage: tie-dev [--instance NAME] <command> [args]
 
 Commands:
-  run [--hot]              Run in foreground; --hot: dev server, UI hot-reloads on change
+  run [--hot]              Run in foreground; --hot: dev server, UI hot-reloads on change, viewers rebuild + tiles reload
   build                    Build to out/
   start                    Build if needed, launch app in background
   stop                     Stop instance

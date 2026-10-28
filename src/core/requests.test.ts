@@ -5,6 +5,7 @@ describe('parseRequest', () => {
   it('accepts known verbs with valid args, as fresh objects', () => {
     expect(parseRequest({ verb: 'ready' })).toEqual({ verb: 'ready' })
     expect(parseRequest({ verb: 'pong', n: 7 })).toEqual({ verb: 'pong', n: 7 })
+    expect(parseRequest({ verb: 'scrolled', y: 120 })).toEqual({ verb: 'scrolled', y: 120 })
     const m = { verb: 'openLink', url: 'https://example.com' }
     const r = parseRequest(m)
     expect(r).toEqual(m)
@@ -20,6 +21,9 @@ describe('parseRequest', () => {
       { verb: 'pong', n: -1 },
       { verb: 'pong', n: 1.5 },
       { verb: 'pong', n: '1' },
+      { verb: 'scrolled' },
+      { verb: 'scrolled', y: -1 },
+      { verb: 'scrolled', y: 1.5 },
       { verb: 'openLink' },
       { verb: 'openLink', url: 42 },
       { verb: 'openLink', url: 'https://x', cmd: 'id' },

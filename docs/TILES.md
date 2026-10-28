@@ -160,6 +160,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
 | `hover` | `href` (string, ≤ 4096; `''` = left) | file views, html: `Host.hint` with where the link leads (URL, path, anchor, or "Blocked link") |
+| `scrolled` | `y` (int ≥ 0; throttled 200 ms, `runtime.ts`) | file views: remembered (`lastY`), sent back in the doc message (`y`) after a viewer reload (dev hot reload, `HARNESS.md` "Hot") |
 | `blocked` | `n` (int ≥ 0, ≤ 1e6) | html: scripts the document CSP refused (title-bar tag) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser (confirm) / this tile / new tile ("File view"); html: same, other kinds beside (`VIEWERS.md`) |
 

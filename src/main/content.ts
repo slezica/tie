@@ -139,6 +139,7 @@ export function clearContent() {
 // cancelled it) leave the frame where it was: nothing to do.
 export function initContent(wc: WebContents, push: Send) {
   send = push
+  watchViewers()
   const docOf = (procId: number, routingId: number) => {
     const f = webFrameMain.fromId(procId, routingId)
     if (!f || f.parent !== wc.mainFrame) return null
@@ -265,5 +266,22 @@ function streamFile(path: string): ReadableStream<Uint8Array> | null {
     return Readable.toWeb(s) as ReadableStream<Uint8Array>
   } catch {
     return null
+  }
+}
+
+// Dev builds: a rebuilt viewer (tie-dev run --hot, dev/viewers.mjs --watch) reloads the frames
+// showing it ('content:viewer', renderer fileview). Debounced per kind: a build writes .js then .html.
+function watchViewers() {
+  if (app.isPackaged) return
+  const timers = new Map<string, NodeJS.Timeout>()
+  try {
+    watch(viewersDir, (_ev, file) => {
+      const m = /^([a-z]+)\.(html|js)$/.exec(String(file ?? ''))
+      if (!m || !VIEWERS.has(m[1])) return
+      clearTimeout(timers.get(m[1]))
+      timers.set(m[1], setTimeout(() => void (timers.delete(m[1]), log('content', 'viewer rebuilt', m[1]), send('content:viewer', m[1])), 300))
+    })
+  } catch (e) {
+    log('content', 'viewers watch failed', String(e))
   }
 }

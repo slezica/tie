@@ -196,7 +196,7 @@ async function show(text: string, how: How, position?: () => void) {
   if (n === showing) live.place(next, how)
 }
 
-type Doc = { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string }
+type Doc = { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string; y?: number } // y: the host's memory (viewer reloaded)
 
 function onMessage(msg: Message) {
   if (msg.type !== 'doc') return
@@ -212,6 +212,6 @@ function onMessage(msg: Message) {
   else
     void show(m.text, 'page', () => {
       if (m.hash) scrollToHash(m.hash)
-      else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? 0) : 0)
+      else scrollTo(0, m.scroll === 'restore' ? (state.scrolls.get(m.key) ?? m.y ?? 0) : 0)
     })
 }

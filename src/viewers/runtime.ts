@@ -71,6 +71,20 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
   w.viewer = w[spec.name] = state
   anchorOf = spec.anchor
 
+  // Scroll position to the host (throttled): kept there, restored after a viewer reload (dev).
+  let scrollTimer = 0
+  addEventListener(
+    'scroll',
+    () => {
+      if (scrollTimer) return
+      scrollTimer = setTimeout(() => {
+        scrollTimer = 0
+        state.port?.postMessage({ verb: 'scrolled', y: Math.max(0, Math.round(scrollY)) })
+      }, 200) as unknown as number
+    },
+    { passive: true },
+  )
+
   function onMessage(m: Message) {
     // Watchdog (frame.ts): answering proves this thread isn't stuck.
     if (m.type === 'tie:ping') return state.port?.postMessage({ verb: 'pong', n: m.n })

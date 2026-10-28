@@ -18,7 +18,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 1. Mount: `tie.doc.open(path, 'markdown')` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, kind, text, rev}`. Error → `showError`.
 2. Frame: root = the file's directory (`tie.content.open`). On each handshake (`onReady`): theme, then doc.
-3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash}`, `{type: 'scroll', hash}`.
+3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash, y?}` (`y`: the host's remembered scroll for `restore` when the viewer's own memory is gone: viewer reloaded), `{type: 'scroll', hash}`.
 4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
 5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer: live update ("Live updates" below). Shelved tile: activity dot.
 6. Close: `tie.doc.close(id)` (watch stops), frame disposed (token forgotten).

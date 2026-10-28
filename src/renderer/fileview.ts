@@ -33,6 +33,12 @@ export function initFileViews() {
   tie.doc.onChange((id, p) => byDoc.get(id)?.(p))
 }
 
+// File view tiles by id (dev: a rebuilt viewer reloads its frames, `reloadViewers`).
+const viewerTiles = new Map<string, { kind: string; reload: () => void }>()
+export function reloadViewers(kind: string) {
+  for (const v of viewerTiles.values()) if (v.kind === kind) v.reload()
+}
+
 export const dirOf = (p: string) => p.slice(0, p.lastIndexOf('/')) || '/'
 const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 
@@ -66,7 +72,8 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   const history = { list: [] as string[], index: -1 }
   // How the next render positions itself: keep (live change), top (new page), restore (back/forward,
   // reload).
-  let view: { scroll: 'keep' | 'top' | 'restore'; hash: string } = { scroll: 'top', hash: opts.hash ?? '' }
+  let view: { scroll: 'keep' | 'top' | 'restore'; hash: string; y?: number } = { scroll: 'top', hash: opts.hash ?? '' }
+  let lastY = 0 // the viewer's last reported scroll (restored after a viewer reload)
   let seq = 0 // latest navigation wins
 
   // To the viewer: the doc (key = path), its revision, `src` (the file's URL path on the frame's
@@ -74,7 +81,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   // own for the next handshake).
   const sendDoc = () => {
     if (!doc) return
-    const msg = { type: 'doc', key: doc.path, rev: doc.rev, src: '/' + encodeURIComponent(nameOf(doc.path)), scroll: view.scroll, hash: view.hash }
+    const msg = { type: 'doc', key: doc.path, rev: doc.rev, src: '/' + encodeURIComponent(nameOf(doc.path)), scroll: view.scroll, hash: view.hash, y: view.y }
     if (doc.bytes) {
       const bytes = doc.bytes.slice()
       frame.post({ ...msg, bytes }, [bytes.buffer])
@@ -115,8 +122,13 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     handlers: {
       followLink: (r) => void follow(r.href, r.newTile),
       hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
+      scrolled: (r) => (lastY = r.y),
     },
   })
+
+  // The viewer was rebuilt (dev): reload the frame, same root, scroll restored (onReady resends
+  // theme + doc).
+  viewerTiles.set(host.id, { kind, reload: () => void (doc && ((view = { scroll: 'restore', hash: '', y: lastY }), frame.setRoot(root))) })
 
   // Open `path` in this tile. Another directory: the frame reloads with a root (token) for it.
   async function go(path: string, how: 'push' | 'back' | 'forward' | 'reload', hash = '') {
@@ -202,6 +214,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
       await frame.mount()
     },
     dispose: () => {
+      viewerTiles.delete(host.id)
       frame.dispose()
       if (doc) {
         byDoc.delete(doc.id)

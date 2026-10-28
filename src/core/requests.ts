@@ -8,6 +8,7 @@ export type Request =
   | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
   | { verb: 'hover'; href: string } // pointer over a link ('' = left): the host shows its real target in the link strip
   | { verb: 'blocked'; n: number } // html: scripts the document CSP refused so far (bootstrap counts violations)
+  | { verb: 'scrolled'; y: number } // the viewer's scroll position (throttled): the host restores it after a viewer reload (dev)
 export type Verb = Request['verb']
 
 const MAX_URL = 4096
@@ -30,6 +31,7 @@ const VERBS: { [V in Verb]: { keys: string[]; gesture?: true; build: (d: Data) =
   },
   hover: { keys: ['href'], build: (d) => (str(d.href, MAX_URL) ? { verb: 'hover', href: d.href } : null) },
   blocked: { keys: ['n'], build: (d) => (int(d.n, 1_000_000) ? { verb: 'blocked', n: d.n } : null) },
+  scrolled: { keys: ['y'], build: (d) => (int(d.y, 100_000_000) ? { verb: 'scrolled', y: d.y } : null) },
 }
 
 // SECURITY: frame messages are untrusted (any script in the frame can post anything). Only plain

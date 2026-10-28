@@ -62,5 +62,5 @@ Other env (main):
 
 ## Build
 
-- electron-vite: `main`, `preload` (CJS `index.cjs`), `renderer`. Alias `@core` → `src/core`. Main's build also bundles viewers (`src/viewers/` → `out/viewers/`, IIFE).
+- electron-vite: `main`, `preload` (CJS `index.cjs`), `renderer`. Alias `@core` → `src/core`. Main's build also bundles viewers (`src/viewers/` → `out/viewers/`, IIFE; `dev/viewers.mjs`, also the hot-mode watcher).
 - `postinstall`: rebuild node-pty and `tie-peer` (`native/peer`) for Electron; `dev/brand-electron.sh` renames dev bundle to "Tie" (menu name).

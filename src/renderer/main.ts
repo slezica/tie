@@ -8,6 +8,7 @@ import { initFileViews } from './fileview'
 import { registerKind } from './kinds'
 import { probeKind } from './kinds/probe'
 import { initFrames } from './frame'
+import { reloadViewers } from './fileview'
 import { initGuests } from './guest'
 import { initShelf } from './shelf'
 import { initMenu, showTileMenu } from './menu'
@@ -101,6 +102,7 @@ async function boot() {
   initTerminals()
   initFileViews()
   initFrames()
+  tie.content.onViewer(reloadViewers) // dev: rebuilt viewer → its frames reload
   initGuests()
   if (info.dev) registerKind({ kind: 'probe', factory: probeKind, opens: 'bare' })
   initShelf()
