@@ -42,8 +42,7 @@ export default async (ctx, h) => {
   // leftward, so a new one would land under it and be revealed (no dot while revealed).
   await ctx.page.mouse.move(400, 400)
   const d = (await ctx.tie('open', 'terminal', '--shelved', '--cmd', 'for i in 1 2 3 4 5; do echo $i; sleep 0.3; done')).id
-  await ctx.sleep(1200)
-  h.assert(await ctx.page.locator(`.item[data-id="${d}"].activity`).count() === 1, 'activity dot')
+  await h.waitFor(ctx, async () => (await ctx.page.locator(`.item[data-id="${d}"].activity`).count()) === 1, 'activity dot', 8000)
   await ctx.sleep(1500)
   await ctx.shot('activity-exit')
   // Reorder: drag d before c. The dragged item hides, the ghost stands for it; the strip keeps
