@@ -162,6 +162,18 @@ export default async (ctx, h) => {
     await ctx.sleep(200)
     h.assert((await revealed()) === null, 'leaving the window dismisses')
     await away()
+    // The document reporting the pointer gone while it is in the band (the toolbar strip between
+    // item and board is a window drag region: macOS takes the pointer there) keeps the reveal.
+    p = await into(c)
+    const it2 = await h.shelfItem(ctx, c)
+    const rr = await h.rectOf(ctx, c)
+    await page.evaluate(([x, y]) => document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { clientX: x, clientY: y })), [it2.x, (rr.y + rr.h + it2.y) / 2])
+    await ctx.sleep(100)
+    h.assert((await revealed()) === c, 'document pointerleave inside the band (drag region) keeps the reveal')
+    await page.evaluate(([x, y]) => document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { clientX: x, clientY: y })), [it2.x - 200, it2.y])
+    await ctx.sleep(100)
+    h.assert((await revealed()) === null, 'document pointerleave outside the zone dismisses')
+    await away()
 
     // Above a zoomed tile; the pin survives keyboard focus moving off it.
     await h.clickButton(ctx, a, 'zoom')

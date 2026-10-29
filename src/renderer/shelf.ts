@@ -36,8 +36,12 @@ export function initShelf() {
   // Hover reveal: dismissed once the pointer leaves the item, the reveal and the band between
   // (core/layout inRevealZone). Over a frame or guest inside the reveal the UI gets no moves, but
   // it does on the way out (the tile's border is UI), so the last position is always known.
+  // The document's pointerleave is checked the same way, not taken as "left the window": the
+  // toolbar is a window drag region (-webkit-app-region), and macOS hands the pointer to the OS
+  // there, which Chromium reports as leaving the document. The strip between the item and the
+  // board is such a region, so the pointer "leaves" on its way into the reveal (SHELF.md).
   document.addEventListener('pointermove', (e) => keepReveal(e.clientX, e.clientY), true)
-  document.documentElement.addEventListener('pointerleave', () => S.revealed && dismissReveal())
+  document.documentElement.addEventListener('pointerleave', (e) => keepReveal(e.clientX, e.clientY))
 
   document.addEventListener('tile-meta', (e) => {
     const id = (e as CustomEvent).detail as TileId
