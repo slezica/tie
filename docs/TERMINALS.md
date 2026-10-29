@@ -110,7 +110,8 @@ A terminal is busy when closing it would kill something (`Surface.busy()`, asked
 - Synchronous at decision time (not the polls): renderer `tie.pty.busy([pid])` → main `pty:busy` → `pty.busy(pid)` → `childrenOf(pid)` (`native/peer`, libproc `proc_listchildpids`).
 - `what`: the command (`cmd`), else node-pty's foreground name read now unless it's a shell (`SHELLS`; a background job: unknown, dialogs say "running").
 - `native/peer` missing: busy = foreground process isn't the shell (background jobs missed).
-- Shell plugins that keep a child (async prompt workers) make that shell always busy.
+- Shell plugins that keep a child (async prompt workers) make that shell always busy: close always asks, `tie open --replace` always fails.
+- `tie open --replace` (`CLI.md`): same rule, tie's own pid ignored (`pty.busyIgnoring`); its error names the first other child (`native/peer` `nameOf`).
 - `tie list --json` `term.pid`: the pty pid (harness).
 
 ## Close

@@ -32,7 +32,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
 | `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
-- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`.
+- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`, `--replace`.
 - `open <arg>`: `http(s)://...` → browser. A registered kind name → that kind (`./terminal` for a file named so; `browser` takes an optional URL after it: refused input → `Not a web address: <url> (http(s) only)`, exit 1). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
 - `--shelve` = `--shelved` (both commands).
 - `[id]` defaults to `$TIE_TILE`.
@@ -63,6 +63,23 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - Other tab → `not in the same tab: <id>`; unknown → `no such tile: <id>`; with any placement flag or `--tab` → `--swap takes no placement (...)`. Itself: no-op.
 - `--focus`: the moved tile (`[id]`) takes input (its tab shown, as `tie focus`).
 
+### `--replace` (`open`)
+
+The opened tile takes the place of the terminal the command runs in; that terminal closes.
+
+1. Tile callers only (lineage, Callers below). External → `no terminal to replace`.
+2. tie must be a direct child of the tile's pty process (the shell): `parentOf(peer) === pty` (`@core/callers` `replaceBlock`). Else `tie runs under <proc>` (e.g. `vim`, `sh`). Packaged launcher `exec`s Electron; dev `bin/tie` runs via shebang (`env` execs node): both the same pid.
+3. Shell idle: busy rule (`TERMINALS.md` "Busy"), tie's own pid ignored (`pty.ts` `busyIgnoring`). `--cmd` terminals: always busy. Else `A process is running: <proc>` (first other child's name, `native/peer` `nameOf`; unknown: `A process is running`).
+4. Other placement (`--at`, `--side`, `--float`, `--shelve`, `--tab`) → `--replace takes no other placement (...)`. `--focus` ok.
+5. Failure: nothing opened.
+6. Timing (no race with the shell's death):
+   - Request: checks 1–4 (main: 1–3, `socket.ts` `replaceTarget`; renderer: 4 + the usual open checks), then the tile opens on the caller's shelf, hidden (no reveal, no activation). Reply: its info.
+   - `bin/tie` keeps the connection (`unref`, no `end`), prints the id, exits; the kernel closes the socket.
+   - Connection closed after the reply was written → main calls the renderer's `replace {old, id, focus}`. Closed before (tie killed mid-request) → no replace, the tile stays shelved (logged `[rpc] replace dropped`).
+   - `replaceTile(old, id)` (`ops.ts`): `id` takes `old`'s leaf (`replaceLeaf`, `LAYOUT.md`), float rect + z-order, or shelf index, and its state there: active, zoomed, collapsed, pinned, revealed. Not custom title / icon. Then `closeTile(old)` (scripted: no question). `old` gone meanwhile, or `id` moved to another tab: nothing (logged).
+7. Focus: the new tile activates iff the old one was active when tie exited, or `--focus` (shelved: pinned).
+8. One `--replace` per connection.
+
 ## `tie list`
 
 - Columns: `ID TAB STATE FLAGS TITLE`. TAB: 1-based position. FLAGS: `active`, `pinged`, `collapsed`, `zoomed`, `pinned`, `exit=N`.
@@ -90,8 +107,10 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ← {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no such tile: t9"}}
 ```
 
-Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
+Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`, `replace`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
 
+- `open` with `replace`: the connection stays open after the reply; its close triggers the replace (`--replace` above).
+- `replace` {`old`, `id`, `focus`}: renderer method, called only by main's socket layer on connection close. Refused from clients (`unknown method: replace`): they must not close arbitrary tiles.
 - `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`; for callers in a Tie terminal main replaces it (below).
 
 ### Callers

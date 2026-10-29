@@ -42,7 +42,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 - Electron 44 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
 - xterm.js 6 + fit addon; node-pty 1.1 (rebuilt for Electron on install).
-- `native/peer` (`tie-peer`, N-API via node-addon-api, rebuilt for Electron on install): socket peer pid/uid, parent pid, child pids (busy terminals). Main only.
+- `native/peer` (`tie-peer`, N-API via node-addon-api, rebuilt for Electron on install): socket peer pid/uid, parent pid, child pids (busy terminals), process names (`--replace` errors). Main only.
 - Markdown viewer (bundled into its IIFE): markdown-it 15 (+ footnote, deflist, emoji plugins), DOMPurify 3, highlight.js 11 (core + common languages). Diagrams: `@mermaid-js/tiny` 12.2.0 (pinned; separate asset, loaded on demand). Live updates: morphdom 2.7.8 (keyed DOM diff).
 - Vitest (unit), Playwright over CDP (scenarios = e2e).
 - No UI framework: plain objects + `render()`.
@@ -50,9 +50,9 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic; shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
+- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
-- `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused) (main). Tests: `callers.test.ts`.
+- `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`open --replace`: direct child, idle shell) (main). Tests: `callers.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
 - `src/core/policy.ts`: content kinds security table (page, sandbox, CSP, nav rule, assets, payload, cap, bootstrap, dev), `contentCsp`, `documentCsp` (main + renderer + build). Tests: `policy.test.ts`.
 - `src/core/kinds.ts`: file → kind by extension (`fileKind`), else content (`sniff`, `sniffKind`: text/hex), `canOpenAs`, `extsOf`, `FILE_KINDS` (main + renderer). Tests: `kinds.test.ts`.
@@ -61,13 +61,13 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor` (main + renderer). Tests: `keymap.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit, dev socket methods incl. `window-size`), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile), `socket.ts` (JSON-RPC server, caller gate), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
+- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit, dev socket methods incl. `window-size`), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile, `busy` / `busyIgnoring`), `socket.ts` (JSON-RPC server, caller gate, `--replace` checks + replace on connection close), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
 - `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, link/window.open requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations. `render.ts`: state → DOM.
+  - `ops.ts`: all mutations (incl. `replaceTile`: `open --replace`). `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
   - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).
@@ -84,7 +84,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `driver.ts`: socket methods → ops.
   - `themes.ts` (`Theme {label, dark, accent, palette, code?}`: `code` = per-token colors for viewer code blocks, else ANSI fallback), `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
-- `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
+- `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
 - `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
@@ -179,5 +179,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `open` (file, URL, kind; `--tab`), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `title`, `icon`; dev-only `state`, `frames`, `open probe`. See `docs/CLI.md`.
+- `tie --help`: `list`, `open` (file, URL, kind; `--tab`, `--replace`), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `title`, `icon`; dev-only `state`, `frames`, `open probe`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

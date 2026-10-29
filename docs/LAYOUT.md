@@ -8,6 +8,7 @@
 - Placement: `{type:'slot', at, side}` | `{type:'float', rect?}` | `{type:'shelf', index?}`.
 - `detach` clears the tile's collapse, zoom, pin, reveal.
 - `swap(a, b)` (`ops.ts`): exchange two tiles' locations, same space only (else no-op, debug log). Any pair: slot ↔ slot (leaf ids, `swapLeaves`: sizes and donors stay with the positions), slot ↔ float (the slotted tile takes the float's rect and z-order), float ↔ float, shelf ↔ anything (shelf index).
+- `replaceTile(old, id)` (`ops.ts`, `tie open --replace`, `CLI.md`): `id` takes `old`'s place (leaf via `replaceLeaf`, float rect + z-order, shelf index) and state (active, zoomed, collapsed, pinned, revealed), then `old` closes (`closeTile`). Same space only (else no-op, debug log).
   - Each tile keeps its own collapse / zoom where the new place allows (`canCollapse`); onto the shelf: collapse, zoom, activity cleared; off the shelf: pin, reveal cleared.
   - Active tile stays active; moved to the shelf: `focusNext`.
   - Keys: `cmd+shift+arrows`; mouse: a tile dropped on a slotted tile's title bar (`INPUT.md` "Drop targets").
@@ -24,6 +25,7 @@
 | `remove(root, id)` | Freed space to siblings, proportionally. Unchanged tree keeps identity |
 | `move(root, id, target, side)` | `remove` + `insert`; onto itself: no-op |
 | `swapLeaves(root, a, b)` | Exchange two leaf ids (donor links relabeled: they follow the positions). Only one present: it takes the other id. Neither / same: unchanged |
+| `replaceLeaf(root, a, b)` | `b` takes `a`'s leaf (size, place, donor; leaves with donor `a` now point at `b`). `b` already in the tree: removed first. `a` absent / same: unchanged |
 | `resize(root, path, index, dpx, len, min)` | One border; only the two neighbors change. Min `MIN` = 80 px |
 | `dropSide(rect, x, y)` | Nearest edge (rect split by diagonals) |
 | `compute(root, area, opts)` | Tile rects + border hit areas |
