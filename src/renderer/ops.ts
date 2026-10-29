@@ -1,5 +1,5 @@
 // Space operations. Every mutation of S goes through here, then render().
-import { insert, remove, swapLeaves, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
+import { insert, remove, swapLeaves, replaceLeaf, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
 import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
@@ -107,6 +107,34 @@ export function swap(a: TileId, b: TileId) {
     }
     if ((S.active === a || S.active === b) && location(S.active) === 'shelved') focusNext()
     else render()
+  })
+}
+
+// `tie open --replace` (CLI.md): `id` (waiting on the shelf) takes `old`'s exact place: its leaf,
+// float rect and z-order, or shelf index, with its state there (active, zoomed, collapsed, pinned,
+// revealed); not its custom title / icon. Then `old` closes (scripted: no question). `old` gone (the
+// user closed it) or not in `id`'s tab: nothing, `id` stays where it is. `focus`: `id` takes input
+// even if `old` didn't have it (shelved: pinned, as `tie focus`).
+export function replaceTile(old: TileId, id: TileId, o: { focus?: boolean } = {}) {
+  const sp = spaceOf(old)
+  if (!sp || old === id || !S.tiles.has(id) || spaceOf(id) !== sp) return debug('layout', 'replace refused', old, id, sp?.id, spaceOf(id)?.id)
+  inTileSpace(old, () => {
+    debug('layout', 'replace', old, location(old), '->', id)
+    const active = S.active === old
+    detach(id)
+    S.tree = replaceLeaf(S.tree, old, id)
+    S.floats = S.floats.map((f) => (f.id === old ? { ...f, id } : f))
+    S.shelf = S.shelf.map((x) => (x === old ? id : x))
+    if (S.collapsed.has(old)) S.collapsed.add(id)
+    if (S.zoomed === old) S.zoomed = id
+    if (S.pinned === old) S.pinned = id
+    if (S.revealed === old) S.revealed = id
+    S.mru = S.mru.filter((m) => m !== id).map((m) => (m === old ? id : m))
+    if (active) S.active = id
+    closeTile(old) // out of every place already: drops it, keeps the rest
+    if (!active && !o.focus) return
+    if (location(id) === 'shelved' && S.pinned !== id) pin(id)
+    else activate(id)
   })
 }
 

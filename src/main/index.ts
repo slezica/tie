@@ -262,6 +262,7 @@ app.whenReady().then(async () => {
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)), {
     tiles: pty.tiles,
     allowExternal: () => getSettings().allowExternalControl,
+    busyIgnoring: pty.busyIgnoring,
   })
   await ready
   writeFileSync(infoPath, JSON.stringify({ pid: process.pid, instance, socket: socketPath, debugPort: dev ? debugPort : null, log: logPath }), { mode: PRIVATE })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { callerTile, MAX_HOPS } from './callers'
+import { callerTile, replaceBlock, MAX_HOPS } from './callers'
 
 // Process tree: 1 ← 100 (Tie) ← 200 (pty of t1) ← 300 (node: tie) ; 1 ← 400 (other app)
 const tree: Record<number, number> = { 100: 1, 200: 100, 300: 200, 400: 1 }
@@ -41,5 +41,36 @@ describe('callerTile', () => {
     const deep = (pid: number) => pid + 1 // 10 → 11 → ... ; pty far up
     expect(callerTile({ pid: 10, uid: 1 }, 1, deep, new Map([[10 + MAX_HOPS + 5, 't9']]))).toEqual({ kind: 'external' })
     expect(callerTile({ pid: 10, uid: 1 }, 1, deep, new Map([[10 + MAX_HOPS, 't9']]))).toEqual({ kind: 'tile', tile: 't9' })
+  })
+})
+
+describe('replaceBlock', () => {
+  // 200 = pty of t1 (shell); 300 = tie, direct child; 310 = tie under 305 (sh), under the shell.
+  const t: Record<number, number> = { 200: 100, 300: 200, 305: 200, 310: 305 }
+  const par = (pid: number) => t[pid] ?? null
+  const idle = () => ({ busy: false, others: [] })
+  it('direct child of an idle shell: ok', () => {
+    expect(replaceBlock(300, 200, par, idle)).toBeNull()
+  })
+  it('under another process: that process', () => {
+    expect(replaceBlock(310, 200, par, idle)).toEqual({ why: 'under', pid: 305 })
+  })
+  it('the pty process itself (exec): under its parent', () => {
+    expect(replaceBlock(200, 200, par, idle)).toEqual({ why: 'under', pid: 100 })
+  })
+  it('gone process: under unknown', () => {
+    expect(replaceBlock(999, 200, par, idle)).toEqual({ why: 'under', pid: null })
+  })
+  it('busy, tie ignored: the first other child', () => {
+    let ignored = 0
+    const busy = (ignore: number) => ((ignored = ignore), { busy: true, others: [400, 401] })
+    expect(replaceBlock(300, 200, par, busy)).toEqual({ why: 'busy', pid: 400 })
+    expect(ignored).toBe(300)
+  })
+  it('busy without other children (--cmd pty): unknown process', () => {
+    expect(replaceBlock(300, 200, par, () => ({ busy: true, others: [] }))).toEqual({ why: 'busy', pid: null })
+  })
+  it('lineage checked before busy', () => {
+    expect(replaceBlock(310, 200, par, () => ({ busy: true, others: [305] }))).toEqual({ why: 'under', pid: 305 })
   })
 })

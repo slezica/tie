@@ -2,7 +2,7 @@
 import { contains, type Side, type TileId } from '@core/layout'
 import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
 import { tabTitle, switchTab, newTab } from './tabs'
-import { place, openTile, closeTile, activate, pin, setMeta, setPing, swap, moveToSpace, type Placement } from './ops'
+import { place, openTile, closeTile, activate, pin, setMeta, setPing, swap, moveToSpace, replaceTile, type Placement } from './ops'
 import { displayTitle } from './tile'
 import { kindSpec } from './kinds'
 import { locationUrl } from '@core/guest'
@@ -26,6 +26,8 @@ interface Params {
   focus?: boolean // open, move: give the tile input
   tab?: string // open, move: target tab (`s1`..., 1-based position, or `new`)
   swap?: TileId // move: exchange places with this tile (same tab)
+  replace?: boolean // open: take the caller terminal's place (main checked it, socket.ts)
+  old?: TileId // replace (main only, socket.ts): the tile to replace
   clear?: boolean
 }
 
@@ -138,6 +140,11 @@ const methods: Record<string, (p: Params) => unknown> = {
     const kind = p.kind ?? 'terminal'
     if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
     const opts = { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url }
+    // --replace: waits hidden on the caller's shelf; main swaps it in once tie exits (`replace`).
+    if (p.replace) {
+      if (p.at || p.side || p.float || p.shelve || p.shelved || p.tab !== undefined) throw new Error('--replace takes no other placement (--at, --side, --float, --shelve, --tab)')
+      return tileInfo(openTile(kind as Kind, { type: 'shelf' }, opts, { activate: false }))
+    }
     // Input moves to the new tile only with --focus: a script showing something never redirects typing.
     if (p.tab === undefined) return tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus }))
     // Another tab: shown only with --focus; a hidden one gets the tile active (as move --tab).
@@ -145,6 +152,11 @@ const methods: Record<string, (p: Params) => unknown> = {
     const to = target === 'new' ? addTab() : target
     if (p.focus) switchTab(to)
     return withSpace(to, () => tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus || to !== S.visible })))
+  },
+  // Main only (socket.ts refuses it from clients): after `open --replace`, tie exited.
+  replace: (p) => {
+    replaceTile(String(p.old), String(p.id), { focus: !!p.focus })
+    return null
   },
   close: (p) => {
     const id = getTile(p.id ?? p.caller).id

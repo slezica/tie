@@ -24,3 +24,17 @@ export function callerTile(peer: Peer | null, uid: number, parentOf: (pid: numbe
   }
   return { kind: 'external' }
 }
+
+// `tie open --replace` (CLI.md): the caller's terminal gives its place to the opened tile.
+// SECURITY: kernel facts only, and only the caller's own terminal (the lineage tile's pty). tie must
+// run straight in that shell (peer's parent = the pty process: nothing in between, like an editor,
+// would lose its terminal), and the shell must run nothing else (busy, TERMINALS.md, tie aside).
+// busy(ignore): the pty's busy state ignoring that pid, with its other children.
+export type ReplaceBlock = { why: 'under'; pid: number | null } | { why: 'busy'; pid: number | null }
+
+export function replaceBlock(peer: number, pty: number, parentOf: (pid: number) => number | null, busy: (ignore: number) => { busy: boolean; others: number[] }): ReplaceBlock | null {
+  const parent = parentOf(peer)
+  if (parent !== pty) return { why: 'under', pid: parent }
+  const b = busy(peer)
+  return b.busy ? { why: 'busy', pid: b.others[0] ?? null } : null
+}

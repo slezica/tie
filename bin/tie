@@ -20,6 +20,7 @@ USAGE
       --shelved                           Open on the shelf (alias --shelve)
       --tab <tab|new>                     Open in another tab (see PLACEMENT)
       --focus                             Give the new tile keyboard input (default: input stays)
+      --replace                           Take this terminal's place (closes it; see PLACEMENT)
   tie close [id]                          Close tile
   tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
   tie move [id] --tab <tab|new> [--focus] Move tile to another tab
@@ -110,6 +111,11 @@ PLACEMENT (open, move)
                               screen: the user follows it). A tab left without tiles closes.
   --swap <id>                 (move) exchange places with another tile of the same tab: slots
                               (sizes stay with the places), floats, shelf. Other tab: error.
+  --replace                   (open) the new tile takes the place of the terminal this command
+                              runs in (same slot, float or shelf spot), and that terminal closes
+                              once tie exits. The new tile gets input if the terminal had it.
+                              Run it straight from the terminal's shell, with nothing else running
+                              there (see BEHAVIOR). No other placement flag (--focus is ok).
 
 BEHAVIOR
   - open and move never take the user's keyboard input: typing stays where it was. --focus gives
@@ -118,6 +124,10 @@ BEHAVIOR
   - focus switches to the tile's tab, expands it, and gives it input. Use sparingly.
   - ping marks the tile (and its tab) with a dot until the user activates it. No focus change.
     Pinging the tile the user is already on does nothing.
+  - open --replace fails, opening nothing, when: run outside a Tie terminal (no terminal to
+    replace); tie runs under another program, not straight from the shell (tie runs under vim);
+    the shell runs something else, background jobs included (A process is running: sleep).
+    It closes the terminal without asking: the shell and its session end.
   - close kills a terminal's processes. The user can close or move your tiles at any time:
     re-check with tie list before acting on an old id.
   - Tiles persist until closed; Tie does not restore them after a restart.
@@ -130,8 +140,8 @@ BEHAVIOR
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
   Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
-  not a web address (tie open browser <url>), no such tab, not in the same tab (--swap), Tie not
-  reachable, external control off.
+  not a web address (tie open browser <url>), no such tab, not in the same tab (--swap), --replace
+  refused (see BEHAVIOR), Tie not reachable, external control off.
 
 ENVIRONMENT
   TIE_TILE      Id of the tile this shell runs in. Set by Tie. Tie checks it: the caller is the
@@ -149,12 +159,13 @@ EXAMPLES
   tie move t7 --tab 2                         Send a tile to the second tab
   tie title "migrating db"; tie icon 🛠️        Label this tile
   tie ping                                    Done: ask the user to look here
-  id=$(tie open report.md --float)            Later: tie close $id`
+  id=$(tie open report.md --float)            Later: tie close $id
+  tie open notes.md --replace                 Turn this terminal into the document`
 
 const argv = process.argv.slice(2)
 const flags = {}
 const pos = []
-const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear', 'focus'])
+const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear', 'focus', 'replace'])
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
   if (a === '-h') flags.help = true
@@ -177,7 +188,9 @@ const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'),
 const socket = process.env.TIE_SOCKET || join(stateDir, `${process.env.TIE_INSTANCE || 'default'}.sock`)
 const caller = process.env.TIE_TILE
 
-function call(method, params = {}) {
+// hold: keep the connection until this process exits (open --replace: Tie swaps the new tile in
+// when it closes, after the caller's shell got the id; the kernel closes it at exit).
+function call(method, params = {}, { hold = false } = {}) {
   return new Promise((resolve, reject) => {
     const c = connect(socket)
     let buf = ''
@@ -187,7 +200,8 @@ function call(method, params = {}) {
       buf += d
       const nl = buf.indexOf('\n')
       if (nl < 0) return
-      c.end()
+      if (hold) c.unref()
+      else c.end()
       const msg = JSON.parse(buf.slice(0, nl))
       if (msg.error) reject(new Error(msg.error.message))
       else resolve(msg.result)
@@ -223,12 +237,13 @@ async function main() {
     case 'open': {
       // An http(s) URL (browser), a kind name (browser takes a URL after it), else a file path
       // (resolved here, against the caller's cwd).
-      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }
-      if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await call('open', { url: rest[0], ...common }))
-      if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await call('open', { kind: 'browser', url: rest[1], ...common }))
+      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, replace: flags.replace, ...place }
+      const open = (p) => call('open', { ...p, ...common }, { hold: !!flags.replace })
+      if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await open({ url: rest[0] }))
+      if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await open({ kind: 'browser', url: rest[1] }))
       const kind = rest[0] || 'terminal'
       const path = rest[0] ? resolve(rest[0]) : undefined
-      return printTile(await call('open', { kind, path, ...common }))
+      return printTile(await open({ kind, path }))
     }
     case 'close':
       return void (await call('close', { id: rest[0] }))

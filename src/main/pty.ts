@@ -48,6 +48,23 @@ export interface Busy {
   proc: string // foreground process name, read now ('' if unknown)
 }
 
+// Busy (TERMINALS.md "Busy"): a `--cmd` pty while alive; a shell while it has child processes
+// (foreground command, pipeline, background or suspended job; `ignore` aside). `others`: those
+// children. Exited / unknown pids: not busy.
+function busyOf(id: number, ignore?: number): Busy & { others: number[] } {
+  const p = ptys.get(id)
+  if (!p) return { busy: false, proc: '', others: [] }
+  let proc = ''
+  try {
+    proc = p.process
+  } catch {}
+  const kids = childrenOf?.(id)
+  const others = kids ? kids.filter((k) => k !== ignore) : []
+  if (cmds.has(id)) return { busy: true, proc, others }
+  if (kids) return { busy: others.length > 0, proc, others }
+  return { busy: !!proc && proc !== shellNames.get(id), proc, others }
+}
+
 export function initPty(wc: () => WebContents | null) {
   // Never throw here: an exception inside node-pty's native callbacks aborts the process.
   const send = (ch: string, ...args: unknown[]) => {
@@ -169,20 +186,16 @@ export function initPty(wc: () => WebContents | null) {
         await new Promise((r) => setTimeout(r, 100))
       }
     },
-    // Busy terminals (TERMINALS.md "Busy"), read now (not the polls): a `--cmd` pty while alive;
-    // a shell while it has child processes (foreground command, pipeline, background or
-    // suspended job). Exited / unknown pids: not busy.
+    // Busy terminals (`busyOf`), read now (not the polls): close / quit questions.
     busy(id: number): Busy {
-      const p = ptys.get(id)
-      if (!p) return { busy: false, proc: '' }
-      let proc = ''
-      try {
-        proc = p.process
-      } catch {}
-      if (cmds.has(id)) return { busy: true, proc }
-      const kids = childrenOf?.(id)
-      if (kids) return { busy: kids.length > 0, proc }
-      return { busy: !!proc && proc !== shellNames.get(id), proc }
+      const { busy, proc } = busyOf(id)
+      return { busy, proc }
+    },
+    // `tie open --replace` (socket.ts): as busy, `ignore` (tie itself) not counted; the other
+    // children. (No child lookup: no tile callers either, socket.ts, so never asked.)
+    busyIgnoring(id: number, ignore: number): { busy: boolean; others: number[] } {
+      const { busy, others } = busyOf(id, ignore)
+      return { busy, others }
     },
     count: () => ptys.size,
     // Live pty pids → their tiles (socket caller identity).
