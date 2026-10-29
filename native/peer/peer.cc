@@ -2,6 +2,7 @@
 // peerOf(fd): pid + uid of the process on the other end of a connected unix socket.
 // parentOf(pid): its parent pid (process lineage), null if the process is gone.
 // childrenOf(pid): pids of its direct children (busy terminals: a shell with children), null on error.
+// nameOf(pid): its process name (`tie open --replace` errors), null if gone.
 #include <napi.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -53,10 +54,22 @@ static Napi::Value ChildrenOf(const Napi::CallbackInfo& info) {
   return out;
 }
 
+static Napi::Value NameOf(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) return env.Null();
+  int pid = info[0].As<Napi::Number>().Int32Value();
+  if (pid <= 0) return env.Null();
+  char name[2 * MAXCOMLEN + 1];
+  int n = proc_name(pid, name, sizeof(name));
+  if (n <= 0) return env.Null();
+  return Napi::String::New(env, name, n);
+}
+
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("peerOf", Napi::Function::New(env, PeerOf));
   exports.Set("parentOf", Napi::Function::New(env, ParentOf));
   exports.Set("childrenOf", Napi::Function::New(env, ChildrenOf));
+  exports.Set("nameOf", Napi::Function::New(env, NameOf));
   return exports;
 }
 
