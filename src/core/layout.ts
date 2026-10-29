@@ -143,6 +143,20 @@ export function swapLeaves(root: Node | null, a: TileId, b: TileId): Node | null
   return normalize(visit(root))
 }
 
+// Put tile b in a's leaf (size, place, donor kept; leaves that had a as donor now point at b).
+// b already in the tree: removed first. a absent: unchanged.
+export function replaceLeaf(root: Node | null, a: TileId, b: TileId): Node | null {
+  if (!root || a === b || !contains(root, a)) return root
+  const base = contains(root, b) ? remove(root, b)! : root
+  const visit = (node: Node): Node => {
+    if (node.type === 'split') return { ...node, children: node.children.map(visit), sizes: [...node.sizes] }
+    const out: Leaf = { type: 'leaf', id: node.id === a ? b : node.id }
+    if (node.donor !== undefined) out.donor = node.donor === a ? b : node.donor
+    return out
+  }
+  return normalize(visit(base))
+}
+
 // Parent split direction of a leaf, or null if root/absent.
 export function parentDir(root: Node | null, id: TileId): Dir | null {
   if (!root || root.type === 'leaf') return null

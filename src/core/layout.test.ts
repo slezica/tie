@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, resize, swapLeaves, type Node } from './layout'
+import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -108,6 +108,49 @@ describe('move', () => {
   it('is a no-op onto itself', () => {
     const t = insert(leaf('a'), 'a', 'r', 'b')
     expect(move(t, 'a', 'a', 'l')).toBe(t)
+  })
+})
+
+describe('replaceLeaf', () => {
+  // a | (b over c), sizes 0.5 / 0.5, inner 0.5 / 0.5
+  const tree = () => insert(insert(leaf('a'), 'a', 'r', 'b'), 'b', 'b', 'c')
+
+  it('new id takes the leaf, sizes stay', () => {
+    const t = resize(tree(), [], 0, -20, 100, 10)
+    const r = replaceLeaf(t, 'c', 'x') as any
+    expect(leaves(r)).toEqual(['a', 'b', 'x'])
+    expect(r.sizes).toEqual((t as any).sizes)
+    expect(r.children[1].sizes).toEqual((t as any).children[1].sizes)
+  })
+
+  it('returns a new tree, input untouched', () => {
+    const t = tree()
+    const before = structuredClone(t)
+    expect(replaceLeaf(t, 'a', 'x')).not.toBe(t)
+    expect(t).toEqual(before)
+  })
+
+  it('keeps its donor; donor links to it follow', () => {
+    const r = replaceLeaf(tree(), 'b', 'x')! // c had donor b
+    expect(leaves(r)).toEqual(['a', 'x', 'c'])
+    expect(remove(r, 'c')).toMatchObject({ sizes: [0.5, 0.5] }) // c's space back to x
+    expect(remove(remove(r, 'c'), 'x')).toEqual(leaf('a')) // x had donor a (b's)
+  })
+
+  it('root leaf', () => {
+    expect(replaceLeaf(leaf('a'), 'a', 'x')).toEqual(leaf('x'))
+  })
+
+  it('absent target, empty tree, same id: unchanged', () => {
+    const t = tree()
+    expect(replaceLeaf(t, 'z', 'x')).toBe(t)
+    expect(replaceLeaf(null, 'a', 'x')).toBe(null)
+    expect(replaceLeaf(t, 'a', 'a')).toBe(t)
+  })
+
+  it('new id already in the tree: moved into the place', () => {
+    const r = replaceLeaf(tree(), 'a', 'c')!
+    expect(leaves(r)).toEqual(['c', 'b'])
   })
 })
 
