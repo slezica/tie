@@ -42,6 +42,7 @@ Every size and space in `src/viewers/markdown.html` is a custom property on `:ro
 - `--box` 0.9em, `--box-check` 0.75em, `--box-gap` 0.5em, `--box-radius` 0.125rem: task box side, ✓ glyph, gap when inline, corner.
 - `--code-size` 0.875em: mono relative to prose.
 - `--code-pad` 0.125em 0.375em, `--code-pill-leading` 1.4: inline code pill.
+- `--code-leading` = `--leading`: code blocks; separate so prose leading can change without them.
 - `--chip-pad` 0 0.4em: blocked image placeholder.
 - `--inset` 1 unit: padding inside quotes and code blocks.
 - `--cell-pad` ½ unit 1 unit: table cells.

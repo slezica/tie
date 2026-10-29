@@ -14,7 +14,7 @@
       :root {
         /* Root and rhythm */
         --scale: 1.15; /* prose over the tile font size (--size, the host's setting) */
-        --leading: 1.5; /* line height of prose and code blocks */
+        --leading: 1.5; /* line height of prose (bullets and task boxes center on it) */
         --space: 1rem; /* Pico's --pico-spacing / typography-spacing-vertical: the rhythm unit */
         --gap: var(--space); /* below every block (and a heading); above a quote */
         --gap-group: calc(var(--space) * 0.5); /* between paragraphs in a list item; between terms */
@@ -55,6 +55,7 @@
         --code-size: 0.875em; /* mono relative to prose */
         --code-pad: 0.125em 0.375em; /* inline code pill (y x) */
         --code-pill-leading: 1.4; /* inline code pill line height */
+        --code-leading: var(--leading); /* code blocks */
         --chip-pad: 0 0.4em; /* blocked image placeholder (y x) */
 
         /* Boxes, lines, corners */
@@ -146,7 +147,7 @@
       /* Code: smaller mono; inline as a small pill, blocks padded one inset. */
       code, pre, kbd, samp { font-family: var(--mono); font-size: var(--code-size); border-radius: var(--radius); }
       code { display: inline-block; padding: var(--code-pad); background: var(--code-bg); line-height: var(--code-pill-leading); }
-      pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: var(--leading); }
+      pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: var(--code-leading); }
       pre > code { display: block; padding: var(--inset); background: none; font-size: 1em; line-height: inherit; }
 
       /* Task lists: the box sits where the bullet was (flush left, centered on the first line).
