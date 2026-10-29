@@ -24,7 +24,7 @@ Move the shelf out of the right sidebar into a single toolbar with the tabs; rem
 5. Drop zone to shelve: the shelf strip only. Insert index by item horizontal midpoints; vertical insert line.
 6. Reveal size stays 30% × 50% of board; `inRevealZone` becomes the bounding box of item ∪ reveal (orientation-agnostic).
 7. Layout by CSS flex; JS only toggles the overflow state and scrolls the current tab into view.
-8. Deferred: auto-scroll of the tab list while dragging a tab near its edges.
+8. Deferred: auto-scroll of the tab list while dragging a tab near its edges. Done 2026-10-28 (tabs and tile drags, `TABS.md` "Overflow").
 
 ## Plan
 

@@ -26,7 +26,7 @@
 
 - Floats are not targets; the slotted tile under them is.
 - Templates follow the same rows (title bar: the normal slot rules): a new tile of that kind lands there (tab: `TABS.md`).
-- Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
+- Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 
 ## Drag mechanics (`drag.ts`)

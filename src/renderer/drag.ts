@@ -3,7 +3,7 @@ import { compute, dropSide, insert, move, resize, contains, type Border, type Re
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, type Kind } from './state'
 import { place, swap, activate, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
-import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab } from './tabs'
+import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab, edgeScroll } from './tabs'
 import { render } from './render'
 import { setShelfGhost, clearShelfGhost, hideShelfItem } from './shelf'
 import { displayIcon, displayTitle } from './tile'
@@ -190,6 +190,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   let lx = sx
   let ly = sy
   let target: Target | null = null
+  let edge: ReturnType<typeof edgeScroll> | null = null // tab list auto-scroll, while started
   const preview = document.getElementById('preview')!
   const preview2 = document.getElementById('preview2')!
   const ghost = document.getElementById('ghost')!
@@ -213,6 +214,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     // Beside the pointer, kept inside the window (dragging along the bottom toolbar).
     ghost.style.left = `${Math.min(lx + 12, window.innerWidth - ghost.offsetWidth - 4)}px`
     ghost.style.top = `${Math.min(ly + 12, window.innerHeight - ghost.offsetHeight - 4)}px`
+    edge?.at(lx, ly)
   }
 
   const begin = () => {
@@ -223,6 +225,8 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     const label = src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
     ghost.innerHTML = `${iconHtml(icon())}<span>${label.replace(/</g, '&lt;')}</span>`
     ghost.style.display = 'flex'
+    // Near the tab list's ends it scrolls; each step moves tabs under the pointer: target again.
+    edge = edgeScroll({ past: false, step: update })
     debug('layout', 'drag start', src)
   }
 
@@ -248,6 +252,8 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   }
   const finish = () => {
     stopTracking()
+    edge?.stop()
+    edge = null
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keyup', onKey, true)
     preview.style.display = preview2.style.display = ghost.style.display = 'none'

@@ -118,34 +118,100 @@ export function setTabMeta(id: string, meta: { title?: string | null; icon?: str
 
 const tabEls = new Map<string, HTMLElement>()
 
-// Drag a tab sideways to reorder; order updates live under the pointer.
+// Drag a tab sideways to reorder; order updates live under the pointer. Near the list's ends it
+// auto-scrolls (edgeScroll); past them counts as deepest. The order follows each scroll step.
 function dragTab(e: PointerEvent, id: string) {
   const x0 = e.clientX
+  let x = x0
   let started = false
+  const reorder = () => {
+    const others = S.spaces.filter((sp) => sp.id !== id)
+    let index = others.length
+    for (let i = 0; i < others.length; i++) {
+      const r = tabEls.get(others[i].id)!.getBoundingClientRect()
+      if (x < r.left + r.width / 2) {
+        index = i
+        break
+      }
+    }
+    const moved = S.spaces.find((sp) => sp.id === id)
+    if (!moved) return // closed mid-drag
+    others.splice(index, 0, moved)
+    if (others.some((sp, i) => sp !== S.spaces[i])) {
+      S.spaces = others
+      renderTabs()
+    }
+  }
+  const edge = edgeScroll({ past: true, step: reorder })
+  const end = () => {
+    edge.stop()
+    document.body.classList.remove('dragging-tab')
+  }
   track(e, {
     move: (ev) => {
       if (!started && Math.abs(ev.clientX - x0) < 4) return
       if (!started) document.body.classList.add('dragging-tab')
       started = true
-      const others = S.spaces.filter((sp) => sp.id !== id)
-      let index = others.length
-      for (let i = 0; i < others.length; i++) {
-        const r = tabEls.get(others[i].id)!.getBoundingClientRect()
-        if (ev.clientX < r.left + r.width / 2) {
-          index = i
-          break
-        }
-      }
-      const moved = S.spaces.find((sp) => sp.id === id)!
-      others.splice(index, 0, moved)
-      if (others.some((sp, i) => sp !== S.spaces[i])) {
-        S.spaces = others
-        renderTabs()
-      }
+      x = ev.clientX
+      reorder()
+      edge.at(ev.clientX, ev.clientY)
     },
-    up: () => document.body.classList.remove('dragging-tab'),
-    cancel: () => document.body.classList.remove('dragging-tab'),
+    up: end,
+    cancel: end,
   })
+}
+
+// Auto-scroll of the tab list while a drag's pointer is near one of its ends (only while it can
+// scroll that way): a tab reorder (dragTab) or a tile / template over the tab area (drag.ts).
+// Zone: EDGE px inside each end, as wide as the fades (style.css `.more-left` / `.more-right`).
+// Speed by depth into the zone, one step per frame while the pointer stays (no moves needed);
+// `step` runs after each step (tabs moved under the pointer: recompute the target). `past`: beyond
+// the list's ends counts as deepest (tab drags); else the pointer must be on the list (tile drags:
+// `+` and the rest of #tabs are a target of their own). Callers `stop()` when the drag ends.
+const EDGE = 24
+const SPEED = { min: 2, max: 12 } // px per frame
+let holding = 0 // auto-scrolling drags running: renderTabs leaves the scroll alone
+
+export function edgeScroll(o: { past: boolean; step: () => void }) {
+  const list = document.getElementById('tab-list')!
+  let x = 0
+  let y = 0
+  let raf = 0
+  let done = false
+  holding++
+  const speed = (depth: number) => SPEED.min + (SPEED.max - SPEED.min) * Math.min(1, Math.max(0, depth) / EDGE)
+  const velocity = () => {
+    const r = list.getBoundingClientRect()
+    if (!o.past) {
+      const t = document.getElementById('tabs')!.getBoundingClientRect()
+      if (x < r.left || x > r.right || y < t.top || y > t.bottom) return 0
+    }
+    if (x < r.left + EDGE && list.scrollLeft > 0) return -speed(r.left + EDGE - x)
+    if (x > r.right - EDGE && list.scrollLeft + list.clientWidth < list.scrollWidth - 1) return speed(x - (r.right - EDGE))
+    return 0
+  }
+  const tick = () => {
+    const v = velocity()
+    const before = list.scrollLeft
+    if (v) list.scrollLeft += v
+    if (!v || list.scrollLeft === before) return void (raf = 0)
+    raf = requestAnimationFrame(tick) // before step: its `at()` sees the loop running
+    o.step()
+  }
+  return {
+    at(nx: number, ny: number) {
+      x = nx
+      y = ny
+      if (!done && !raf && velocity()) raf = requestAnimationFrame(tick)
+    },
+    stop() {
+      if (done) return
+      done = true
+      holding--
+      cancelAnimationFrame(raf)
+      raf = 0
+    },
+  }
 }
 
 function createTabEl(id: string): HTMLElement {
@@ -198,9 +264,10 @@ export function renderTabs() {
     const iconMarkup = sp.customIcon ? iconHtml({ text: sp.customIcon }) : ''
     if (icon.dataset.icon !== iconMarkup) (icon.innerHTML = iconMarkup), (icon.dataset.icon = iconMarkup)
   })
-  // Keep the current tab in view when it changes or tabs resize (titles); a user scroll stays.
+  // Keep the current tab in view when it changes or tabs resize (titles); a user scroll stays, and
+  // so does a drag's auto-scroll (checked again on the first render after it).
   const list = document.getElementById('tab-list')!
-  if (shownCurrent !== S.visible || shownWidth !== list.scrollWidth) {
+  if (!holding && (shownCurrent !== S.visible || shownWidth !== list.scrollWidth)) {
     shownCurrent = S.visible
     shownWidth = list.scrollWidth
     showTab(S.visible)

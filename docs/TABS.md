@@ -24,7 +24,7 @@ One `#toolbar`, in the bottom strip `#bottom` (default) or the top strip `#top` 
 Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the tab list `#tab-list` + `#tab-add`), `#shelf` (`SHELF.md`), `#templates`. Flex: the tab list takes what is left (`flex: 1`), the shelf keeps its content width, templates never shrink.
 
 - Tab: ping dot, custom icon, title, close button. `+` adds a tab.
-- Pointerdown switches; drag sideways reorders (live, 4 px threshold).
+- Pointerdown switches; drag sideways reorders (live, 4 px threshold). Near the list's ends it auto-scrolls ("Overflow"); the order follows.
 - Right-click: rename / set icon menu.
 
 ## Overflow
@@ -33,7 +33,7 @@ Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the 
 - `#tabs.overflow` (list `scrollWidth > clientWidth`): divider toward the shelf (right border). Fades (`mask-image`) at the list's ends where more tabs are: `.more-left` / `.more-right`, synced on scroll and every `renderTabs()`.
 - The current tab is scrolled into view (`showTab`, list-only scroll) when it changes or when the list's content width changes (titles, new tabs); a user's scroll otherwise stays.
 - Floor: `#tabs` `min-width: var(--tabs-min)` (140 px: one tab and `+`). Below it the shelf gives way (`SHELF.md` "Space").
-- Not yet: auto-scroll while dragging a tab near the list's edges (`PENDING.md`).
+- Auto-scroll while dragging (`edgeScroll`, `tabs.ts`): a tab reorder (`dragTab`) or a tile / template over the list (`startDrag`). Zone: 24 px inside each end (the fades' width), only while the list can scroll that way. Speed by depth: 2 to 12 px per frame (`requestAnimationFrame`, no pointer moves needed). After each step the target is computed again under the still pointer (reorder index; `tabDropAt` + `markTabDrop`). Tab reorder: past the ends = deepest. Tile drag: only over the list itself (`+` and the rest of `#tabs` are the new-tab target). Stops on leaving the zone, drop, Escape, cancel. While it runs, `renderTabs` leaves the scroll alone (no snap back to the current tab); the next render after the drag catches up.
 
 Title (`tabTitle`), first match:
 
@@ -64,4 +64,3 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
 ## Limitations
 
 - No tab commands over the CLI beyond `--tab` (new tab, move into a tab): no close, rename, reorder or switch (except `--focus`).
-- No auto-scroll of the tab list while dragging a tile over its ends (tabs out of view: scroll first).
