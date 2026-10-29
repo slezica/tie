@@ -37,11 +37,13 @@ export function tabTitle(sp: Space): string {
 
 // A new tab starts with a terminal (like a template dropped on an empty board: default cwd).
 // `empty`: no terminal, for a tile dropped onto the tab list (the caller fills it at once).
-export function newTab(o: { empty?: boolean } = {}): string {
+// `show: false` (CLI `--tab new` without --focus): created after the visible tab but not shown.
+export function newTab(o: { empty?: boolean; show?: boolean } = {}): string {
   const sp = newSpace()
   const at = S.spaces.findIndex((x) => x.id === S.visible)
   S.spaces.splice(at + 1, 0, sp)
-  switchTab(sp.id)
+  if (o.show !== false) switchTab(sp.id)
+  else render()
   if (!o.empty) openTerminal()
   return sp.id
 }

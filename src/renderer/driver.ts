@@ -1,7 +1,7 @@
 // Driver: socket commands (via main) mapped to space operations.
 import { contains, type Side, type TileId } from '@core/layout'
-import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, newSpace, type Kind } from './state'
-import { tabTitle, switchTab } from './tabs'
+import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
+import { tabTitle, switchTab, newTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, swap, moveToSpace, type Placement } from './ops'
 import { displayTitle } from './tile'
 import { kindSpec } from './kinds'
@@ -84,12 +84,8 @@ function tabTarget(p: Params): string {
   return sp.id
 }
 
-// `--tab new`: an empty tab after the visible one, not shown (tabs.ts `newTab` switches to it).
-function addTab(): string {
-  const sp = newSpace()
-  S.spaces.splice(S.spaces.findIndex((x) => x.id === S.visible) + 1, 0, sp)
-  return sp.id
-}
+// `--tab new`: an empty tab after the visible one, not shown (--focus switches afterwards).
+const addTab = () => newTab({ empty: true, show: false })
 
 // Brings the tile to the user: its tab, expanded and active (shelved: reveal pinned). `focus`, --focus.
 function bring(id: TileId) {
