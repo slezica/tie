@@ -17,8 +17,7 @@ export default async (ctx, h) => {
   // Relative --cwd resolves against the caller's directory, not Tie's.
   const dir = join(ROOT, 'dev')
   const rel = tieIn(dir, 'open', 'terminal', '--cwd', '.', '--cmd', 'pwd -P; sleep 30').id
-  await ctx.sleep(1000)
-  const pwd = (await text(rel)).trim().split('\n')[0]
+  const pwd = (await h.waitFor(ctx, async () => (await text(rel)).trim(), 'pwd output', 10000)).split('\n')[0]
   h.assert(pwd === realpathSync(dir), `relative --cwd: ${pwd}`)
   await ctx.tie('close', rel)
 
@@ -78,7 +77,7 @@ export default async (ctx, h) => {
   {
     const help = execFileSync(join(ROOT, 'bin/tie'), ['--help']).toString()
     const want = ['USAGE', 'DESCRIPTION', 'TILE KINDS', 'TILE IDS', 'PLACEMENT', 'BEHAVIOR', 'OUTPUT AND EXIT STATUS', 'ENVIRONMENT', 'EXAMPLES']
-    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'browser', 'tie open <url>', 'tie open browser', 'http(s)', 'Downloads', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
+    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', '--tab', '--swap', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'browser', 'tie open <url>', 'tie open browser', 'http(s)', 'Downloads', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
       h.assert(help.includes(w), `help mentions ${w}`)
   }
 }

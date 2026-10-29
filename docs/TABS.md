@@ -8,7 +8,7 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 - `withSpace(id, fn)`: run `fn` with `S.current = id`, restore after. If `fn` switched tabs: `S.current` = new visible space.
 - `render()` always renders `S.visible`, even inside `withSpace`.
 - `closeTile` / `activate` on another space's tile run in that space, no tab switch, no keyboard focus.
-- `tie focus` is the exception: switches to the tile's tab.
+- `tie focus` is the exception: switches to the tile's tab (also `--focus` with `--tab` / `--swap`).
 - Socket calls run in the space of `id`, `at` or `caller`, else visible (`CLI.md`).
 
 ## Switching (`switchTab`)
@@ -59,8 +59,9 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
 - Same tab: a board tile = no target (no highlight); a shelf item = unshelved beside the active tile (as `cmd+S`).
 - Template → a new tile of its kind in that tab (or a new one), beside its active tile, default cwd (`S.cwd`); the tab is shown. `file`: picker first (default dir), cancel → nothing, no switch.
 - Feedback: `.tab.drop` / `#tab-add.drop` (accent). While any tile drag runs (`body.tile-drag`) `+` gets a dashed border: a target, like the shelf's "+" hint. No board preview.
+- CLI (`CLI.md` "Placement"): `tie move --tab <tab|new>`, `tie open --tab`: same placement (`moveToSpace`, `activate: false` into the visible tab), but the visible tab stays unless `--focus` (or the moved tile was the last of the tab on screen: the user follows it). `new`: an empty tab after the visible one, not shown (driver `addTab`; `newTab` would switch).
 
 ## Limitations
 
-- No tab commands over the CLI; `tie move` can't change a tile's tab.
+- No tab commands over the CLI beyond `--tab` (new tab, move into a tab): no close, rename, reorder or switch (except `--focus`).
 - No auto-scroll of the tab list while dragging a tile over its ends (tabs out of view: scroll first).

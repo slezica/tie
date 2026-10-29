@@ -1,8 +1,8 @@
 // Driver: socket commands (via main) mapped to space operations.
 import { contains, type Side, type TileId } from '@core/layout'
-import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind } from './state'
+import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, newSpace, type Kind } from './state'
 import { tabTitle, switchTab } from './tabs'
-import { place, openTile, closeTile, activate, pin, setMeta, setPing, type Placement } from './ops'
+import { place, openTile, closeTile, activate, pin, setMeta, setPing, swap, moveToSpace, type Placement } from './ops'
 import { displayTitle } from './tile'
 import { kindSpec } from './kinds'
 import { locationUrl } from '@core/guest'
@@ -24,6 +24,8 @@ interface Params {
   shelve?: boolean
   shelved?: boolean
   focus?: boolean // open, move: give the tile input
+  tab?: string // open, move: target tab (`s1`..., 1-based position, or `new`)
+  swap?: TileId // move: exchange places with this tile (same tab)
   clear?: boolean
 }
 
@@ -70,6 +72,62 @@ function placement(p: Params, self?: TileId): Placement {
   return { type: 'slot', at, side }
 }
 
+// `--tab`: a tab id (`s1`...), a 1-based position (tie list's TAB column) or `new` (created by the
+// caller, once every check passed). No other placement flag: the tile goes beside the target tab's
+// active tile (an empty tab: root), as a drop onto a tab.
+function tabTarget(p: Params): string {
+  if (p.at || p.side || p.float || p.shelve || p.shelved) throw new Error('--tab takes no other placement (--at, --side, --float, --shelve)')
+  const t = String(p.tab)
+  if (t === 'new') return t
+  const sp = /^\d+$/.test(t) ? S.spaces[Number(t) - 1] : S.spaces.find((x) => x.id === t)
+  if (!sp) throw new Error(`no such tab: ${t}`)
+  return sp.id
+}
+
+// `--tab new`: an empty tab after the visible one, not shown (tabs.ts `newTab` switches to it).
+function addTab(): string {
+  const sp = newSpace()
+  S.spaces.splice(S.spaces.findIndex((x) => x.id === S.visible) + 1, 0, sp)
+  return sp.id
+}
+
+// Brings the tile to the user: its tab, expanded and active (shelved: reveal pinned). `focus`, --focus.
+function bring(id: TileId) {
+  const sp = spaceOf(id)
+  if (!sp) return
+  if (sp.id !== S.visible) switchTab(sp.id)
+  withSpace(sp.id, () => {
+    if (location(id) === 'shelved') pin(id)
+    else {
+      S.collapsed.delete(id)
+      activate(id)
+    }
+  })
+}
+
+// `move --tab`: active in the target tab (`moveToSpace`). The visible tab changes only with --focus,
+// or when the tile was the last one of the tab on screen: that tab closes, the user follows the tile
+// (rather than land on the tab before). The tab left empty closes (as closeTile).
+function moveTab(id: TileId, p: Params) {
+  const target = tabTarget(p)
+  const from = spaceOf(id)!
+  const to = target === 'new' ? addTab() : target
+  const last = from.id === S.visible && to !== from.id && [...S.tiles.keys()].every((t) => t === id || spaceOf(t) !== from)
+  const show = !!p.focus || last
+  if (show) switchTab(to)
+  moveToSpace(id, to, { activate: show || to !== S.visible })
+  if (p.focus) bring(id)
+}
+
+// `move --swap`: exchange places (slot, float rect, shelf index) with a tile of the same tab (`swap`).
+function swapWith(id: TileId, p: Params) {
+  if (p.at || p.side || p.float || p.shelve || p.shelved || p.tab !== undefined) throw new Error('--swap takes no placement (--at, --side, --float, --shelve, --tab)')
+  const other = getTile(p.swap).id
+  if (spaceOf(other) !== spaceOf(id)) throw new Error(`not in the same tab: ${other}`)
+  swap(id, other)
+  if (p.focus) bring(id)
+}
+
 const methods: Record<string, (p: Params) => unknown> = {
   list: () => ({
     board: boardRect(),
@@ -83,9 +141,14 @@ const methods: Record<string, (p: Params) => unknown> = {
   open: (p) => {
     const kind = p.kind ?? 'terminal'
     if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
+    const opts = { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url }
     // Input moves to the new tile only with --focus: a script showing something never redirects typing.
-    const id = openTile(kind as Kind, placement(p), { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url }, { activate: !!p.focus })
-    return tileInfo(id)
+    if (p.tab === undefined) return tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus }))
+    // Another tab: shown only with --focus; a hidden one gets the tile active (as move --tab).
+    const target = tabTarget(p)
+    const to = target === 'new' ? addTab() : target
+    if (p.focus) switchTab(to)
+    return withSpace(to, () => tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus || to !== S.visible })))
   },
   close: (p) => {
     const id = getTile(p.id ?? p.caller).id
@@ -94,20 +157,16 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   move: (p) => {
     const id = getTile(p.id ?? p.caller).id
-    if (!p.at && !p.float && !p.shelve && !p.shelved) throw new Error('move needs --at, --float or --shelve')
+    if (p.swap !== undefined) return swapWith(id, p), tileInfo(id)
+    if (p.tab !== undefined) return moveTab(id, p), tileInfo(id)
+    if (!p.at && !p.float && !p.shelve && !p.shelved) throw new Error('move needs --at, --float, --shelve, --tab or --swap')
     place(id, placement(p, id), { activate: !!p.focus })
     return tileInfo(id)
   },
   // Strong: brings the tile to the user (its tab, expanded) and takes input. For scripts/hotkeys.
   focus: (p) => {
     const id = getTile(p.id ?? p.caller).id
-    const sp = spaceOf(id)
-    if (sp && sp.id !== S.visible) switchTab(sp.id)
-    if (location(id) === 'shelved') pin(id)
-    else {
-      S.collapsed.delete(id)
-      activate(id)
-    }
+    bring(id)
     return tileInfo(id)
   },
   // Soft: mark for attention, no focus or layout change.

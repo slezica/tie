@@ -160,13 +160,13 @@ export function closeTile(id: TileId) {
 // tile (`besidePlacement`), active in that space (keys follow only if it is the visible one: the
 // caller switches first, tabs.ts `moveToTab`). The space it left: focusNext if it was active there;
 // emptied, it closes (as closeTile). Same space: a shelved tile comes back to the board the same
-// way; a board tile stays put.
-export function moveToSpace(id: TileId, spaceId: string) {
+// way; a board tile stays put. `activate: false` (CLI without --focus): as `place`.
+export function moveToSpace(id: TileId, spaceId: string, o: { activate?: boolean } = {}) {
   const from = spaceOf(id)
   const to = S.spaces.find((x) => x.id === spaceId)
   if (!from || !to) return debug('layout', 'move to space refused', id, spaceId)
   if (from === to) {
-    if (location(id) === 'shelved') withSpace(to.id, () => place(id, besidePlacement(null)))
+    if (location(id) === 'shelved') withSpace(to.id, () => place(id, besidePlacement(null), o))
     return
   }
   debug('layout', 'move to space', id, from.id, '->', to.id)
@@ -176,7 +176,7 @@ export function moveToSpace(id: TileId, spaceId: string) {
     S.mru = S.mru.filter((m) => m !== id)
     if (S.active === id) focusNext()
   })
-  withSpace(to.id, () => place(id, besidePlacement(null)))
+  withSpace(to.id, () => place(id, besidePlacement(null), o))
   dropIfEmpty(from)
 }
 

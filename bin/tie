@@ -18,9 +18,12 @@ USAGE
       --at <id> [--side l|r|t|b]          Split next to tile (default: caller/active, longer side)
       --float                             Open floating
       --shelved                           Open on the shelf (alias --shelve)
+      --tab <tab|new>                     Open in another tab (see PLACEMENT)
       --focus                             Give the new tile keyboard input (default: input stays)
   tie close [id]                          Close tile
   tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
+  tie move [id] --tab <tab|new> [--focus] Move tile to another tab
+  tie move [id] --swap <id> [--focus]     Exchange places with another tile of the same tab
   tie focus [id]                          Bring tile to user: switch tab, expand, take input
   tie ping [id] [--clear]                 Ask for attention: marks tile (and its tab) until it's active
   tie title [id] <text>                   Set title ("" = automatic)
@@ -92,16 +95,26 @@ TILE KINDS
 TILE IDS
   t1, t2, ... open (and every command acting on a tile) prints the id; --json prints full info.
   [id] defaults to $TIE_TILE: the tile this command runs in. tie list shows all tiles, all tabs.
+  Tabs: s1, s2, ... (tie list --json: tabs, and each tile's tab); tie list's TAB column is the
+  tab's position (1 = leftmost).
 
 PLACEMENT (open, move)
   Default: split next to the calling tile, along its longer side.
   --at <id> [--side l|r|t|b]  next to another tile (must be on the board, not shelved).
   --float                     floating over the board.
   --shelved                   on the shelf: an icon the user can hover to peek or click to open.
+  --tab <tab|new>             in another tab: its id (s1...), its position (tie list's TAB column),
+                              or new (a new tab after the user's). Beside that tab's active tile.
+                              Not with --at, --side, --float, --shelved. The user's tab doesn't
+                              change (unless --focus, or move takes the last tile of the tab on
+                              screen: the user follows it). A tab left without tiles closes.
+  --swap <id>                 (move) exchange places with another tile of the same tab: slots
+                              (sizes stay with the places), floats, shelf. Other tab: error.
 
 BEHAVIOR
   - open and move never take the user's keyboard input: typing stays where it was. --focus gives
-    the tile input (only when the user expects it). Empty board: the new tile gets input.
+    the tile input (only when the user expects it); with --tab or --swap it also shows the tile's
+    tab. Empty board: the new tile gets input.
   - focus switches to the tile's tab, expands it, and gives it input. Use sparingly.
   - ping marks the tile (and its tab) with a dot until the user activates it. No focus change.
     Pinging the tile the user is already on does nothing.
@@ -117,7 +130,8 @@ BEHAVIOR
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
   Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
-  not a web address (tie open browser <url>), Tie not reachable, external control off.
+  not a web address (tie open browser <url>), no such tab, not in the same tab (--swap), Tie not
+  reachable, external control off.
 
 ENVIRONMENT
   TIE_TILE      Id of the tile this shell runs in. Set by Tie. Tie checks it: the caller is the
@@ -131,6 +145,8 @@ EXAMPLES
   tie open report/index.html                  Show a local page (reloads when report/ changes)
   tie open http://localhost:5173 --shelved    Park a dev server's page on the shelf
   tie open terminal --cmd "npm run dev" --title dev --shelved
+  tie open notes.md --tab new                 Show a document in a tab of its own
+  tie move t7 --tab 2                         Send a tile to the second tab
   tie title "migrating db"; tie icon 🛠️        Label this tile
   tie ping                                    Done: ask the user to look here
   id=$(tie open report.md --float)            Later: tie close $id`
@@ -188,7 +204,7 @@ function printTile(t) {
 async function main() {
   const [cmd, ...rest] = pos
   if (!cmd || flags.help) return console.log(HELP)
-  const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved, focus: flags.focus }
+  const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved, tab: flags.tab, focus: flags.focus }
 
   switch (cmd) {
     case 'list': {
@@ -217,7 +233,7 @@ async function main() {
     case 'close':
       return void (await call('close', { id: rest[0] }))
     case 'move':
-      return printTile(await call('move', { id: rest[0], ...place }))
+      return printTile(await call('move', { id: rest[0], swap: flags.swap, ...place }))
     case 'ping':
       return printTile(await call('ping', { id: rest[0], clear: flags.clear }))
     case 'focus':

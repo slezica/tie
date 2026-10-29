@@ -6,14 +6,19 @@ export default async (ctx, h) => {
     await ctx.sleep(250)
   }
   const L = () => h.list(ctx)
+  // The active terminal's shell is up (prompt shown): no startup children, so not busy.
+  const settle = async () => {
+    const id = (await L()).active
+    await h.waitFor(ctx, async () => (await h.screen(ctx, id)).trim(), `shell prompt in ${id}`, 10000)
+    await ctx.sleep(300)
+  }
   const visibleTiles = () => ctx.page.$$eval('.tile', (els) => els.filter((e) => e.style.display !== 'none').map((e) => e.dataset.id))
   const tabTitles = () => ctx.page.$$eval('.tab .tab-title', (els) => els.map((e) => e.textContent))
 
   const a = (await L()).tiles[0].id
   // Title from cwd (no shell integration): cd, wait for the poll.
   await ctx.page.keyboard.type('cd /tmp\n')
-  await ctx.sleep(2600)
-  h.assert((await tabTitles())[0] === 'tmp', `tab title from cwd: ${await tabTitles()}`)
+  await h.waitFor(ctx, async () => (await tabTitles())[0] === 'tmp', `tab title from cwd: ${await tabTitles()}`, 10000)
 
   await k('Meta+t')
   let l = await L()
@@ -56,8 +61,8 @@ export default async (ctx, h) => {
 
   // Last tile closed: the tab closes with it, back to tab 1 (details below).
   await k('Meta+t')
-  await ctx.sleep(800)
   const e = (await L()).active
+  await settle()
   await k('Meta+w')
   l = await L()
   h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id && !l.tiles.some((t) => t.id === e), `emptied tab closed: ${JSON.stringify(l.tabs)}`)
@@ -112,7 +117,7 @@ export default async (ctx, h) => {
   const tabBefore = l.tab
   await k('Meta+t')
   const fresh = (await L()).tab
-  await ctx.sleep(800) // its shell settled (startup children would count as busy: a question instead)
+  await settle() // startup children would count as busy: a question instead
   await k('Meta+w') // its only terminal, idle: closes at once
   l = await L()
   h.assert(l.tabs.length === n0 && !l.tabs.some((t) => t.id === fresh) && l.tab === tabBefore, `emptied visible tab closed, back to the tab before (${l.tab})`)
@@ -127,7 +132,7 @@ export default async (ctx, h) => {
   // A tab's own shell closing its tile (`tie close` from inside) while the tab is hidden: the
   // socket call runs in that space, which the close drops; ops then land on the visible space.
   await k('Meta+t')
-  await ctx.sleep(800)
+  await settle()
   const self = (await L()).tab
   await ctx.page.keyboard.type('sleep 1; tie close $TIE_TILE\n')
   await k('Meta+1')

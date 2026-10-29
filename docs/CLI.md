@@ -5,13 +5,13 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ```
 
 - Main waits for renderer ready. Timeout 10 s per call.
-- Space: tile in `id`, `at` or `caller`, else visible tab. `list` runs outside `withSpace`.
+- Space: tile in `id`, `at` or `caller`, else visible tab; `--tab`: the target tab. `list` runs outside `withSpace`.
 
 ## Help
 
 - `tie --help` is the capability listing for agents (no separate docs needed): usage lines, then sections DESCRIPTION, TILE KINDS (file types, viewer behavior), TILE IDS, PLACEMENT, BEHAVIOR (focus, ping, close semantics), OUTPUT AND EXIT STATUS, ENVIRONMENT, EXAMPLES.
 - Keep it in sync with commands, kinds and env: the `cli` scenario checks every section, command, kind and env var appears.
-- `open` / `move` never take keyboard input (no activation) unless `--focus`. Empty board (nothing active): the new tile activates. UI opens (templates, splits, drops) always activate.
+- `open` / `move` never take keyboard input (no activation) unless `--focus`, nor switch the visible tab (`--tab`). Empty board (nothing active): the new tile activates. UI opens (templates, splits, drops) always activate.
 
 ## Commands
 
@@ -23,6 +23,8 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie open <url>` / `tie open browser [url]` | Browser tile (`BROWSER.md`): `<url>` = `http(s)://...`; after `browser` also a bare host (→ `https://`); none = empty tile |
 | `tie close [id]` | Close |
 | `tie move [id] --at <id> [--side s] \| --float \| --shelve` | Move |
+| `tie move [id] --tab <tab\|new>` | Into another tab (Placement) |
+| `tie move [id] --swap <id>` | Exchange places with a tile of the same tab (`swap`, `LAYOUT.md`) |
 | `tie focus [id]` | Switch to its tab; expand + activate, or pin if shelved |
 | `tie ping [id] [--clear]` | Attention mark (`LAYOUT.md`) |
 | `tie title [id] <text>` / `tie icon [id] <emoji>` | Custom title / icon; `""` = automatic |
@@ -30,7 +32,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
 | `tie open probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
 
-- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--focus`.
+- `open` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`.
 - `open <arg>`: `http(s)://...` → browser. A registered kind name → that kind (`./terminal` for a file named so; `browser` takes an optional URL after it: refused input → `Not a web address: <url> (http(s) only)`, exit 1). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie open markdown` → error).
 - `--shelve` = `--shelved` (both commands).
 - `[id]` defaults to `$TIE_TILE`.
@@ -44,7 +46,22 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 3. Slot. Target: `--at`, else first slotted of caller, active, MRU (excluding the moved tile). None → root / first leaf.
 4. Side: `--side`, else target's longer axis (`b` if taller, else `r`).
 
-- `--at` not slotted → `not on board: <id>`. `move` needs `--at`, `--float` or `--shelve`.
+- `--at` not slotted → `not on board: <id>`. `move` needs `--at`, `--float`, `--shelve`, `--tab` or `--swap`.
+
+### `--tab <tab|new>` (`open`, `move`)
+
+- `<tab>`: a space id (`s1`..., `list --json`) or a 1-based position (`list`'s TAB column; digits only, so never ambiguous). Else `no such tab: <tab>`. `new`: an empty tab inserted after the visible one, created only once every check passed (driver `addTab`; not `newTab`, which switches).
+- No other placement: with `--at`, `--side`, `--float` or `--shelve` → `--tab takes no other placement (...)`. The tile goes beside the target's active tile (default split rule there; empty tab: root), as a drop onto a tab (`moveToSpace`, `TABS.md`).
+- Visible target: placed, not activated (input stays). Hidden target: active there (the user meets it on switching).
+- `--focus`: switch to the target tab first; the tile takes input (as `tie focus`).
+- `move` without `--focus`, the tile being the last of the tab on screen: that tab closes; the user follows the tile to the target (not the tab before). Any other emptied tab just closes.
+- `move` into its own tab: a board tile stays put; a shelved one comes back to the board (as `moveToSpace`).
+
+### `--swap <id>` (`move`)
+
+- `swap` op (`LAYOUT.md`): slots (sizes stay with the places), float rects, shelf indexes. The active tile stays active (onto the shelf: next one).
+- Other tab → `not in the same tab: <id>`; unknown → `no such tile: <id>`; with any placement flag or `--tab` → `--swap takes no placement (...)`. Itself: no-op.
+- `--focus`: the moved tile (`[id]`) takes input (its tab shown, as `tie focus`).
 
 ## `tie list`
 
@@ -73,7 +90,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ← {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no such tile: t9"}}
 ```
 
-Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
+Methods = commands. Params: `open` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `title` {`id`, `text`}; `icon` {`id`, `emoji`}; `list`, `state` none. `close` returns `{id}`.
 
 - `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`; for callers in a Tie terminal main replaces it (below).
 
