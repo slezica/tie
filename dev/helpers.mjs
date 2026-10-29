@@ -145,6 +145,16 @@ export async function termFit(ctx, id) {
   }, id)
 }
 
+// Fit after a size change settles asynchronously (resize observer, xterm render): wait for it, then
+// assert (the assertion carries the measurements).
+export async function waitTermFit(ctx, id, label = '', ms = 4000) {
+  await waitFor(ctx, async () => {
+    const f = await termFit(ctx, id)
+    return f.slack.right >= 0 && f.slack.bottom >= 0 && f.over <= 0.25
+  }, `terminal fit ${id} ${label}`, ms).catch(() => null)
+  return assertTermFit(ctx, id, label)
+}
+
 // The whole grid is visible: screen inside the body, no row's text past its edge (0.25 px: subpixel).
 export async function assertTermFit(ctx, id, label = '') {
   const f = await termFit(ctx, id)

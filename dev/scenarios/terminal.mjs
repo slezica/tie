@@ -22,8 +22,7 @@ export default async (ctx, h) => {
   h.assert(!(await h.list(ctx)).tiles.some((t) => t.id === a), 'shell tile closed on exit')
   // --cmd tile stays.
   const c = await ctx.tie('open', 'terminal', '--cmd', 'exit 3')
-  await ctx.sleep(800)
-  const t = (await h.list(ctx)).tiles.find((t) => t.id === c.id)
+  const t = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.id === c.id && t.exit !== null), 'cmd tile exited (login shell start)', 8000)
   h.assert(t && t.exit === 3, 'cmd tile stays with exit code')
   // Sizes stay in sync through template spawn, moves, float, shelve, settings change.
   await h.spawnFromTemplate(ctx, b, 'b')
