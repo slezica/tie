@@ -8,56 +8,105 @@
     <style nonce="%NONCE%">
       /* Markdown typography, after Pico CSS v2 (classless): one root font-size knob; type sizes in
          em (follow the text), layout spacing in rem (follows the root), so the knob scales all.
+         Every size and space is a variable here: a theme or scale tweak is one edit.
          Shared parts come from the viewer modules (each injects its own nonce'd style): base
          colors, selection, focus (runtime.ts), change marks (marks.ts), code tokens (highlight.ts). */
       :root {
+        /* Root and rhythm */
         --scale: 1.15; /* prose over the tile font size (--size, the host's setting) */
+        --leading: 1.5; /* line height of prose and code blocks */
         --space: 1rem; /* Pico's --pico-spacing / typography-spacing-vertical: the rhythm unit */
+        --gap: var(--space); /* below every block (and a heading); above a quote */
+        --gap-group: calc(var(--space) * 0.5); /* between paragraphs in a list item; between terms */
+        --gap-tight: calc(var(--space) * 0.25); /* list items, nested lists, definitions, footnotes, diagram error */
+        --gap-footnotes: calc(var(--space) * 2); /* above the footnotes rule */
+
+        /* Page: body padding */
+        --pad-top: calc(var(--space) * 0.75);
+        --pad-side: calc(var(--space) * 2);
+        --pad-bottom: calc(var(--space) * 2);
+
+        /* Headings: size factor (em) and line height per level. Top space after a block =
+           --heading-space units per em of heading size (h1 2em -> 3 units ... h6 1em -> 1.5). */
+        --h1: 2; --h1-leading: 1.125;
+        --h2: 1.75; --h2-leading: 1.15;
+        --h3: 1.5; --h3-leading: 1.175;
+        --h4: 1.25; --h4-leading: 1.2;
+        --h5: 1.125; --h5-leading: 1.225;
+        --h6: 1; --h6-leading: 1.25;
+        --heading-space: 1.5;
+
+        /* Text sizes (em) */
+        --small: 0.875em; /* footnotes section, diagram error, blocked image */
+        --sup: 0.75em; /* footnote ref size */
+        --sup-raise: 0.5em; /* footnote ref lift above the baseline */
+
+        /* Lists */
+        --indent: 2em; /* item text from the marker's edge: fits "10." with a gap at the prose font */
+        --bullet: 0.35em; /* square bullet side */
+        --bullet-nudge: 0.1em; /* bullet in from the left edge (optical) */
+        --dd-indent: var(--space); /* definition from its term */
+        --box: 0.9em; /* task box side */
+        --box-check: 0.75em; /* checked task box glyph */
+        --box-gap: 0.5em; /* inline task box (not first in its item) to its text */
+        --box-radius: 0.125rem;
+
+        /* Code */
+        --code-size: 0.875em; /* mono relative to prose */
+        --code-pad: 0.125em 0.375em; /* inline code pill (y x) */
+        --code-pill-leading: 1.4; /* inline code pill line height */
+        --chip-pad: 0 0.4em; /* blocked image placeholder (y x) */
+
+        /* Boxes, lines, corners */
+        --inset: var(--space); /* padding inside quotes and code blocks */
+        --cell-pad: calc(var(--space) * 0.5) var(--space); /* table cells (y x) */
+        --hairline: 1px; /* rules, cell borders, task box, dashed frames */
+        --head-rule: 0.1875rem; /* under a table's header row */
+        --quote-bar: 0.25rem; /* blockquote left bar */
+        --radius: 0.25rem; /* code, code blocks, blocked image */
+
+        /* Colors */
         --rule: color-mix(in srgb, var(--fg) 16%, var(--bg));
         --code-bg: color-mix(in srgb, var(--fg) 7%, var(--bg));
+
         font-family: var(--font);
         font-size: calc(var(--size) * var(--scale));
-        line-height: 1.5;
+        line-height: var(--leading);
         font-weight: 400;
       }
       body {
         margin: 0;
-        padding: calc(var(--space) * 0.75) calc(var(--space) * 2) calc(var(--space) * 2);
+        padding: var(--pad-top) var(--pad-side) var(--pad-bottom);
         overflow-wrap: anywhere;
       }
       #doc > :first-child { margin-top: 0 !important; }
 
-      /* Blocks: no top margin, one unit below; a heading after a block gets its own top space. */
-      p, ul, ol, dl, blockquote, pre, table, hr, .diagram { margin: 0 0 var(--space); }
-      h1, h2, h3, h4, h5, h6 { margin: 0 0 var(--space); font-weight: 700; }
-      h1 { font-size: 2em; line-height: 1.125; }
-      h2 { font-size: 1.75em; line-height: 1.15; }
-      h3 { font-size: 1.5em; line-height: 1.175; }
-      h4 { font-size: 1.25em; line-height: 1.2; }
-      h5 { font-size: 1.125em; line-height: 1.225; }
-      h6 { font-size: 1em; line-height: 1.25; }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h1 { margin-top: calc(var(--space) * 3); }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h2 { margin-top: calc(var(--space) * 2.625); }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h3 { margin-top: calc(var(--space) * 2.25); }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h4 { margin-top: calc(var(--space) * 1.875); }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h5 { margin-top: calc(var(--space) * 1.6875); }
-      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ h6 { margin-top: calc(var(--space) * 1.5); }
-      h6 { color: var(--muted); }
+      /* Blocks: no top margin, one gap below; a heading after a block gets its own top space. */
+      p, ul, ol, dl, blockquote, pre, table, hr, .diagram { margin: 0 0 var(--gap); }
+      h1, h2, h3, h4, h5, h6 { margin: 0 0 var(--gap); font-weight: 700; font-size: calc(var(--h) * 1em); }
+      h1 { --h: var(--h1); line-height: var(--h1-leading); }
+      h2 { --h: var(--h2); line-height: var(--h2-leading); }
+      h3 { --h: var(--h3); line-height: var(--h3-leading); }
+      h4 { --h: var(--h4); line-height: var(--h4-leading); }
+      h5 { --h: var(--h5); line-height: var(--h5-leading); }
+      h6 { --h: var(--h6); line-height: var(--h6-leading); color: var(--muted); }
+      :is(p, ul, ol, dl, blockquote, pre, table, hr, .diagram, figure) ~ :is(h1, h2, h3, h4, h5, h6) {
+        margin-top: calc(var(--space) * var(--heading-space) * var(--h));
+      }
 
       /* Lists: markers drawn by us, flush with the text's left edge (numbers left-aligned: "1." and
          "10." start on the same line); item text one fixed indent in (em: follows the text), wrapped
          lines hang under the first. Numbers: the list-item counter (honors start / value, restarts
-         per list). Pico's square bullets; a quarter unit between items and before a nested list. */
-      :root { --indent: 2em; } /* fits "10." with a gap at the prose font */
+         per list). Pico's square bullets; a tight gap between items and before a nested list. */
       ul, ol { padding-left: 0; list-style: none; }
       :is(ul, ol) > li { position: relative; padding-left: var(--indent); }
       ul > li::before {
         content: '';
         position: absolute;
-        left: 0.1em;
-        top: calc((1.5em - 0.35em) / 2); /* centered on the first line (line-height 1.5) */
-        width: 0.35em;
-        height: 0.35em;
+        left: var(--bullet-nudge);
+        top: calc((var(--leading) * 1em - var(--bullet)) / 2); /* centered on the first line */
+        width: var(--bullet);
+        height: var(--bullet);
         background: currentColor;
       }
       ol > li::before {
@@ -66,39 +115,39 @@
         left: 0;
         font-variant-numeric: tabular-nums;
       }
-      li { margin-bottom: calc(var(--space) * 0.25); }
-      :is(ul, ol, dl) :is(ul, ol, dl) { margin: calc(var(--space) * 0.25) 0 0; }
-      li > p { margin-bottom: calc(var(--space) * 0.5); }
+      li { margin-bottom: var(--gap-tight); }
+      :is(ul, ol, dl) :is(ul, ol, dl) { margin: var(--gap-tight) 0 0; }
+      li > p { margin-bottom: var(--gap-group); }
       li > p:last-child { margin-bottom: 0; }
 
-      /* Definition lists (Pico leaves them alone): terms bold, half a unit between terms, a quarter
-         between a term's definitions, like list items. */
-      dt { font-weight: 600; margin-top: calc(var(--space) * 0.5); }
+      /* Definition lists (Pico leaves them alone): terms bold, a group gap between terms, a tight
+         gap between a term's definitions, like list items. */
+      dt { font-weight: 600; margin-top: var(--gap-group); }
       dt:first-child { margin-top: 0; }
-      dd { margin: calc(var(--space) * 0.25) 0 0 var(--space); }
-      dd > p { margin-bottom: calc(var(--space) * 0.25); }
+      dd { margin: var(--gap-tight) 0 0 var(--dd-indent); }
+      dd > p { margin-bottom: var(--gap-tight); }
       dd > p:last-child { margin-bottom: 0; }
 
       a { color: var(--accent); text-decoration: none; cursor: pointer; }
       a:hover { text-decoration: underline; }
-      hr { border: 0; border-top: 1px solid var(--rule); height: 0; }
+      hr { border: 0; border-top: var(--hairline) solid var(--rule); height: 0; }
       img { max-width: 100%; height: auto; vertical-align: middle; }
       blockquote {
-        margin: var(--space) 0;
-        padding: var(--space);
-        border-left: 0.25rem solid var(--rule);
+        margin: var(--gap) 0;
+        padding: var(--inset);
+        border-left: var(--quote-bar) solid var(--rule);
         color: var(--muted);
       }
       blockquote > :last-child { margin-bottom: 0; }
       table { width: 100%; border-collapse: collapse; border-spacing: 0; display: block; overflow-x: auto; }
-      th, td { padding: calc(var(--space) / 2) var(--space); border-bottom: 1px solid var(--rule); text-align: left; }
-      thead th, thead td { font-weight: 600; border-bottom-width: 0.1875rem; }
+      th, td { padding: var(--cell-pad); border-bottom: var(--hairline) solid var(--rule); text-align: left; }
+      thead th, thead td { font-weight: 600; border-bottom-width: var(--head-rule); }
 
-      /* Code: 0.875em mono; inline as a small pill, blocks padded one unit. */
-      code, pre, kbd, samp { font-family: var(--mono); font-size: 0.875em; border-radius: 0.25rem; }
-      code { display: inline-block; padding: 0.125em 0.375em; background: var(--code-bg); line-height: 1.4; }
-      pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: 1.5; }
-      pre > code { display: block; padding: var(--space); background: none; font-size: 1em; line-height: inherit; }
+      /* Code: smaller mono; inline as a small pill, blocks padded one inset. */
+      code, pre, kbd, samp { font-family: var(--mono); font-size: var(--code-size); border-radius: var(--radius); }
+      code { display: inline-block; padding: var(--code-pad); background: var(--code-bg); line-height: var(--code-pill-leading); }
+      pre { display: block; background: var(--code-bg); overflow-x: auto; line-height: var(--leading); }
+      pre > code { display: block; padding: var(--inset); background: none; font-size: 1em; line-height: inherit; }
 
       /* Task lists: the box sits where the bullet was (flush left, centered on the first line).
          Display-only (read-only tiles): drawn as a flat glyph, no hover, no pointer, never focusable
@@ -109,12 +158,12 @@
         display: inline-grid;
         place-content: center;
         box-sizing: border-box;
-        width: 0.9em;
-        height: 0.9em;
-        margin: 0 0.5em 0 0;
+        width: var(--box);
+        height: var(--box);
+        margin: 0 var(--box-gap) 0 0;
         vertical-align: middle; /* same spot checked or not (the ✓ would move the baseline) */
-        border: 1px solid var(--muted);
-        border-radius: 0.125rem;
+        border: var(--hairline) solid var(--muted);
+        border-radius: var(--box-radius);
         background: none;
         pointer-events: none;
         cursor: default;
@@ -122,20 +171,20 @@
       li.task > input.task-box, li.task > p:first-child > input.task-box {
         position: absolute;
         left: 0;
-        top: calc((1.5em - 0.9em) / 2);
+        top: calc((var(--leading) * 1em - var(--box)) / 2);
         margin: 0;
       }
       input.task-box:checked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
-      input.task-box:checked::before { content: '✓'; color: var(--accent); font: 700 0.75em / 1 var(--font); }
+      input.task-box:checked::before { content: '✓'; color: var(--accent); font: 700 var(--box-check) / 1 var(--font); }
 
       /* Front matter: shown as-is, never parsed; quieter than code. */
-      pre.front-matter { background: none; border: 1px dashed var(--rule); color: var(--muted); }
+      pre.front-matter { background: none; border: var(--hairline) dashed var(--rule); color: var(--muted); }
 
       /* Footnotes: smaller, after a rule; refs are superscript links. */
-      sup.footnote-ref { position: relative; top: -0.5em; font-size: 0.75em; line-height: 0; vertical-align: baseline; }
-      hr.footnotes-sep { margin-top: calc(var(--space) * 2); }
-      section.footnotes { font-size: 0.875em; color: var(--muted); }
-      .footnote-item p { margin-bottom: calc(var(--space) * 0.25); }
+      sup.footnote-ref { position: relative; top: calc(var(--sup-raise) * -1); font-size: var(--sup); line-height: 0; vertical-align: baseline; }
+      hr.footnotes-sep { margin-top: var(--gap-footnotes); }
+      section.footnotes { font-size: var(--small); color: var(--muted); }
+      .footnote-item p { margin-bottom: var(--gap-tight); }
 
       /* Diagrams (```mermaid): source as code until rendered (and on error); the SVG carries its own
          colors (theme passed to Mermaid). */
@@ -143,10 +192,10 @@
       .diagram.rendered > pre.diagram-src { display: none; }
       .diagram-svg { overflow-x: auto; }
       .diagram-svg > svg { display: block; margin: 0 auto; height: auto; }
-      .diagram-error { margin-top: calc(var(--space) * 0.25); color: var(--a1); font-size: 0.875em; }
+      .diagram-error { margin-top: var(--gap-tight); color: var(--a1); font-size: var(--small); }
 
       /* Remote (or out-of-folder) image: never requested; alt text / URL instead. */
-      .img-blocked { display: inline-block; padding: 0 0.4em; border: 1px dashed var(--rule); border-radius: 0.25rem; color: var(--muted); font-size: 0.875em; }
+      .img-blocked { display: inline-block; padding: var(--chip-pad); border: var(--hairline) dashed var(--rule); border-radius: var(--radius); color: var(--muted); font-size: var(--small); }
     </style>
   </head>
   <body>
