@@ -28,6 +28,9 @@ Session record. PENDING items 4, 5, 6, 7, 8, 15 + markdown list alignment. Item 
 - Markdown numbers of 3+ digits are wider than the 2em indent (accepted, rare).
 - `gravity: 'left'` and non-red pill colors have no user yet.
 
-# Pending
+# Round 2
 
-- `tie move --tab / --swap` (PENDING 15). Tab-list auto-scroll during tile drags (PENDING 4).
+- `66ff443` cli: `tie move --tab <id|pos|new> | --swap <id>`, `tie open --tab`. No tab switch without `--focus`; the visible tab's last tile moving away: the user follows it. `293184a`: `newTab({show: false})` for the hidden new tab.
+- `c14c2f7` tabs: tab list auto-scrolls near its edges (24px zone, 2–12 px/frame) for tab reorders and tile/template drags; renders during the drag don't snap the scroll back. Shelf strip: not done (`edgeScroll` would take the element).
+- Harness: `shelf` waited a fixed 1.2 s for the activity dot; shells start slower than that here now. Waits up to 8 s.
+- Scenarios: `cli-tabs`, `tab-autoscroll`.
