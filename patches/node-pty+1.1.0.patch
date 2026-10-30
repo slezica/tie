@@ -1,0 +1,26 @@
+diff --git a/node_modules/node-pty/src/unix/pty.cc b/node_modules/node-pty/src/unix/pty.cc
+index 7b4b9e1..7e5103f 100644
+--- a/node_modules/node-pty/src/unix/pty.cc
++++ b/node_modules/node-pty/src/unix/pty.cc
+@@ -684,6 +684,8 @@ pty_getproc(int fd, char *tty) {
+ #endif
+ 
+ #if defined(__APPLE__)
++extern "C" int responsibility_spawnattrs_setdisclaim(posix_spawnattr_t* attrs, int disclaim);
++
+ static void
+ pty_posix_spawn(char** argv, char** env,
+                 const struct termios *termp,
+@@ -771,6 +773,12 @@ pty_posix_spawn(char** argv, char** env,
+     goto done;
+   }
+ 
++  /* Tie: the child is responsible for itself (TCC): a program in a terminal that wants the
++     microphone, camera, etc. prompts under its own name, not Tie's, and a grant to it is not a
++     grant to Tie or to every other child (what iTerm2, Ghostty, WezTerm do). Private libSystem
++     API, as in Chromium's base/process/launch_mac.cc. Failure is not fatal. */
++  responsibility_spawnattrs_setdisclaim(&attrs, 1);
++
+   do
+     *err = posix_spawn(pid, argv[0], &acts, &attrs, argv, env);
+   while (*err == EINTR);

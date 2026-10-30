@@ -21,6 +21,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 - `allow-same-origin`: document kinds only (html), on their own `tie-content://<token>` origin, never the UI's (a same-origin frame could lift its sandbox). Viewer kinds: opaque.
 - The UI window runs on an in-memory session (`UI_PARTITION`): content storage never reaches disk. It has no network (`noNetwork`): Tie's pages are all custom-scheme. The browser kind has its own partition (`persist:browser`, network, none of Tie's protocols).
 - Browser guests: only through `attachGuest` (prefs rebuilt, attributes dropped) and `guardGuest`; URL rules only in `core/guest.ts`.
+- Terminal children are their own TCC responsible process (disclaimed spawn, `TERMINALS.md` "Spawn"): what runs in a terminal never prompts as Tie, and permissions granted to Tie (none needed) never extend to it.
 
 ## Guards
 
@@ -75,6 +76,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 | Guest crash → tile error, guest removed, UI and other tiles fine. Hang (`unresponsive`) → error + renderer killed (not observed in the harness: no `unresponsive` within 60 s of a busy loop) | `renderer/guest.ts`, `guardGuest` | `sec-browser` (mutation: crash ignored → red) |
 | ptys killed on committed navigation only (`did-navigate`) | `main/index.ts` | `sec-navigate` |
 | Permissions: all denied, every session | `harden()` | `sec-permissions` |
+| Terminal children disclaimed (TCC): a shell's programs prompt for the microphone, camera, etc. as themselves; a user's grant to one is not a grant to Tie or to other terminals | `patches/node-pty+1.1.0.patch` (`responsibility_spawnattrs_setdisclaim`), `TERMINALS.md` "Spawn" | `sec-disclaim` (red first: responsible pid was Tie's) |
 | Terminal links: hover shows the URL in the link strip, cmd-click only, http(s) only, confirm | `kinds/terminal.ts` `linkHandler`, `external.ts` | `sec-links` |
 | Native drops: never navigate; on a terminal, quoted paths / text via guarded paste; files elsewhere → their viewer (main checks); text elsewhere: nothing | `renderer/main.ts`, `paste.ts`, `files.ts`, `kinds/terminal.ts` | `sec-drop`, `markdown-open` |
 | Paste: confirm control characters and would-run newlines (settings, default on) | `paste.ts`, `@core/paste` | `sec-paste`, `sec-paste-off`, unit |

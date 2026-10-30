@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "postinstall": "install-electron && electron-rebuild -f -w node-pty,tie-peer && dev/brand-electron.sh"
+    "postinstall": "patch-package && install-electron && electron-rebuild -f -w node-pty,tie-peer && dev/brand-electron.sh"
   },
   "devDependencies": {
     "@electron/rebuild": "4.2.0",
@@ -26,6 +26,7 @@
     "markdown-it-emoji": "3.1.0",
     "markdown-it-footnote": "4.0.0",
     "morphdom": "2.7.8",
+    "patch-package": "^8.0.1",
     "playwright": "1.63.0",
     "typescript": "5.9.3",
     "vite": "7.3.7",

@@ -28,6 +28,7 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 - Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}`.
 - cwd not a directory → `{error}` (`Directory not found`).
 - Env added: `TIE_TILE`, `TIE_SOCKET`, `TIE_INSTANCE`, `PATH` with `bin/` prepended (`tie` available; `PACKAGING.md`), `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=tie`.
+- Responsibility (macOS TCC): the shell is spawned disclaimed (`patches/node-pty+1.1.0.patch`: `responsibility_spawnattrs_setdisclaim` on node-pty's `posix_spawn`, applied by `patch-package` at install, before the rebuild). A program in the terminal asking for the microphone, camera, etc. prompts under its own name, and a grant to it is not a grant to Tie or to every other child; Tie only ever asks for its own permissions (it needs none: all web permissions are denied). As iTerm2, Ghostty, WezTerm. Test: `sec-disclaim`.
 
 ## Paste (`paste.ts`)
 
