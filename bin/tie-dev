@@ -27,6 +27,9 @@ Commands:
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
   sample [name]            Open dev/samples/<name>.md (default markdown) in the instance: style iteration fixture
+  mdpage [--theme NAME] [--sample NAME] [--out FILE] [--open]
+                           Sample as a standalone HTML page (720 px tile, Tie palette, change marks) for devtools CSS
+                           tinkering (default tmp/mdpage/<sample>-<theme>.html, PNG beside); fresh instance
   drive <scenario|-> [--attach] [--keep]
                            Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
                            Fresh instance by default; --attach uses running instance;
@@ -165,6 +168,9 @@ case "$cmd" in
   sample)
     # TIE_SOCKET would point at the hosting Tie (a Tie terminal): the instance by name instead.
     exec env -u TIE_SOCKET TIE_INSTANCE="$TIE_INSTANCE" "$ROOT/bin/tie" add "$ROOT/dev/samples/${1:-markdown}.md" ;;
+  mdpage)
+    if needs_build; then build; fi
+    exec node dev/mdpage.mjs "$@" ;;
   frames)
     exec node dev/frames.mjs ;;
   drive)
