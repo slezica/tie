@@ -219,3 +219,37 @@ export function rank(query: string, paths: string[], k: number): Hit[] {
 export function merge(top: Hit[], hits: Hit[], k: number): Hit[] {
   return [...top, ...hits].sort(compare).slice(0, k)
 }
+
+// The picker's line (renderer/picker.ts): `prefix` = text up to and including the last `/`, as
+// typed; `query` = the rest; `dir` = the prefix expanded (`~` / `~/` → home, the only special token)
+// and normalized lexically (`//`, `.`, `..`; no symlinks resolved), absolute, no trailing `/` but
+// the root's. Not absolute (deleted past the root, or typed relative): under `/`.
+export interface Line {
+  prefix: string
+  dir: string
+  query: string
+}
+
+export function parseLine(text: string, home: string): Line {
+  const i = text.lastIndexOf('/')
+  const prefix = text.slice(0, i + 1)
+  return { prefix, dir: expandDir(prefix, home), query: text.slice(i + 1) }
+}
+
+export function expandDir(prefix: string, home: string): string {
+  let p = prefix
+  if (p === '~' || p.startsWith('~/')) p = home + p.slice(1)
+  const out: string[] = []
+  for (const seg of p.split('/')) {
+    if (!seg || seg === '.') continue
+    if (seg === '..') out.pop()
+    else out.push(seg)
+  }
+  return '/' + out.join('/')
+}
+
+// `dir` (absolute, as from expandDir) + a walk path (relative).
+export const joinPath = (dir: string, rel: string) => (dir === '/' ? '/' + rel : dir + '/' + rel)
+
+// The directory a row descends into (Tab): a dir itself, a file's parent ('' = the prefix itself).
+export const descendOf = (rel: string) => (rel.endsWith('/') ? rel : rel.slice(0, rel.lastIndexOf('/') + 1))

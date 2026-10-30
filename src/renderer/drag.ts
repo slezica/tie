@@ -10,6 +10,7 @@ import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
 import { TEMPLATES, type Template } from './kinds'
 import { infoDialog } from './dialog'
+import { pickPath } from './picker'
 
 export type DragSource = { type: 'tile'; id: TileId } | { type: 'template'; template: Template['id']; label: string }
 
@@ -163,12 +164,12 @@ async function applyDrop(src: DragSource, t: Target) {
   else openTile(opts.kind, d, opts.opts)
 }
 
-// What a template opens: its kind, or for `file` the picked file's (main's dialog, any file; cancel
-// = null, no tile). Its kind as for tie add (main: extension, else content); not openable (too
+// What a template opens: its kind, or for `file` the picked file's (Tie's picker from `cwd`, else
+// the default directory; any file; cancel = null, no tile). Its kind as for tie add (main: extension, else content); not openable (too
 // large...): a modal says why, null.
 export async function templateOpts(template: Template['id'], cwd: string | undefined): Promise<{ kind: Kind; opts: OpenOpts } | null> {
   if (template !== 'file') return { kind: template, opts: { cwd } }
-  const path = await tie.doc.pick(cwd ?? S.cwd)
+  const path = await pickPath(cwd ?? S.cwd)
   if (!path) return null
   const v = await tie.doc.viewer(path)
   if ('error' in v) return void infoDialog("Can't open", v.error), null

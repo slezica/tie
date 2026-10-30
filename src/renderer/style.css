@@ -382,6 +382,103 @@ body.tile-drag #tab-add.drop {
   outline-offset: 2px;
 }
 
+/* File picker (picker.ts): one path line, ranked rows, status. Shown at the first walk chunk (or
+   30 ms): opacity, so the input has focus (and takes keys) from the start. */
+.picker {
+  width: min(max(60vw, 480px), calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px var(--shadow);
+  overflow: hidden;
+  opacity: 0;
+  font: var(--tile-font-size) var(--tile-font);
+}
+.picker.shown {
+  opacity: 1;
+}
+.picker-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--fg-b);
+}
+#picker-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: calc(var(--tile-font-size) + 1px) var(--tile-font);
+  caret-color: var(--accent);
+  outline: none;
+}
+#picker-native {
+  flex: none;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 13px var(--ui-font);
+  cursor: pointer;
+}
+#picker-native:hover {
+  color: var(--text);
+  background: var(--fg-b);
+}
+#picker-list {
+  height: calc(8 * 24px + 8px); /* 8 rows: the box never resizes while typing */
+  padding: 4px;
+}
+.picker-row {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  cursor: pointer;
+}
+.picker-row .parent {
+  color: var(--muted);
+}
+.picker-row.dir .name {
+  color: color-mix(in srgb, var(--accent) 55%, var(--text));
+}
+.picker-row mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.picker-row.selected {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+#picker-status {
+  padding: 5px 12px 6px;
+  border-top: 1px solid var(--fg-b);
+  color: var(--muted);
+  font: 11.5px var(--ui-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#picker-status.partial,
+#picker-status.error {
+  color: var(--text);
+}
+#picker-status.error {
+  color: var(--red);
+}
+
 /* Tiles */
 #tiles {
   position: absolute;

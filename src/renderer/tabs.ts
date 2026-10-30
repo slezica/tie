@@ -11,6 +11,7 @@ import { track } from './drag'
 
 let home = ''
 export const setHome = (h: string) => (home = h)
+export const homeDir = () => home
 
 const space = (id: string) => S.spaces.find((x) => x.id === id)
 

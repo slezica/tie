@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compare, depth, merge, rank, score } from './picker'
+import { compare, depth, merge, rank, score, parseLine, expandDir, joinPath, descendOf } from './picker'
 
 // This repo's `git ls-files`, trimmed: every `reti` match + the `ti` / `tab` / `ter` / `tie` neighbours.
 const REPO = `
@@ -174,5 +174,42 @@ describe('rank', () => {
     const top = rank('reti', paths, 8)
     expect(performance.now() - t).toBeLessThan(200)
     expect(top).toHaveLength(8)
+  })
+})
+
+describe('parseLine', () => {
+  const home = '/Users/me'
+  it('splits at the last slash, expands ~', () => {
+    expect(parseLine('~/proj/reti', home)).toEqual({ prefix: '~/proj/', dir: '/Users/me/proj', query: 'reti' })
+    expect(parseLine('~/', home)).toEqual({ prefix: '~/', dir: '/Users/me', query: '' })
+    expect(parseLine('/', home)).toEqual({ prefix: '/', dir: '/', query: '' })
+    expect(parseLine('/etc/hosts', home)).toEqual({ prefix: '/etc/', dir: '/etc', query: 'hosts' })
+  })
+  it('no slash: under the root', () => {
+    expect(parseLine('~', home)).toEqual({ prefix: '', dir: '/', query: '~' })
+    expect(parseLine('', home)).toEqual({ prefix: '', dir: '/', query: '' })
+    expect(parseLine('src/ti', home)).toEqual({ prefix: 'src/', dir: '/src', query: 'ti' })
+  })
+  it('~ only as a whole first segment; no $VAR', () => {
+    expect(expandDir('~foo/', home)).toBe('/~foo')
+    expect(expandDir('/a/~/', home)).toBe('/a/~')
+    expect(expandDir('$HOME/', home)).toBe('/$HOME')
+  })
+  it('normalizes lexically', () => {
+    expect(expandDir('/a//b/./c/../', home)).toBe('/a/b')
+    expect(expandDir('/../..//', home)).toBe('/')
+    expect(expandDir('~/../', home)).toBe('/Users')
+  })
+})
+
+describe('joinPath, descendOf', () => {
+  it('joins', () => {
+    expect(joinPath('/', 'a/b.ts')).toBe('/a/b.ts')
+    expect(joinPath('/x', 'a/')).toBe('/x/a/')
+  })
+  it('descends into a dir or a file parent', () => {
+    expect(descendOf('src/renderer/')).toBe('src/renderer/')
+    expect(descendOf('src/renderer/tile.ts')).toBe('src/renderer/')
+    expect(descendOf('a.txt')).toBe('')
   })
 })
