@@ -23,34 +23,36 @@ Session record. Replace the native open dialog (`doc:pick` → `pickFile`, `dial
 - Picker is UI-only: the CLI keeps refusing a file kind without a path.
 - No inline fill: top suggestion highlighted, Enter opens, arrows move.
 - Smart case (as fzf): case-insensitive unless the query has an uppercase letter, then case-sensitive.
+- `~` is the only special token (home). No `$VAR` expansion: paths are literal.
+- Walker, scorer, streaming, budgets, TCC handling: the research recommendation (below), adopted.
+- Template → tab: start dir = the target tab's active tile cwd, for the terminal template too (TABS.md change); new tab → `S.cwd`.
 
 # Components
 
-- `renderer/picker.ts`: `pickPath(startDir): Promise<string | null>`. Replaces `tie.doc.pick` in `templateOpts` (drag.ts; cmd+O goes through it). Rest of the flow unchanged: `tie.doc.viewer(path)` → kind → `openTile` / `displaceTile`; "Can't open" dialog on error.
-- Dialog: line (input), dropdown (list), "…" button (→ `tie.doc.pick(dir)`, result returned as the pick). Backdrop; Esc / click outside → null. `refocus()` after close (pattern).
-- Main `doc:list(dir)`: entries `{name, dir}` of one directory, sorted dirs first. Read-only metadata; absolute path only; `~` expanded in the renderer before the call; errors → empty list. `// SECURITY:`; `sec-*` scenario (rejects relative / non-string); SECURITY.md row.
-- Completion (pure, `core/picker.ts`, unit-tested): `complete(input, entries)` → `{fill, suggestions}`. Segment = text after the last `/`. Match: case-insensitive prefix first, then substring. Dirs + openable files (`canOpenAs` by extension; unknown ext = openable as text/hex, so hidden = none-openable only). Dotfiles only when the segment starts with `.`.
-- Inline fill: top suggestion appended as selected text, only after a typed character insertion (never on delete / paste / IME composition). Tab / Right (caret at end) accept; Up / Down walk the dropdown (line shows the walked entry); Enter: dir → descend (`…/dir/`, relist), file → resolve. Typing a `/` after a dir name descends.
-- Listing: per directory, on segment's directory change; cached for the dialog's life.
-- Errors (missing path, not a file): inline under the line; dialog stays.
+- `core/picker.ts` (pure, unit-tested): `score(query, path) → {score, positions} | null` (fzf v1 window: forward scan for the first subsequence match, backward shrink; fzf path-scheme constants: match 16, gap start -3, extend -1, boundary after `/` 9 / after `_-. ` 8 / camel 7, consecutive 4, first char ×2), smart case, NFC on both sides, space-separated terms all required (scores summed, positions merged). `rank(query, paths, k) → top-K` by score desc, then depth asc, then length asc; `topK` merge for streamed chunks (`merge(top, chunk)`).
+- `main/walk.ts`: BFS from `dir`, `readdir({withFileTypes})`, 16 reads in flight, never follows dir symlinks, skips `.git`; hidden entries skipped unless `hidden` requested; gitignore via `ignore` npm: per-directory chain, nested repo (`.git` present) resets it, `.git/info/exclude`, global excludes from `git config core.excludesFile` (fallback `~/.config/git/ignore`, `~/.gitignore`); emits files and dirs (dirs with trailing `/`), paths relative to `dir`. Budget: 50k entries or 2 s → `partial`. TCC: at depth 1 under home skip Desktop, Documents, Downloads, Pictures, Music, Movies, Library, `Google Drive`, symlinks into `Library/CloudStorage`; `/Volumes` under `/`; skipped dirs still emitted as entries; walked only when they are the root (typed into). Per-read timeout 400 ms → dir dropped, reported `waiting`; at most 1 read in flight into a protected root. EPERM / ENAMETOOLONG: skip, count. Cancellable.
+- IPC (`// SECURITY:` absolute-path string check, one walk per gen, stop on renderer request or window close): invoke `doc:walk(dir, {gen, gitignore})` → `{ok: true} | {error}`; main → renderer `doc:walk-chunk(gen, {paths, done, partial?, waiting?})`, chunks at 1024 paths or 16 ms; send `doc:walk-stop(gen)`. Preload `tie.doc.walk / onWalkChunk / stopWalk`.
+- Setting `files.gitignore` (bool, default true): `main/settings.ts` sanitize/validate; panel section "Files" (next to "Terminal") with "Respect .gitignore"; `prefs.ts` cached read.
+- `renderer/picker.ts`: `pickPath(startDir): Promise<string | null>`; replaces `tie.doc.pick` in `templateOpts` (drag.ts; cmd+O goes through it). Rest unchanged: `tie.doc.viewer(path)` → kind → `openTile` / `displaceTile`; "Can't open" dialog on error.
+- Dialog (`dialog.ts` family, Playwright-drivable; `refocus()` on close): one input holding the full path text (`~/proj/` prefix + query); prefix = text up to the last `/`, expanded `~`; query = the rest. Dropdown of 8 rows: ranked hits under the prefix, relative paths with matched chars highlighted (positions), top row selected. Keys: Up / Down move; Enter on a file → resolve absolute path; Enter on a dir → the line becomes `prefix + dir/` (re-roots the walk); Tab → same descend into the selected entry's dir; Esc / click outside → null; Backspace just edits the text (deleting the trailing `/` re-roots to the parent, naturally). "…" button → `tie.doc.pick(prefix dir)`, returned as the pick. Status line: "partial" when capped, "waiting for permission: Documents" when a read timed out, "n files" otherwise.
+- Ranking in the renderer: on each chunk, `merge` into the top-K for the current query; on each keystroke re-rank the held list (≤ 50k: ≤ 4 ms). The walk re-runs only when the prefix changes (new `gen`); the list is held for the dialog's life.
+- First paint on the first chunk or 30 ms. The native dialog remains reachable; `doc:pick` stays.
 
 # Harness
 
-- `setNextPick` / `h.pickNext` (main-side hook for the native dialog): removed. Scenarios drive the dialog: `h.pick(ctx, path)` types the path + Enter; cancel = Esc.
-- Scenarios touched: `template`, `keys`, `tab-drops`, others using `pickNext` (grep). New: `picker` (completion, dropdown, descend, "…" path via the harness hook if kept for the native fallback), `sec-picker` (`doc:list` checks).
+- `setNextPick` / `h.pickNext` (main-side hook for the native dialog): removed. Scenarios drive the dialog: `h.pick(ctx, path)` types the absolute path (or a prefix + query) + Enter; cancel = Esc.
+- Scenarios touched: `template`, `keys`, `tab-drops`, others using `pickNext` (grep). New: `picker` (reti → tile.ts from the repo root with a fixture tree, descend, Backspace re-root, partial marker with a small cap via a dev hook, "…" through the dev `setNextPick` if kept for the native fallback only), `sec-walk` (`doc:walk` rejects relative / non-string dir, stop cancels, one walk per gen).
 - Full e2e at the end (shared helper change).
 
 # Phases
 
-1. Core: `core/picker.ts` completion + tests; main `doc:list` + preload + `sec-picker`.
-2. Dialog: `picker.ts`, styles, keys, "…", inline fill; `templateOpts` switched; `picker` scenario; harness `h.pick`, `pickNext` removed; touched scenarios migrated.
-3. Docs: TILES (opening), INPUT (keys table), SHELF (file template), MARKDOWN "Opening", SECURITY, HARNESS. Full e2e.
+1. (parallel) a: `core/picker.ts` + tests. b: `main/walk.ts` + IPC + preload + setting `files.gitignore` + "Files" panel section + `sec-walk` scenario + SECURITY.md row + SETTINGS.md.
+2. Dialog: `renderer/picker.ts`, styles, keys, "…", highlighting; `templateOpts` switched; `dropOnTab` start dir = target tab's active tile cwd (both templates); `picker` scenario; harness `h.pick`, `pickNext` removed; touched scenarios migrated.
+3. Docs: TILES (opening), INPUT (keys table), SHELF (file template), TABS (template drop cwd), MARKDOWN "Opening", TERMINALS cwd table, HARNESS. Full e2e.
 
 # Pending
 
-- `~` only, or also `$VAR`? Lean `~` only.
-- Walker, scorer, budgets, where ranking runs, streaming shape: after the research agent's report (prior art: fzf, VS Code, Zed/Helix, telescope; libraries: `fzf` npm, `fuzzysort`, `ignore`, `fast-glob`; benchmarks over this repo, `~/projects`, `~`).
-- Template → tab drop start dir: `S.cwd` (today) or the target tab's active tile cwd?
+- (none; directory consistency review → PENDING.md 34)
 
 # Start directory
 
@@ -64,9 +66,43 @@ Session record. Replace the native open dialog (`doc:pick` → `pickFile`, `dial
 | cmd+O, empty board | `S.cwd` |
 | Template → edge / center of a tile | that tile's cwd |
 | Template → empty board | `S.cwd` |
-| Template → tab / new tab | `S.cwd` (pending above) |
+| Template → tab | target tab's active tile cwd (changed from `S.cwd`; the terminal template too, for consistency) |
+| Template → new tab | `S.cwd` |
 | Template → shelf | `S.cwd` |
 
 # Research
 
-- Draft approach before research: BFS walk in main, streamed in chunks, budget (~50k entries / ~1.5 s) with a "partial" marker; `ignore` npm per directory for gitignore; `fzf` npm scorer in `core/` + shallow-depth bonus; cache per dialog only. Rejected for now: spawning `fd`/`rg` (PATH-dependent), Rust N-API walker (toolchain).
+Agent report 2026-10-30 (scripts: scratchpad `research/`; M3 Max, warm cache, medians of 3). Pre-grant `~` runs discarded (TCC prompts blocked the walk), `~` re-run after grants.
+
+Prior art:
+- fzf: v1 greedy window O(n), v2 Smith-Waterman O(nm); `--scheme=path` (`/` delimiter, filename tiebreak) auto on a TTY. No index: built-in walker since 0.48 (skips `.git`, `node_modules`, no gitignore). Streams in 1024 chunks. No depth bonus.
+- VS Code: spawns `rg --files`, caches the list per quick-open session, filters the cache when the query extends. Filename-first tiers (+2^17 prefix, +2^16 any), bonuses after `/` and `_-. :`. Batches of 512. No depth term.
+- Helix: `ignore` crate walk, 30 ms sync push then background thread; nucleo (fzf v2 port), `/` delimiter.
+- Zed: persistent in-memory worktree index; scorer with gap penalties, `penalize_length` divides by last-segment length.
+- telescope / fzf-lua: spawn fd/rg, pipe to fzf or a C port. Sublime: background index, bonuses for consecutive / separator / camel.
+
+Libraries (`reti` on this repo's `git ls-files` must give `src/renderer/tile.ts`):
+- `fzf` npm 0.5.2: correct (v1 and v2), smart-case, positions; unmaintained since 2023; 146 MB index at 200k; v2 716 ms / v1 114 ms per query at 200k.
+- `fuzzysort`: fast (56 ms at 200k) but wrong top hit. `ufuzzy`: won't span `/`. `fzy.js`: no prefilter, 579 ms. `fuse`: wrong and slow.
+- Own prototype (fzf-v1 window + path constants + top-K + depth tiebreak, ~80 lines): correct, 3.9 ms at 50k, 25 ms at 200k, +37 MB.
+- Gitignore walkers: hand BFS + `ignore` 7.0.14 = 0 diffs vs `git ls-files --exclude-standard` (nested, negation, dir-only, info/exclude, global). globby / ignore-walk miss info/exclude + global. fast-glob / nodelib: no gitignore.
+
+Walks (entries, total ms, ms to 1k / 10k / 50k):
+- tie gitignored: BFS 234 in 3.5 ms (fd 8.5, rg 8.9). tie no-ignore: 18.9k in 31 ms.
+- ~/projects gitignored: 3.5k in 22 ms. No-ignore: 208k in 353 ms (fd 1031, rg 812), 1k in 3 ms, 50k in 60 ms.
+- ~ (non-hidden, cap 200k): BFS 666 ms, 1k 2.3 / 10k 50 / 50k 234. Skipping `~/Library` (41% of entries): 302 ms, 10k 11 / 50k 65. fd 335, rg 231–256. Full ~ = 1.56M files (733k gitignored).
+- BFS vs DFS: DFS reaches 10k faster only by diving into Library. libuv pool: default 4 threads best; 16 reads in flight.
+- Memory 200k paths: 37 MB strings, 17 MB JSON over IPC.
+
+TCC (packaged app, bundle `com.salezica.tie`; grants went to Tie.app via node-pty's spawn-helper):
+- Prompted: Documents, Desktop, Downloads, Photos (`~/Pictures/Photos Library`: blocked 171 s), MediaLibrary (`~/Music`), AppData (`~/Library/Containers`). FDA dirs (`~/Library/Mail` + 137 others) fail EPERM silently.
+- A blocked `readdir` holds a libuv thread; 4 pending prompts stall all fs work in main (watchers, doc reads). Dev instance (Electron.app bundle) prompts again.
+
+Recommendation (agent, adopted unless Pending says otherwise):
+- Walker: hand BFS in main on `readdir({withFileTypes})` + `ignore`; 16 reads in flight; never follow dir symlinks; `.git` skipped; nested repo resets the chain; read `git config core.excludesFile`. No fd/rg.
+- Scorer: own `core/picker.ts` (fzf-v1 window, path-scheme constants, space-separated AND terms, smart case, NFC, top-K with positions). Tiebreak: score, depth, length.
+- Ranking in the renderer (main handles every keystroke in `before-input-event`); Web Worker if cap > 50k. Score new chunks into the top-K, don't re-rank.
+- Stream `{gen, paths, done}`: chunk at 512–1024 or 16 ms; `gen` per directory prefix; cancel on close / prefix change.
+- Budgets: 50k entries or 2 s; first paint at first chunk or 30 ms; "partial" marker.
+- `~`: skip at depth 1 by default: Desktop, Documents, Downloads, Pictures, Music, Movies, Library, Google Drive, symlinks into `Library/CloudStorage`; `/Volumes` under `/`. Skipped dirs still listed as entries; walked only when typed into (intent = prompt expected). Per-read timeout 300–500 ms → "waiting for permission", keep streaming; at most 1 read in flight into protected roots. EPERM: count, skip.
+- Risks: NFC/NFD coexist on APFS (normalize both sides); ENAMETOOLONG skip; case-insensitive FS fine.

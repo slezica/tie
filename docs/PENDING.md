@@ -63,3 +63,8 @@
 
 32. Flake: `markdown-links` "b.md in the same tile" and `markdown-keys` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation 2026-10-21: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
 33. Flake (1 in a full e2e run, 2026-10-17; 5/5 standalone green): `html` "cmd+R: reloaded, scroll kept" right after a sibling change that fired two live reloads (fs events) 300 ms apart. Suspected: the cmd+R reload hit the second page before its scroll restore. Not reproduced with back-to-back reloads; not fixed.
+
+## Directories
+
+34. Review every place Tie picks a directory and make the rules consistent: new terminal cwd (`tie add`, cmd+D, template drops on tiles / tabs / shelf / empty board, `S.cwd`), file picker start dir (same pathways), file view roots (markdown images, html root: item 22), tile `dir` / title (`cwdNow`, basename, `~`), `tie add` path resolution against the caller's cwd, OS drops, `TIE_CWD`. Table of pathway → working / parent / root / title directory; one doc section (TERMINALS.md cwd table generalized, or a `docs/DIRECTORIES.md` guide). Starting point: `2026-10-30-file-picker.md` "Start directory".
+
