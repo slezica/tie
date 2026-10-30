@@ -1,6 +1,7 @@
-// Drops onto tabs: a board tile, a tab's last tile (the tab closes), onto + (new tab), a shelf item, templates (tab, empty tab-list space).
+// Drops onto tabs: the toolbar gap's halves (shelf / new tab), a board tile, a tab's last tile (the tab closes), onto + (new tab), a shelf item, templates (tab, empty tab-list space).
 export default async (ctx, h) => {
   const L = () => h.list(ctx)
+  let l
   // Tab keys here always change the visible tab.
   const k = async (chord) => {
     const tab = (await L()).tab
@@ -22,8 +23,40 @@ export default async (ctx, h) => {
   // Tab 1: a | b. Tab 2: c.
   const a = (await L()).tiles[0].id
   const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
+
+  // The empty toolbar between + and the shelf splits at the toolbar's midpoint. One tab, empty shelf.
+  const ghosts = () => ctx.page.locator('#shelf .item.ghost').count()
+  const tb = (await h.boxOf(ctx, '#toolbar')).box
+  const mid = tb.x + tb.width / 2
+  const gapL = (await h.boxOf(ctx, '#tab-add')).box
+  const gapR = (await h.boxOf(ctx, '#shelf')).box
+  h.assert(gapL.x + gapL.width < mid - 40 && gapR.x > mid + 40, `free toolbar on both sides of the midpoint (+ ${gapL.x + gapL.width}, mid ${mid}, shelf ${gapR.x})`)
+  const gy = tb.y + tb.height / 2
+  // Right half: the shelf, slot 0 (ghost, no hint). + is a slot square while dragging.
+  await h.drag(ctx, await h.titlePoint(ctx, b), { x: mid + 20, y: gy }, {
+    during: async () => {
+      const add = await ctx.page.evaluate(() => document.getElementById('tab-add').getBoundingClientRect().toJSON())
+      h.assert(add.width === 28 && add.height === 28, `dragging: + is a 28px square (${add.width}x${add.height})`)
+      const m = await marks()
+      h.assert((await ghosts()) === 1 && !m.add && m.tabs.length === 0, `gap right of mid: shelf ghost, no tab marks (${JSON.stringify(m)})`)
+      await ctx.shot('gap-shelf')
+    },
+  })
+  h.assert((await h.tileOf(ctx, b)).state === 'shelved' && (await L()).shelf[0] === b, 'gap right of mid: b shelved')
+  // Left half: a new tab (+ highlighted, no ghost).
+  await h.drag(ctx, await h.shelfItem(ctx, b), { x: mid - 20, y: gy }, {
+    during: async () => {
+      const m = await marks()
+      h.assert(m.add && (await ghosts()) === 0, `gap left of mid: + highlighted, no ghost (${JSON.stringify(m)})`)
+    },
+  })
+  l = await L()
+  h.assert(l.tabs.length === 2 && (await tabsOf(l.tab)).join() === b && !l.shelf?.includes(b), `gap left of mid: new tab with b (${JSON.stringify(l.tabs)})`)
+  // Back to tab 1: a, b.
+  await h.drag(ctx, await h.titlePoint(ctx, b), await tabPoint(l.tabs[0].id))
+  await h.waitFor(ctx, async () => (await L()).tabs.length === 1, 'b back in tab 1')
   await k('Meta+t')
-  let l = await L()
+  l = await L()
   const [t1, t2] = l.tabs.map((t) => t.id)
   const c = l.active
   await k('Meta+1')
@@ -98,9 +131,9 @@ export default async (ctx, h) => {
   // Template onto the tab list's empty space: a new tab with that tile.
   const tabs = (await h.boxOf(ctx, '#tabs')).box
   const add = (await h.boxOf(ctx, '#tab-add')).box
-  h.assert(tabs.x + tabs.width - (add.x + add.width) > 40, 'empty space right of +')
+  h.assert(mid - (add.x + add.width) > 40, 'empty space right of +, left of the midpoint')
   const n = (await L()).tabs.length
-  await h.drag(ctx, await h.template(ctx), { x: tabs.x + tabs.width - 20, y: tabs.y + tabs.height / 2 }, {
+  await h.drag(ctx, await h.template(ctx), { x: add.x + add.width + 20, y: tabs.y + tabs.height / 2 }, {
     during: async () => h.assert((await marks()).add, 'empty tab-list space: + highlighted'),
   })
   await h.waitFor(ctx, async () => (await L()).tabs.length === n + 1, 'new tab from template')
