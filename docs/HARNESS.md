@@ -123,6 +123,13 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 - Verified on each run (headless system Chrome, else Playwright's Chromium): no console errors or requests, vars on `.viewer-root`, ≥ 2 marked blocks, tile 720 px, code token colors, h1 size = the live frame's.
 - Not faithful: `rem` resolves against the page's `html`, pinned to the viewer's root size at snapshot: a `--size` / `--scale` tweak moves em sizes, not rem spacing (set `html { font-size }` to match). Fonts: the browser's (same names; system fonts on macOS). No CSP, no live behaviour (marks never fade, links inert).
 
+## macOS permission prompts (TCC)
+
+- Instances launched from a Tie terminal are attributed by TCC to the installed app (`com.salezica.tie`, the responsible process is Tie's spawn-helper), from a plain terminal to the dev `Electron.app`.
+- `tie-dev install` re-signs ad hoc: a new cdhash. TCC records for the old one stop matching ("Failed to match existing code requirement" in `log show --predicate 'subsystem == "com.apple.TCC"'`) and macOS prompts again. The prompt may sit behind other windows.
+- `sec-browser`: the guest's `getUserMedia` reaches the system mic check before Tie's permission handler; an unanswered prompt blocks it. The scenario bounds it (5 s) and names the cause. Fix: deny the prompt once (or `tccutil reset Microphone com.salezica.tie`, then deny on the next run).
+- Walks (`doc:walk`) into Documents, Desktop, Downloads, Pictures, Music, Library ask too; a blocked read holds a libuv thread (`2026-10-30-file-picker.md` "Research"). The picker skips those at home's top level unless typed into.
+
 ## Traces (`out/log/`)
 
 - `tie-dev.log`: start/end line per invocation (time, instance, command, exit, duration).

@@ -217,7 +217,13 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
         notifyRequest: await Notification.requestPermission(),
         notifications: await q('notifications'),
         geolocation: await new Promise((ok) => navigator.geolocation.getCurrentPosition(() => ok('granted'), (e) => ok(e.code === 1 ? 'denied' : 'error ' + e.code))),
-        media: await navigator.mediaDevices.getUserMedia({ audio: true }).then(() => 'granted', (e) => 'denied ' + e.name),
+        // macOS asks the system mic permission before the site one; an unanswered prompt (new
+        // Tie.app cdhash after `tie-dev install`: the old TCC record no longer matches) blocks
+        // getUserMedia for good. Bounded so the run fails with the reason, not the 180 s timeout.
+        media: await Promise.race([
+          navigator.mediaDevices.getUserMedia({ audio: true }).then(() => 'granted', (e) => 'denied ' + e.name),
+          new Promise((ok) => setTimeout(() => ok('hung: system mic prompt pending (TCC); deny it once after a reinstall, HARNESS.md'), 5000)),
+        ]),
         clipboardRead: await navigator.clipboard.readText().then(() => 'granted', (e) => 'denied ' + e.name),
         midi: await q('midi'),
       }
