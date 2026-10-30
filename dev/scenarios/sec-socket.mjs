@@ -5,7 +5,9 @@ export default async (ctx, h) => {
   const a = (await h.list(ctx)).tiles[0].id
   const b = (await ctx.tie('add', 'terminal')).id
   const c = (await ctx.tie('add', 'terminal')).id
-  await ctx.sleep(800)
+  await h.waitShell(ctx, b)
+  await h.waitShell(ctx, c)
+
   // Typed in a (active); runs after focus moved to c (pinging the tile in front does nothing).
   await ctx.page.keyboard.type(`sleep 1.5; TIE_TILE=${b} tie ping; echo pinged-$?\n`)
   await ctx.tie('focus', c)

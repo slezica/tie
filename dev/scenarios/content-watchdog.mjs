@@ -39,7 +39,7 @@ export default async (ctx, h) => {
   const lat = []
   for (let i = 0; i < 6; i++) {
     lat.push(await shellLatency())
-    await ctx.sleep(300)
+    await ctx.sleep(300) // sampling: latency measured across the spin, before the hang deadline
   }
   h.assert(Math.max(...lat) < 250, `shell responsive while a frame spins: ${lat} ms`)
   h.assert((await fb.evaluate(() => 6 * 7)) === 42, 'other content frame answers')
@@ -56,7 +56,8 @@ export default async (ctx, h) => {
   h.assert(!(await h.tileOf(ctx, b)).error && (await fb.evaluate(() => window.probe.inits)) === 1, 'other content tile untouched')
   h.assert((await shellLatency()) < 250, 'shell responsive after')
   await terminalWorks()
-  await ctx.sleep(1500)
+  await ctx.sleep(1500) // absence: no automatic reload
+
   h.assert(!(await ctx.page.$(`.tile[data-id="${a}"] iframe`)) && (await h.tileOf(ctx, a)).error === err, 'no automatic reload')
 
   // Crash: b's renderer process dies (CDP Page.crash on that frame's own target).

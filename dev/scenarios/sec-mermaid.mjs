@@ -82,7 +82,8 @@ export default async (ctx, h) => {
       const b = await node.boundingBox()
       h.assert(b, `node ${label} visible`)
       await ctx.page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
-      await ctx.sleep(300)
+      await ctx.sleep(300) // absence: the click runs / opens nothing
+
     }
     h.assert((await fr.evaluate(() => window.__xss)) === undefined, 'clicks ran nothing')
     h.assert(!/external open javascript|external open about/.test(ctx.appLog()), 'no javascript:/about: opened')

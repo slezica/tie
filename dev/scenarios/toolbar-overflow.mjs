@@ -12,10 +12,7 @@ export default async (ctx, h) => {
     const cur = await box('.tab.current')
     return cur.left >= list.left - 1 && cur.right <= list.right + 1
   }
-  const k = async (chord) => {
-    await h.press(ctx, chord)
-    await ctx.sleep(250)
-  }
+  const tabCount = () => ctx.page.$$eval('.tab', (els) => els.length)
 
   await ctx.tie('add', 'terminal', '--shelved')
   await h.resizeWindow(ctx, 900, 600)
@@ -31,8 +28,9 @@ export default async (ctx, h) => {
   })
   let n = 1
   while (!(await cls('#tabs')).includes('overflow') && n < 24) {
-    await k('Meta+t')
-    await h.waitFor(ctx, settled, 'tab title settled')
+    await h.press(ctx, 'Meta+t')
+    await h.waitFor(ctx, async () => (await tabCount()) === n + 1 && (await settled()), 'new tab, title settled')
+    await h.settle(ctx) // overflow classes set on render
     n++
   }
   h.assert((await h.list(ctx)).tabs.length === n, `${n} tabs`)
@@ -45,9 +43,12 @@ export default async (ctx, h) => {
   h.assert(Math.abs(shelf1.width - shelf0.width) < 1 && shelf1.right <= (await box('#templates')).left, 'shelf keeps its width, before the templates')
   await ctx.shot('overflow-end')
 
-  await k('Meta+1')
-  h.assert(await currentVisible(), 'first tab scrolled into view')
-  h.assert((await cls('#tab-list')).includes('more-right') && !(await cls('#tab-list')).includes('more-left'), 'fade on the right only')
+  await h.press(ctx, 'Meta+1')
+  await h.eventually(ctx, async () => {
+    h.assert(await currentVisible(), 'first tab scrolled into view')
+    h.assert((await cls('#tab-list')).includes('more-right') && !(await cls('#tab-list')).includes('more-left'), 'fade on the right only')
+  })
+
   await ctx.shot('overflow-start')
 
   // Narrow window, more shelved tiles: the tab list stops at its floor, the shelf scrolls.

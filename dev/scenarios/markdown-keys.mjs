@@ -15,11 +15,20 @@ export default async (ctx, h) => {
     const frame = await h.contentFrame(ctx, id)
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('Line 299'), 'rendered')
     await h.clickIn(ctx, frame, 'h1') // focus the frame
+    await h.waitFor(ctx, () => frame.evaluate(() => document.hasFocus()), 'frame has focus')
+
     const y = async () => (await h.mdState(ctx, id)).scrollY
     const third = await frame.evaluate(() => Math.round(innerHeight / 3))
+    // A key's scroll done: the position moved and holds (keyboard scrolling animates): stable over
+    // 120 ms, the poll's step.
     const key = async (k) => {
+      const prev = await y()
       await ctx.page.keyboard.press(k)
-      await ctx.sleep(400)
+      await h.waitFor(ctx, async () => {
+        const a = await y()
+        await ctx.sleep(120) // stability window (debounce), not a wait for something
+        return a !== prev && a === (await y())
+      }, `${k} scrolled`).catch(() => {}) // no scroll: the assertion after it reports
     }
 
     await key('ArrowDown')

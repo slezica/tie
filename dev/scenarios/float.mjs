@@ -20,7 +20,9 @@ export default async (ctx, h) => {
   // Resizing a background float activates and raises it.
   const f1 = (await ctx.tie('add', 'terminal', '--float')).id
   const f2 = (await ctx.tie('add', 'terminal', '--float')).id
-  await ctx.sleep(500)
+  await h.waitShell(ctx, f1)
+  await h.waitShell(ctx, f2)
+
   const tp = await h.titlePoint(ctx, f2)
   await h.drag(ctx, tp, { x: tp.x + 300, y: tp.y + 200 }, { shift: true })
   const hb = await ctx.page.locator(`.tile[data-id="${f1}"] .rz.nw`).boundingBox()
