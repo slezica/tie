@@ -233,8 +233,12 @@ body.dragging-tab .tab {
   color: var(--text);
 }
 /* Tile / template drags (drag.ts): + is a drop target (a new tab), dashed accent like the shelf's
-   hint; the tab or + under the pointer takes the accent fill (what you drop on), like #preview. */
+   hint; the tab or + under the pointer takes the accent fill (what you drop on), like #preview.
+   Sized like that hint: a slot square, a slot gap from the last tab. */
 body.tile-drag #tab-add {
+  width: var(--slot);
+  height: var(--slot);
+  margin-left: var(--slot-gap);
   border: 1px dashed var(--accent);
   color: var(--accent);
 }
