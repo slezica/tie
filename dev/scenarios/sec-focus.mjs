@@ -32,19 +32,20 @@ export default async (ctx, h) => {
     await ctx.tie('focus', t0)
     const id = (await ctx.tie('add', join(dir, 'grab.html'), '--at', t0, '--side', 'r')).id
     const fr = await h.htmlFrame(ctx, id)
-    await ctx.sleep(800)
+    await ctx.sleep(800) // absence: the page's load-time focus() / window.open do nothing
     h.assert((await fr.evaluate(() => window.__ran)) === undefined, 'the page script never ran (static html)')
     h.assert((await active()).startsWith('TEXTAREA:' + t0) && (await h.list(ctx)).active === t0, `focus stays in the terminal: ${await active()}`)
     // Script in the page's realm, without a gesture (timer long after the evaluate): refused by Blink.
     await fr.evaluate((u) => setTimeout(() => { window.focus(); document.getElementById('i').focus(); window.__hasFocus = document.hasFocus(); window.open(u + '/timer') }, 6000), p.url)
-    await ctx.sleep(7000)
+    // Waited for from outside (the log): polling the frame with evaluate would give it a gesture. The
+    // refusal comes last (GESTURE_MS after the request): once logged, a dialog would have shown.
+    await h.eventually(ctx, async () => h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'request refused without focus'), 10000)
     h.assert((await fr.evaluate(() => window.__hasFocus)) === false, 'focus() without a gesture: refused')
     h.assert(consoleMsgs.some((m) => /Blocked focus call/.test(m)), 'Blink refused the focus call (console)')
     h.assert((await active()).startsWith('TEXTAREA:' + t0), 'still the terminal')
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (await h.list(ctx)).tiles.length === 2, 'no dialog, no file opened')
-    h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'request refused without focus')
     await ctx.page.keyboard.type('echo nothing-grabbed')
-    await ctx.sleep(300)
+    await h.waitText(ctx, t0, 'nothing-grabbed').catch(() => {})
     h.assert((await h.screen(ctx, t0)).includes('nothing-grabbed'), 'typing lands in the terminal')
     h.assert((await fr.evaluate(() => document.getElementById('i').value)) === '', 'the page saw no keys')
 
@@ -63,10 +64,11 @@ export default async (ctx, h) => {
       focus: document.activeElement?.className,
     }))
     h.assert(dlg.url === long && dlg.host === p.url && /Long link: 3\d\d characters/.test(dlg.warn) && dlg.disabled === true && /cancel/.test(dlg.focus), `dialog: ${JSON.stringify(dlg)}`)
-    await ctx.sleep(800)
+    await h.waitArmed(ctx)
     h.assert((await ctx.page.evaluate(() => document.querySelector('.dialog.external-open .confirm')?.disabled)) === false, 'Open enabled after the arming delay')
     await ctx.page.keyboard.press('Escape')
-    await ctx.sleep(300)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(300) // absence: nothing opened
     h.assert(!ctx.appLog().includes(`external open ${p.url}`), 'nothing opened')
     await p.assertUntouched('opens', 300)
   } finally {

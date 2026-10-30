@@ -17,13 +17,12 @@ export default async (ctx, h) => {
   })
   const alive = () => existsSync(infoPath(ctx.instance))
   const leave = () => ctx.page.isVisible('.dialog.leave-page')
-  const k = async (chord) => {
-    await h.press(ctx, chord)
-    await ctx.sleep(400)
-  }
+  const k = (chord) => h.press(ctx, chord)
   const touch = async (id) => {
     await h.guestPage(ctx, id)
     await h.guestClick(ctx, id, 200, 200) // sticky activation (no link there): Chromium ignores beforeunload without it
+    // The click lands: not observable from here (any evaluate in the guest grants activation itself,
+    // and one racing a reload hung under load).
     await ctx.sleep(200)
   }
   const hits = (p) => s.hits.filter((x) => x === p).length
@@ -47,39 +46,38 @@ export default async (ctx, h) => {
     const b = await open()
     await (await h.guestPage(ctx, b)).evaluate(() => (window.__mark = 1))
     await k('Meta+w')
-    h.assert(await leave(), 'close: Leave page? dialog')
+    await h.waitFor(ctx, leave, 'close: Leave page? dialog')
     h.assert((await ctx.page.textContent('.dialog h2')) === 'Leave page?' && (await ctx.page.evaluate(() => document.activeElement?.textContent)) === 'Leave', 'Leave focused')
     await ctx.shot('leave-page')
     await ctx.page.keyboard.press('Escape')
-    await ctx.sleep(300)
-    h.assert(!(await leave()) && (await h.tileOf(ctx, b)), 'Stay keeps the tile')
+    await h.eventually(ctx, async () => h.assert(!(await leave()) && (await h.tileOf(ctx, b)), 'Stay keeps the tile'))
     h.assert((await (await h.guestPage(ctx, b)).evaluate(() => window.__mark)) === 1, 'same page, still alive')
 
     // Reload (UI): asks; Stay: no reload; Leave: reloads.
     await ctx.tie('focus', b)
     let n = hits('/form')
     await k('Meta+r')
-    h.assert(await leave(), 'reload: dialog')
+    await h.waitFor(ctx, leave, 'reload: dialog')
     await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(500)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(500) // absence: no reload follows Stay
     h.assert(hits('/form') === n, 'Stay: no reload')
     await k('Meta+r')
-    h.assert(await leave(), 'reload again: dialog')
+    await h.waitFor(ctx, leave, 'reload again: dialog')
     await ctx.page.keyboard.press('Enter')
-    await ctx.sleep(1500)
-    h.assert(hits('/form') === n + 1, `Leave: reloaded: ${JSON.stringify(s.hits)} n=${n}`)
+    await h.eventually(ctx, async () => h.assert(hits('/form') === n + 1, `Leave: reloaded: ${JSON.stringify(s.hits)} n=${n}`))
     await touch(b)
 
     // The page's own navigation (link click): asks (Leave armed); Leave allows the next try.
     const g = await h.guestPage(ctx, b)
     const r = await g.evaluate(() => JSON.parse(JSON.stringify(document.getElementById('b').getBoundingClientRect())))
     await h.guestClick(ctx, b, r.x + 10, r.y + r.height / 2)
-    await ctx.sleep(400)
-    h.assert(await leave(), 'link: dialog')
+    await h.waitFor(ctx, leave, 'link: dialog')
     h.assert(await ctx.page.$eval('.dialog .confirm', (e) => e.disabled), 'page-initiated: Leave armed')
-    await ctx.sleep(700)
+    await h.waitArmed(ctx)
     await ctx.page.click('.dialog .confirm')
-    await ctx.sleep(300)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(300) // absence: Tie doesn't redo the page's navigation
     h.assert((await h.tileOf(ctx, b)).web.url === s.url + '/form', 'not redone by Tie (page navigation)')
     await h.guestClick(ctx, b, r.x + 10, r.y + r.height / 2)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.url === s.url + '/b', 'next click navigates')
@@ -88,26 +86,26 @@ export default async (ctx, h) => {
     // ⌘W, Leave: closes.
     const c = await open()
     await k('Meta+w')
-    h.assert(await leave(), 'dialog')
+    await h.waitFor(ctx, leave, 'dialog')
     await ctx.page.keyboard.press('Enter')
-    await ctx.sleep(400)
-    h.assert(!(await h.tileOf(ctx, c)), 'Leave closes the tile')
+    await h.eventually(ctx, async () => h.assert(!(await h.tileOf(ctx, c)), 'Leave closes the tile'))
 
     // Quit: after the quit question, the page asks; Stay aborts the quit, Leave quits.
     const d = await open()
     await k('Meta+q')
-    h.assert(await ctx.page.isVisible('.dialog.quit'), 'quit dialog')
+    await h.waitDialog(ctx, '.dialog.quit')
     await ctx.page.keyboard.press('Enter')
     await h.waitFor(ctx, leave, 'then the page asks')
     await ctx.page.keyboard.press('Escape')
-    await ctx.sleep(500)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(500) // absence: Stay aborts the quit
     h.assert(alive() && (await h.tileOf(ctx, d)), 'Stay: no quit, page kept')
     await k('Meta+q')
+    await h.waitDialog(ctx, '.dialog.quit')
     await ctx.page.keyboard.press('Enter')
     await h.waitFor(ctx, leave, 'asks again')
     await ctx.page.click('.dialog .confirm')
-    for (let i = 0; i < 40 && alive(); i++) await ctx.sleep(100)
-    h.assert(!alive(), 'Leave: quits')
+    await h.waitFor(ctx, async () => !alive(), 'Leave: quits')
   } finally {
     await s.close()
   }

@@ -13,7 +13,7 @@ export default async (ctx, h) => {
   const has = async (id) => (await L()).tiles.some((t) => t.id === id)
   const terminal = async (...flags) => {
     const id = (await ctx.tie('add', 'terminal', ...flags)).id
-    await ctx.sleep(900) // shell up, rc files done (their children would count as busy)
+    await h.waitShell(ctx, id) // shell up (startup children would count as busy)
     return id
   }
   // Typed in the active terminal `old`; waits until it's gone: the one new tile is its replacement.
@@ -22,10 +22,11 @@ export default async (ctx, h) => {
     await ctx.page.keyboard.type(line + '\n')
     await during?.()
     await h.waitFor(ctx, async () => !(await has(old)), `${old} replaced`, 8000)
-    await ctx.sleep(200)
-    const added = (await L()).tiles.filter((t) => !before.includes(t.id))
-    h.assert(added.length === 1 && added[0].kind === 'markdown', `one markdown tile added: ${JSON.stringify(added)}`)
-    return added[0]
+    return h.eventually(ctx, async () => {
+      const added = (await L()).tiles.filter((t) => !before.includes(t.id))
+      h.assert(added.length === 1 && added[0].kind === 'markdown', `one markdown tile added: ${JSON.stringify(added)}`)
+      return added[0]
+    })
   }
   // Typed in the active terminal `old`: fails with `re`, opens nothing, `old` stays.
   let n = 0
@@ -38,10 +39,10 @@ export default async (ctx, h) => {
       return s.includes(`${mark}-1`) && s
     }, `${line}: exit 1`, 6000)
     h.assert(re.test(out), `${line}: error ${re}: ${out}`)
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: nothing opens after the failure
     h.assert((await ids()) === before && (await has(old)), `${line}: nothing opened, terminal stays`)
   }
-  await ctx.sleep(800)
+  await h.waitShell(ctx, (await L()).tiles[0].id)
 
   // External caller (the harness): no terminal of its own.
   const ext = await ctx.tie('replace', md).then(() => null, (e) => e.message)
@@ -86,7 +87,7 @@ export default async (ctx, h) => {
   const s = await terminal('--shelved')
   const s1 = await terminal('--shelved')
   await ctx.tie('focus', s)
-  await ctx.sleep(300)
+  await h.waitActive(ctx, s)
   const idx = (await L()).shelf.indexOf(s)
   const ns = await replace(s)
   const ls = await L()
@@ -96,14 +97,14 @@ export default async (ctx, h) => {
   await ctx.tie('focus', c)
 
   // Failures, typed in c (idle shell, active).
-  await ctx.sleep(300)
+  await h.waitActive(ctx, c)
   for (const p of ['--float', `--at ${nb.id}`, '--side l', '--shelved', '--tab new']) await fails(c, `${cmd} ${p}`, /replace takes no placement/)
   await fails(c, `sh -c '${cmd} || exit 1; true'`, /tie runs under (sh|bash)/)
   await ctx.page.keyboard.type('sleep 100 &\n')
-  await ctx.sleep(500)
+  await h.waitChild(ctx, c, /sleep/)
   await fails(c, cmd, /A process is running: \S*sleep/)
   await ctx.page.keyboard.type('kill %1\n')
-  await ctx.sleep(500)
+  await h.waitNoChild(ctx, c)
   // Job gone: works again.
   const nc = await replace(c)
   h.assert(nc.active, 'replaced once idle')

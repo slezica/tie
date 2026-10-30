@@ -17,14 +17,12 @@ export default async (ctx, h) => {
   const s1 = l.tab
   const a = l.tiles[0].id
   await h.press(ctx, 'Meta+t')
-  await ctx.sleep(300)
-  l = await list()
+  l = await h.waitFor(ctx, async () => { const l = await list(); return l.tab !== s1 && l }, 'cmd+T: new tab shown')
   const s2 = l.tab
   const x = tabTiles(l, s2)[0]
   await h.press(ctx, 'Meta+1')
-  await ctx.sleep(300)
+  await h.waitFor(ctx, async () => (await list()).tab === s1, 'cmd+1: tab 1')
   const b = (await ctx.tie('add', 'terminal')).id
-  await ctx.sleep(300)
   l = await list()
   h.assert(l.tab === s1 && l.active === a, 'start: tab 1, a has input')
 
@@ -75,17 +73,15 @@ export default async (ctx, h) => {
   // add --tab new: a new tab with just that tile, not shown; add --tab <id> --focus: shown, input.
   const before = (await list()).active
   const y = (await ctx.tie('add', 'terminal', '--tab', 'new')).id
-  await ctx.sleep(300)
   l = await list()
   const s4 = l.tiles.find((t) => t.id === y).tab
   h.assert(l.tabs.length === 2 && l.tab === s1 && l.active === before && tabTiles(l, s4).join() === y, 'add --tab new: own tab, not shown')
   const z = (await ctx.tie('add', 'terminal', '--tab', s4, '--focus')).id
-  await ctx.sleep(300)
   l = await list()
   h.assert(l.tab === s4 && l.active === z && tabTiles(l, s4).length === 2, 'add --tab --focus: shown, new tile active')
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
   await h.press(ctx, 'Meta+1')
-  await ctx.sleep(300)
+  await h.waitFor(ctx, async () => (await list()).tab === s1, 'cmd+1: tab 1')
 
   // --swap, slot ↔ slot: places exchanged, sizes stay with the places, input unchanged.
   let s = await ctx.tie('state')
@@ -98,7 +94,7 @@ export default async (ctx, h) => {
   const want = order.map((id) => (id === a ? b : id === b ? a : id))
   h.assert(leafIds(s.tree).join() === want.join(), `swap a, b: ${leafIds(s.tree)} (want ${want})`)
   h.assert(JSON.stringify(s.tree.sizes) === sizes && s.active === act, 'swap: sizes kept, input unchanged')
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
   await ctx.shot('swapped')
 
   // --swap, shelved ↔ slotted: x takes a's slot, a goes to x's shelf place.

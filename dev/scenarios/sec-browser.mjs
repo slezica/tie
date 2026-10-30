@@ -54,7 +54,8 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     const tokenUrl = (await h.tileOf(ctx, html)).page.url
     for (const u of ['file:///etc/hosts', 'tie://app/index.html', tokenUrl, 'chrome://gpu', 'devtools://devtools/bundled/inspector.html']) {
       await g.evaluate((u) => (location.href = u), u).catch(() => {})
-      await ctx.sleep(500)
+      // absence: the page stays (refusals of Tie's guard are logged: done early; Chromium's own aren't)
+      await h.waitFor(ctx, async () => log().includes(`blocked guest navigation main ${u}`), `refusal of ${u} logged`, 500).catch(() => {})
       g = await h.guestPage(ctx, b)
       h.assert(g.url() === s.url + '/' && (await h.tileOf(ctx, b)).web.url === s.url + '/', `navigation to ${u} refused (now ${g.url()})`)
     }
@@ -62,7 +63,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     // Redirects to local schemes: never followed.
     for (const r of ['/redir-file', '/redir-tie']) {
       await g.evaluate((r) => (location.href = r), r).catch(() => {})
-      await ctx.sleep(700)
+      await ctx.sleep(700) // absence: never followed (Chromium refuses these itself: nothing to wait for)
       const now = (await guests()).map((x) => x.url)
       h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)), `redirect ${r}: ${now}`)
     }
@@ -82,10 +83,11 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
 
     // The UI's own loads (src, location bar, back/forward: browser-initiated) are checked too.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] webview`).loadURL('file:///etc/hosts').catch(() => {}), b2)
-    await ctx.sleep(800)
-    const after = (await guests()).find((x) => x.url.startsWith('file:') || x.url.startsWith(s.url + '/frames'))
-    h.assert(after && !after.url.startsWith('file:'), `shell loadURL(file:) stopped: ${after?.url}`)
-    h.assert(/stopped guest load file:/.test(log()), 'stopped load logged')
+    await h.eventually(ctx, async () => {
+      h.assert(/stopped guest load file:/.test(log()), 'stopped load logged')
+      const after = (await guests()).find((x) => x.url.startsWith('file:') || x.url.startsWith(s.url + '/frames'))
+      h.assert(after && !after.url.startsWith('file:'), `shell loadURL(file:) stopped: ${after?.url}`)
+    })
     await ctx.tie('close', b2)
 
     // Attach guard: hostile attributes are dropped, prefs rebuilt.
@@ -117,8 +119,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
         document.body.append(w)
       }, src)
     }
-    await ctx.sleep(800)
-    h.assert((log().match(/blocked webview src/g) ?? []).length >= 3, 'bad src refused at attach')
+    await h.eventually(ctx, async () => h.assert((log().match(/blocked webview src/g) ?? []).length >= 3, 'bad src refused at attach'))
     await ctx.page.evaluate(() => document.querySelectorAll('webview.bad').forEach((w) => w.remove()))
     // A content frame can't create guests (no <webview> outside the UI's main frame).
     const probe = (await ctx.tie('add', 'probe')).id
@@ -129,7 +130,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       document.body.append(w)
       return w.constructor.name
     }, s.url + '/?from-frame')
-    await ctx.sleep(1000)
+    await ctx.sleep(1000) // absence: no guest, no hit
     h.assert(!(await guests()).some((x) => x.url.includes('from-frame')) && !s.hits.some((x) => x.includes('from-frame')), `content frame: no guest (${tag})`)
     await ctx.tie('close', probe)
     h.assert((await guests()).length <= before, 'no guest left behind')
@@ -142,19 +143,18 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'script popup without a gesture: the dialog')
     h.assert((await ctx.page.textContent('.dialog.external-open .url')) === `${s.url}/popup-auto` && !s.hits.includes('/popup-auto'), 'nothing loaded, URL shown')
     await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: nothing opened
     h.assert(!log().includes('external open'), 'Cancel: nothing opened')
     const wv = await ctx.page.locator(`.tile[data-id="${p}"] webview`).boundingBox()
     const click = async (sel) => {
       const bx = await g.locator(sel).boundingBox()
       await ctx.page.mouse.click(wv.x + bx.x + 5, wv.y + bx.y + bx.height / 2)
-      await ctx.sleep(500)
     }
     await click('#pop')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'click popup: confirm dialog')
     h.assert((await ctx.page.textContent('.dialog.external-open .url')) === `${s.url}/popup-click` && !log().includes('external open'), 'full URL shown, nothing opened yet')
     await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: nothing opened
     h.assert(!log().includes(`external open ${s.url}/popup-click`), 'Cancel: nothing opened')
     const bl = await g.locator('#blank').boundingBox()
     await h.guestClick(ctx, p, bl.x + 5, bl.y + bl.height / 2)
@@ -162,10 +162,12 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await ctx.page.click('.dialog .confirm')
     await h.waitFor(ctx, async () => log().includes(`external open ${s.url}/popup-blank`), 'Open: system browser (harness: logged)')
     await click('#popfile')
+    await ctx.sleep(500) // absence: never opened
     // (Chromium refuses file: from an http page before the handler: either way, never opened.)
     h.assert(!/external open file:/.test(log()), 'non-http popup never opened, even with a click')
     const d = await g.locator('#dl').boundingBox() // (Playwright waits forever after the refused mailto: navigation)
     await click('#mail')
+    await ctx.sleep(500) // absence: never opened
     h.assert(!/external open mailto:/.test(log()) && (await h.tileOf(ctx, p)).web.url.startsWith(s.url), 'mailto: never opened')
     h.assert(!s.hits.some((x) => x.startsWith('/popup')), `no popup ever loaded: ${s.hits.filter((x) => x.startsWith('/popup'))}`)
     h.assert((await guests()).length === 1, 'no extra guests (windows)')
@@ -183,7 +185,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       h.assert(/evil\.sh/.test(dlg.name ?? '') && !/^\./.test(dlg.name) && /cancel/.test(dlg.focus) && dlg.text.includes('127.0.0.1'), `dialog: ${JSON.stringify(dlg)}`)
       h.assert(files().length === 0, 'nothing saved before Save')
       await ctx.page.click('.dialog .cancel')
-      await ctx.sleep(400)
+      await ctx.sleep(400) // absence: nothing saved
       h.assert(files().length === 0 && !/download completed/.test(log()), 'Cancel: nothing saved')
       await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
       await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'download: confirm dialog again')
@@ -203,7 +205,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const auto = (await ctx.tie('add', s.url + '/autodl', '--at', t0, '--side', 'b')).id
       await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'script download: asks')
       await ctx.page.click('.dialog .cancel')
-      await ctx.sleep(500)
+      await ctx.sleep(500) // absence: nothing saved
       h.assert(files().length === 2, `nothing saved by it (${files().length} files)`)
       await ctx.tie('close', auto)
     }

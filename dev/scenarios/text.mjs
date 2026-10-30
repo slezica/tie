@@ -49,7 +49,7 @@ export default async (ctx, h) => {
 
     // Live: lines inserted above the view; the view stays, inserted lines are marked; `n` jumps.
     await fr.evaluate(() => [...document.querySelectorAll('#lines > div')][200].scrollIntoView({ block: 'center' }))
-    await ctx.sleep(200)
+    await fr.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))) // scrolled + rendered
     const topOf = (n) => fr.evaluate((n) => [...document.querySelectorAll('#lines > div')].find((d) => d.textContent === `const v${n} = ${n} // line ${n}`)?.getBoundingClientRect().top, n)
     const y0 = await topOf(200)
     const rev0 = v.rev
@@ -57,25 +57,33 @@ export default async (ctx, h) => {
     lines[300] = 'const changed = true'
     write()
     await h.waitFor(ctx, () => view(id).then((x) => x.rev !== (rev0 ?? '') && x.lines === 402), 'live update')
-    await ctx.sleep(200)
-    v = await view(id)
-    const y1 = await topOf(200)
-    h.assert(Math.abs(y1 - y0) <= 2, `insert above: view still (${y0} → ${y1})`)
+    await h.eventually(ctx, async () => {
+      v = await view(id)
+      const y1 = await topOf(200)
+      h.assert(Math.abs(y1 - y0) <= 2, `insert above: view still (${y0} → ${y1})`)
+    })
     h.assert(v.gutter === 402 && v.marks.marked === 3, `numbers follow, 3 lines marked: ${JSON.stringify(v.marks)}`)
     const changed = await fr.evaluate(() => [...document.querySelectorAll('#lines > .changed')].map((d) => d.textContent))
     h.assert(JSON.stringify(changed) === JSON.stringify(['// inserted A', '// inserted B', 'const changed = true']), `marked lines: ${changed}`)
     await h.clickIn(ctx, fr, '#lines > div:nth-child(200)')
     // Newest update first, document order within it: A (page top: B seen with it), then the changed line.
-    for (let i = 0; i < 2; i++) await ctx.page.keyboard.press('n'), await ctx.sleep(200)
-    const at = await fr.evaluate(() => [...document.querySelectorAll('#lines > div')].find((d) => d.textContent === 'const changed = true').getBoundingClientRect().top)
-    h.assert(Math.abs(at - (await fr.evaluate(() => innerHeight / 3))) <= 4, `n ×2: second change at a third (${at})`)
+    for (let i = 0; i < 2; i++) await ctx.page.keyboard.press('n')
+    await h.eventually(ctx, async () => {
+      const at = await fr.evaluate(() => [...document.querySelectorAll('#lines > div')].find((d) => d.textContent === 'const changed = true').getBoundingClientRect().top)
+      h.assert(Math.abs(at - (await fr.evaluate(() => innerHeight / 3))) <= 4, `n ×2: second change at a third (${at})`)
+    })
 
     // Shift+Down: a third of the view.
     const s0 = (await view(id)).y
     await ctx.page.keyboard.press('Shift+ArrowDown')
-    await ctx.sleep(200)
-    const s1 = (await view(id)).y
-    h.assert(s1 - s0 > 100, `shift+down scrolls (${s0} → ${s1})`)
+    // Scrolled and settled (same position two frames apart): the reload below must keep it.
+    const s1 = await h.eventually(ctx, async () => {
+      const s1 = (await view(id)).y
+      h.assert(s1 - s0 > 100, `shift+down scrolls (${s0} → ${s1})`)
+      await fr.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+      h.assert((await view(id)).y === s1, 'scroll settled')
+      return s1
+    })
 
     // cmd+R: re-read, rendered as a page (marks cleared), scroll kept.
     const r0 = (await view(id)).renders

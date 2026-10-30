@@ -94,20 +94,18 @@ export default async (ctx, h) => {
 
     // Without focus (terminal active): link requests refused, nothing opened.
     await ctx.tie('focus', a)
-    await ctx.sleep(200)
-    h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) !== 'IFRAME', 'frame not focused')
+    await h.eventually(ctx, async () => h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) !== 'IFRAME', 'frame not focused'))
     const rev = (await h.mdState(ctx, id)).rev
     const post = (m) => fr.evaluate((m) => window.markdown.port.postMessage(m), m)
     await post({ verb: 'followLink', href: `${p.url}/nofocus`, newTile: false })
-    await ctx.sleep(500)
-    h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'link refused without focus')
+    await h.eventually(ctx, async () => h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'link refused without focus'))
     h.assert(!ctx.appLog().includes(`${p.url}/nofocus`), 'nothing opened')
 
     // Read-only: a real click on a task box (focuses the frame) changes nothing; boxes are inert.
     const box = await fr.locator('input.task-box').first().boundingBox()
     await ctx.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    await ctx.sleep(800)
-    h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'IFRAME', 'frame focused')
+    await h.eventually(ctx, async () => h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'IFRAME', 'frame focused'))
+    await ctx.sleep(500) // absence: the click toggles nothing
     const boxes = await fr.evaluate(() => [...document.querySelectorAll('input.task-box')].map((b) => ({ disabled: b.disabled, checked: b.checked })))
     h.assert(boxes.length === 2 && boxes.every((b) => b.disabled && !b.checked), `task boxes display-only: ${JSON.stringify(boxes)}`)
     h.assert(file() === doc, 'click on a task box: file unchanged')
@@ -120,9 +118,10 @@ export default async (ctx, h) => {
       { verb: 'saveDoc', text: 'pwned' },
     ]
     for (const m of writes) await post(m)
-    await ctx.sleep(800)
-    const dropped = ctx.appLog().match(/dropped request t\d+ .*/g) ?? []
-    h.assert(dropped.length - before === writes.length && dropped.some((l) => l.includes('toggleTask')), `write-shaped requests dropped as unknown verbs: ${dropped.slice(before)}`)
+    await h.eventually(ctx, async () => {
+      const dropped = ctx.appLog().match(/dropped request t\d+ .*/g) ?? []
+      h.assert(dropped.length - before === writes.length && dropped.some((l) => l.includes('toggleTask')), `write-shaped requests dropped as unknown verbs: ${dropped.slice(before)}`)
+    })
     h.assert(!/refused toggleTask|\[docs\] toggled/.test(ctx.appLog()), 'no write path reached')
     h.assert(file() === doc, 'file unchanged')
 
