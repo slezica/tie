@@ -30,18 +30,17 @@ export default async (ctx, h) => {
     // Closed tile: its token is forgotten (frame for it refused too).
     const url = f.url()
     await ctx.tie('close', id)
-    await ctx.sleep(300)
-    h.assert(ctx.appLog().includes(`[content] close ${token.slice(0, 8)}`), 'token forgotten on close')
+    await h.eventually(ctx, async () => h.assert(ctx.appLog().includes(`[content] close ${token.slice(0, 8)}`), 'token forgotten on close'))
     await ctx.page.evaluate((src) => document.body.append(Object.assign(document.createElement('iframe'), { src, sandbox: 'allow-scripts' })), url)
-    await ctx.sleep(400)
-    h.assert(ctx.appLog().includes(`blocked navigation subframe ${url}`), 'dead token: frame refused')
+    await h.eventually(ctx, async () => h.assert(ctx.appLog().includes(`blocked navigation subframe ${url}`), 'dead token: frame refused'))
 
     // Bad root: failure stays visible.
     const bad = (await ctx.tie('add', 'probe', '--cwd', join(dir, 'missing'))).id
-    await ctx.sleep(500)
-    const t = (await h.list(ctx)).tiles.find((t) => t.id === bad)
-    h.assert(/Directory not found/.test(t?.error ?? ''), `bad root shows error: ${JSON.stringify(t)}`)
-    h.assert(await ctx.page.isVisible(`.tile[data-id="${bad}"] .tile-error`), 'error visible')
+    await h.eventually(ctx, async () => {
+      const t = (await h.list(ctx)).tiles.find((t) => t.id === bad)
+      h.assert(/Directory not found/.test(t?.error ?? ''), `bad root shows error: ${JSON.stringify(t)}`)
+      h.assert(await ctx.page.isVisible(`.tile[data-id="${bad}"] .tile-error`), 'error visible')
+    })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

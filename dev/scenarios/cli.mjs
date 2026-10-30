@@ -24,20 +24,16 @@ export default async (ctx, h) => {
   // list: flags of background-tab tiles come from their own tab.
   const a = (await h.list(ctx)).tiles[0].id
   await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')
-  await ctx.sleep(300)
   await h.clickButton(ctx, a, 'collapse')
   await h.press(ctx, 'Meta+t')
-  await ctx.sleep(300)
-  const l = await h.list(ctx)
+  const l = await h.waitFor(ctx, async () => { const l = await h.list(ctx); return l.tabs.length === 2 && l.tab === l.tabs[1].id && l }, 'cmd+T: new tab')
   const ta = l.tiles.find((t) => t.id === a)
   h.assert(ta.collapsed && ta.active === (l.tabs[0].active === a), `background tile flags: ${JSON.stringify(ta)}`)
   await h.press(ctx, 'Meta+1')
-
-  await ctx.sleep(300)
+  await h.waitFor(ctx, async () => { const l = await h.list(ctx); return l.tab === l.tabs[0].id }, 'cmd+1: first tab')
 
   // move --float on a floating tile keeps its rect.
   const f = (await ctx.tie('add', 'terminal', '--float')).id
-  await ctx.sleep(300)
   const tp = await h.titlePoint(ctx, f)
   await h.drag(ctx, tp, { x: tp.x - 150, y: tp.y - 100 }, { shift: true })
   const r0 = await h.rectOf(ctx, f)
@@ -64,13 +60,14 @@ export default async (ctx, h) => {
   if (fb) {
     await h.clickButton(ctx, fb, 'collapse')
     await h.press(ctx, 'Meta+t')
-    await ctx.sleep(200)
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === tabsBefore + 1, 'cmd+T: new tab')
     await ctx.tie('focus', fb)
-    await ctx.sleep(200)
-    const fl = await h.list(ctx)
-    const t = fl.tiles.find((x) => x.id === fb)
-    h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
-    h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
+    await h.eventually(ctx, async () => {
+      const fl = await h.list(ctx)
+      const t = fl.tiles.find((x) => x.id === fb)
+      h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
+      h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
+    })
   }
 
   // --help is the capability listing for agents: every command, kind and env var, in sections.

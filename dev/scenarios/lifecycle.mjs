@@ -13,6 +13,8 @@ export default async (ctx, h) => {
 
   // Close before the pty spawn resolves: one socket write carrying add + close.
   const before = shells().length
+  const spawned = () => [...ctx.appLog().matchAll(/\[pty\] spawn (\d+)/g)].map((m) => m[1])
+  const n0 = spawned().length
   const next = `t${Math.max(...(await h.list(ctx)).tiles.map((t) => Number(t.id.slice(1)))) + 1}`
   await new Promise((res) => {
     const c = connect(info.socket)
@@ -24,7 +26,9 @@ export default async (ctx, h) => {
     const rpc = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'
     c.on('connect', () => c.write(rpc(1, 'add', { kind: 'terminal' }) + rpc(2, 'close', { id: next })))
   })
-  await ctx.sleep(1500)
+  // Its pty spawn resolves after the close: the shell is killed (app log: spawn, then exit).
+  const pid = await h.waitFor(ctx, async () => spawned()[n0], 'pty spawn of the closed tile')
+  await h.waitFor(ctx, async () => ctx.appLog().includes(`[pty] exit ${pid}`), `its shell ${pid} exited`)
   h.assert(shells().length === before, `no leaked shell (${before} -> ${shells().length})`)
 
   const errors = []
@@ -33,18 +37,15 @@ export default async (ctx, h) => {
   // Closed during its own title drag: the drop is dropped, no exception.
   const a = (await h.list(ctx)).tiles[0].id
   const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
-  await ctx.sleep(300)
   await h.drag(ctx, await h.titlePoint(ctx, b), await h.sidePoint(ctx, a, 'l'), { during: () => ctx.tie('close', b) })
   h.assert(!errors.length, `no page errors after drop: ${errors}`)
 
   // Context menu goes away with its tile.
   const c = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
-  await ctx.sleep(300)
   const p = await h.titlePoint(ctx, c)
   await ctx.page.mouse.click(p.x, p.y, { button: 'right' })
   await ctx.page.waitForSelector('.menu')
   await ctx.tie('close', c)
-  await ctx.sleep(100)
-  h.assert(!(await ctx.page.$('.menu')), 'menu closed with its tile')
+  await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.menu')), 'menu closed with its tile'))
   h.assert(!errors.length, `no page errors: ${errors}`)
 }

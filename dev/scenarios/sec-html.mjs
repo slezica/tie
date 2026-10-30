@@ -134,11 +134,14 @@ export default async (ctx, h) => {
       },
       { u: p.url, tcpPort, udpPort },
     )
-    await ctx.sleep(1500)
-    const v = await (await h.htmlFrame(ctx, id)).evaluate(() => window.__v)
+    // Every attempt refused (CSP violation events come in as the attempts run).
+    let v
+    await h.eventually(ctx, async () => {
+      v = await (await h.htmlFrame(ctx, id)).evaluate(() => window.__v)
+      for (const [dir, path] of [['connect-src', '/fetch'], ['connect-src', '/xhr'], ['connect-src', '/beacon'], ['connect-src', '/es'], ['connect-src', 'ws://'], ['img-src', '/img'], ['img-src', '/css-bg'], ['img-src', '/attr-bg'], ['img-src', '/svg-image'], ['style-src-elem', '/style'], ['style-src-elem', '/import.css'], ['font-src', '/font'], ['script-src-elem', '/script-el.js'], ['script-src-elem', '/preload'], ['default-src', '/prefetch'], ['connect-src', '/ping'], ['media-src', '/audio'], ['frame-src', p.url], ['object-src', p.url]])
+        h.assert(v.some((x) => x.startsWith(dir + ' ') && x.includes(path)), `CSP refused ${dir} ${path}: ${JSON.stringify(v)}`)
+    }, 8000)
     ctx.log('CSP violations:', JSON.stringify(v))
-    for (const [dir, path] of [['connect-src', '/fetch'], ['connect-src', '/xhr'], ['connect-src', '/beacon'], ['connect-src', '/es'], ['connect-src', 'ws://'], ['img-src', '/img'], ['img-src', '/css-bg'], ['img-src', '/attr-bg'], ['img-src', '/svg-image'], ['style-src-elem', '/style'], ['style-src-elem', '/import.css'], ['font-src', '/font'], ['script-src-elem', '/script-el.js'], ['script-src-elem', '/preload'], ['default-src', '/prefetch'], ['connect-src', '/ping'], ['media-src', '/audio'], ['frame-src', p.url], ['object-src', p.url]])
-      h.assert(v.some((x) => x.startsWith(dir + ' ') && x.includes(path)), `CSP refused ${dir} ${path}: ${JSON.stringify(v)}`)
     await p.assertUntouched('exfiltration from page scripts', 1000)
     h.assert(!tcpHits.length && !udpHits.length, `raw connections reached: tcp ${tcpHits.length}, udp ${udpHits.length}`)
     h.assert(!(await h.tileOf(ctx, id)).error, 'page survived its attempts')
@@ -191,9 +194,9 @@ export default async (ctx, h) => {
     // The web from the page: only through the dialog. Not focused: refused (gesture rule).
     const fe = await h.htmlFrame(ctx, id)
     await ctx.tie('focus', t0)
-    await ctx.sleep(200)
+    await h.waitFor(ctx, () => ctx.page.evaluate((t0) => document.activeElement?.closest('.tile')?.dataset.id === t0, t0), 'keys to t0')
     await fe.evaluate((u) => window.open(u + '/nofocus'), p.url)
-    await ctx.sleep(500)
+    await h.waitFor(ctx, async () => /refused request without focus t\d+ followLink/.test(ctx.appLog()), 'refusal logged')
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && /refused request without focus t\d+ followLink/.test(ctx.appLog()), 'window.open without focus: refused, no dialog')
     // Focused: window.open (script, no click) → dialog; Cancel → nothing.
     await h.clickIn(ctx, fe, '#h')
@@ -203,11 +206,10 @@ export default async (ctx, h) => {
     h.assert((await ctx.page.evaluate(() => document.activeElement?.classList.contains('cancel'))), 'Cancel focused')
     // While it's open, more requests are dropped (no dialog pile-up).
     await fe.evaluate((u) => window.open(u + '/second'), p.url).catch(() => {})
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: no second dialog
     h.assert((await ctx.page.locator('.dialog.external-open').count()) === 1, 'one dialog at a time')
     await ctx.page.keyboard.press('Enter') // Enter = Cancel
-    await ctx.sleep(300)
-    h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && !ctx.appLog().includes(`external open ${p.url}`), 'Cancel: nothing opened')
+    await h.eventually(ctx, async () => h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && !ctx.appLog().includes(`external open ${p.url}`), 'Cancel: nothing opened'))
     // target=_blank link (real click) → dialog; Open → system browser (harness: logged, not loaded).
     await h.clickIn(ctx, fe, '#blank')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'dialog for target=_blank')
@@ -216,14 +218,16 @@ export default async (ctx, h) => {
     // Other schemes: refused before any dialog.
     await h.clickIn(ctx, fe, '#h')
     for (const u of ['file:///etc/hosts', 'javascript:alert(1)', 'x-app://run', 'smb://h/s']) await fe.evaluate((u) => window.open(u), u)
-    await ctx.sleep(400)
+    await h.waitFor(ctx, async () => (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'schemes refused (logged)')
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'other schemes refused')
     await p.assertUntouched('opens', 300)
 
     // Nav lock: other tokens, /_tie/ files: cancelled (frame stays, no error).
     for (const target of [`tie-content://${'e'.repeat(32)}/evil.html`, '/_tie/markdown.html']) {
+      const n = (ctx.appLog().match(/blocked navigation subframe/g) ?? []).length
       await (await h.htmlFrame(ctx, id)).evaluate((t) => (location.href = t), target).catch(() => {})
-      await ctx.sleep(800)
+      await h.waitFor(ctx, async () => (ctx.appLog().match(/blocked navigation subframe/g) ?? []).length > n, `location ${target}: blocked (logged)`)
+      await ctx.sleep(300) // absence: no error, no other document follows the block
       const pg = (await h.tileOf(ctx, id)).page
       h.assert(pg.path.endsWith('/evil.html') && !(await h.tileOf(ctx, id)).error, `location ${target}: still evil.html, no error: ${JSON.stringify(pg)}`)
     }

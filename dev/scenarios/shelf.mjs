@@ -23,18 +23,19 @@ export default async (ctx, h) => {
   l = await h.list(ctx)
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'hover does not pin')
   await ctx.page.mouse.move(400, 400)
-  await ctx.sleep(150)
+  await h.waitRevealed(ctx, null)
   await h.pin(ctx, c)
   await ctx.shot('pinned')
   l = await h.list(ctx)
   h.assert(l.tiles.find((t) => t.id === c).pinned && l.active === c, 'click pins + activates')
   await ctx.page.keyboard.type('echo pinned-input\n')
-  await ctx.sleep(300)
+  await h.waitText(ctx, c, /echo pinned-input.*pinned-input/)
   await ctx.shot('pinned-typed')
   await ctx.page.mouse.click(300, 300) // another tile on the board
-  await ctx.sleep(150)
-  l = await h.list(ctx)
-  h.assert(l.active !== c && l.tiles.find((t) => t.id === c).pinned, `click on another tile activates it, pin stays (active ${l.active})`)
+  await h.eventually(ctx, async () => {
+    l = await h.list(ctx)
+    h.assert(l.active !== c && l.tiles.find((t) => t.id === c).pinned, `click on another tile activates it, pin stays (active ${l.active})`)
+  })
   await h.pin(ctx, c) // item click
   l = await h.list(ctx)
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'item click unpins')
@@ -43,7 +44,7 @@ export default async (ctx, h) => {
   await ctx.page.mouse.move(400, 400)
   const d = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'for i in 1 2 3 4 5; do echo $i; sleep 0.3; done')).id
   await h.waitFor(ctx, async () => (await ctx.page.locator(`.item[data-id="${d}"].activity`).count()) === 1, 'activity dot', 8000)
-  await ctx.sleep(1500)
+  await h.waitTile(ctx, d, (t) => t.exit !== null, 'output loop exited', 8000)
   await ctx.shot('activity-exit')
   // Reorder: drag d before c. The dragged item hides, the ghost stands for it; the strip keeps
   // its width (the dragged item's slot becomes the hint, then the ghost).
