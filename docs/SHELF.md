@@ -1,11 +1,11 @@
 # Shelf
 
-The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie open --shelved`). It is shown as a strip of icons in the toolbar (`TABS.md`): `#shelf`, one `.item` per shelved tile in `S.shelf` order, growing leftward from the template list. Nothing in code or docs assumes a fixed region of the window for it: `shelfRect()` is the strip's DOM box.
+The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie add --shelved`). It is shown as a strip of icons in the toolbar (`TABS.md`): `#shelf`, one `.item` per shelved tile in `S.shelf` order, growing leftward from the template list. Nothing in code or docs assumes a fixed region of the window for it: `shelfRect()` is the strip's DOM box.
 
 Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; each a `GLYPH` SVG: prompt, folder, globe), not part of the shelf.
 
 - Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
-- `file` template: the drop opens a file picker first (any file; starts in the target tile's directory); cancel → no tile. Its kind as for `tie open` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
+- `file` template: the drop opens a file picker first (any file; starts in the target tile's directory); cancel → no tile. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
 - Item: icon only (`displayIcon`, `TERMINALS.md`: built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
 - Right-click item: tile menu (`INPUT.md`).
@@ -19,7 +19,7 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 | Drag item onto board | Unshelve, normal drop rules (`INPUT.md`) |
 | Drag item onto a board tile's title bar | Swap: the item takes that slot, the tile is shelved at the item's index |
 | Drag item onto a tab | Joins that tab's board (its own tab: back on the board), `TABS.md` "Drops onto tabs" |
-| `tie open/move --shelve` | Appended |
+| `tie add/move --shelve` | Appended |
 
 - The drop zone is the strip itself (`shelfRect()`); an empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
 - While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`). Over the strip: the ghost slot (`.item.ghost`, the dragged thing's icon, accent) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.

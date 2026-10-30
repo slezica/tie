@@ -16,7 +16,7 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 
 | Opened by | cwd |
 |---|---|
-| `tie open` | `--cwd` resolved against caller's cwd; default caller's cwd |
+| `tie add` / `tie replace` | `--cwd` resolved against caller's cwd; default caller's cwd |
 | `cmd+D`, template dropped next to a tile | that shell's cwd, read fresh (`cwdOf` → `pty:cwd` → `lsof`), not the 2 s poll |
 | Other | `S.cwd` (`TIE_CWD`, else home) |
 
@@ -110,8 +110,8 @@ A terminal is busy when closing it would kill something (`Surface.busy()`, asked
 - Synchronous at decision time (not the polls): renderer `tie.pty.busy([pid])` → main `pty:busy` → `pty.busy(pid)` → `childrenOf(pid)` (`native/peer`, libproc `proc_listchildpids`).
 - `what`: the command (`cmd`), else node-pty's foreground name read now unless it's a shell (`SHELLS`; a background job: unknown, dialogs say "running").
 - `native/peer` missing: busy = foreground process isn't the shell (background jobs missed).
-- Shell plugins that keep a child (async prompt workers) make that shell always busy: close always asks, `tie open --replace` always fails.
-- `tie open --replace` (`CLI.md`): same rule, tie's own pid ignored (`pty.busyIgnoring`); its error names the first other child (`native/peer` `nameOf`).
+- Shell plugins that keep a child (async prompt workers) make that shell always busy: close always asks, `tie replace` always fails.
+- `tie replace` (`CLI.md`): same rule, tie's own pid ignored (`pty.busyIgnoring`); its error names the first other child (`native/peer` `nameOf`).
 - `tie list --json` `term.pid`: the pty pid (harness).
 
 ## Close

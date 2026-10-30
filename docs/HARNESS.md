@@ -91,7 +91,7 @@ EOF
 | `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
 | `tileOf(id)`, `waitFor(fn, what)`, `pickNext(path)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; next file picker answer (null = cancel); OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
 
-Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie open probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
+Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie add probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
 
 ## Traces (`out/log/`)
 
@@ -103,4 +103,4 @@ Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), 
 ## Package check (`dev/package-check.mjs`)
 
 - `tie-dev check-package [app]`; also run by `tie-dev package` (failure removes the package).
-- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie open <file.md>` (with a diagram) opens without error, diagram library served, an html page loads (bootstrap answers), a text file opens, a browser tile loads a local http page (title), no `[security]` log lines.
+- Fuses as expected (`SECURITY.md`), then smoke: launch packaged app in background, bundled `tie list` answers, `tie add <file.md>` (with a diagram) opens without error, diagram library served, an html page loads (bootstrap answers), a text file opens, a browser tile loads a local http page (title), no `[security]` log lines.

@@ -51,8 +51,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 |---|---|
 | `tile.ts` | `factory` |
 | `shelf.ts` | `TEMPLATES` |
-| `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie open <path>"; `url` param → an `opens: 'url'` kind (`locationUrl`) |
-| `drag.ts` | template drop: `file` → picker (main, any file) → kind as `tie open` (`doc.viewer`); else the template's kind |
+| `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie add <path>"; `url` param → an `opens: 'url'` kind (`locationUrl`) |
+| `drag.ts` | template drop: `file` → picker (main, any file) → kind as `tie add` (`doc.viewer`); else the template's kind |
 | `keys.ts` | `cmd+D` on a kind that isn't `'bare'` splits a terminal |
 
 ## Kinds (`renderer/kinds/`)
@@ -67,7 +67,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
 - File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view).
-- `tie open <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie open <path>`, drops, file template + picker).
+- `tie add <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie add <path>`, drops, file template + picker).
 - Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image, html), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `canOpenAs`: which kinds main lets a tile show a file as (own, hex, text if text-like); no UI asks for another kind today (defense: `sec-viewers`).
 
 ## Policy table (`core/policy.ts`)

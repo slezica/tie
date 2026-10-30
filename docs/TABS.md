@@ -59,7 +59,7 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
 - Same tab: a board tile = no target (no highlight); a shelf item = unshelved beside the active tile (as `cmd+S`).
 - Template → a new tile of its kind in that tab (or a new one), beside its active tile, default cwd (`S.cwd`); the tab is shown. `file`: picker first (default dir), cancel → nothing, no switch.
 - Feedback: `.tab.drop` / `#tab-add.drop` (accent). While any tile drag runs (`body.tile-drag`) `+` gets a dashed border: a target, like the shelf's "+" hint. No board preview.
-- CLI (`CLI.md` "Placement"): `tie move --tab <tab|new>`, `tie open --tab`: same placement (`moveToSpace`, `activate: false` into the visible tab), but the visible tab stays unless `--focus` (or the moved tile was the last of the tab on screen: the user follows it). `new`: an empty tab after the visible one, not shown (driver `addTab`; `newTab` would switch).
+- CLI (`CLI.md` "Placement"): `tie move --tab <tab|new>`, `tie add --tab`: same placement (`moveToSpace`, `activate: false` into the visible tab), but the visible tab stays unless `--focus` (or the moved tile was the last of the tab on screen: the user follows it). `new`: an empty tab after the visible one, not shown (driver `addTab`; `newTab` would switch).
 
 ## Limitations
 
