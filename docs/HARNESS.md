@@ -15,7 +15,7 @@
 ## Command notes
 
 - Rebuild (`run`, `start`, `drive`, `test --e2e`): when any `src/` file is newer than `out/.build-stamp`. `--hot` (dev server) doesn't write the stamp.
-- Hot (`run --hot`): `electron-vite dev` (UI hot-reloads; main built once, not watched: a restart would kill terminals) plus `dev/viewers.mjs --watch`: a change under `src/viewers/` rebuilds that kind (shared modules: every kind) into `out/viewers/`; main (dev builds) watches that folder and pushes `content:viewer <kind>`; the renderer reloads every file view of that kind (`fileview.ts` `reloadViewers`: new token, same root, scroll restored from the viewer's last `scrolled` report). Style iteration: `tie-dev run --hot`, `tie-dev sample`, edit `src/viewers/markdown.html`. Every instance serves the same `out/viewers/`: a save during `test --e2e` reloads the scenarios' frames too (and their style assertions see the edit), so don't run e2e while iterating.
+- Hot (`run --hot`): `electron-vite dev` (UI hot-reloads; main built once, not watched: a restart would kill terminals) plus `dev/viewers.mjs --watch`: a change under `src/viewers/` rebuilds that kind (shared modules: every kind) into `out/viewers/`; main (dev builds) watches that folder and pushes `content:viewer <kind>`; the renderer reloads every file view of that kind (`fileview.ts` `reloadViewers`: new token, same root, scroll restored from the viewer's last `scrolled` report). Style iteration: `tie-dev run --hot`, `tie-dev sample`, edit `src/viewers/markdown.html` (or in a browser: `mdpage`, "Markdown style iteration"). Every instance serves the same `out/viewers/`: a save during `test --e2e` reloads the scenarios' frames too (and their style assertions see the edit), so don't run e2e while iterating.
 - `run`, `start`: free debug port unless `TIE_DEBUG_PORT` set.
 - Electron binary launched directly with `-ApplePersistenceIgnoreState YES` (`2026-10-09-electron-crash-on-quit.md`). `stop`: the UI's `tie.quit()` over the debugging port (`quitInstance`: a visible instance asks on SIGTERM), else SIGTERM to the info-file pid. Fresh instances (background: no question): SIGTERM, then wait for the process to exit before removing its userData.
 - `logs`: last 100 lines of the instance log.
@@ -104,6 +104,22 @@ EOF
 | `waitDialog(sel)`, `waitNoDialog()`, `waitArmed()` | dialog open; closed; its confirm enabled (dialogs that arm after a delay) |
 
 Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie add probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
+
+## Markdown style iteration (`tie-dev mdpage`, `dev/mdpage.mjs`)
+
+Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
+
+1. Produce: `tie-dev mdpage [--theme NAME] [--sample NAME] [--out FILE] [--open]`. Fresh offscreen instance (theme seeded in its settings; default: the settings default), one markdown tile 720 px wide (window sized to it), sample opened from a temp copy. Writes `tmp/mdpage/<sample>-<theme>.html` + `.png` beside it.
+2. Open (`--open`), tinker in devtools (Sources / Elements), copy the Changes diff.
+3. Apply to the source named by the HTML comment before each `<style>`: `src/viewers/markdown.html` (typography), `runtime.ts` (base), `marks.ts`, `highlight.ts`, `live.ts`. Undo the rewrite: `.viewer-root` = `:root` / `html`, `.viewer-body` = `body`.
+4. Check in Tie: `tie-dev run --hot` + `tie-dev sample` (viewers rebuild, tile reloads), or rerun `mdpage`.
+
+- Page: board background, a 720 px tile, title bar + nav bar cloned from the renderer with computed styles frozen inline; the viewer's DOM (scripts removed) in `.viewer-frame > .viewer-root > .viewer-body`. Theme vars inline on `.viewer-root` (as the viewer sets them on its `:root`). `.viewer-frame` contains the fixed edge markers (transform), `.viewer-root` scrolls. No scripts, no network.
+- Viewer `<style>`s verbatim except selectors (`:root` / `html` / `body`; comments and declarations untouched), labelled by content.
+- Marks: the temp copy is edited after the first render (first heading, first paragraph, a paragraph appended), snapshot as soon as the 3 blocks are `.changed`; `fading` stripped. Appended block is off screen: "changed below" marker on.
+- Diagrams: waited up to 10 s; any still pending: a note above the tile. Images (`tie-content://`): `src` removed (alt only), noted.
+- Verified on each run (headless system Chrome, else Playwright's Chromium): no console errors or requests, vars on `.viewer-root`, ≥ 2 marked blocks, tile 720 px, code token colors, h1 size = the live frame's.
+- Not faithful: `rem` resolves against the page's `html`, pinned to the viewer's root size at snapshot: a `--size` / `--scale` tweak moves em sizes, not rem spacing (set `html { font-size }` to match). Fonts: the browser's (same names; system fonts on macOS). No CSP, no live behaviour (marks never fade, links inert).
 
 ## Traces (`out/log/`)
 

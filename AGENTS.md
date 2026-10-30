@@ -87,7 +87,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*`; `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `e2e.mjs` (`test --e2e`: parallel, selection), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*`; `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `e2e.mjs` (`test --e2e`: parallel, selection), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `mdpage.mjs` (`tie-dev mdpage`: standalone markdown page), `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 - `patches/`: `patch-package` patches applied at install (`node-pty`: disclaimed spawn).
 
@@ -166,6 +166,9 @@ Commands:
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
   sample [name]            Open dev/samples/<name>.md (default markdown) in the instance: style iteration fixture
+  mdpage [--theme NAME] [--sample NAME] [--out FILE] [--open]
+                           Sample as a standalone HTML page (720 px tile, Tie palette, change marks) for devtools CSS
+                           tinkering (default tmp/mdpage/<sample>-<theme>.html, PNG beside); fresh instance
   drive <scenario|-> [--attach] [--keep]
                            Run Playwright scenario (file in dev/scenarios, path, or - for stdin).
                            Fresh instance by default; --attach uses running instance;

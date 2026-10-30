@@ -8,6 +8,7 @@ Restyle of the markdown viewer: prose typography after a reference stylesheet, c
 - Showcase (scratch, not in the repo): the sample rendered in headless Chromium with 15 stylesheets at one 860 px column, cropped per section (headings, inline, lists, quotes, tables, code), composed 3 per row, opened on the shelf as image tiles. Candidates: Tie (current, WIP), GitHub markdown CSS, VS Code preview, typrose (Tailwind prose), Typora Night / GitHub / Pixyll / Newsprint, water.css, sakura, new.css, matcha, Pico, Modest.
 - Finding: the fault was base size, not spacing rules. Prose ran at the terminal's 12 px; every reference sits at 14–18 px with 1.5–1.6 line height, and em margins shrink with it.
 - Hot loop for iterating: `tie-dev run --hot` + `tie-dev sample`; viewer edits rebuild and the tile reloads with its scroll (`HARNESS.md` "Hot").
+- Browser loop (2026-10-30): `tie-dev mdpage --open`: the sample as a standalone 720 px tile page (theme, marks); tinker in devtools, apply the Changes diff to `markdown.html` (`HARNESS.md` "Markdown style iteration").
 
 ## Settled
 
