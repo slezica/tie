@@ -75,7 +75,11 @@ try {
   browser = conn.browser
   const page = conn.page
   await page.waitForSelector('.tab') // booted (first render; the boot terminal may already be gone: quit-empty)
-  await sleep(500)
+  // Boot terminal up: every terminal tile shows text (its prompt) or an error. DOM only: the socket
+  // may be closed to the harness (sec-socket-external). Capped: a shell without a prompt only waits.
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('.tile')].every((t) => !t.querySelector('.xterm') || t.querySelector('.tile-error') || t.querySelector('.xterm-rows')?.textContent.trim()), null, { timeout: 3000, polling: 50 })
+    .catch(() => {})
   let n = 0
   const ctx = {
     page,

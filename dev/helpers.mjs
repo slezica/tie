@@ -39,11 +39,11 @@ export async function drag(ctx, from, to, { shift = false, steps = 12, during } 
   await m.down()
   if (shift) await ctx.page.keyboard.down('Shift')
   await m.move(to.x, to.y, { steps })
-  await ctx.sleep(120)
+  await settle(ctx) // drop preview drawn
   if (during) await during()
   await m.up()
   if (shift) await ctx.page.keyboard.up('Shift')
-  await ctx.sleep(150)
+  await settle(ctx)
 }
 
 export async function dragTitle(ctx, id, targetId, side, opts) {
@@ -83,18 +83,18 @@ export async function boardCenter(ctx) {
 export async function hoverShelf(ctx, id) {
   const p = await shelfItem(ctx, id)
   await ctx.page.mouse.move(p.x, p.y, { steps: 4 })
-  await ctx.sleep(150)
+  await waitFor(ctx, async () => { const s = await ctx.tie('state'); return s.revealed === id || s.pinned === id }, `hover reveals ${id}`)
 }
 
 export async function pin(ctx, id) {
   const p = await shelfItem(ctx, id)
   await ctx.page.mouse.click(p.x, p.y)
-  await ctx.sleep(150)
+  await settle(ctx)
 }
 
 export async function clickButton(ctx, id, name) {
   await ctx.page.locator(`.tile[data-id="${id}"] .btn.${name}`).click()
-  await ctx.sleep(120)
+  await settle(ctx)
 }
 
 // Three terminals via CLI: a | b over c. Returns ids.
@@ -104,7 +104,8 @@ export async function threeWaySplit(ctx) {
   // --focus: like user splits, c ends active.
   const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r', '--focus')).id
   const c = (await ctx.tie('add', 'terminal', '--at', b, '--side', 'b', '--focus')).id
-  await ctx.sleep(300)
+  await waitShell(ctx, b)
+  await waitShell(ctx, c)
   return [a, b, c]
 }
 
@@ -213,7 +214,7 @@ export async function paste(ctx, id, text) {
     },
     [id, text],
   )
-  await ctx.sleep(400)
+  await settle(ctx) // outcome is async (settings read, maybe a dialog): callers wait for theirs
 }
 
 // Visible text of a terminal tile.
@@ -327,7 +328,7 @@ export const pickNext = (ctx, path) => rpc(ctx.instance, 'pick', { path })
 export async function resizeWindow(ctx, w, h) {
   await rpc(ctx.instance, 'window-size', { w, h })
   await ctx.page.waitForFunction(([w, h]) => window.innerWidth === w && window.innerHeight === h, [w, h])
-  await ctx.sleep(200)
+  await settle(ctx)
 }
 
 // OS drag-and-drop at a point (CDP): data = { files: [paths] } or { items: [{ mimeType, data }] }.
@@ -335,7 +336,7 @@ export async function osDrop(ctx, at, data) {
   const cdp = await ctx.page.context().newCDPSession(ctx.page)
   for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { dragOperationsMask: 1, items: [], ...data } })
   await cdp.detach()
-  await ctx.sleep(500)
+  await settle(ctx) // what the drop opens is async (main reads files): callers wait for it
 }
 
 // Real click on an element inside a content frame (hidden-window scenarios route it into the
@@ -352,14 +353,16 @@ export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
   const where = () => ctx.page.evaluate(() => { const a = document.activeElement; return (a?.tagName ?? '') + ':' + (a?.closest?.('.tile')?.dataset.id ?? '') + ':' + (document.querySelector('.dialog-backdrop, .menu') ? 'modal' : '') })
   const lost = async (before) => (await where()) === before && !before.startsWith('IFRAME') && !before.endsWith('modal')
   await ctx.page.mouse.move(x, y)
-  await ctx.sleep(80)
+  await ctx.sleep(80) // pointer over the frame before the click (hit-testing: nothing observable to wait for)
   for (let attempt = 0; attempt < 2; attempt++) {
     const before = await where()
     if (meta) await ctx.page.keyboard.down('Meta')
     await ctx.page.mouse.click(x, y)
     if (meta) await ctx.page.keyboard.up('Meta')
-    await ctx.sleep(300)
-    if (!(await lost(before))) return
+    for (let t = 0; t < 500; t += 50) {
+      if (!(await lost(before))) return
+      await ctx.sleep(50)
+    }
     ctx.log(`clickIn: click #${attempt + 1} lost (${selector})`)
   }
 }
@@ -407,3 +410,66 @@ export async function guestClick(ctx, id, x, y) {
   const guest = (await tileOf(ctx, id)).web.guest
   await rpc(ctx.instance, 'guest', { action: 'click', id: guest, x, y })
 }
+
+// Waits (prefer these to fixed sleeps: a sleep is only for "nothing happens", AGENTS.md / HARNESS.md).
+
+// Assertions retried until they all pass (fn returns without throwing) or `ms` is up; then the last
+// failure is thrown, its message intact. For "after this action, eventually ..." checks.
+export async function eventually(ctx, fn, ms = 4000) {
+  const end = Date.now() + ms
+  for (;;) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (Date.now() > end) throw e
+    }
+    await ctx.sleep(50)
+  }
+}
+
+// UI settled: two animation frames in the shell page (what an input handler changed is rendered),
+// then its finite CSS transitions / animations finished (drop previews, reveals slide).
+export const settle = (ctx) =>
+  ctx.page.evaluate(async () => {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const running = document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
+    await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 2000))])
+  })
+
+// `tie list` entry once pred(tile) holds (default: exists); returns it.
+export const waitTile = (ctx, id, pred = () => true, what = `tile ${id}`, ms) => waitFor(ctx, async () => {
+  const t = await tileOf(ctx, id)
+  return t && pred(t) ? t : null
+}, what, ms)
+export const waitGone = (ctx, id, ms) => waitFor(ctx, async () => !(await tileOf(ctx, id)), `${id} gone`, ms)
+export const waitActive = (ctx, id, ms) => waitFor(ctx, async () => (await list(ctx)).active === id, `${id} active`, ms)
+
+// Terminal: shell started and its prompt drawn (pty spawned, text on screen). Returns the tile.
+export async function waitShell(ctx, id, ms = 8000) {
+  await waitFor(ctx, async () => (await tileOf(ctx, id))?.term?.pid && (await screen(ctx, id)).trim(), `${id} shell prompt`, ms)
+  return tileOf(ctx, id)
+}
+// Terminal screen matching `re` (RegExp or substring); returns the screen text.
+export const waitText = (ctx, id, re, ms) => waitFor(ctx, async () => {
+  const s = await screen(ctx, id)
+  return (typeof re === 'string' ? s.includes(re) : re.test(s)) && s
+}, `${id} shows ${re}`, ms)
+// Child processes of a terminal's shell (pid, command), from ps.
+export async function children(ctx, id) {
+  const pid = (await tileOf(ctx, id))?.term?.pid
+  if (!pid) return []
+  const { execFileSync } = await import('node:child_process')
+  const out = execFileSync('ps', ['-A', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' })
+  return out.split('\n').map((l) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(l)).filter((m) => m && Number(m[2]) === pid).map((m) => ({ pid: Number(m[1]), command: m[3] }))
+}
+// Shell running a child (command matching `re`, default any): a typed command has started.
+export const waitChild = (ctx, id, re = /./, ms) => waitFor(ctx, async () => (await children(ctx, id)).some((c) => re.test(c.command)), `${id} runs ${re}`, ms)
+export const waitNoChild = (ctx, id, ms) => waitFor(ctx, async () => !(await children(ctx, id)).length, `${id} idle`, ms)
+
+// Dialogs (dialog.ts): open (selector, default any), closed, Confirm armed (some arm after a delay).
+export const waitDialog = (ctx, sel = '.dialog', ms) => waitFor(ctx, () => ctx.page.isVisible(sel), `dialog ${sel}`, ms)
+export const waitNoDialog = (ctx, ms) => waitFor(ctx, async () => !(await ctx.page.$('.dialog-backdrop')), 'dialog closed', ms)
+export const waitArmed = (ctx, ms) => waitFor(ctx, () => ctx.page.$eval('.dialog .confirm', (e) => !e.disabled), 'dialog confirm armed', ms)
+
+// Shelf hover reveal (`tie state` revealed): the given id, or null (dismissed).
+export const waitRevealed = (ctx, id, ms) => waitFor(ctx, async () => (await ctx.tie('state')).revealed === id || null, `revealed ${id}`, ms)
