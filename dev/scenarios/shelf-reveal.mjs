@@ -140,7 +140,7 @@ export default async (ctx, h) => {
     })
     await page.mouse.click(p.x, p.y) // back into the pinned reveal
     await h.eventually(ctx, async () => h.assert((await L()).active === c, 'click in pinned reveal activates it'))
-    await ctx.tie('focus', a)
+    await ctx.tie('focus', '--tile', a)
     await h.eventually(ctx, async () => {
       l = await L()
       h.assert(l.active === a && (await info(c)).pinned, 'tie focus of a board tile keeps the pin')

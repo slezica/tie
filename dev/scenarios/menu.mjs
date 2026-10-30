@@ -17,7 +17,7 @@ export default async (ctx, h) => {
     const t = (await h.list(ctx)).tiles[0]
     h.assert(t.title === 'my server' && t.icon === '🚀', 'renamed + icon')
   })
-  await ctx.tie('move', a, '--shelve')
+  await ctx.tie('move', '--tile', a, '--shelve')
   await ctx.shot('shelved-custom')
 
   // A dialog (close a busy tile, cancelled) gives focus back too.

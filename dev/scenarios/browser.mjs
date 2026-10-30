@@ -59,7 +59,7 @@ export default async (ctx, h) => {
     await ctx.shot('one')
 
     // Real click on a link (other tile active): navigates; the click activates the tile.
-    await ctx.tie('focus', t0)
+    await ctx.tie('focus', '--tile', t0)
     await h.waitActive(ctx, t0)
     const r = await h.rectOf(ctx, b)
     const box = await g.locator('#two').boundingBox()
@@ -94,8 +94,8 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.length === n + 1, 'cmd+D from the guest splits')
     const split = (await h.list(ctx)).tiles.at(-1)
     h.assert(split.kind === 'terminal', `split is a terminal: ${split.kind}`)
-    await ctx.tie('close', split.id)
-    await ctx.tie('focus', b)
+    await ctx.tie('close', '--tile', split.id)
+    await ctx.tie('focus', '--tile', b)
     await h.waitActive(ctx, b)
 
     // Location bar: cmd+L (from the guest) focuses it; a typed URL loads; junk is refused.
@@ -128,9 +128,9 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await L()).tabs.length === 2 && (await L()).tab !== (await h.tileOf(ctx, b)).tab, 'new tab shown')
     await h.press(ctx, 'Meta+1')
     await h.waitFor(ctx, async () => (await L()).tab === (await h.tileOf(ctx, b)).tab, 'back to tab 1')
-    await ctx.tie('move', b, '--shelve')
+    await ctx.tie('move', '--tile', b, '--shelve')
     await h.settle(ctx)
-    await ctx.tie('move', b, '--at', t0, '--side', 'r')
+    await ctx.tie('move', '--tile', b, '--at', t0, '--side', 'r')
     await h.settle(ctx)
     g = await h.guestPage(ctx, b)
     await ctx.sleep(300) // absence: no reload follows the moves
@@ -152,7 +152,7 @@ export default async (ctx, h) => {
     await ctx.page.keyboard.type(s.url.replace('http://', '') + '/one')
     await ctx.page.keyboard.press('Enter')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, e.id)).web.url.startsWith('https://127.0.0.1'), 'bare host → https')
-    await ctx.tie('close', e.id)
+    await ctx.tie('close', '--tile', e.id)
 
     // Layering: the UI's tile menu paints over the guest.
     const red = (await ctx.tie('add', s.url + '/red', '--at', b, '--side', 'b')).id
@@ -167,16 +167,16 @@ export default async (ctx, h) => {
     const pm = await pixel(ctx, mb.x + mb.width / 2, mb.y + mb.height - 4)
     h.assert(pm[0] < 200, `menu paints over the guest: ${pm}`)
     await ctx.page.keyboard.press('Escape')
-    await ctx.tie('close', red)
+    await ctx.tie('close', '--tile', red)
 
     // Partition persists: storage and cookies of a closed tile are there for a new one.
     const st = (await ctx.tie('add', s.url + '/store', '--at', b, '--side', 'b')).id
     await h.guestPage(ctx, st)
-    await ctx.tie('close', st)
+    await ctx.tie('close', '--tile', st)
     const st2 = (await ctx.tie('add', s.url + '/store', '--at', b, '--side', 'b')).id
     const sp = await h.guestPage(ctx, st2)
     h.assert((await sp.evaluate(() => window.__before)) === 'v' && (await sp.evaluate(() => document.cookie)) === 'c=1', 'storage and cookies persist across tiles')
-    await ctx.tie('close', st2)
+    await ctx.tie('close', '--tile', st2)
 
     // CLI: tie add browser [url]; errors.
     const bare = JSON.parse(cli('add', 'browser', '--json').out)

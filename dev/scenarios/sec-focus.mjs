@@ -29,7 +29,7 @@ export default async (ctx, h) => {
   ctx.page.on('console', (m) => consoleMsgs.push(m.text()))
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    await ctx.tie('focus', t0)
+    await ctx.tie('focus', '--tile', t0)
     const id = (await ctx.tie('add', join(dir, 'grab.html'), '--at', t0, '--side', 'r')).id
     const fr = await h.htmlFrame(ctx, id)
     await ctx.sleep(800) // absence: the page's load-time focus() / window.open do nothing

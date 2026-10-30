@@ -62,7 +62,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => opens() > n0 && (await h.mdState(ctx, id)).renders > r0, 'reload button re-reads')
     const y1 = (await h.mdState(ctx, id)).scrollY
     h.assert(Math.abs(y1 - 600) < 5, `reload keeps the scroll (${y1})`)
-    await ctx.tie('focus', id)
+    await ctx.tie('focus', '--tile', id)
     await h.press(ctx, 'Meta+r')
     await h.waitFor(ctx, async () => opens() > n0 + 1, 'cmd+R re-reads')
     h.assert(/\[keys\] nav-reload/.test(ctx.appLog()), 'cmd+R is the nav-reload action')

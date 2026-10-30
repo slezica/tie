@@ -12,7 +12,7 @@ export default async (ctx, h) => {
   for (const r of wide.full) h.assert(Math.abs(r.text - r.row) <= 0.25, `full row text ${r.text} px != row ${r.row} px`)
   await ctx.shot('slotted')
   // Float, then sweep sizes through every remainder of the cell height (17 px at defaults).
-  await ctx.tie('move', a, '--float')
+  await ctx.tie('move', '--tile', a, '--float')
   await h.waitTermFit(ctx, a, 'float')
   for (let d = 0; d < 20; d++) {
     await ctx.page.evaluate(([id, d]) => {

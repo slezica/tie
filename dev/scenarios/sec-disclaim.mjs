@@ -14,5 +14,5 @@ export default async (ctx, h) => {
   h.assert(m, `unexpected output: ${line}`)
   ctx.log(line)
   h.assert(m[1] === m[2], `child's responsible pid ${m[1]} is not its shell ${m[2]} (Tie would be: not disclaimed)`)
-  await ctx.tie('close', t.id)
+  await ctx.tie('close', '--tile', t.id)
 }

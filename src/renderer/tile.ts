@@ -41,7 +41,7 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   document.getElementById('tiles')!.appendChild(el)
   const body = el.querySelector('.body') as HTMLElement
 
-  const tile = { id, kind, exit: null, activity: false, pinged: false, el, body, customTitle: opts.title } as Omit<Tile, 'surface'> as Tile
+  const tile = { id, kind, exit: null, activity: false, pinged: false, el, body, customTitle: opts.title || undefined, customIcon: opts.icon || undefined } as Omit<Tile, 'surface'> as Tile
   const host: Host = {
     id,
     body,

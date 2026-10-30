@@ -10,7 +10,7 @@ export default async (ctx, h) => {
 
   // Typed in a (active); runs after focus moved to c (pinging the tile in front does nothing).
   await ctx.page.keyboard.type(`sleep 1.5; TIE_TILE=${b} tie ping; echo pinged-$?\n`)
-  await ctx.tie('focus', c)
+  await ctx.tie('focus', '--tile', c)
   await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('pinged-0'), 'tie ping ran in a', 6000)
   const tiles = (await h.list(ctx)).tiles
   const pinged = (id) => tiles.find((t) => t.id === id).pinged
@@ -20,6 +20,6 @@ export default async (ctx, h) => {
   h.assert(new RegExp(`\\[rpc\\] connection \\d+ \\{"kind":"tile","tile":"${a}"\\}`).test(ctx.appLog()), 'connection resolved to a')
 
   // An explicit id still targets that tile (the caller only fills defaults). Typed in c (active now).
-  await ctx.page.keyboard.type(`tie title ${b} named-from-c\n`)
+  await ctx.page.keyboard.type(`tie set --tile ${b} --title named-from-c\n`)
   await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'named-from-c', 'explicit id', 4000)
 }

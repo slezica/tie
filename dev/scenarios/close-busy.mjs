@@ -69,14 +69,14 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert(await dialog() && /sleep 2 is running\./.test(await text()), `cmd tile: dialog: ${await text()}`))
   await key('Escape')
   await h.waitFor(ctx, async () => (await h.tileOf(ctx, e))?.exit === 0, 'cmd exited')
-  await ctx.tie('focus', e)
+  await ctx.tie('focus', '--tile', e)
   await k('Meta+w')
   await h.eventually(ctx, async () => h.assert(!(await dialog()) && !(await has(e)), 'exited cmd tile closes at once'))
 
   // tie close: scripted, never asks.
   const f = await split()
   await run(f, 'sleep 30\n', /sleep/)
-  await ctx.tie('close', f)
+  await ctx.tie('close', '--tile', f)
   await h.waitGone(ctx, f)
   await ctx.sleep(300) // absence: no dialog follows the scripted close
   h.assert(!(await dialog()) && !(await has(f)), 'tie close: no dialog')

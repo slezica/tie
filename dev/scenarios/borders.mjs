@@ -25,10 +25,10 @@ export default async (ctx, h) => {
   }
   const leaves = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leaves))
 
-  await midDrag(() => ctx.tie('close', c))
+  await midDrag(() => ctx.tie('close', '--tile', c))
   let s = await ctx.tie('state')
   h.assert(!leaves(s.tree).includes(c), `closed tile gone from tree: ${leaves(s.tree)}`)
-  await ctx.tie('focus', a) // throws if render is wedged
+  await ctx.tie('focus', '--tile', a) // throws if render is wedged
 
   let d
   await midDrag(async () => (d = (await ctx.tie('add', 'terminal', '--at', b, '--side', 'b')).id))

@@ -177,7 +177,7 @@ export default async (ctx, h) => {
     h.assert(reads.bigAsset === 12 * 1024 * 1024, `large asset streamed whole: ${reads.bigAsset}`)
     for (const k of ['otherFetch', 'otherXhr', 'otherImg', 'up', 'upEnc', 'upEnc2', 'link', 'tie', 'tieBoot', 'root']) h.assert(reads[k] !== 'ok' && reads[k] !== 'load', `${k} refused: ${JSON.stringify(reads)}`)
     h.assert(/refused content outside root tie-content:\/\/\w+\/link\.txt/.test(ctx.appLog()), 'symlink out refused by main')
-    await ctx.tie('close', other)
+    await ctx.tie('close', '--tile', other)
 
     // Opaque viewer frames (markdown, probe) still can't fetch their own token.
     const pr = (await ctx.tie('add', 'probe', '--cwd', dir)).id
@@ -189,11 +189,11 @@ export default async (ctx, h) => {
     const mf = await h.contentFrame(ctx, md)
     const mdFetch = await mf.evaluate(() => fetch(`${location.protocol}//${location.host}/n.md`).then(() => 'ok', () => 'threw'))
     h.assert(mdFetch === 'threw', `markdown frame fetch: ${mdFetch}`)
-    for (const x of [pr, md]) await ctx.tie('close', x)
+    for (const x of [pr, md]) await ctx.tie('close', '--tile', x)
 
     // The web from the page: only through the dialog. Not focused: refused (gesture rule).
     const fe = await h.htmlFrame(ctx, id)
-    await ctx.tie('focus', t0)
+    await ctx.tie('focus', '--tile', t0)
     await h.waitFor(ctx, () => ctx.page.evaluate((t0) => document.activeElement?.closest('.tile')?.dataset.id === t0, t0), 'keys to t0')
     await fe.evaluate((u) => window.open(u + '/nofocus'), p.url)
     await h.waitFor(ctx, async () => /refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'refusal logged')

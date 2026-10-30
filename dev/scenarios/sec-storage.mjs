@@ -105,7 +105,7 @@ window.stored = (async () => {
       found = holders(profile, marker)
     }
     h.assert(!found.length, `content storage on disk (open): ${found.join(', ')}`)
-    await ctx.tie('close', id)
+    await ctx.tie('close', '--tile', id)
     await ctx.sleep(2000) // absence: closing doesn't flush it to disk either
     found = holders(profile, marker)
     h.assert(!found.length, `content storage on disk (closed): ${found.join(', ')}`)

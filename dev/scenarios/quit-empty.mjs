@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { infoPath } from '../lib.mjs'
 
 export default async (ctx, h) => {
-  for (const t of (await h.list(ctx)).tiles) await ctx.tie('close', t.id)
+  for (const t of (await h.list(ctx)).tiles) await ctx.tie('close', '--tile', t.id)
   await h.waitFor(ctx, async () => !(await h.list(ctx)).tiles.length, 'all tiles closed')
   await h.press(ctx, 'Meta+q') // through main: shortcuts are matched in before-input-event
   await h.eventually(ctx, async () => h.assert(await ctx.page.isVisible('.dialog.quit'), 'asks'))

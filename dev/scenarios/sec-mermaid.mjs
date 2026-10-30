@@ -112,7 +112,7 @@ export default async (ctx, h) => {
     writeFileSync(f, '# Hang\n\n' + fence('flowchart LR\n  X --> Y'))
     const err = await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).error, 'hung renderer → tile error', 20000)
     h.assert(err === 'Viewer stopped responding', `watchdog: ${err}`)
-    await ctx.tie('focus', a)
+    await ctx.tie('focus', '--tile', a)
     await ctx.page.keyboard.type('echo $((6*7))ok\n')
     await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('42ok'), 'terminal answers')
     h.assert((await h.list(ctx)).tiles.length === 2, 'tiles still there')

@@ -93,7 +93,7 @@ export default async (ctx, h) => {
     h.assert(/refused content outside root tie-content:\/\/\w+\/link\.svg/.test(ctx.appLog()), 'symlink out of the folder refused by main')
 
     // Without focus (terminal active): link requests refused, nothing opened.
-    await ctx.tie('focus', a)
+    await ctx.tie('focus', '--tile', a)
     await h.eventually(ctx, async () => h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) !== 'IFRAME', 'frame not focused'))
     const rev = (await h.mdState(ctx, id)).rev
     const post = (m) => fr.evaluate((m) => window.markdown.port.postMessage(m), m)

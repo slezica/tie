@@ -35,7 +35,7 @@ export default async (ctx, h) => {
   h.assert(l.tiles.find((t) => t.id === b)?.kind === 'terminal' && l.tiles.find((t) => t.id === b).tab === l.tabs[1].id, 'new tab starts with a terminal, active')
   h.assert((await visibleTiles()).join() === b, 'only the new terminal shown, tab 1 tiles hidden')
   await ctx.shot('new-tab')
-  await ctx.tie('move', b, '--shelve')
+  await ctx.tie('move', '--tile', b, '--shelve')
   await ev(async () => h.assert((await ctx.page.$$('.item')).length === 1, 'shelf item in tab 2'))
 
   await k('Meta+1')
@@ -56,7 +56,7 @@ export default async (ctx, h) => {
   await k('Meta+1')
   await ev(async () => h.assert((await L()).tab === l.tabs[0].id, 'cmd+1'))
   const c = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'sleep 30')).id
-  const x = (await ctx.tie('move', c, '--at', a, '--side', 'r')).id
+  const x = (await ctx.tie('move', '--tile', c, '--at', a, '--side', 'r')).id
   l = await L()
   h.assert(l.tiles.find((t) => t.id === x).tab === l.tabs[0].id, 'opened in tab 1')
   await k('Meta+2')
@@ -118,7 +118,7 @@ export default async (ctx, h) => {
   const t3 = (await L()).active
   await k('Meta+d')
   const sh = await h.waitFor(ctx, async () => { const a = (await L()).active; return a !== t3 && a }, 'cmd+D split')
-  await ctx.tie('move', sh, '--shelve')
+  await ctx.tie('move', '--tile', sh, '--shelve')
   await h.hoverShelf(ctx, sh)
   await newTab()
   const bc = await h.boardCenter(ctx)
@@ -148,7 +148,7 @@ export default async (ctx, h) => {
   const ht = l.active
   await k('Meta+1')
   await h.waitFor(ctx, async () => { const l = await L(); return l.tab === l.tabs[0].id }, 'cmd+1: first tab')
-  await ctx.tie('close', ht)
+  await ctx.tie('close', '--tile', ht)
   await ev(async () => {
     l = await L()
     h.assert(!l.tabs.some((t) => t.id === hidden) && l.tab === l.tabs[0].id, 'hidden tab emptied over the CLI: gone, visible tab kept')
@@ -157,7 +157,7 @@ export default async (ctx, h) => {
   // socket call runs in that space, which the close drops; ops then land on the visible space.
   const self = (await newTab()).tab
   await settle()
-  await ctx.page.keyboard.type('sleep 1; tie close $TIE_TILE\n')
+  await ctx.page.keyboard.type('sleep 1; tie close\n')
   await h.waitChild(ctx, (await L()).active, /sleep/) // typed into it before the switch
   await k('Meta+1')
   await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === self), 'hidden tab closed by its own shell')
@@ -165,7 +165,7 @@ export default async (ctx, h) => {
   h.assert(l.tab === l.tabs[0].id, 'visible tab kept')
   await ctx.tie('add', 'terminal') // ops still work on the visible space afterwards
   h.assert((await L()).tiles.length > 0, 'open after the drop lands on the visible tab')
-  for (const t of (await L()).tiles) await ctx.tie('close', t.id)
+  for (const t of (await L()).tiles) await ctx.tie('close', '--tile', t.id)
   await ev(async () => {
     l = await L()
     h.assert(l.tabs.length === 1 && l.tiles.length === 0 && !l.active, `only tab kept, empty: ${l.tabs.length} tabs, ${l.tiles.length} tiles`)

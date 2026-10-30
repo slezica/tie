@@ -15,9 +15,8 @@ interface Params {
   cwd?: string
   path?: string // `tie add <path>`: absolute, resolved against the caller's cwd
   url?: string // `tie add <url>`, `tie add browser [url]`
-  title?: string
-  text?: string
-  emoji?: string
+  title?: string // add, replace, set ('' = automatic)
+  icon?: string // add, replace, set ('' = automatic)
   at?: TileId
   side?: Side
   float?: boolean
@@ -125,11 +124,19 @@ function swapWith(id: TileId, p: Params) {
   if (p.focus) bring(id)
 }
 
+// The tile a command acts on: `--tile` (explicit: unknown → no such tile), else the caller's tile.
+// No caller tile (external caller, or a stale TIE_TILE) → the user must name one.
+function target(p: Params): TileId {
+  if (p.id !== undefined) return getTile(p.id).id
+  if (p.caller && S.tiles.has(p.caller)) return p.caller
+  throw new Error('no current tile: use --tile <id>')
+}
+
 // `add`, `replace`: the kind (resolved by resolveOpen) and its open options.
 function toOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
   if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
-  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url } }
+  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, icon: p.icon, path: p.path, url: p.url } }
 }
 
 const methods: Record<string, (p: Params) => unknown> = {
@@ -164,12 +171,12 @@ const methods: Record<string, (p: Params) => unknown> = {
     return null
   },
   close: (p) => {
-    const id = getTile(p.id ?? p.caller).id
+    const id = target(p)
     closeTile(id)
     return { id }
   },
   move: (p) => {
-    const id = getTile(p.id ?? p.caller).id
+    const id = target(p)
     if (p.swap !== undefined) return swapWith(id, p), tileInfo(id)
     if (p.tab !== undefined) return moveTab(id, p), tileInfo(id)
     if (!p.at && !p.float && !p.shelve && !p.shelved) throw new Error('move needs --at, --float, --shelve, --tab or --swap')
@@ -178,24 +185,21 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   // Strong: brings the tile to the user (its tab, expanded) and takes input. For scripts/hotkeys.
   focus: (p) => {
-    const id = getTile(p.id ?? p.caller).id
+    const id = target(p)
     bring(id)
     return tileInfo(id)
   },
   // Soft: mark for attention, no focus or layout change.
   ping: (p) => {
-    const id = getTile(p.id ?? p.caller).id
+    const id = target(p)
     setPing(id, !p.clear)
     return tileInfo(id)
   },
-  title: (p) => {
-    const id = getTile(p.id ?? p.caller).id
-    setMeta(id, { title: p.text ?? null })
-    return tileInfo(id)
-  },
-  icon: (p) => {
-    const id = getTile(p.id ?? p.caller).id
-    setMeta(id, { icon: p.emoji ?? null })
+  // Custom title / icon: given fields only ('' = automatic); at least one.
+  set: (p) => {
+    const id = target(p)
+    if (p.title === undefined && p.icon === undefined) throw new Error('set needs --title or --icon')
+    setMeta(id, { ...(p.title !== undefined && { title: String(p.title) }), ...(p.icon !== undefined && { icon: String(p.icon) }) })
     return tileInfo(id)
   },
   // Dev: full internal state.

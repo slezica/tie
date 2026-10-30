@@ -29,7 +29,7 @@ export default async (ctx, h) => {
 
     // Closed tile: its token is forgotten (frame for it refused too).
     const url = f.url()
-    await ctx.tie('close', id)
+    await ctx.tie('close', '--tile', id)
     await h.eventually(ctx, async () => h.assert(ctx.appLog().includes(`[content] close ${token.slice(0, 8)}`), 'token forgotten on close'))
     await ctx.page.evaluate((src) => document.body.append(Object.assign(document.createElement('iframe'), { src, sandbox: 'allow-scripts' })), url)
     await h.eventually(ctx, async () => h.assert(ctx.appLog().includes(`blocked navigation subframe ${url}`), 'dead token: frame refused'))

@@ -100,7 +100,7 @@ export default async (ctx, h) => {
     await ctx.sleep(1100) // throttle: one new tile per second per html tile
     await h.clickIn(ctx, await fr(), '#txt')
     await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'text' && x.title === 'log.txt'), 'text beside')
-    for (const x of (await h.list(ctx)).tiles.filter((x) => x.id !== id && x.id !== t0)) await ctx.tie('close', x.id)
+    for (const x of (await h.list(ctx)).tiles.filter((x) => x.id !== id && x.id !== t0)) await ctx.tie('close', '--tile', x.id)
     h.assert((await pg()).path.endsWith('/site/index.html'), 'still on index')
 
     // The web: asks first, full URL shown, Cancel focused. Cancel: nothing. Open: system browser.
@@ -143,7 +143,7 @@ export default async (ctx, h) => {
     // Storage: own origin per open (a reopened file gets a new token: empty storage). Not removed
     // from disk on close (Chromium skips the custom scheme: plan Results, PENDING).
     await (await fr()).evaluate(() => localStorage.setItem('k', 'v'))
-    await ctx.tie('close', id)
+    await ctx.tie('close', '--tile', id)
     const again = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const fa = await h.htmlFrame(ctx, again)
     h.assert((await fa.evaluate(() => localStorage.getItem('k'))) === null, 'reopened: fresh storage')

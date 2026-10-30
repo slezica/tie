@@ -18,19 +18,25 @@ USAGE
       --cmd <command>                     Run command instead of interactive shell
       --cwd <dir>                         Working directory (default: current)
       --title <text>                      Custom title
+      --icon <emoji>                      Custom icon
       --at <id> [--side l|r|t|b]          add: split next to tile (default: caller/active, longer side)
       --float                             add: floating
       --shelved                           add: on the shelf (alias --shelve)
       --tab <tab|new>                     add: in another tab (see PLACEMENT)
       --focus                             Give the new tile keyboard input (default: input stays)
-  tie close [id]                          Close tile
-  tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
-  tie move [id] --tab <tab|new> [--focus] Move tile to another tab
-  tie move [id] --swap <id> [--focus]     Exchange places with another tile of the same tab
-  tie focus [id]                          Bring tile to user: switch tab, expand, take input
-  tie ping [id] [--clear]                 Ask for attention: marks tile (and its tab) until it's active
-  tie title [id] <text>                   Set title ("" = automatic)
-  tie icon [id] <emoji>                   Set icon ("" = automatic)
+  tie close [--tile <id>]                 Close tile
+  tie move [--tile <id>] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
+  tie move [--tile <id>] --tab <tab|new> [--focus]
+                                          Move tile to another tab
+  tie move [--tile <id>] --swap <id> [--focus]
+                                          Exchange places with another tile of the same tab
+  tie focus [--tile <id>]                 Bring tile to user: switch tab, expand, take input
+  tie ping [--tile <id>] [--clear]        Ask for attention: marks tile (and its tab) until it's active
+  tie set [--tile <id>] [--title <text>] [--icon <emoji>]
+                                          Set title and/or icon ("" = automatic)
+      --tile <id>: the tile to act on (default: the tile this command runs in; see TILE IDS)
+
+  Aliases: l list, a add, r replace, c close, m move, f focus, s set, p ping (tie a notes.md)
 
 DESCRIPTION
   Tie is the user's full-screen workspace: tabs of tiles (terminals, file viewers, web pages) laid out
@@ -44,7 +50,7 @@ DESCRIPTION
     tie add terminal --cmd "npm test".
   - Show a web page or a local dev server: tie add http://localhost:3000.
   - Ask for attention without interrupting: tie ping.
-  - Keep the workspace tidy: title, move, shelve or close the tiles you added.
+  - Keep the workspace tidy: label (set), move, shelve or close the tiles you added.
   - Turn this terminal into what it produced (a report, a page): tie replace report.md.
 
 TILE KINDS
@@ -97,17 +103,19 @@ TILE KINDS
   Folders can't be opened. File tiles never write files and never reach the network.
 
 TILE IDS
-  t1, t2, ... add (and every command acting on a tile) prints the id; --json prints full info.
-  [id] defaults to $TIE_TILE: the tile this command runs in. tie list shows all tiles, all tabs.
-  Tabs: s1, s2, ... (tie list --json: tabs, and each tile's tab); tie list's TAB column is the
-  tab's position (1 = leftmost).
+  Random, like t7f2kqa: never reused, not even after Tie restarts. add (and every command acting
+  on a tile) prints the id; --json prints full info. tie list shows all tiles, all tabs.
+  close, move, focus, ping and set act on the tile this command runs in; --tile <id> names
+  another. Outside a Tie terminal there is no such tile: --tile is required.
+  Tabs: s plus 6 characters, like s4mq8xe (tie list --json: tabs, and each tile's tab); tie list's
+  TAB column is the tab's position (1 = leftmost), also accepted by --tab.
 
 PLACEMENT (add, move)
   Default: split next to the calling tile, along its longer side.
   --at <id> [--side l|r|t|b]  next to another tile (must be on the board, not shelved).
   --float                     floating over the board.
   --shelved                   on the shelf: an icon the user can hover to peek or click to open.
-  --tab <tab|new>             in another tab: its id (s1...), its position (tie list's TAB column),
+  --tab <tab|new>             in another tab: its id (s4mq8xe), its position (tie list's TAB column),
                               or new (a new tab after the user's). Beside that tab's active tile.
                               Not with --at, --side, --float, --shelved. The user's tab doesn't
                               change (unless --focus, or move takes the last tile of the tab on
@@ -142,7 +150,8 @@ BEHAVIOR
 
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
-  Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
+  Errors go to stderr with exit status 1: unknown id, no current tile (no --tile outside a Tie
+  terminal), missing file, folder, file too large,
   not a web address (tie add browser <url>), no such tab, not in the same tab (--swap), replace
   refused or given placement (see BEHAVIOR), Tie not reachable, external control off.
 
@@ -159,10 +168,10 @@ EXAMPLES
   tie add http://localhost:5173 --shelved     Park a dev server's page on the shelf
   tie add terminal --cmd "npm run dev" --title dev --shelved
   tie add notes.md --tab new                  Show a document in a tab of its own
-  tie move t7 --tab 2                         Send a tile to the second tab
-  tie title "migrating db"; tie icon 🛠️        Label this tile
+  tie move --tile t7f2kqa --tab 2             Send a tile to the second tab
+  tie set --title "migrating db" --icon 🛠️     Label this tile
   tie ping                                    Done: ask the user to look here
-  id=$(tie add report.md --float)             Later: tie close $id
+  id=$(tie add report.md --float)             Later: tie close --tile $id
   tie replace notes.md                        Turn this terminal into the document`
 
 const argv = process.argv.slice(2)
@@ -212,7 +221,9 @@ function call(method, params = {}, { hold = false } = {}) {
   })
 }
 
-const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'ping', 'title', 'icon']
+const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'set', 'ping']
+// Single-letter aliases (first letters, unique). Option flags have none.
+const ALIASES = Object.fromEntries(COMMANDS.map((c) => [c[0], c]))
 const pad = (s, n) => String(s).padEnd(n)
 function printTile(t) {
   if (flags.json) console.log(JSON.stringify(t, null, 2))
@@ -220,8 +231,12 @@ function printTile(t) {
 }
 
 async function main() {
-  const [cmd, ...rest] = pos
-  if (!cmd || flags.help) return console.log(HELP)
+  const [given, ...rest] = pos
+  if (!given || flags.help) return console.log(HELP)
+  const cmd = ALIASES[given] ?? given
+  // Tile commands: the tile is --tile (default: the caller); no positional arguments.
+  const noArgs = () => rest.length && die(`unexpected argument: ${rest[0]}`)
+  const id = flags.tile
   const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved, tab: flags.tab, focus: flags.focus }
 
   switch (cmd) {
@@ -229,12 +244,12 @@ async function main() {
       const r = await call('list')
       if (flags.json) return console.log(JSON.stringify(r, null, 2))
       const tabIndex = Object.fromEntries(r.tabs.map((t, i) => [t.id, i + 1]))
-      console.log(`${pad('ID', 5)} ${pad('TAB', 4)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
+      console.log(`${pad('ID', 8)} ${pad('TAB', 4)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
       for (const t of r.tiles) {
         const f = [t.active && 'active', t.pinged && 'pinged', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
           .filter(Boolean)
           .join(',')
-        console.log(`${pad(t.id, 5)} ${pad(tabIndex[t.tab] ?? '-', 4)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
+        console.log(`${pad(t.id, 8)} ${pad(tabIndex[t.tab] ?? '-', 4)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)
       }
       return
     }
@@ -243,7 +258,7 @@ async function main() {
       // An http(s) URL (browser), a kind name (browser takes a URL after it), else a file path
       // (resolved here, against the caller's cwd). replace: same params (placement refused by Tie).
       const replace = cmd === 'replace'
-      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }
+      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, icon: flags.icon, ...place }
       const open = (p) => call(cmd, { ...p, ...common }, { hold: replace })
       if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await open({ url: rest[0] }))
       if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await open({ kind: 'browser', url: rest[1] }))
@@ -252,20 +267,21 @@ async function main() {
       return printTile(await open({ kind, path }))
     }
     case 'close':
-      return void (await call('close', { id: rest[0] }))
+      noArgs()
+      return void (await call('close', { id }))
     case 'move':
-      return printTile(await call('move', { id: rest[0], swap: flags.swap, ...place }))
+      noArgs()
+      return printTile(await call('move', { id, swap: flags.swap, ...place }))
     case 'ping':
-      return printTile(await call('ping', { id: rest[0], clear: flags.clear }))
+      noArgs()
+      return printTile(await call('ping', { id, clear: flags.clear }))
     case 'focus':
-      return printTile(await call('focus', { id: rest[0] }))
-    case 'title':
-    case 'icon': {
-      // With 2+ args the first is the id; the rest is the value, unquoted words included.
-      const [id, value] = rest.length >= 2 ? [rest[0], rest.slice(1).join(' ')] : [undefined, rest[0]]
-      if (value === undefined) die(`${cmd} needs a value`)
-      return printTile(await call(cmd, { id, text: value, emoji: value }))
-    }
+      noArgs()
+      return printTile(await call('focus', { id }))
+    case 'set':
+      noArgs()
+      if (flags.title === undefined && flags.icon === undefined) die('set needs --title or --icon')
+      return printTile(await call('set', { id, title: flags.title, icon: flags.icon }))
     case 'frames': // dev: window frame tree (url, origin, pid, out-of-process)
       return console.log(JSON.stringify(await call('frames'), null, 2))
     case 'state': // dev: internal state dump

@@ -37,7 +37,7 @@ export default async (ctx, h) => {
   // Closed during its own title drag: the drop is dropped, no exception.
   const a = (await h.list(ctx)).tiles[0].id
   const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
-  await h.drag(ctx, await h.titlePoint(ctx, b), await h.sidePoint(ctx, a, 'l'), { during: () => ctx.tie('close', b) })
+  await h.drag(ctx, await h.titlePoint(ctx, b), await h.sidePoint(ctx, a, 'l'), { during: () => ctx.tie('close', '--tile', b) })
   h.assert(!errors.length, `no page errors after drop: ${errors}`)
 
   // Context menu goes away with its tile.
@@ -45,7 +45,7 @@ export default async (ctx, h) => {
   const p = await h.titlePoint(ctx, c)
   await ctx.page.mouse.click(p.x, p.y, { button: 'right' })
   await ctx.page.waitForSelector('.menu')
-  await ctx.tie('close', c)
+  await ctx.tie('close', '--tile', c)
   await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.menu')), 'menu closed with its tile'))
   h.assert(!errors.length, `no page errors: ${errors}`)
 }

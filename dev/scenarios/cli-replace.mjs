@@ -71,9 +71,9 @@ export default async (ctx, h) => {
 
   // Slotted, not active when tie exits: placed, input stays where it is.
   const c = await terminal()
-  await ctx.tie('focus', b)
+  await ctx.tie('focus', '--tile', b)
   const rb = await h.rectOf(ctx, b)
-  const nb = await replace(b, `sleep 1.5; ${cmd}`, () => ctx.tie('focus', c))
+  const nb = await replace(b, `sleep 1.5; ${cmd}`, () => ctx.tie('focus', '--tile', c))
   h.assert(JSON.stringify(nb.rect) === JSON.stringify(rb) && !nb.active && (await L()).active === c, `inactive: placed, c keeps input: ${JSON.stringify(nb)}`)
 
   // Floating: same rect.
@@ -86,7 +86,7 @@ export default async (ctx, h) => {
   const s0 = await terminal('--shelved')
   const s = await terminal('--shelved')
   const s1 = await terminal('--shelved')
-  await ctx.tie('focus', s)
+  await ctx.tie('focus', '--tile', s)
   await h.waitActive(ctx, s)
   const idx = (await L()).shelf.indexOf(s)
   const ns = await replace(s)
@@ -94,7 +94,7 @@ export default async (ctx, h) => {
   h.assert(ns.state === 'shelved' && ls.shelf.indexOf(ns.id) === idx && ls.shelf.includes(s0) && ls.shelf.includes(s1), `shelf index kept: ${idx} -> ${JSON.stringify(ls.shelf)}`)
   h.assert(ns.pinned && ns.active, `pinned + active: ${JSON.stringify(ns)}`)
   await ctx.shot('replace-shelf')
-  await ctx.tie('focus', c)
+  await ctx.tie('focus', '--tile', c)
 
   // Failures, typed in c (idle shell, active).
   await h.waitActive(ctx, c)

@@ -84,12 +84,12 @@ export default async (ctx, h) => {
     h.assert(!(await pill()).length, 'pill gone after recreate')
 
     // Shelved: a change marks the shelf item.
-    await ctx.tie('move', id, '--shelve')
+    await ctx.tie('move', '--tile', id, '--shelve')
     await ctx.sleep(300) // absence: no activity without a change
     h.assert(!(await ctx.page.isVisible(`.item[data-id="${id}"].activity`)), 'no activity yet')
     writeFileSync(f, body('Sixth'))
     await h.waitFor(ctx, () => ctx.page.isVisible(`.item[data-id="${id}"].activity`), 'activity dot on change')
-    await ctx.tie('move', id, '--at', a, '--side', 'r')
+    await ctx.tie('move', '--tile', id, '--at', a, '--side', 'r')
 
     // Theme change (settings preview) reaches the frame; light theme.
     await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
@@ -100,7 +100,7 @@ export default async (ctx, h) => {
     await ctx.page.keyboard.press('Escape')
 
     // Closing stops watching (the watcher itself: unit test "closed: silent").
-    await ctx.tie('close', id)
+    await ctx.tie('close', '--tile', id)
     writeFileSync(f, body('Seventh'))
     await ctx.sleep(600) // absence: no change event after the close (past the watcher's stable-read delay)
     const log = ctx.appLog()

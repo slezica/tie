@@ -10,7 +10,7 @@ export default async (ctx, h) => {
   h.assert(pf && (await pf.evaluate(() => window.probe.inits)) === 1, 'probe frame up, one handshake')
 
   // Click inside the frame: the UI sees no pointerdown, yet the tile activates.
-  await ctx.tie('focus', a)
+  await ctx.tie('focus', '--tile', a)
   await h.waitActive(ctx, a)
   const pr = await h.rectOf(ctx, p)
   await page.mouse.click(pr.x + pr.w / 2, pr.y + pr.h / 2)

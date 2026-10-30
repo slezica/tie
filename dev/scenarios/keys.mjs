@@ -30,7 +30,7 @@ export default async (ctx, h) => {
   await k('Meta+d')
   await ctx.sleep(250) // absence: no split
   h.assert((await h.list(ctx)).tiles.length === before, 'cmd+D ignored on float')
-  await ctx.tie('focus', a)
+  await ctx.tie('focus', '--tile', a)
   await h.waitActive(ctx, a)
   await moves('Meta+ArrowRight', f, async () => `right from a reaches centered float (got ${await active()})`)
 

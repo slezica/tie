@@ -54,7 +54,7 @@ export default async (ctx, h) => {
     h.assert((await (await h.guestPage(ctx, b)).evaluate(() => window.__mark)) === 1, 'same page, still alive')
 
     // Reload (UI): asks; Stay: no reload; Leave: reloads.
-    await ctx.tie('focus', b)
+    await ctx.tie('focus', '--tile', b)
     let n = hits('/form')
     await k('Meta+r')
     await h.waitFor(ctx, leave, 'reload: dialog')
@@ -81,7 +81,7 @@ export default async (ctx, h) => {
     h.assert((await h.tileOf(ctx, b)).web.url === s.url + '/form', 'not redone by Tie (page navigation)')
     await h.guestClick(ctx, b, r.x + 10, r.y + r.height / 2)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.url === s.url + '/b', 'next click navigates')
-    await ctx.tie('close', b)
+    await ctx.tie('close', '--tile', b)
 
     // ⌘W, Leave: closes.
     const c = await open()

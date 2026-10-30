@@ -28,7 +28,7 @@ export default async (ctx, h) => {
   let n = 0
   const terminalWorks = async () => {
     const tag = `${++n * 7}`
-    await ctx.tie('focus', t)
+    await ctx.tie('focus', '--tile', t)
     await ctx.page.keyboard.type(`echo $((${n}*7))ok\n`)
     await h.waitFor(ctx, async () => (await h.screen(ctx, t)).includes(`${tag}ok`), `terminal answers (${tag}ok)`)
   }

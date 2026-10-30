@@ -67,7 +67,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const now = (await guests()).map((x) => x.url)
       h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)), `redirect ${r}: ${now}`)
     }
-    await ctx.tie('close', b)
+    await ctx.tie('close', '--tile', b)
     const b2 = (await ctx.tie('add', s.url + '/frames', '--at', t0, '--side', 'r')).id
     g = await h.guestPage(ctx, b2)
     // Subresources and fetches of local schemes: fail (no handlers on the browser partition; file:
@@ -88,7 +88,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const after = (await guests()).find((x) => x.url.startsWith('file:') || x.url.startsWith(s.url + '/frames'))
       h.assert(after && !after.url.startsWith('file:'), `shell loadURL(file:) stopped: ${after?.url}`)
     })
-    await ctx.tie('close', b2)
+    await ctx.tie('close', '--tile', b2)
 
     // Attach guard: hostile attributes are dropped, prefs rebuilt.
     const before = (await guests()).length
@@ -132,7 +132,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     }, s.url + '/?from-frame')
     await ctx.sleep(1000) // absence: no guest, no hit
     h.assert(!(await guests()).some((x) => x.url.includes('from-frame')) && !s.hits.some((x) => x.includes('from-frame')), `content frame: no guest (${tag})`)
-    await ctx.tie('close', probe)
+    await ctx.tie('close', '--tile', probe)
     h.assert((await guests()).length <= before, 'no guest left behind')
 
     // Popups: never a window, never loaded by Tie; http(s) ones are links out: the confirm dialog
@@ -207,7 +207,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       await ctx.page.click('.dialog .cancel')
       await ctx.sleep(500) // absence: nothing saved
       h.assert(files().length === 2, `nothing saved by it (${files().length} files)`)
-      await ctx.tie('close', auto)
+      await ctx.tie('close', '--tile', auto)
     }
 
     // Permissions: denied in the guest (browser partition).

@@ -42,7 +42,7 @@ export default async (ctx, h) => {
     }
     h.assert((await cli('add', 'terminal')).code === 0, 'tie add terminal still opens a terminal')
     h.assert((await tiles()).length === 4, 'failures opened nothing')
-    for (const t of await tiles()) await ctx.tie('close', t.id)
+    for (const t of await tiles()) await ctx.tie('close', '--tile', t.id)
     await h.waitFor(ctx, async () => !(await tiles()).length, 'board empty')
 
     // Finder drop on the empty board: root tile.
@@ -72,7 +72,7 @@ export default async (ctx, h) => {
     await ctx.page.click('.dialog .ok')
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [txt] })
     await h.waitFor(ctx, async () => (await tiles()).some((t) => t.kind === 'text'), 'text file dropped: text tile')
-    for (const t of (await tiles()).filter((t) => t.kind === 'text')) await ctx.tie('close', t.id)
+    for (const t of (await tiles()).filter((t) => t.kind === 'text')) await ctx.tie('close', '--tile', t.id)
 
     // Onto the shelf: shelved tile.
     const shelf = await h.boxOf(ctx, '#shelf')
@@ -85,7 +85,7 @@ export default async (ctx, h) => {
     const before = (await tiles()).length
     await h.osDrop(ctx, await h.sidePoint(ctx, z, 'c'), { files: [md] })
     await h.eventually(ctx, async () => h.assert((await h.screen(ctx, z)).includes(`'${md}'`) && (await tiles()).length === before, 'terminal drop pastes the path'))
-    await ctx.tie('close', z)
+    await ctx.tie('close', '--tile', z)
 
     // File template + picker: answered → tile there (markdown by extension); cancelled → nothing.
     const n = (await tiles()).length

@@ -69,7 +69,7 @@ export default async (ctx, h) => {
         h.assert(dom.text.includes('⟨U+202E⟩') && dom.text.includes('⟨U+2066⟩') && !/[‮⁦⁩]/.test(dom.text), `bidi controls visible, not applied: ${JSON.stringify(dom.text)}`)
         await ctx.shot('hostile-text')
       }
-      await ctx.tie('close', id)
+      await ctx.tie('close', '--tile', id)
     }
 
     // SVG: an inert image. Shown (has a size), nothing ran, nothing requested.
@@ -98,7 +98,7 @@ export default async (ctx, h) => {
     h.assert(ok.code === 0, `under the cap opens: ${JSON.stringify(ok)}`)
     await h.waitFor(ctx, async () => (await h.contentFrame(ctx, ok.out)).evaluate(() => window.text.lines === 1), '10 MB text shown', 20000)
     h.assert(!(await h.tileOf(ctx, ok.out)).error, 'big text: no error')
-    await ctx.tie('close', ok.out)
+    await ctx.tie('close', '--tile', ok.out)
 
     // Main never shows a file as another kind than allowed (canOpenAs), whatever the UI asks:
     // the doc bridge, called as a tile of that kind would.

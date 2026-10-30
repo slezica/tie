@@ -1,7 +1,7 @@
 // Settings: nav pages, theme + line height (live preview, cancel reverts), shell command.
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
-  await ctx.tie('move', b, '--shelve')
+  await ctx.tie('move', '--tile', b, '--shelve')
   const open = async () => {
     await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
     await ctx.page.waitForSelector('.settings')
@@ -132,7 +132,7 @@ async function terminalTitle(ctx, h, open) {
   await ctx.page.locator('nav button[data-page="terminal"]').click()
   h.assert((await ctx.page.inputValue('#set-terminal-title')) === 'command', 'terminal title persisted')
   await ctx.page.keyboard.press('Escape')
-  await ctx.tie('close', x)
+  await ctx.tie('close', '--tile', x)
 }
 
 // Security page: socket callers + links out; no Content page. The external-control switch applies

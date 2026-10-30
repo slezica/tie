@@ -11,7 +11,8 @@ import { htmlKind } from './html'
 import { browserKind } from '../guest'
 
 export interface OpenOpts {
-  title?: string
+  title?: string // custom title ('' = automatic)
+  icon?: string // custom icon (user text; '' = automatic)
   cwd?: string // start directory
   cmd?: string
   path?: string // file to view (kinds that open 'file')

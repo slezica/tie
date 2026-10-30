@@ -29,7 +29,7 @@ export default async (ctx, h) => {
     h.assert(s.active !== c && !s.zoomed, `split while zoomed unzooms (zoomed=${s.zoomed}, active=${s.active})`)
   })
   await h.clickButton(ctx, a, 'zoom')
-  await ctx.tie('focus', b)
+  await ctx.tie('focus', '--tile', b)
   h.assert(!(await ctx.tie('state')).zoomed, 'tie focus unzooms')
 
   // Focusing a collapsed tile: keys must not keep going to the previous terminal.
@@ -37,7 +37,7 @@ export default async (ctx, h) => {
   const x = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await h.waitShell(ctx, x)
   await h.clickButton(ctx, x, 'collapse')
-  await ctx.tie('focus', a)
+  await ctx.tie('focus', '--tile', a)
   await h.press(ctx, 'Meta+ArrowRight')
   await h.eventually(ctx, async () => h.assert((await h.list(ctx)).active === x, 'collapsed tile active'))
   await ctx.page.keyboard.type('echo TYPED_INTO\n')
@@ -51,7 +51,7 @@ export default async (ctx, h) => {
   const q = (await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')).id
   await h.settle(ctx)
   await h.clickButton(ctx, lone, 'collapse')
-  await ctx.tie('close', q)
+  await ctx.tie('close', '--tile', q)
   h.assert(!(await ctx.tie('state')).collapsed.includes(lone), 'sole tile not collapsed')
   await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')
   await h.eventually(ctx, async () => h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split'))

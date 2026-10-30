@@ -15,7 +15,7 @@ export default async (ctx, h) => {
   await h.waitText(ctx, s.id, 'shell=', 8000) // login shell: profile first
   const text = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText, s.id)
   ctx.log(text.trim().split('\n')[0])
-  await ctx.tie('close', s.id)
+  await ctx.tie('close', '--tile', s.id)
   // Typing exit closes a shell tile.
   await ctx.page.mouse.click(p.x, p.y + 100)
   await ctx.page.keyboard.type('exit\n')
@@ -28,8 +28,8 @@ export default async (ctx, h) => {
   await h.spawnFromTemplate(ctx, b, 'b')
   await h.eventually(ctx, () => h.assertPtySizes(ctx), 8000) // new login shell's pty
   const [x] = (await h.list(ctx)).tiles.map((t) => t.id)
-  await ctx.tie('move', x, '--float')
-  await ctx.tie('move', b, '--shelve')
+  await ctx.tie('move', '--tile', x, '--float')
+  await ctx.tie('move', '--tile', b, '--shelve')
   await h.eventually(ctx, () => h.assertPtySizes(ctx))
 
   await ctx.shot('after')

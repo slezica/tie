@@ -117,12 +117,12 @@ export default async (ctx, h) => {
 
     // Other kinds: beside, in their kind (text by content; html), this tile stays. Html → markdown
     // back: beside too.
-    await ctx.tie('focus', id)
+    await ctx.tie('focus', '--tile', id)
     await h.clickIn(ctx, await fr(), 'a >> text=script')
     const txt = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'text' && t.title === 'run.sh'), 'run.sh opens as text beside')
     h.assert(txt.state === 'slotted' && (await doc()).path.endsWith('/a.md'), 'text beside, markdown unchanged')
-    await ctx.tie('close', txt.id)
-    await ctx.tie('focus', id)
+    await ctx.tie('close', '--tile', txt.id)
+    await ctx.tie('focus', '--tile', id)
     await h.clickIn(ctx, await fr(), 'a >> text=page')
     const pg = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'html'), 'page.html opens as html beside')
     const hf = await h.htmlFrame(ctx, pg.id)
@@ -131,11 +131,11 @@ export default async (ctx, h) => {
     const back = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((t) => t.kind === 'markdown').length === n0 + 1 && (await h.list(ctx)).tiles.at(-1), 'html → markdown beside')
     await h.waitFor(ctx, () => h.mdState(ctx, back.id).then((s) => s.text.startsWith('B')), 'shows b.md')
     h.assert((await h.tileOf(ctx, pg.id)).page.path.endsWith('/page.html'), 'html tile stays')
-    await ctx.tie('close', back.id)
-    await ctx.tie('close', pg.id)
+    await ctx.tie('close', '--tile', back.id)
+    await ctx.tie('close', '--tile', pg.id)
 
     // History keys on a terminal: nothing.
-    await ctx.tie('focus', t0)
+    await ctx.tie('focus', '--tile', t0)
     await h.press(ctx, 'Meta+[')
     await ctx.sleep(300) // absence: no navigation
     h.assert((await count()) === 3, 'cmd+[ on a terminal: no-op')

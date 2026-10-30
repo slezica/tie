@@ -7,7 +7,7 @@ export default async (ctx, h) => {
   await h.spawnFromTemplate(ctx, a, 'b', { during: () => ctx.shot('template-preview') })
   let l = await tiles(2)
   h.assert(l.tiles.length === 2 && l.tiles[1].state === 'slotted' && l.active === l.tiles[1].id, 'spawned below, active')
-  for (const t of l.tiles) await ctx.tie('close', t.id)
+  for (const t of l.tiles) await ctx.tie('close', '--tile', t.id)
   await tiles(0)
   await h.settle(ctx)
 

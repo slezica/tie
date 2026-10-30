@@ -5,10 +5,10 @@ export default async (ctx, h) => {
   const [a, b, c] = await h.threeWaySplit(ctx) // c active
   const s = (await ctx.tie('add', 'terminal', '--shelved')).id
 
-  await ctx.tie('ping', c)
+  await ctx.tie('ping', '--tile', c)
   h.assert(!(await info(c)).pinged, 'ping ignored on the tile in front of the user')
-  await ctx.tie('ping', b)
-  await ctx.tie('ping', s)
+  await ctx.tie('ping', '--tile', b)
+  await ctx.tie('ping', '--tile', s)
   let l = await L()
   h.assert(l.active === c, 'ping does not move focus')
   h.assert((await info(b)).pinged && (await info(s)).pinged, 'pinged')
@@ -38,7 +38,7 @@ export default async (ctx, h) => {
   await h.pin(ctx, s)
   h.assert(!(await info(s)).pinged, 'pinning a shelved tile clears')
 
-  await ctx.tie('ping', a)
-  await ctx.tie('ping', a, '--clear')
+  await ctx.tie('ping', '--tile', a)
+  await ctx.tie('ping', '--tile', a, '--clear')
   h.assert(!(await info(a)).pinged, '--clear')
 }

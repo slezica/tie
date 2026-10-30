@@ -44,7 +44,7 @@ export default async (ctx, h) => {
     const big = await open(join(dir, 'big.js'), empty)
     v = await view(big)
     h.assert(v.lines === 60_000 && !v.highlighted, `large file: plain, all lines: ${v.lines}`)
-    for (const x of [mk, crlf, empty, big]) await ctx.tie('close', x)
+    for (const x of [mk, crlf, empty, big]) await ctx.tie('close', '--tile', x)
     await ctx.shot('text')
 
     // Live: lines inserted above the view; the view stays, inserted lines are marked; `n` jumps.
