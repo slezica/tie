@@ -48,7 +48,7 @@ export default async (ctx, h) => {
     h.assert(t.kind === 'html' && t.title === 'index.html' && !t.error, `html tile, title = file name: ${JSON.stringify(t)}`)
     // The page's <title> never names the tile (decision 2026-10-20: content can't label itself).
     await f0.evaluate(() => (document.title = 'Changed'))
-    await ctx.sleep(400)
+    await ctx.sleep(400) // absence: the tile title must not follow
     h.assert((await h.tileOf(ctx, id)).title === 'index.html', 'title stays the file name')
     await ctx.shot('index')
 
@@ -97,7 +97,7 @@ export default async (ctx, h) => {
     // Other kinds: beside, in their kind (target=_blank markdown, plain-click text).
     await h.clickIn(ctx, await fr(), '#md')
     await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'markdown' && x.title === 'notes.md'), 'markdown beside')
-    await ctx.sleep(1100) // new-tile throttle
+    await ctx.sleep(1100) // throttle: one new tile per second per html tile
     await h.clickIn(ctx, await fr(), '#txt')
     await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'text' && x.title === 'log.txt'), 'text beside')
     for (const x of (await h.list(ctx)).tiles.filter((x) => x.id !== id && x.id !== t0)) await ctx.tie('close', x.id)
@@ -110,7 +110,7 @@ export default async (ctx, h) => {
     h.assert(dlg.url === 'https://example.com/x?q=1' && dlg.focus.includes('cancel'), `dialog: ${JSON.stringify(dlg)}`)
     await ctx.shot('confirm')
     await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: nothing opened
     h.assert(!ctx.appLog().includes('external open https://example.com/x'), 'cancel: nothing opened')
     await h.clickIn(ctx, await fr(), '#web')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'confirm dialog again')
@@ -119,12 +119,11 @@ export default async (ctx, h) => {
 
     // In-page anchor: the page's own (scrolls, no navigation).
     await h.clickIn(ctx, await fr(), '#anchor')
-    await ctx.sleep(300)
-    h.assert((await (await fr()).evaluate(() => scrollY)) > 500 && (await pg()).history.length === 2, 'anchor scrolls in the page')
+    await h.eventually(ctx, async () => h.assert((await (await fr()).evaluate(() => scrollY)) > 500 && (await pg()).history.length === 2, 'anchor scrolls in the page'))
 
     // Live reload: the page itself, then a sibling; the scroll stays.
-    await (await fr()).evaluate(() => scrollTo(0, 1200))
-    await ctx.sleep(200)
+    await (await fr()).evaluate(() => new Promise((r) => (scrollTo(0, 1200), requestAnimationFrame(() => requestAnimationFrame(r)))))
+
     const reloads = (await pg()).reloads
     writeFileSync(join(dir, 'index.html'), index(2))
     await h.waitFor(ctx, async () => (await text('#h')) === 'Index 2', 'page change reloads')

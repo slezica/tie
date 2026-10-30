@@ -21,12 +21,14 @@ export default async (ctx, h) => {
     const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('Para 299.'), 'render')
     const fr = await h.contentFrame(ctx, id)
+    // Viewer rendered what its last update or scroll changed (anchoring, marks, edge markers).
+    const frameSettle = () => fr.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
     const update = async () => {
       const r0 = (await h.mdState(ctx, id)).rev
       const n0 = await fr.evaluate(() => window.markdown.renders)
       write()
       await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).rev !== r0 && (await fr.evaluate(() => window.markdown.renders)) > n0, 'update shown')
-      await ctx.sleep(150)
+      await frameSettle()
     }
     const topOf = (text) => fr.evaluate((t) => [...document.querySelectorAll('#doc > p')].find((p) => p.textContent === t)?.getBoundingClientRect().top, text)
     const info = () =>
@@ -39,7 +41,7 @@ export default async (ctx, h) => {
 
     // Scrolled mid-document; lines inserted above: what's on screen stays put.
     await fr.evaluate(() => [...document.querySelectorAll('#doc > p')].find((p) => p.textContent === 'Para 100.').scrollIntoView({ block: 'center' }))
-    await ctx.sleep(200)
+    await frameSettle()
     const t0 = await topOf('Para 100.')
     head = ['Inserted one.', '', 'Inserted two.', '', 'Inserted three.', '']
     await update()
@@ -66,15 +68,17 @@ export default async (ctx, h) => {
     // `n`: newest unseen change (Para 180) to a third from the top; again: the older ones above.
     await h.clickIn(ctx, fr, '#doc > p:text-is("Para 100.")') // focus the frame (scrolls nothing)
     await ctx.page.keyboard.press('n')
-    await ctx.sleep(300)
     const third = Math.round(s.h / 3)
-    const at = await topOf('Para 180, edited.')
-    h.assert(Math.abs(at - third) <= 4, `n: newest change at a third (${at}, want ${third})`)
+    await h.eventually(ctx, async () => {
+      const at = await topOf('Para 180, edited.')
+      h.assert(Math.abs(at - third) <= 4, `n: newest change at a third (${at}, want ${third})`)
+    })
     await ctx.page.keyboard.press('n')
-    await ctx.sleep(300)
-    const at2 = await topOf('Inserted one.')
-    const y2 = await fr.evaluate(() => scrollY)
-    h.assert(Math.abs(at2 - third) <= 4 || (y2 === 0 && at2 < third), `n again: next unseen change, older (${at2}, want ${third} or page top)`)
+    await h.eventually(ctx, async () => {
+      const at2 = await topOf('Inserted one.')
+      const y2 = await fr.evaluate(() => scrollY)
+      h.assert(Math.abs(at2 - third) <= 4 || (y2 === 0 && at2 < third), `n again: next unseen change, older (${at2}, want ${third} or page top)`)
+    })
     h.assert((await info()).changed.includes('Inserted one.'), 'jumped-to change still marked (fades later)')
     await ctx.shot('n')
 
@@ -84,20 +88,22 @@ export default async (ctx, h) => {
     await update()
     h.assert((await info()).below, 'marker below for a new change')
     await h.clickIn(ctx, fr, '.edge-mark.below.on')
-    await ctx.sleep(300)
-    const at3 = await topOf('Para 150, edited.')
-    h.assert(Math.abs(at3 - third) <= 4, `marker click: change at a third (${at3})`)
+    await h.eventually(ctx, async () => {
+      const at3 = await topOf('Para 150, edited.')
+      h.assert(Math.abs(at3 - third) <= 4, `marker click: change at a third (${at3})`)
+    })
     await h.waitFor(ctx, async () => !(await info()).below, 'marker off once seen')
 
     // Marks fade a few seconds after being seen (not before).
-    await ctx.sleep(1000)
+    await ctx.sleep(1000) // absence: the mark must not fade within 1 s of being seen
     h.assert((await info()).changed.includes('Para 150, edited.'), 'still marked 1 s after seen')
     await h.waitFor(ctx, async () => !(await info()).changed.includes('Para 150, edited.'), 'mark faded after seen', 8000)
 
     // At the very top: insertion above the first line still doesn't move the view.
     await fr.evaluate(() => scrollTo(0, 0))
-    await ctx.sleep(200)
+    await frameSettle()
     const z0 = await topOf('Inserted one.')
+
     top = ['Top news.', '']
     await update()
     const z1 = await topOf('Inserted one.')

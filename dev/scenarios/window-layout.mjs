@@ -12,7 +12,8 @@ export default async (ctx, h) => {
     await ctx.page.locator('nav button[data-page="appearance"]').click()
     await fn()
     await ctx.page.locator('.save').click()
-    await ctx.sleep(300)
+    await ctx.page.waitForSelector('.settings', { state: 'detached' })
+    await h.settle(ctx) // new layout rendered
   }
 
   // Default: toolbar at the bottom, a short strip on top for the traffic lights.
@@ -34,7 +35,8 @@ export default async (ctx, h) => {
   h.assert((await peak()).shown && !(await peak()).up, 'peak points down')
   await ctx.shot('reveal-bottom')
   await ctx.page.mouse.move(400, 300)
-  await ctx.sleep(200)
+  await h.waitRevealed(ctx, null)
+  await h.settle(ctx)
   await ctx.shot('bottom')
   const b0 = b
 
@@ -50,7 +52,9 @@ export default async (ctx, h) => {
   h.assert((await peak()).shown && (await peak()).up, 'peak points up')
   await ctx.shot('reveal-top')
   await ctx.page.mouse.move(400, 300)
-  await ctx.sleep(200)
+  await h.waitRevealed(ctx, null)
+  await h.settle(ctx)
+
   await ctx.shot('top')
 
   await set(() => ctx.page.selectOption('#set-toolbar', 'bottom'))

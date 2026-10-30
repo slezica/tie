@@ -38,8 +38,7 @@ export default async (ctx, h) => {
   h.assert(w90 < w100 * 0.95, `char width shrinks rows (${w100} -> ${w90})`)
   await ctx.shot('fonts')
   await ctx.page.locator('.save').click()
-  await ctx.sleep(200)
-  h.assert((await cssVar('--bg')) === '#2e3440', 'nord saved')
+  await h.eventually(ctx, async () => h.assert((await cssVar('--bg')) === '#2e3440', 'nord saved'))
   const lh = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).lineHeight)
   h.assert(lh === 'normal', `chrome line height untouched (${lh})`)
   const tf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-rows')).fontFamily)
@@ -63,10 +62,9 @@ export default async (ctx, h) => {
   await ctx.shot('terminal-page')
   await ctx.page.fill('#set-shell', 'bash --norc')
   await ctx.page.keyboard.press('Enter')
-  await ctx.sleep(150)
-  h.assert(!(await ctx.page.$('.settings')), 'closed on Enter')
+  await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'closed on Enter'))
   const t = await ctx.tie('add', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
-  await ctx.sleep(800)
+  await h.waitText(ctx, t.id, 'argv0=')
   const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
   h.assert(line.startsWith('argv0=bash'), `custom shell used: ${line}`)
   // Persisted across reopen; theme still nord.
@@ -80,10 +78,10 @@ export default async (ctx, h) => {
     document.dispatchEvent(new Event('tie:settings'))
     document.dispatchEvent(new Event('tie:settings'))
   })
-  await ctx.sleep(300)
+  await ctx.page.waitForSelector('.settings')
+  await ctx.sleep(300) // absence: by now the second request has resolved too (it must not add a panel)
   await ctx.page.keyboard.press('Escape')
-  await ctx.sleep(200)
-  h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel')
+  await h.eventually(ctx, async () => h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel'))
 
   // Borderless: the title strip goes (traffic lights hidden by main), the board reaches the top; persists.
   const boardY = async () => (await h.list(ctx)).board.y
@@ -92,8 +90,7 @@ export default async (ctx, h) => {
   await ctx.page.locator('nav button[data-page="appearance"]').click()
   await ctx.page.check('#set-borderless')
   await ctx.page.locator('.save').click()
-  await ctx.sleep(200)
-  h.assert((await boardY()) < y0 - 10, `board reaches the top (${y0} -> ${await boardY()})`)
+  await h.eventually(ctx, async () => h.assert((await boardY()) < y0 - 10, `board reaches the top (${y0} -> ${await boardY()})`))
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
 
   await terminalTitle(ctx, h, open)
@@ -104,9 +101,10 @@ export default async (ctx, h) => {
 // (program's OSC title) | directory (basename, full path as tooltip). Applies live to open terminals.
 async function terminalTitle(ctx, h, open) {
   const x = (await ctx.tie('add', 'terminal', '--focus')).id
-  await ctx.sleep(800)
-  await ctx.page.keyboard.type("cd /tmp\nprintf '\\e]0;hello\\a'\n")
-  await ctx.sleep(2600) // cwd poll
+  await h.waitShell(ctx, x)
+  // Marker computed by the shell: on screen once the printf (OSC title) has run.
+  await ctx.page.keyboard.type("cd /tmp\nprintf '\\e]0;hello\\a'; echo osc-$((40+2))\n")
+  await h.waitText(ctx, x, 'osc-42')
   const title = async () => (await h.tileOf(ctx, x)).title
   const tip = () => ctx.page.$eval(`.tile[data-id="${x}"] .titlebar .title`, (e) => e.title)
   const mode = async (v) => {
@@ -114,19 +112,22 @@ async function terminalTitle(ctx, h, open) {
     await ctx.page.locator('nav button[data-page="terminal"]').click()
     await ctx.page.selectOption('#set-terminal-title', v)
     await ctx.page.locator('.save').click()
-    await ctx.sleep(200)
+    await ctx.page.waitForSelector('.settings', { state: 'detached' })
   }
-  h.assert(/(^|\/)bash$/.test(await title()), `command (default): shell name, OSC title ignored: ${await title()}`)
+  // Process poll (1 s): "terminal" until the first one.
+  await h.eventually(ctx, async () => h.assert(/(^|\/)bash$/.test(await title()), `command (default): shell name, OSC title ignored: ${await title()}`))
+
   await mode('auto')
-  h.assert((await title()) === 'hello', `auto: program's title: ${await title()}`)
+  await h.eventually(ctx, async () => h.assert((await title()) === 'hello', `auto: program's title: ${await title()}`))
   await mode('directory')
-  h.assert((await title()) === 'tmp' && (await tip()).endsWith('/tmp'), `directory: basename + path tooltip: ${await title()} / ${await tip()}`)
+  // cwd poll (2 s): directory known once it ran.
+  await h.eventually(ctx, async () => h.assert((await title()) === 'tmp' && (await tip()).endsWith('/tmp'), `directory: basename + path tooltip: ${await title()} / ${await tip()}`), 6000)
   await ctx.shot('title-directory')
   await mode('command')
-  h.assert((await tip()) === '', 'no tooltip outside directory mode')
+  await h.eventually(ctx, async () => h.assert((await tip()) === '', 'no tooltip outside directory mode'))
   await ctx.page.keyboard.type('/bin/sleep 5\n') // absolute: PATH may alias sleep to gsleep
-  await ctx.sleep(1200) // process poll
-  h.assert((await title()) === 'sleep', `command: foreground program: ${await title()}`)
+  // Process poll (1 s).
+  await h.eventually(ctx, async () => h.assert((await title()) === 'sleep', `command: foreground program: ${await title()}`))
   await open()
   await ctx.page.locator('nav button[data-page="terminal"]').click()
   h.assert((await ctx.page.inputValue('#set-terminal-title')) === 'command', 'terminal title persisted')
@@ -145,13 +146,14 @@ async function securityPage(ctx, h, open) {
   await ctx.shot('security-page')
   await ctx.page.uncheck('#set-allow-external')
   await ctx.page.locator('.save').click()
-  await ctx.sleep(200)
-  const err = await ctx.tie('list').then(() => null, (e) => e.message)
-  h.assert(err === 'tie: External control is off (Settings → Security)', `external refused once off: ${err}`)
+  await h.eventually(ctx, async () => {
+    const err = await ctx.tie('list').then(() => null, (e) => e.message)
+    h.assert(err === 'tie: External control is off (Settings → Security)', `external refused once off: ${err}`)
+  })
   await open()
   await ctx.page.locator('nav button[data-page="security"]').click()
   await ctx.page.check('#set-allow-external')
   await ctx.page.locator('.save').click()
-  await ctx.sleep(200)
-  h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again')
+  await h.eventually(ctx, async () => h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again'))
+
 }
