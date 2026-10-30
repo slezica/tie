@@ -9,10 +9,10 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 | Kind | `renderer/kinds/index.ts` | `fileKind('markdown', icon)`: file view + viewer name + icon (one line) |
 | File view | `renderer/fileview.ts` | doc + frame per tile; links, history, nav, theme (`TILES.md`) |
 | Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | pipeline: markdown-it → highlight.js → DOMPurify → Mermaid (on demand); on `runtime.ts`, `live.ts`, `highlight.ts` |
-| Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker (no writes) |
+| Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker walks, native dialog (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
 | Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind, `noViewer`; `classifyLink`; policy row (CSP, cap) |
-| Opening | `driver.ts` (`tie add`), `files.ts` (drops), `drag.ts` (file template + picker) | |
+| Opening | `driver.ts` (`tie add`), `files.ts` (drops), `drag.ts` (file template) + `picker.ts` (file picker) | |
 
 ## Flow
 
@@ -112,15 +112,15 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 |---|---|
 | `tie add <path>` | `CLI.md`: path against the caller's cwd; missing / folder / too large → error, exit 1 |
 | Finder drop on board or shelf (not on a terminal) | like a template drop at that point; folder / too large → modal |
-| Template `file` (toolbar) | dropped → file picker (main dialog, any file; markdown by extension); cancel → nothing |
+| Template `file` (toolbar) | dropped → Tie's file picker (`INPUT.md` "File picker"; any file; markdown by extension; `…` = the native dialog); cancel → nothing |
 | `cmd+O` / `cmd+shift+O` | the same picker, the file right / below the active tile (`INPUT.md`) |
 | `cmd+D` on a markdown tile | terminal in the file's directory |
 
-- Harness: picker answered by the dev socket method `pick {path|null}` (`h.pickNext`), never a dialog (`TIE_BACKGROUND`).
+- Harness: `h.pick(path)` drives the picker (types the path, Enter); `h.pickCancel`. The native dialog (`…`) is answered by the dev socket method `pick {path|null}` (`h.nativePickNext`), never shown (`TIE_BACKGROUND`).
 
 ## Logs
 
-- `docs` (main): open, change, missing, close, picker. `markdown` (renderer): navigation, links opened beside, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
+- `docs` (main): open, change, missing, close, native dialog. `walk` (main): picker walks (start, done, stop). `picker` (renderer): closed (picked / cancel). `markdown` (renderer): navigation, links opened beside, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
 
 ## Limitations
 

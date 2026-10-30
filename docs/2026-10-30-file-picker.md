@@ -50,6 +50,17 @@ Session record. Replace the native open dialog (`doc:pick` → `pickFile`, `dial
 2. Dialog: `renderer/picker.ts`, styles, keys, "…", highlighting; `templateOpts` switched; `dropOnTab` start dir = target tab's active tile cwd (both templates); `picker` scenario; harness `h.pick`, `pickNext` removed; touched scenarios migrated.
 3. Docs: TILES (opening), INPUT (keys table), SHELF (file template), TABS (template drop cwd), MARKDOWN "Opening", TERMINALS cwd table, HARNESS. Full e2e.
 
+# Done
+
+- Phase 1: `14553f1`, `bbe3508`..`841dd0e`.
+- Phases 2, 3: `picker: fuzzy file picker dialog`, `drag: template on a tab starts in that tab's cwd`, `harness: h.pick drives the picker; picker scenario`, `docs: file picker`.
+- Deviations from the plan:
+  - Enter: a typed path naming a file wins over the top row unless arrows moved the selection (the walk may not have reached it, or hides it: dot files, ignored). Checked with `doc:viewer`; no file + no rows → status error, dialog stays.
+  - `setNextPick` / dev socket `pick` kept, for `…` only: `h.nativePickNext`.
+  - Partial marker: own scenario `picker-partial` (`TIE_WALK_CAP=5` is per instance; it would starve `picker`).
+  - Row click = Enter on that row. Parent part of a row dimmed, dir names tinted.
+  - Status keeps `n files` and appends `partial` / `waiting for permission: …` / errors (` · `-joined); `…` suffix while walking.
+
 # Pending
 
 - (none; directory consistency review → PENDING.md 34)

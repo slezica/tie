@@ -18,6 +18,7 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 |---|---|
 | `tie add` / `tie replace` | `--cwd` resolved against caller's cwd; default caller's cwd |
 | `cmd+D`, template dropped next to a tile | that shell's cwd, read fresh (`cwdOf` → `pty:cwd` → `lsof`), not the 2 s poll |
+| Template dropped on a tab | that tab's active tile's cwd (fresh `cwdOf`); none (browser) or a new tab → `S.cwd` |
 | Other | `S.cwd` (`TIE_CWD`, else home) |
 
 ## Spawn (`src/main/pty.ts`, `settings.ts`)

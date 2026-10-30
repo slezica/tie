@@ -52,7 +52,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `tile.ts` | `factory` |
 | `shelf.ts` | `TEMPLATES` |
 | `driver.ts` `resolveOpen` | known kind; `opens: 'file'` → "shows a file: tie add <path>"; `url` param → an `opens: 'url'` kind (`locationUrl`) |
-| `drag.ts` | template drop: `file` → picker (main, any file) → kind as `tie add` (`doc.viewer`); else the template's kind |
+| `drag.ts` | template drop: `file` → Tie's file picker (`picker.ts` `pickPath`, any file; `INPUT.md` "File picker") → kind as `tie add` (`doc.viewer`); else the template's kind |
 | `keys.ts` | `cmd+D` on a kind that isn't `'bare'` splits a terminal |
 
 ## Kinds (`renderer/kinds/`)

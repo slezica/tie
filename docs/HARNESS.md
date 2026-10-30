@@ -27,7 +27,7 @@
 - `scenarios`: name + first-line description of each scenario.
 - `sample [name]`: opens `dev/samples/<name>.md` (default `markdown`: every syntax the viewer renders) in the instance, for iterating viewer styles (`tie-dev run --hot` beside it: viewer edits rebuild and the tile reloads, "Hot" above). Fixtures for other kinds go beside it.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next file picker answer; harness instances never show the dialog), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next answer of the native file dialog, the picker's `…`; harness instances never show it), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)). `lib.mjs` `rpc()` calls them.
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -41,7 +41,7 @@
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |
-| `TIE_WALK_CAP`, `TIE_WALK_DELAY` | not set by default; scenario `env` (dev builds only, read by main `docs.ts` `startWalk`): picker walk entry cap (partial marker; default 50k), ms before each directory read (`sec-walk`: stop / a newer walk land mid-walk) |
+| `TIE_WALK_CAP`, `TIE_WALK_DELAY` | not set by default; scenario `env` (dev builds only, read by main `docs.ts` `startWalk`): picker walk entry cap (partial marker, `picker-partial`; default 50k), ms before each directory read (`sec-walk`: stop / a newer walk land mid-walk) |
 | `BASH_SILENCE_DEPRECATION_WARNING` | `1`: macOS bash's zsh notice off (terminal screens start with the prompt) |
 
 - `TIE_SOCKET` / `TIE_TILE` stripped: a run inside Tie never targets it.
@@ -97,14 +97,15 @@ EOF
 | `contentFrame(id)`, `mdState(id)`, `clickIn(frame, selector, {meta})` | any content tile's Playwright frame, once its viewer has a port (`window.viewer`; re-found after reloads); markdown viewer state (`text`, `html`, `rev`, `key`, `renders`, `scrollY`); real click inside a frame (`hiddenWindow`). Note: `frame.evaluate` runs with a user gesture (transient activation): what a page's script can do *without* one (focus itself, open popups) must be tested from the page's own timers |
 | `htmlFrame(id)` | html tile's page frame (the page's realm), once ready; re-found after navigations (`tie list` `page.url`) |
 | `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
-| `tileOf(id)`, `waitFor(fn, what)`, `pickNext(path)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; next file picker answer (null = cancel); OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
+| `tileOf(id)`, `waitFor(fn, what)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
+| `pick(text)`, `pickCancel()`, `nativePickNext(path)` | file picker (`#picker`, after the drop / cmd+O): line replaced by `text` (absolute path: that file opens; or prefix + query), Enter, waits closed; Esc; next answer of the native dialog (`…`; null = cancel) |
 | `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered) |
 | `waitTile(id, pred)`, `waitGone(id)`, `waitActive(id)`, `waitRevealed(id\|null)` | `tie list` entry once `pred` holds; tile closed; active tile; shelf hover reveal (`tie state`) |
 | `waitShell(id)`, `waitText(id, re)`, `children(id)`, `waitChild(id, re)`, `waitNoChild(id)`, `waitRunning(id, re)` | terminal: shell started, prompt drawn; screen matches (`screen` joins rows without newlines: no `^`/`$` per line); shell's child processes (`ps`): a typed command started / ended; a program running in the tile (its own process, as a `--cmd` bash execs a single command, or a child) |
 | `waitLog(re, n)` | run's app log has n matches |
 | `waitDialog(sel)`, `waitNoDialog()`, `waitArmed()` | dialog open; closed; its confirm enabled (dialogs that arm after a delay) |
 
-Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie add probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), dev socket `pick`.
+Automation hooks: `tie:settings` DOM event (menu accelerators can't be driven), HTML menus/dialogs, `tie state`, `tie frames`, `tie add probe` (dev), `tie list --json` `term` / `doc` / `page` / `web`, dev socket `guest`, viewer globals `window.viewer` (= `window.markdown|text|image|hex`), picker DOM (`#picker`, `#picker-input`, `.picker-row[.selected]`, `#picker-status`, `#picker-native`), dev socket `pick` (native dialog).
 
 ## Markdown style iteration (`tie-dev mdpage`, `dev/mdpage.mjs`)
 

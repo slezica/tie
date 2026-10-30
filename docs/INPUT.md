@@ -44,7 +44,7 @@
 | Chord | Action |
 |---|---|
 | `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
-| `cmd+O` / `cmd+shift+O` | Open a file (picker) right / down of the active tile: the `file` template's drop, by key |
+| `cmd+O` / `cmd+shift+O` | Open a file right / down of the active tile: the file picker ("File picker" below) from its cwd; the `file` template's drop, by key |
 | `cmd+←/→/↑/↓` | Focus neighbor |
 | `cmd+shift+←/→/↑/↓` | Swap the active tile with the neighbor `cmd+arrows` would focus (`swap`, `LAYOUT.md`); stays active. No neighbor: no-op |
 | `cmd+S` | Shelve the active tile; a shown (pinned / revealed) shelved active tile: back on the board beside the active / recent slotted tile (`besidePlacement`). Nothing active: no-op |
@@ -67,8 +67,30 @@
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
 - Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the default directory); active tile not slotted → no-op. Picker starts in the active tile's cwd (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
+- Inside the file picker: its own keys (below); shortcuts suspended (a `.dialog-backdrop` modal).
 - Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
+
+## File picker (`renderer/picker.ts`)
+
+`pickPath(startDir)`: the `file` template's dialog (drops, tabs, shelf, cmd+O; `templateOpts`). Record: `2026-10-30-file-picker.md`.
+
+- One line: the full path. Initial: start dir, `~`-abbreviated, trailing `/`, caret at the end. Prefix = up to the last `/` (`~` / `~/` → home: the only token; lexically normalized; no `/` → under `/`); query = the rest (`@core/picker` `parseLine`).
+- Prefix dir changed → new walk (`doc:walk`, new `gen`, previous stopped); same dir → re-rank the held list. Rows: top 8 (`rank` / `merge`), relative to the prefix, dirs with `/`, matched chars `<mark>`, parent part dimmed. Top row selected.
+- Status: `n files` (`…` while walking), `partial` (cap), `waiting for permission: <dirs>`, walk errors, Enter failures.
+- Shown at the first chunk or 30 ms (opacity: the input has focus and takes keys from the start).
+
+| Key | Action |
+|---|---|
+| typing, Backspace | edit the line; crossing a `/` re-roots the walk (Backspace past `src/` → the parent) |
+| `↑` / `↓` | move the selection |
+| `Enter` | the typed path names a file (selection not moved by arrows) → it (dot files, ignored, not walked yet); else selected file → its absolute path (prefix dir + row; no realpath); selected dir → line = prefix + dir (re-roots); no rows, no file → status error |
+| `Tab` | descend into the selected row's dir (a file: its parent) |
+| `Esc`, backdrop click | cancel (null) |
+| `…` button | native dialog (`doc:pick`) from the prefix dir; its answer is the pick (cancel → null) |
+| row click | as Enter on that row |
+
+- Close: walk stopped, `refocus()`. Cmd+Q while open: nothing (as for any dialog).
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)
 
