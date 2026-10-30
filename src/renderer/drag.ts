@@ -1,7 +1,7 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
-import { compute, dropSide, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
+import { compute, dropZone, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, type Kind } from './state'
-import { place, swap, activate, openTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
+import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab, edgeScroll } from './tabs'
 import { render } from './render'
@@ -57,9 +57,11 @@ export const isDragging = () => dragging
 
 const inside = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
 
-// What a drop does: land at a placement; swap with a slotted tile (its title bar); join a tab
+// What a drop does: land at a placement; swap with a slotted tile (a tile dropped on its center);
+// displace one (a new tile on its center: it takes the leaf, the old one is shelved); join a tab
 // (space id, null = a new tab).
-type Drop = Placement | { type: 'swap'; with: TileId } | { type: 'tab'; space: string | null }
+type Drop = Placement | { type: 'swap'; with: TileId } | Displace | { type: 'tab'; space: string | null }
+export type Displace = { type: 'displace'; with: TileId }
 
 interface Target {
   drop: Drop
@@ -111,12 +113,15 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   for (const [id, r] of layout.tiles) {
     if (!inside(r, x, y)) continue
     if (id === srcId) return null
-    // A tile onto a title bar (a collapsed tile is all title bar): swap places with it.
-    if (srcId && (S.collapsed.has(id) || y < r.y + TITLE)) {
+    // Center zone (a collapsed tile: all of it, it is all title bar): a tile swaps places with it;
+    // a new one (template, OS file) takes its leaf, it goes to the shelf. Else: the nearest edge.
+    const zone = srcId && S.collapsed.has(id) ? 'center' : dropZone(r, x, y)
+    if (zone === 'center' && srcId) {
       const own = location(srcId) !== 'shelved' ? S.rects.get(srcId) : undefined
       return { drop: { type: 'swap', with: id }, preview: r, also: own }
     }
-    const side: Side = dropSide(r, x, y)
+    if (zone === 'center') return { drop: { type: 'displace', with: id }, preview: r }
+    const side: Side = zone
     const probe = srcId ?? '__new__'
     const tree = srcId && contains(S.tree, srcId) ? move(S.tree, srcId, id, side) : insert(S.tree, id, side, probe)
     const collapsed = new Set(S.collapsed)
@@ -139,14 +144,15 @@ async function applyDrop(src: DragSource, t: Target) {
     return activate(src.id) // like any drop: the dragged tile is active
   }
   if (d.type === 'slot' && d.at && !contains(S.tree, d.at)) return
-  if (src.type === 'tile') return place(src.id, d)
-  // Template dropped next to a tile: start where that tile's shell is (like cmd+D).
-  const at = d.type === 'slot' ? d.at : null
+  if (src.type === 'tile') return d.type === 'displace' ? undefined : place(src.id, d) // a tile's center drop is a swap
+  // Template dropped next to (or on) a tile: start where that tile's shell is (like cmd+D).
+  const at = d.type === 'slot' ? d.at : d.type === 'displace' ? d.with : null
   const cwd = at ? await cwdOf(at) : undefined
   if (at && !contains(S.tree, at)) return
   const opts = await templateOpts(src.template, cwd)
   if (!opts || (at && !contains(S.tree, at))) return
-  openTile(opts.kind, d, opts.opts)
+  if (d.type === 'displace') displaceTile(d.with, opts.kind, opts.opts)
+  else openTile(opts.kind, d, opts.opts)
 }
 
 // What a template opens: its kind, or for `file` the picked file's (main's dialog, any file; cancel
@@ -173,8 +179,9 @@ async function dropOnTab(src: DragSource, space: string | null) {
   openTile(opts.kind, besidePlacement(null), opts.opts)
 }
 
-// Where a template dropped at (x, y) would land (OS file drops use the same rules; not the tabs).
-export function placementAt(x: number, y: number): Placement | null {
+// Where a template dropped at (x, y) would land (OS file drops use the same rules; not the tabs):
+// a placement, or displacing the tile under it (its center).
+export function placementAt(x: number, y: number): Placement | Displace | null {
   const d = computeTarget({ type: 'template', template: 'terminal', label: '' }, x, y, false, { dx: 120, dy: 14 })?.drop
   return d && d.type !== 'tab' && d.type !== 'swap' ? d : null
 }

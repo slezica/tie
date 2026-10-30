@@ -146,6 +146,19 @@ export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { act
   return t.id
 }
 
+// A new tile takes slotted `old`'s exact leaf; `old` moves to the end of the shelf (just shelved:
+// not revealed). The new tile is active, like other tiles the user opens (INPUT.md "Drop targets":
+// a template or file dropped on a tile's center). `old` no longer slotted: nothing, null.
+export function displaceTile(old: TileId, kind: Kind, opts: OpenOpts = {}): TileId | null {
+  if (!contains(S.tree, old)) return debug('layout', 'displace refused', old), null
+  const t = createTile(kind, opts)
+  place(t.id, { type: 'shelf' })
+  swap(t.id, old) // exchanges shelf ↔ slot: old takes the new tile's (last) shelf index
+  activate(t.id)
+  mountTile(t).then(() => S.active === t.id && t.surface.focus())
+  return t.id
+}
+
 // A new tile split from `id` (or, if it isn't slotted, from the active / most recent slotted tile),
 // along the longer side: like `tie add` from that tile.
 export function besidePlacement(id: TileId | null): Placement {

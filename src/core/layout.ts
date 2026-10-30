@@ -168,12 +168,18 @@ export function parentDir(root: Node | null, id: TileId): Dir | null {
   return null
 }
 
-// Pick drop side by nearest edge (equivalent to splitting the rect by its diagonals).
-export function dropSide(rect: Rect, px: number, py: number): Side {
+// Drop zones on a slotted tile (INPUT.md "Drop targets"): a centered rectangle, CENTER_ZONE of the
+// tile's width and of its height, is 'center' (swap / displace); around it four edge bands
+// (trapezoids), the nearest edge wins. Normalized coords, so the bands follow the diagonals
+// whatever the tile's aspect.
+export const CENTER_ZONE = 0.25
+
+export function dropZone(rect: Rect, px: number, py: number): Side | 'center' {
   const nx = (px - rect.x) / rect.w
   const ny = (py - rect.y) / rect.h
   const d = { l: nx, r: 1 - nx, t: ny, b: 1 - ny }
-  return (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
+  const side = (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
+  return d[side] > (1 - CENTER_ZONE) / 2 ? 'center' : side
 }
 
 // Shelf hover reveal: kept open while the pointer is over its item, the reveal, or the band

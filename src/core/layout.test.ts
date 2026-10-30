@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compute, dropSide, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
+import { CENTER_ZONE, compute, dropZone, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -213,13 +213,57 @@ describe('normalize', () => {
   })
 })
 
-describe('dropSide', () => {
-  const r = { x: 0, y: 0, w: 200, h: 100 }
-  it('picks nearest edge', () => {
-    expect(dropSide(r, 10, 50)).toBe('l')
-    expect(dropSide(r, 190, 50)).toBe('r')
-    expect(dropSide(r, 100, 5)).toBe('t')
-    expect(dropSide(r, 100, 95)).toBe('b')
+describe('dropZone', () => {
+  const wide = { x: 100, y: 50, w: 400, h: 100 }
+  const tall = { x: 0, y: 0, w: 100, h: 400 }
+  // Point at normalized (nx, ny) inside r.
+  const at = (r: typeof wide, nx: number, ny: number) => dropZone(r, r.x + nx * r.w, r.y + ny * r.h)
+
+  it('center rectangle: CENTER_ZONE of width and height', () => {
+    expect(CENTER_ZONE).toBe(0.25)
+    for (const r of [wide, tall]) {
+      expect(at(r, 0.5, 0.5)).toBe('center')
+      expect(at(r, 0.38, 0.38)).toBe('center')
+      expect(at(r, 0.62, 0.62)).toBe('center')
+      expect(at(r, 0.38, 0.62)).toBe('center')
+      // Just outside each side of the center rectangle: that side's band.
+      expect(at(r, 0.37, 0.5)).toBe('l')
+      expect(at(r, 0.63, 0.5)).toBe('r')
+      expect(at(r, 0.5, 0.37)).toBe('t')
+      expect(at(r, 0.5, 0.63)).toBe('b')
+    }
+  })
+
+  it('edge bands: nearest edge', () => {
+    for (const r of [wide, tall]) {
+      expect(at(r, 0.05, 0.5)).toBe('l')
+      expect(at(r, 0.95, 0.5)).toBe('r')
+      expect(at(r, 0.5, 0.05)).toBe('t')
+      expect(at(r, 0.5, 0.95)).toBe('b')
+      // The whole band, edge to edge along it.
+      expect(at(r, 0.2, 0.3)).toBe('l')
+      expect(at(r, 0.3, 0.2)).toBe('t')
+    }
+  })
+
+  it('corners: split by the diagonal (normalized, any aspect)', () => {
+    for (const r of [wide, tall]) {
+      expect(at(r, 0.1, 0.12)).toBe('l')
+      expect(at(r, 0.12, 0.1)).toBe('t')
+      expect(at(r, 0.9, 0.12)).toBe('r')
+      expect(at(r, 0.88, 0.1)).toBe('t')
+      expect(at(r, 0.9, 0.88)).toBe('r')
+      expect(at(r, 0.88, 0.9)).toBe('b')
+      expect(at(r, 0.1, 0.88)).toBe('l')
+      expect(at(r, 0.12, 0.9)).toBe('b')
+    }
+  })
+
+  it('title bar: no special role (top band, or center by geometry)', () => {
+    const r = { x: 0, y: 0, w: 400, h: 300 }
+    expect(dropZone(r, 200, 10)).toBe('t')
+    const short = { x: 0, y: 0, w: 400, h: 24 } // a tile about as tall as its bar
+    expect(dropZone(short, 200, 12)).toBe('center')
   })
 })
 

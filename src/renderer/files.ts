@@ -3,7 +3,7 @@
 // visible). docs/INPUT.md.
 import { S, tie, debug, type Kind } from './state'
 import { untrusted } from '@core/log'
-import { openTile, besidePlacement } from './ops'
+import { openTile, displaceTile, besidePlacement } from './ops'
 import { placementAt } from './drag'
 import { infoDialog } from './dialog'
 
@@ -16,7 +16,11 @@ export async function dropFiles(paths: string[], x: number, y: number) {
       continue
     }
     debug('files', 'drop', v.kind, untrusted(v.path))
-    openTile(v.kind as Kind, placementAt(x, y) ?? besidePlacement(S.active), { path: v.path })
+    // Each file where it lands (re-read: the board changed with the last one). Onto a tile's
+    // center: it takes that leaf, the tile goes to the shelf.
+    const p = placementAt(x, y) ?? besidePlacement(S.active)
+    if (p.type === 'displace') displaceTile(p.with, v.kind as Kind, { path: v.path })
+    else openTile(v.kind as Kind, p, { path: v.path })
   }
   if (failed.length) await infoDialog("Can't open", [...new Set(failed)].join('\n'))
 }
