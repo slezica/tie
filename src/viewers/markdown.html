@@ -22,19 +22,20 @@
         --gap-footnotes: calc(var(--space) * 2); /* above the footnotes rule */
 
         /* Page: body padding */
-        --pad-top: calc(var(--space) * 0.75);
+        --pad-top: var(--space);
         --pad-side: calc(var(--space) * 2);
         --pad-bottom: calc(var(--space) * 2);
 
         /* Headings: size factor (em) and line height per level. Top space after a block =
-           --heading-space units per em of heading size (h1 2em -> 3 units ... h6 1em -> 1.5). */
+           --heading-space units per em of heading size (h1 2em -> 2.4 units ... h6 1em -> 1.2). */
         --h1: 2; --h1-leading: 1.125;
         --h2: 1.75; --h2-leading: 1.15;
         --h3: 1.5; --h3-leading: 1.175;
         --h4: 1.25; --h4-leading: 1.2;
         --h5: 1.125; --h5-leading: 1.225;
         --h6: 1; --h6-leading: 1.25;
-        --heading-space: 1.5;
+        --heading-space: 1.2;
+        --h1-rule-pad: 6px; /* between the h1 text and its rule */
 
         /* Text sizes (em) */
         --small: 0.875em; /* footnotes section, diagram error, blocked image */
@@ -59,7 +60,7 @@
         --chip-pad: 0 0.4em; /* blocked image placeholder (y x) */
 
         /* Boxes, lines, corners */
-        --inset: var(--space); /* padding inside quotes and code blocks */
+        --inset: var(--space); /* padding inside code blocks; quotes: sides only */
         --cell-pad: calc(var(--space) * 0.5) var(--space); /* table cells (y x) */
         --hairline: 1px; /* rules, cell borders, task box, dashed frames */
         --head-rule: 0.1875rem; /* under a table's header row */
@@ -85,7 +86,7 @@
       /* Blocks: no top margin, one gap below; a heading after a block gets its own top space. */
       p, ul, ol, dl, blockquote, pre, table, hr, .diagram { margin: 0 0 var(--gap); }
       h1, h2, h3, h4, h5, h6 { margin: 0 0 var(--gap); font-weight: 700; font-size: calc(var(--h) * 1em); }
-      h1 { --h: var(--h1); line-height: var(--h1-leading); }
+      h1 { --h: var(--h1); line-height: var(--h1-leading); padding-bottom: var(--h1-rule-pad); border-bottom: var(--hairline) solid var(--rule); }
       h2 { --h: var(--h2); line-height: var(--h2-leading); }
       h3 { --h: var(--h3); line-height: var(--h3-leading); }
       h4 { --h: var(--h4); line-height: var(--h4-leading); }
@@ -135,7 +136,7 @@
       img { max-width: 100%; height: auto; vertical-align: middle; }
       blockquote {
         margin: var(--gap) 0;
-        padding: var(--inset);
+        padding: 0 var(--inset);
         border-left: var(--quote-bar) solid var(--rule);
         color: var(--muted);
       }

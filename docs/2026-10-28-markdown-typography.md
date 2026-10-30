@@ -31,10 +31,10 @@ Every size and space in `src/viewers/markdown.html` is a custom property on `:ro
 - `--gap-group` ½ unit: between paragraphs in a list item; between definition terms.
 - `--gap-tight` ¼ unit: list items, nested lists, definitions and their paragraphs, footnote paragraphs, diagram error line.
 - `--gap-footnotes` 2 units: above the footnotes rule.
-- `--pad-top` ¾, `--pad-side` 2, `--pad-bottom` 2 units: body padding.
+- `--pad-top` 1, `--pad-side` 2, `--pad-bottom` 2 units: body padding.
 - `--h1`…`--h6` 2, 1.75, 1.5, 1.25, 1.125, 1: heading size factor (em).
 - `--h1-leading`…`--h6-leading` 1.125 … 1.25 (+0.025 per level): heading line heights (Pico).
-- `--heading-space` 1.5: top space after a block, in units per em of heading size (h1 3 … h6 1.5 units).
+- `--heading-space` 1.2: top space after a block, in units per em of heading size (h1 2.4 … h6 1.2 units). `--h1-rule-pad` 6px: h1 has a hairline rule below (2026-10-30 browser loop; also: quotes padded on the sides only, change-mark bar moved out to 14px).
 - `--small` 0.875em: footnotes section, diagram error, blocked image.
 - `--sup` 0.75em, `--sup-raise` 0.5em: footnote ref size and lift.
 - `--indent` 2em: list item text from the marker edge.

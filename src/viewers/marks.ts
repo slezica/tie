@@ -21,8 +21,8 @@ let seq = 0
 style(`
 :root { --change: color-mix(in srgb, var(--accent) 75%, var(--bg)); }
 .live > * { transition: box-shadow 1s; }
-.live > .changed { box-shadow: -6px 0 0 0 var(--bg), -9px 0 0 0 var(--change); }
-.live > .changed.fading { box-shadow: -6px 0 0 0 var(--bg), -9px 0 0 0 transparent; }
+.live > .changed { box-shadow: -11px 0 0 0 var(--bg), -14px 0 0 0 var(--change); }
+.live > .changed.fading { box-shadow: -11px 0 0 0 var(--bg), -14px 0 0 0 transparent; }
 .edge-mark {
   position: fixed;
   left: 50%;
