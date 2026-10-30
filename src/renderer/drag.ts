@@ -1,6 +1,6 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropZone, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
-import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, type Kind } from './state'
+import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, withSpace, type Kind } from './state'
 import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab, edgeScroll } from './tabs'
@@ -177,11 +177,14 @@ export async function templateOpts(template: Template['id'], cwd: string | undef
 }
 
 // Onto a tab: the tile joins it (or a new tab: `space` null), the tab is shown, the tile active.
-// A template: a new tile of its kind there (default cwd), beside its active tile.
+// A template: a new tile of its kind there, beside its active tile, starting in that tile's cwd
+// (fresh; terminal and file alike); a new tab: the default cwd.
 async function dropOnTab(src: DragSource, space: string | null) {
   const exists = () => space === null || S.spaces.some((x) => x.id === space)
   if (src.type === 'tile') return moveToTab(src.id, space ?? newTab({ empty: true }))
-  const opts = await templateOpts(src.template, undefined)
+  const cwd = space ? await cwdOf(withSpace(space, () => S.active)) : undefined
+  if (!exists()) return
+  const opts = await templateOpts(src.template, cwd)
   if (!opts || !exists()) return
   if (space) switchTab(space)
   else newTab({ empty: true })
