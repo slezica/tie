@@ -1,4 +1,4 @@
-// Keyboard: cmd+D / cmd+shift+D split the active tile; cmd+arrows move focus (incl. floats); press-and-hold off.
+// Keyboard: cmd+D / cmd+shift+D split the active tile; cmd+O / cmd+shift+O open a file (picker) beside it; cmd+arrows move focus (incl. floats); press-and-hold off.
 export default async (ctx, h) => {
   const k = (chord) => h.press(ctx, chord)
   const active = async () => (await h.list(ctx)).active
@@ -44,4 +44,42 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   // macOS accent picker off, so held keys repeat (main registers the default; TERMINALS.md "Keys").
   h.assert(ctx.appLog().includes('[keys] press-and-hold "0"'), 'ApplePressAndHoldEnabled registered false')
+
+  // cmd+O / cmd+shift+O: the file template (picker) beside the active tile; cancel = nothing.
+  const md = `${process.cwd()}/dev/samples/markdown.md`
+  const count = async () => (await h.list(ctx)).tiles.length
+  const opened = (msg) => h.waitFor(ctx, async () => { const l = await h.list(ctx); return l.tiles.find((t) => t.id === l.active && t.kind === 'markdown' && !seen.has(t.id)) }, msg)
+  const seen = new Set()
+  await ctx.tie('close', '--tile', f)
+  await ctx.tie('focus', '--tile', a)
+  await h.waitActive(ctx, a)
+  await h.pickNext(ctx, md)
+  await k('Meta+o')
+  const m1 = (await opened('cmd+O: markdown tile active')).id
+  seen.add(m1)
+  s = await ctx.tie('state')
+  h.assert(s.tree.dir === 'row' && s.tree.children[0].id === a && s.tree.children[1].id === m1, 'cmd+O: right of the active tile')
+  await h.pickNext(ctx, md)
+  await k('Meta+Shift+o')
+  const m2 = (await opened('cmd+shift+O: markdown tile active')).id
+  s = await ctx.tie('state')
+  const col = s.tree.children[1]
+  h.assert(col.dir === 'col' && col.children.map((x) => x.id).join() === [m1, m2].join(), 'cmd+shift+O: below the active tile')
+  const cancels = () => ctx.appLog().split('picker (harness) cancel').length
+  const n0 = await count()
+  const c0 = cancels()
+  await h.pickNext(ctx, null)
+  await k('Meta+o')
+  await h.waitFor(ctx, async () => cancels() > c0, 'picker cancelled')
+  await h.settle(ctx)
+  h.assert((await count()) === n0 && (await h.list(ctx)).active === m2, 'cancel: no tile')
+  // Empty board: the picked file as the root tile.
+  for (const t of (await h.list(ctx)).tiles) await ctx.tie('close', '--tile', t.id)
+  await h.waitFor(ctx, async () => (await count()) === 0, 'board empty')
+  await h.pickNext(ctx, md)
+  await k('Meta+o')
+  const r = (await h.waitFor(ctx, async () => { const l = await h.list(ctx); return l.tiles.length === 1 && l.tiles[0].kind === 'markdown' && l.tiles[0] }, 'empty board: markdown root tile')).id
+  s = await ctx.tie('state')
+  h.assert(s.tree && s.tree.id === r, 'empty board: root slot')
+  await ctx.shot('file-keys')
 }
