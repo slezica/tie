@@ -127,7 +127,7 @@ export default async (ctx, h) => {
 
     // No write channel for docs in the UI bridge either.
     const api = await ctx.page.evaluate(() => ({ doc: Object.keys(window.tie.doc).sort(), all: JSON.stringify(window.tie, (k, v) => (typeof v === 'function' ? k : v)) }))
-    h.assert(JSON.stringify(api.doc) === JSON.stringify(['close', 'onChange', 'open', 'pick', 'viewer']), `tie.doc: read-only API: ${api.doc}`)
+    h.assert(JSON.stringify(api.doc) === JSON.stringify(['close', 'onChange', 'onWalkChunk', 'open', 'pick', 'stopWalk', 'viewer', 'walk']), `tie.doc: read-only API: ${api.doc}`)
     h.assert(!/toggle|write|save/i.test(api.all.replace(/"write":"write"/, '')), `no doc write method anywhere: ${api.all}`)
 
     // Links: only http(s) out (main logs it); other schemes refused; never in-app.
