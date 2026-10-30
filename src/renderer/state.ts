@@ -3,6 +3,7 @@ import { contains, type Node, type Rect, type TileId } from '@core/layout'
 import type { TieApi } from '../preload'
 import type { Surface } from './kinds'
 import type { ContentKind } from '@core/policy'
+import { randomId } from '@core/ids'
 
 declare global {
   interface Window {
@@ -78,9 +79,10 @@ export interface Space {
   customIcon?: string
 }
 
-let spaceSeq = 0
+// Live uniqueness check for space ids, once S exists (the first space is made before it).
+let spacesReady = false
 export const newSpace = (): Space => ({
-  id: `s${++spaceSeq}`,
+  id: randomId('s', (id) => spacesReady && S.spaces.some((x) => x.id === id)),
   tree: null,
   floats: [],
   shelf: [],
@@ -124,6 +126,7 @@ export const S = {
   get revealed() { return this.sp.revealed },
   set revealed(v: TileId | null) { this.sp.revealed = v },
 }
+spacesReady = true
 
 // Run fn with ops acting on another space (e.g. CLI call from a terminal in a background tab).
 export function withSpace<T>(spaceId: string, fn: () => T): T {
@@ -143,8 +146,7 @@ export function spaceOf(id: TileId): Space | null {
   return S.spaces.find((x) => (x.tree && contains(x.tree, id)) || x.floats.some((f) => f.id === id) || x.shelf.includes(id)) ?? null
 }
 
-let seq = 0
-export const newId = () => `t${++seq}`
+export const newId = () => randomId('t', (id) => S.tiles.has(id))
 
 export type Location = 'slotted' | 'floating' | 'shelved'
 // Where a tile sits within its own space.

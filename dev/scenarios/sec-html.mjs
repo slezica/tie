@@ -196,8 +196,8 @@ export default async (ctx, h) => {
     await ctx.tie('focus', t0)
     await h.waitFor(ctx, () => ctx.page.evaluate((t0) => document.activeElement?.closest('.tile')?.dataset.id === t0, t0), 'keys to t0')
     await fe.evaluate((u) => window.open(u + '/nofocus'), p.url)
-    await h.waitFor(ctx, async () => /refused request without focus t\d+ followLink/.test(ctx.appLog()), 'refusal logged')
-    h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && /refused request without focus t\d+ followLink/.test(ctx.appLog()), 'window.open without focus: refused, no dialog')
+    await h.waitFor(ctx, async () => /refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'refusal logged')
+    h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && /refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'window.open without focus: refused, no dialog')
     // Focused: window.open (script, no click) → dialog; Cancel → nothing.
     await h.clickIn(ctx, fe, '#h')
     await fe.evaluate((u) => window.open(u + '/script-open?secret=1'), p.url)
@@ -218,8 +218,8 @@ export default async (ctx, h) => {
     // Other schemes: refused before any dialog.
     await h.clickIn(ctx, fe, '#h')
     for (const u of ['file:///etc/hosts', 'javascript:alert(1)', 'x-app://run', 'smb://h/s']) await fe.evaluate((u) => window.open(u), u)
-    await h.waitFor(ctx, async () => (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'schemes refused (logged)')
-    h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t\d+ scheme/g) ?? []).length >= 3, 'other schemes refused')
+    await h.waitFor(ctx, async () => (ctx.appLog().match(/refused link t[a-z2-9]+ scheme/g) ?? []).length >= 3, 'schemes refused (logged)')
+    h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t[a-z2-9]+ scheme/g) ?? []).length >= 3, 'other schemes refused')
     await p.assertUntouched('opens', 300)
 
     // Nav lock: other tokens, /_tie/ files: cancelled (frame stays, no error).

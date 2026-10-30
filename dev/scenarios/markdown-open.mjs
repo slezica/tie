@@ -28,7 +28,7 @@ export default async (ctx, h) => {
   try {
     // CLI: path relative to the caller's cwd; kind names keep working; failures exit 1.
     const ok = await cli('add', 'notes.md')
-    h.assert(ok.code === 0 && /^t\d+$/.test(ok.out), `tie add notes.md: ${JSON.stringify(ok)}`)
+    h.assert(ok.code === 0 && /^t[a-z2-9]+$/.test(ok.out), `tie add notes.md: ${JSON.stringify(ok)}`)
     await shows(ok.out, 'Notes')
     const plain = await cli('add', 'plain.txt')
     h.assert(plain.code === 0 && (await h.tileOf(ctx, plain.out)).kind === 'text', `tie add plain.txt: text tile ${JSON.stringify(plain)}`)

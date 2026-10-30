@@ -39,7 +39,7 @@ export default async (ctx, h) => {
     await fr.evaluate((u) => setTimeout(() => { window.focus(); document.getElementById('i').focus(); window.__hasFocus = document.hasFocus(); window.open(u + '/timer') }, 6000), p.url)
     // Waited for from outside (the log): polling the frame with evaluate would give it a gesture. The
     // refusal comes last (GESTURE_MS after the request): once logged, a dialog would have shown.
-    await h.eventually(ctx, async () => h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'request refused without focus'), 10000)
+    await h.eventually(ctx, async () => h.assert(/refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'request refused without focus'), 10000)
     h.assert((await fr.evaluate(() => window.__hasFocus)) === false, 'focus() without a gesture: refused')
     h.assert(consoleMsgs.some((m) => /Blocked focus call/.test(m)), 'Blink refused the focus call (console)')
     h.assert((await active()).startsWith('TEXTAREA:' + t0), 'still the terminal')

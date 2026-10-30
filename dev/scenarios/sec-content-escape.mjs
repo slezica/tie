@@ -75,8 +75,8 @@ export default async (ctx, h) => {
 
     // Gesture verbs (openLink) need the frame focused: script posting without a user click gets nothing.
     await fa.evaluate((u) => window.probe.port.postMessage({ verb: 'openLink', url: u + '/nofocus' }), p.url)
-    await h.waitFor(ctx, async () => /refused request without focus t\d+ openLink/.test(ctx.appLog()), 'openLink refusal logged').catch(() => {})
-    h.assert(/refused request without focus t\d+ openLink/.test(ctx.appLog()) && !ctx.appLog().includes(`${p.url}/nofocus`), 'openLink without focus refused')
+    await h.waitFor(ctx, async () => /refused request without focus t[a-z2-9]+ openLink/.test(ctx.appLog()), 'openLink refusal logged').catch(() => {})
+    h.assert(/refused request without focus t[a-z2-9]+ openLink/.test(ctx.appLog()) && !ctx.appLog().includes(`${p.url}/nofocus`), 'openLink without focus refused')
     // Focus the frame (as a click in it would), for the request checks below.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), a)
 

@@ -71,5 +71,5 @@ export default async (ctx, h) => {
   h.assert((await h.list(ctx)).tiles.length === 3, 'all tiles still there')
   await ctx.shot('crashed')
   const log = ctx.appLog()
-  h.assert(/\[content\] hung t\d+/.test(log) && /\[content\] crashed t\d+/.test(log), 'logged')
+  h.assert(/\[content\] hung t[a-z2-9]+/.test(log) && /\[content\] crashed t[a-z2-9]+/.test(log), 'logged')
 }

@@ -98,7 +98,7 @@ export default async (ctx, h) => {
     const rev = (await h.mdState(ctx, id)).rev
     const post = (m) => fr.evaluate((m) => window.markdown.port.postMessage(m), m)
     await post({ verb: 'followLink', href: `${p.url}/nofocus`, newTile: false })
-    await h.eventually(ctx, async () => h.assert(/refused request without focus t\d+ followLink/.test(ctx.appLog()), 'link refused without focus'))
+    await h.eventually(ctx, async () => h.assert(/refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'link refused without focus'))
     h.assert(!ctx.appLog().includes(`${p.url}/nofocus`), 'nothing opened')
 
     // Read-only: a real click on a task box (focuses the frame) changes nothing; boxes are inert.
@@ -119,7 +119,7 @@ export default async (ctx, h) => {
     ]
     for (const m of writes) await post(m)
     await h.eventually(ctx, async () => {
-      const dropped = ctx.appLog().match(/dropped request t\d+ .*/g) ?? []
+      const dropped = ctx.appLog().match(/dropped request t[a-z2-9]+ .*/g) ?? []
       h.assert(dropped.length - before === writes.length && dropped.some((l) => l.includes('toggleTask')), `write-shaped requests dropped as unknown verbs: ${dropped.slice(before)}`)
     })
     h.assert(!/refused toggleTask|\[docs\] toggled/.test(ctx.appLog()), 'no write path reached')
@@ -138,7 +138,7 @@ export default async (ctx, h) => {
     await ctx.page.click('.dialog .confirm')
     await h.waitFor(ctx, async () => ctx.appLog().includes(`external open ${p.url}/focused`), 'http(s) goes to the system browser after Open (harness: logged)')
     const log = ctx.appLog()
-    h.assert((log.match(/\[security\] refused link t\d+/g) ?? []).length === 5, 'other schemes refused')
+    h.assert((log.match(/\[security\] refused link t[a-z2-9]+/g) ?? []).length === 5, 'other schemes refused')
     await p.assertUntouched('links', 300)
     h.assert((await h.list(ctx)).tiles.length === 2, 'no tiles opened')
   } finally {
