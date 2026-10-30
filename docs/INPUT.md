@@ -15,8 +15,9 @@
 | Pointer over | Shift | Result | Preview |
 |---|---|---|---|
 | Shelf strip (toolbar) | any | Shelved at the ghost slot | ghost slot in the strip (`SHELF.md`) |
+| Empty toolbar between `+` and the shelf, right of the toolbar's midpoint | any | Shelved at slot 0 | ghost at slot 0 (`TABS.md` "Drops onto tabs") |
 | Tab (toolbar) | any | Joins that tab, shown, active (`TABS.md` "Drops onto tabs") | tab highlighted (`.tab.drop`) |
-| Rest of the tab area: `+`, empty space right of it | any | New tab holding it | `+` highlighted (`#tab-add.drop`) |
+| Rest of the tab area: `+`, empty space right of it up to the toolbar's midpoint | any | New tab holding it | `+` highlighted (`#tab-add.drop`) |
 | Own tab (board tile) | any | Nothing | none |
 | Board | yes | Float, grabbed at pointer | float rect |
 | Board, no slotted tiles (or only the dragged one) | no | Root slot | whole board |

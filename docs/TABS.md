@@ -54,11 +54,15 @@ Title (`tabTitle`), first match:
 
 Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets"). Target under the pointer: `tabDropAt` (`tabs.ts`).
 
-- Over a tab (gaps between tabs: the nearest one): that space. Over the rest of `#tabs` (`+`, the empty space right of it; with overflow, `+` and the strip's right edge): a new tab (`newTab({empty: true})`: no terminal).
+- Over a tab (gaps between tabs: the nearest one): that space. Over the rest of `#tabs` (`+`, the empty space right of it up to the toolbar's midpoint; with overflow, `+` and the strip's right edge): a new tab (`newTab({empty: true})`: no terminal).
+- Empty toolbar between `+` and the shelf: split at `#toolbar`'s horizontal midpoint (`computeTarget`, checked before the tabs).
+  - Left of it: a new tab, as above.
+  - Right of it (toolbar's height): the shelf, slot 0 (`SHELF.md`).
+  - Tab area past the midpoint: the whole gap is tabs; shelf past it: the whole gap is shelf. Plain rect math, no special cases.
 - Tile → `moveToTab`: switch to the target tab, then `moveToSpace` (`ops.ts`): `detach`, `place(besidePlacement(null))` in the target space (root slot if its board is empty), active there; keys follow it. The source space: dropped from its `mru`, `focusNext` if it was active there; emptied, it closes like after `closeTile` (already hidden: just removed).
 - Same tab: a board tile = no target (no highlight); a shelf item = unshelved beside the active tile (as `cmd+S`).
 - Template → a new tile of its kind in that tab (or a new one), beside its active tile, default cwd (`S.cwd`); the tab is shown. `file`: picker first (default dir), cancel → nothing, no switch.
-- Feedback: `.tab.drop` / `#tab-add.drop` (accent border + `--accent-soft` fill, like the board's `#preview`). While any tile drag runs (`body.tile-drag`) `+` gets a dashed accent border: a target, like the shelf's "+" hint. No board preview.
+- Feedback: `.tab.drop` / `#tab-add.drop` (accent border + `--accent-soft` fill, like the board's `#preview`). While any tile drag runs (`body.tile-drag`) `+` matches the shelf's "+" hint: a `--slot` square, `--slot-gap` from the last tab, dashed accent border. Outside drags: its usual look. No board preview.
 - CLI (`CLI.md` "Placement"): `tie move --tab <tab|new>`, `tie add --tab`: same placement (`moveToSpace`, `activate: false` into the visible tab), but the visible tab stays unless `--focus` (or the moved tile was the last of the tab on screen: the user follows it). `new`: an empty tab after the visible one, not shown (driver `addTab`; `newTab` would switch).
 
 ## Limitations
