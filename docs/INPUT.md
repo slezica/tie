@@ -20,12 +20,14 @@
 | Own tab (board tile) | any | Nothing | none |
 | Board | yes | Float, grabbed at pointer | float rect |
 | Board, no slotted tiles (or only the dragged one) | no | Root slot | whole board |
-| Slotted tile's title bar (top `--title-h`; collapsed tile: all of it), tile dragged | no | Swap with it (`swap`, `LAYOUT.md`); dragged tile active | target rect + the dragged tile's own (`#preview2`, board sources only) |
-| Slotted tile | no | Slot on nearest edge (`dropSide`) | resulting rect |
+| Slotted tile's center zone (collapsed tile: all of it), tile dragged | no | Swap with it (`swap`, `LAYOUT.md`); dragged tile active | target rect + the dragged tile's own (`#preview2`, board sources only) |
+| Slotted tile's center zone, template or OS file | no | New tile takes its exact leaf; it goes to the end of the shelf, just shelved (`displaceTile`, `ops.ts`); new tile active | target rect |
+| Slotted tile, edge band | no | Slot on that edge | resulting rect |
 | Dragged tile itself, elsewhere | - | Nothing | none |
 
+- Zones of a slotted tile (`dropZone`, `core/layout.ts`): center rectangle = `CENTER_ZONE` (25%) of the tile's width and of its height, centered; around it four edge bands (trapezoids), nearest edge wins (normalized coords: the bands meet on the diagonals). The title bar has no role of its own: it is part of the top band (or the center, by geometry). A collapsed tile (all title bar) is all center for a dragged tile; for a template or file, the zones apply.
 - Floats are not targets; the slotted tile under them is.
-- Templates follow the same rows (title bar: the normal slot rules): a new tile of that kind lands there (tab: `TABS.md`).
+- Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`); next to or on a tile: in that tile's cwd. OS file drops (`files.ts`, `placementAt`) too, one tile per file, each against the board as it is then (several files on a center: the last one slotted, the others shelved). A tile with its own drop (terminal: pastes the path) keeps it.
 - Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 

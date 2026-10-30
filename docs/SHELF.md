@@ -17,12 +17,13 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 | Drag tile onto the shelf strip | Shelved at the ghost slot (slot under the pointer) |
 | Drag item within the strip | Reorder |
 | Drag item onto board | Unshelve, normal drop rules (`INPUT.md`) |
-| Drag item onto a board tile's title bar | Swap: the item takes that slot, the tile is shelved at the item's index |
+| Drag item onto a board tile's center zone | Swap: the item takes that slot, the tile is shelved at the item's index |
+| Drag template / OS file onto a board tile's center zone | The new tile takes that slot, the tile is appended to the shelf |
 | Drag item onto a tab | Joins that tab's board (its own tab: back on the board), `TABS.md` "Drops onto tabs" |
 | `tie add/move --shelve` | Appended |
 
 - The drop zone is the strip itself (`shelfRect()`); an empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
-- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`). Over the strip: the ghost slot (`.item.ghost`, the dragged thing's icon, accent) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
+- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`, accent dashed border). Over the strip: the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
 - Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
 - Shelving the active tile → `focusNext()`. Shelving clears activity.
 - Items grow leftward: a new item lands where the previous last one was. Under the pointer, it is revealed at once (hover rule below).

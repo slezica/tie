@@ -50,7 +50,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
+- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`tie replace`: direct child, idle shell) (main). Tests: `callers.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
@@ -67,7 +67,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations (incl. `replaceTile`: `tie replace`). `render.ts`: state → DOM.
+  - `ops.ts`: all mutations (incl. `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved). `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
   - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).

@@ -11,7 +11,8 @@
 - `replaceTile(old, id)` (`ops.ts`, `tie replace`, `CLI.md`): `id` takes `old`'s place (leaf via `replaceLeaf`, float rect + z-order, shelf index) and state (active, zoomed, collapsed, pinned, revealed), then `old` closes (`closeTile`). Same space only (else no-op, debug log).
   - Each tile keeps its own collapse / zoom where the new place allows (`canCollapse`); onto the shelf: collapse, zoom, activity cleared; off the shelf: pin, reveal cleared.
   - Active tile stays active; moved to the shelf: `focusNext`.
-  - Keys: `cmd+shift+arrows`; mouse: a tile dropped on a slotted tile's title bar (`INPUT.md` "Drop targets").
+  - Keys: `cmd+shift+arrows`; mouse: a tile dropped on a slotted tile's center zone (`INPUT.md` "Drop targets").
+- `displaceTile(old, kind, opts)` (`ops.ts`): a new tile takes slotted `old`'s exact leaf, `old` moves to the end of the shelf (just shelved: not revealed, not pinned); the new tile is active. Built as open-shelved + `swap` + `activate`. Mouse: a template or OS file dropped on a tile's center zone.
 - `moveToSpace(id, spaceId)` (`ops.ts`): into another space (drop onto its tab, `TABS.md`): `detach`, then `place(besidePlacement(null))` there (active in that space); the source space `focusNext`s if it was active there, and closes if emptied. Same space: shelved → unshelved beside; else no-op. `{activate: false}` (CLI `--tab` into the visible tab): as `place`.
 
 ## Slot tree (`src/core/layout.ts`)
@@ -27,7 +28,7 @@
 | `swapLeaves(root, a, b)` | Exchange two leaf ids (donor links relabeled: they follow the positions). Only one present: it takes the other id. Neither / same: unchanged |
 | `replaceLeaf(root, a, b)` | `b` takes `a`'s leaf (size, place, donor; leaves with donor `a` now point at `b`). `b` already in the tree: removed first. `a` absent / same: unchanged |
 | `resize(root, path, index, dpx, len, min)` | One border; only the two neighbors change. Min `MIN` = 80 px |
-| `dropSide(rect, x, y)` | Nearest edge (rect split by diagonals) |
+| `dropZone(rect, x, y)` | `'center'` inside the centered `CENTER_ZONE` (25%) rectangle, else the nearest edge (rect split by diagonals) |
 | `compute(root, area, opts)` | Tile rects + border hit areas |
 
 `compute()`:
