@@ -30,7 +30,7 @@ export default async (ctx, h) => {
 
   // Inside a Tie terminal: allowed (lineage).
   const a = await ctx.page.evaluate(() => document.querySelector('.tile').dataset.id)
-  await ctx.sleep(800)
+  await h.waitFor(ctx, async () => (await h.screen(ctx, a)).trim(), 'shell prompt') // screen only: tie list is refused here
   await ctx.page.keyboard.type('clear; tie list\n')
   const out = await h.waitFor(ctx, async () => {
     const s = await h.screen(ctx, a)

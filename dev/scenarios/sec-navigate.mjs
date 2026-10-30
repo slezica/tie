@@ -27,9 +27,10 @@ export default async (ctx, h) => {
     // Reloading the UI itself stays allowed (dev HMR), and drops the old ptys.
     await ctx.page.evaluate(() => location.reload())
     await ctx.page.waitForSelector('.tile')
-    await ctx.sleep(500)
-    h.assert((await h.uiUrl(ctx)) === home, 'reload keeps the UI')
-    h.assert(/page reload, killing 1/.test(ctx.appLog()), 'reload drops old ptys')
+    await h.eventually(ctx, async () => {
+      h.assert((await h.uiUrl(ctx)) === home, 'reload keeps the UI')
+      h.assert(/page reload, killing 1/.test(ctx.appLog()), 'reload drops old ptys')
+    })
   } finally {
     await p.close()
   }

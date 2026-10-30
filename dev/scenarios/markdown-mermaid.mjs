@@ -21,7 +21,7 @@ export default async (ctx, h) => {
       window.__v = []
       addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.violatedDirective} ${e.blockedURI}`))
     })
-    await ctx.sleep(500)
+    await ctx.sleep(500) // absence: the library isn't fetched for a document without diagrams
 
     // Lazy: no diagram, no library.
     h.assert(served() === 0 && (await fr.evaluate(() => typeof window.mermaid)) === 'undefined', 'no diagram: library not loaded')

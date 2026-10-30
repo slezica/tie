@@ -54,7 +54,7 @@ export default async (ctx, h) => {
     // Reload: the file is read again (new doc), rendered as a page, scroll kept.
     const fr = await h.contentFrame(ctx, id)
     await fr.evaluate(() => scrollTo(0, 600))
-    await ctx.sleep(200)
+    await ctx.sleep(300) // throttle: the viewer reports its scroll at most every 200 ms
     const opens = () => (ctx.appLog().match(/\[docs\] open \d+ markdown \S+\/a\.md/g) ?? []).length
     const n0 = opens()
     const r0 = (await h.mdState(ctx, id)).renders
@@ -70,7 +70,8 @@ export default async (ctx, h) => {
 
     // cmd+L: not editable → nothing takes focus.
     await h.press(ctx, 'Meta+l')
-    await ctx.sleep(200)
+    await h.waitFor(ctx, async () => /\[keys\] nav-location/.test(ctx.appLog()), 'cmd+L reached main')
+    await ctx.sleep(200) // absence: nothing takes focus
     h.assert((await page.evaluate(() => document.activeElement?.className)) !== 'location', 'cmd+L: no-op on a read-only location')
 
     // Collapsed: bar hidden.

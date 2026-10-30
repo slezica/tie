@@ -19,16 +19,18 @@ export default async (ctx, h) => {
     })
     const cdp = await ctx.page.context().newCDPSession(ctx.page)
     const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f')).id
-    await ctx.sleep(800)
+    await h.waitShell(ctx, z)
+    // What a drop does is async (paste guard reads settings): each case waits for its outcome.
     const drop = async (at, data) => {
       for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { dragOperationsMask: 1, items: [], ...data } })
-      await ctx.sleep(500)
     }
     const onTerm = await h.sidePoint(ctx, z, 'c')
 
     // Link and text onto the terminal: pasted, never loaded or run.
     await drop(onTerm, { items: [{ mimeType: 'text/uri-list', data: p.url + '/dropped' }] })
+    await h.waitText(ctx, z, p.url + '/dropped')
     await drop(onTerm, { items: [{ mimeType: 'text/plain', data: ' echo DROPPED-$((6*7))' }] })
+    await h.waitText(ctx, z, 'echo DROPPED-$((6*7))')
     const ev = await ctx.page.evaluate(() => window.__ev)
     h.assert(ev.includes('drop:true') && !ev.some((e) => e.endsWith(':false')), `native drags claimed: ${ev}`)
     await p.assertUntouched('drop')
@@ -39,22 +41,27 @@ export default async (ctx, h) => {
 
     // Files: shell-quoted paths, nothing run.
     await drop(onTerm, { files: names.slice(0, 3).map((n) => join(dir, n)) })
-    s = await h.screen(ctx, z)
     const q = (n) => `'${join(dir, n).replace(/'/g, `'\\''`)}'`
-    for (const n of names.slice(0, 3)) h.assert(s.includes(q(n)), `quoted ${q(n)} in: ${s.trim()}`)
+    await h.eventually(ctx, async () => {
+      s = await h.screen(ctx, z)
+      for (const n of names.slice(0, 3)) h.assert(s.includes(q(n)), `quoted ${q(n)} in: ${s.trim()}`)
+    })
     h.assert(!existsSync(join(process.cwd(), 'PWNED')), 'no command substitution')
     await ctx.page.keyboard.press('Control+u')
 
     // File name with control chars: paste warning.
     await drop(onTerm, { files: [join(dir, names[3])] })
-    const w = await h.pasteWarning(ctx)
-    h.assert(w?.warnings.includes('control'), `control warning for file name (got ${JSON.stringify(w)})`)
+    await h.eventually(ctx, async () => {
+      const w = await h.pasteWarning(ctx)
+      h.assert(w?.warnings.includes('control'), `control warning for file name (got ${JSON.stringify(w)})`)
+    })
     await ctx.page.click('.dialog.paste-warning button.cancel')
 
     // Off any tile (shelf): no-op.
     const before = await h.screen(ctx, z)
     const shelf = await h.boxOf(ctx, '#shelf')
     await drop({ x: shelf.x, y: shelf.box.y + shelf.box.height - 20 }, { items: [{ mimeType: 'text/plain', data: 'NOWHERE' }] })
+    await ctx.sleep(500) // absence: nothing pasted anywhere
     h.assert(!(await h.screen(ctx, z)).includes('NOWHERE') && (await h.screen(ctx, z)) === before, 'drop off-tile: nothing')
   } finally {
     await p.close()

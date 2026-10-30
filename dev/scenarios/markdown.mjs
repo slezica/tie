@@ -48,9 +48,10 @@ export default async (ctx, h) => {
     await ctx.page.locator('nav button[data-page="appearance"]').click()
     await ctx.page.selectOption('#set-theme', 'dracula')
     await ctx.page.locator('.save').click()
-    await ctx.sleep(400)
-    const dr = await (await h.contentFrame(ctx, id)).evaluate(() => getComputedStyle(document.querySelector('pre code .hljs-string')).color)
-    h.assert(dr === 'rgb(80, 250, 123)', `Dracula: string in its ANSI green (${dr})`)
+    await h.eventually(ctx, async () => {
+      const dr = await (await h.contentFrame(ctx, id)).evaluate(() => getComputedStyle(document.querySelector('pre code .hljs-string')).color)
+      h.assert(dr === 'rgb(80, 250, 123)', `Dracula: string in its ANSI green (${dr})`)
+    })
 
     // In place, scrolled down: text updates, scroll kept.
     await fr.evaluate(() => scrollTo(0, 600))
@@ -84,7 +85,7 @@ export default async (ctx, h) => {
 
     // Shelved: a change marks the shelf item.
     await ctx.tie('move', id, '--shelve')
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: no activity without a change
     h.assert(!(await ctx.page.isVisible(`.item[data-id="${id}"].activity`)), 'no activity yet')
     writeFileSync(f, body('Sixth'))
     await h.waitFor(ctx, () => ctx.page.isVisible(`.item[data-id="${id}"].activity`), 'activity dot on change')
@@ -101,7 +102,7 @@ export default async (ctx, h) => {
     // Closing stops watching (the watcher itself: unit test "closed: silent").
     await ctx.tie('close', id)
     writeFileSync(f, body('Seventh'))
-    await ctx.sleep(600)
+    await ctx.sleep(600) // absence: no change event after the close (past the watcher's stable-read delay)
     const log = ctx.appLog()
     h.assert(/\[docs\] close \d+/.test(log) && !log.slice(log.lastIndexOf('[docs] close')).includes('[docs] change'), 'doc closed with its tile')
   } finally {

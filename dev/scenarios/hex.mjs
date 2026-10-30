@@ -48,10 +48,11 @@ export default async (ctx, h) => {
     h.assert(v.size === data.length && v.drawn < 120, `virtualized: ${v.drawn} rows drawn`)
     const fb = await h.contentFrame(ctx, b)
     await fb.evaluate(() => scrollTo(0, document.scrollingElement.scrollHeight))
-    await ctx.sleep(300)
-    v = await view(b)
     const last = (data.length - 16).toString(16).padStart(8, '0')
-    h.assert(v.rows.some((r) => r.startsWith(last)), `last row ${last} drawn: ${v.rows.at(-1)}`)
+    await h.eventually(ctx, async () => {
+      v = await view(b)
+      h.assert(v.rows.some((r) => r.startsWith(last)), `last row ${last} drawn: ${v.rows.at(-1)}`)
+    })
     await ctx.shot('hex')
 
     // Empty file (no extension → text); the file template on a binary file → hex.

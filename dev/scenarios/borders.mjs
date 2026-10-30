@@ -10,17 +10,18 @@ export default async (ctx, h) => {
 
   // Mid-drag change (CLI close/add, new tab): the drag must not write back its stale tree.
   const m = ctx.page.mouse
-  const midDrag = async (change) => {
+  const midDrag = async (change, applied) => {
     const br = await ctx.page.locator('#borders .border.row').first().boundingBox()
     const y = br.y + br.height / 2
     await m.move(br.x + br.width / 2, y)
     await m.down()
     await m.move(br.x - 30, y, { steps: 4 })
     await change()
-    await ctx.sleep(200)
+    if (applied) await h.waitFor(ctx, applied, 'mid-drag change applied')
+    await h.settle(ctx)
     await m.move(br.x - 60, y, { steps: 4 })
     await m.up()
-    await ctx.sleep(200)
+    await h.settle(ctx)
   }
   const leaves = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leaves))
 
@@ -34,7 +35,7 @@ export default async (ctx, h) => {
   s = await ctx.tie('state')
   h.assert(leaves(s.tree).includes(d), `opened tile kept in tree: ${leaves(s.tree)}`)
 
-  await midDrag(() => h.press(ctx, 'Meta+t'))
+  await midDrag(() => h.press(ctx, 'Meta+t'), async () => (await h.list(ctx)).tabs.length === 2)
   const l = await h.list(ctx)
   const fresh = l.tiles.filter((t) => t.tab === l.tabs[1].id)
   h.assert(l.tabs.length === 2 && fresh.length === 1 && fresh[0].kind === 'terminal', 'tiles stay in tab 1; new tab has only its terminal')
