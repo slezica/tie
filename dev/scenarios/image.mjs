@@ -41,8 +41,7 @@ export default async (ctx, h) => {
     h.assert((await fr.evaluate(() => document.scrollingElement.scrollHeight > innerHeight)), 'actual size scrolls')
     await ctx.shot('actual')
     await ctx.page.keyboard.press('z')
-    await ctx.sleep(200)
-    h.assert((await view(id)).mode === 'fit', 'z: fit again')
+    await h.eventually(ctx, async () => h.assert((await view(id)).mode === 'fit', 'z: fit again'))
 
     // SVG, smaller than the tile: natural size, not enlarged. Rewritten: reloaded (new size).
     const s = await open(pic, id)

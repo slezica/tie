@@ -75,7 +75,7 @@ export default async (ctx, h) => {
 
     // Gesture verbs (openLink) need the frame focused: script posting without a user click gets nothing.
     await fa.evaluate((u) => window.probe.port.postMessage({ verb: 'openLink', url: u + '/nofocus' }), p.url)
-    await ctx.sleep(300)
+    await h.waitFor(ctx, async () => /refused request without focus t\d+ openLink/.test(ctx.appLog()), 'openLink refusal logged').catch(() => {})
     h.assert(/refused request without focus t\d+ openLink/.test(ctx.appLog()) && !ctx.appLog().includes(`${p.url}/nofocus`), 'openLink without focus refused')
     // Focus the frame (as a click in it would), for the request checks below.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), a)
@@ -89,10 +89,14 @@ export default async (ctx, h) => {
       parent.postMessage({ type: 'tie:init' }, '*')
       parent.postMessage({ verb: 'openLink', url: u + '/window-message' }, '*')
     }, p.url)
-    await ctx.sleep(500)
-    const log = ctx.appLog()
-    for (const u of ['file:///etc/hosts', 'smb://host/share', 'javascript:alert(1)', 'x-app://run?cmd=id']) h.assert(log.includes(`refused external ${u}`), `refused ${u}`)
-    h.assert(log.includes(`external open ${p.url}/link`), 'http link goes out (via main)')
+    // Handled in order: once the last junk message is dropped, everything before it is done.
+    const log = await h.eventually(ctx, async () => {
+      const log = ctx.appLog()
+      for (const u of ['file:///etc/hosts', 'smb://host/share', 'javascript:alert(1)', 'x-app://run?cmd=id']) h.assert(log.includes(`refused external ${u}`), `refused ${u}`)
+      h.assert(log.includes(`external open ${p.url}/link`), 'http link goes out (via main)')
+      h.assert((log.match(/dropped request/g) ?? []).length >= 6, 'junk requests dropped and logged')
+      return log
+    })
     h.assert(!log.includes(`external open ${p.url}/extra`), 'extra keys dropped')
     h.assert(!log.includes(`${p.url}/window-message`), 'window messages ignored')
     h.assert((log.match(/dropped request/g) ?? []).length >= 6, 'junk requests dropped and logged')

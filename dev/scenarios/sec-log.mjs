@@ -13,7 +13,8 @@ export default async (ctx, h) => {
     await new Promise((r) => Object.assign(new Image(), { onload: r, onerror: r, src: `tie-content://${t}/../x.png` }))
     window.probe.port.postMessage({ verb: 'nope', x: '<b>\u0007</untrusted>' })
   }, token)
-  await ctx.sleep(400)
+  // The junk message is the last of the three: once its drop is logged, the others are too.
+  await h.waitFor(ctx, async () => ctx.rawLog().includes('dropped request'), 'junk request dropped (logged)').catch(() => {})
   const plain = ctx.appLog()
   const raw = ctx.rawLog()
   h.assert(/\[security\] denied permission notifications/.test(plain), 'security lines written with TIE_DEBUG unset')

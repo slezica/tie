@@ -18,7 +18,6 @@ export default async (ctx, h) => {
   // External protocol launch (scheme with no handler: nothing gets launched even if allowed).
   // (Top frame: the UI CSP already refuses iframes.)
   await ctx.page.evaluate(() => (location.href = 'x-tie-test://probe')).catch(() => {})
-  await ctx.sleep(500)
   // Navigation guard may catch it first; either way it never launches.
-  h.assert(/denied permission openExternal|blocked navigation main x-tie-test/.test(ctx.appLog()), 'external protocol launch denied')
+  await h.eventually(ctx, async () => h.assert(/denied permission openExternal|blocked navigation main x-tie-test/.test(ctx.appLog()), 'external protocol launch denied'))
 }

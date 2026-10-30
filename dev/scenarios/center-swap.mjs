@@ -39,13 +39,12 @@ export default async (ctx, h) => {
   h.assert(leafIds(s.tree).join() === [c, b, a].join(), `slot swap: c | b over a (got ${leafIds(s.tree)})`)
   h.assert(JSON.stringify(s.tree.sizes) === sizes && s.active === a, 'sizes kept, a active')
   h.assert(near(await h.rectOf(ctx, a), rc) && near(await h.rectOf(ctx, c), ra), 'rects exchanged')
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
   await ctx.shot('swapped')
 
   // Shelf item ↔ slot: d onto b's center; b shelved at d's index.
   await ctx.tie('add', 'terminal', '--shelved')
   const d = (await ctx.tie('add', 'terminal', '--shelved')).id
-  await ctx.sleep(300)
   const idx = (await state()).shelf.indexOf(d)
   await ctx.page.mouse.move(400, 400)
   await h.drag(ctx, await h.shelfItem(ctx, d), await center(b), {
@@ -57,11 +56,10 @@ export default async (ctx, h) => {
   h.assert(leafIds(s.tree).join() === [c, d, a].join(), `shelf swap: d in b's slot (got ${leafIds(s.tree)})`)
   h.assert(s.shelf.indexOf(b) === idx && !s.shelf.includes(d), `b shelved at d's index ${idx} (${s.shelf})`)
   h.assert(s.active === d, 'd active')
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 
   // Float ↔ slot: f onto c's center; c floats with f's rect.
   const f = (await ctx.tie('add', 'terminal', '--float')).id
-  await ctx.sleep(400)
   const fr = (await state()).floats.find((x) => x.id === f)
   await h.drag(ctx, await h.titlePoint(ctx, f), await center(c))
   s = await state()
@@ -69,7 +67,7 @@ export default async (ctx, h) => {
   h.assert(leafIds(s.tree).join() === [f, d, a].join(), `float swap: f in c's slot (got ${leafIds(s.tree)})`)
   h.assert(cf && cf.x === fr.x && cf.y === fr.y && cf.w === fr.w && cf.h === fr.h, 'c floats with f\'s rect')
   h.assert(s.active === f, 'f active')
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 
   // Onto a collapsed tile (all title bar): swap with it, anywhere on it (here near its end, outside
   // the center zone).
@@ -81,7 +79,7 @@ export default async (ctx, h) => {
   })
   s = await state()
   h.assert(leafIds(s.tree).join() === [a, d, f].join(), `collapsed target: swapped (got ${leafIds(s.tree)})`)
-  await h.assertPtySizes(ctx)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 
   // Shift held: a float drop, even over a center.
   await h.drag(ctx, await h.titlePoint(ctx, d), await center(f), { shift: true })

@@ -27,17 +27,14 @@ export default async (ctx, h) => {
   await ctx.shot('pinged')
 
   await h.press(ctx, 'Meta+t')
-  await ctx.sleep(200)
-  h.assert(await ctx.page.isVisible('.tab.pinged .tab-ping'), 'background tab shows ping')
+  await h.eventually(ctx, async () => h.assert(await ctx.page.isVisible('.tab.pinged .tab-ping'), 'background tab shows ping'))
   await ctx.shot('tab-dot')
   await h.press(ctx, 'Meta+1')
-  await ctx.sleep(200)
-  h.assert(!(await ctx.page.isVisible('.tab.pinged')), 'current tab has no tab dot')
+  await h.eventually(ctx, async () => h.assert((await L()).tab === l.tab && !(await ctx.page.isVisible('.tab.pinged')), 'current tab has no tab dot'))
   h.assert((await info(b)).pinged, 'switching tabs does not clear non-active tiles')
 
   await h.press(ctx, 'Meta+ArrowUp') // c -> b
-  await ctx.sleep(200)
-  h.assert((await L()).active === b && !(await info(b)).pinged, 'activation clears')
+  await h.eventually(ctx, async () => h.assert((await L()).active === b && !(await info(b)).pinged, 'activation clears'))
   await h.pin(ctx, s)
   h.assert(!(await info(s)).pinged, 'pinning a shelved tile clears')
 

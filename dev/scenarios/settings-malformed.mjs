@@ -11,7 +11,7 @@ export default async (ctx, h) => {
   await ctx.page.waitForSelector('.settings')
   h.assert(await ctx.page.isVisible('.status.error'), 'load error shown')
   await ctx.page.locator('.save').click()
-  await ctx.sleep(200)
+  await ctx.sleep(200) // absence: the panel stays, the file isn't written
   h.assert(await ctx.page.isVisible('.settings'), 'save refused')
   h.assert(readFileSync(file, 'utf8') === settings, 'file untouched')
   await ctx.shot('load-error')
