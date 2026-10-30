@@ -162,13 +162,22 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   // Electron's binary is downloaded by `install-electron` (our postinstall), not by its package.
   if (!existsSync(bin)) throw new Error(`no Electron binary at ${bin}: run npm install (postinstall downloads it)`)
   const child = spawn(bin, ELECTRON_ARGS, { cwd: ROOT, env, stdio: ['ignore', err, err] })
-  for (let i = 0; i < 150 && !existsSync(infoPath(instance)); i++) await sleep(100)
-  if (!existsSync(infoPath(instance))) {
+  // The info file, once complete: main writes it in place, so a read may catch it half-written
+  // (seen under parallel load).
+  const info = () => {
+    try {
+      return readInfo(instance)
+    } catch {
+      return null
+    }
+  }
+  for (let i = 0; i < 150 && !info()?.pid; i++) await sleep(100)
+  if (!info()?.pid) {
     child.kill()
     throw new Error(`instance failed to start, see ${errFile}`)
   }
   // Kill Electron itself (pid from info file), not the npm wrapper.
-  const pid = readInfo(instance).pid
+  const pid = info().pid
   const stop = async () => {
     try {
       process.kill(pid, 'SIGTERM')

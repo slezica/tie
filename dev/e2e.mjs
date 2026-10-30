@@ -3,7 +3,7 @@
 // Scenarios exporting `exclusive = true` run alone, after the others (they touch what every
 // instance shares, e.g. out/viewers).
 import { spawn } from 'node:child_process'
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, openSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from './lib.mjs'
 
@@ -14,6 +14,7 @@ for (let i = 0; i < args.length; i++) {
   const a = args[i]
   if (a === '--jobs' || a === '-j') jobs = Number(args[++i])
   else if (a.startsWith('--jobs=')) jobs = Number(a.slice(7))
+  else if (/^-j\d+$/.test(a)) jobs = Number(a.slice(2))
   else if (a.startsWith('-')) (console.error(`unknown option: ${a}`), process.exit(1))
   else patterns.push(a.replace(/^dev\/scenarios\//, '').replace(/\.mjs$/, ''))
 }
@@ -42,8 +43,12 @@ let fail = 0
 const one = (name) =>
   new Promise((resolve) => {
     const t0 = Date.now()
-    const child = spawn(process.execPath, [join(ROOT, 'dev/drive.mjs'), join(dir, `${name}.mjs`)], { cwd: ROOT, env: { ...process.env, TIE_RUN_DIR: join(run, name) }, stdio: 'ignore' })
+    // drive's own output (drive.log mirrors it; this also keeps a crash before that) in the trace.
+    mkdirSync(join(run, name), { recursive: true })
+    const out = openSync(join(run, name, 'output.log'), 'w')
+    const child = spawn(process.execPath, [join(ROOT, 'dev/drive.mjs'), join(dir, `${name}.mjs`)], { cwd: ROOT, env: { ...process.env, TIE_RUN_DIR: join(run, name) }, stdio: ['ignore', out, out] })
     child.on('exit', (code) => {
+      closeSync(out)
       const secs = ((Date.now() - t0) / 1000).toFixed(1)
       let line = code === 0 ? `ok   ${name} (${secs}s)` : `FAIL ${name} (${secs}s) (${join(run, name)}/)`
       if (code !== 0) fail = 1

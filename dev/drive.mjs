@@ -54,7 +54,15 @@ for (const k of ['log', 'error']) {
     orig(...a)
   }
 }
-const fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
+let fresh = null
+try {
+  fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
+} catch (e) {
+  console.error(e.stack || e.message)
+  appendFileSync(join(runDir, 'drive.log'), 'exit=1\n')
+  process.stderr.write(`trace: ${runDir}\n`)
+  process.exit(1)
+}
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
 const shotDir = join(runDir, 'shots')
 rmSync(shotDir, { recursive: true, force: true })
