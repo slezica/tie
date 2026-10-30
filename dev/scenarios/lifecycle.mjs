@@ -15,7 +15,15 @@ export default async (ctx, h) => {
   const before = shells().length
   const spawned = () => [...ctx.appLog().matchAll(/\[pty\] spawn (\d+)/g)].map((m) => m[1])
   const n0 = spawned().length
-  const next = `t${Math.max(...(await h.list(ctx)).tiles.map((t) => Number(t.id.slice(1)))) + 1}`
+  // Ids are random: make the next one known (all-zero bytes → taaaaaa), once, to close it unseen.
+  const next = 'taaaaaa'
+  await ctx.page.evaluate(() => {
+    const real = crypto.getRandomValues.bind(crypto)
+    crypto.getRandomValues = (a) => {
+      crypto.getRandomValues = real
+      return a.fill(0)
+    }
+  })
   await new Promise((res) => {
     const c = connect(info.socket)
     let buf = ''
