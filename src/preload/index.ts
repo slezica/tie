@@ -74,7 +74,7 @@ const api = {
     // As `kind` (the tile's; main checks the file may be shown so). Body per the kind's payload.
     open: (path: string, kind: string): Promise<({ id: number; kind: string; rev: string } & DocBody) | { error: string }> => ipcRenderer.invoke('doc:open', path, kind),
     close: (id: number) => ipcRenderer.send('doc:close', id),
-    // File template: any file (its kind decided after, as for tie open).
+    // File template: any file (its kind decided after, as for tie add).
     pick: (defaultPath: string | undefined): Promise<string | null> => ipcRenderer.invoke('doc:pick', defaultPath),
     onChange: (cb: (id: number, p: ({ rev: string } & DocBody) | { missing: true }) => void) => {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))

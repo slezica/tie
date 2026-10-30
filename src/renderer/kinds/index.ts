@@ -74,14 +74,14 @@ export type KindFactory = (host: Host, opts: OpenOpts) => Surface
 export interface KindSpec {
   kind: Kind
   factory: KindFactory
-  // How it opens: 'bare' (tie open <kind>, its template), 'file' (with a path only: tie open
-  // <path>, drops, the file template), 'url' (an optional URL: tie open <url>, tie open <kind>
+  // How it opens: 'bare' (tie add <kind>, its template), 'file' (with a path only: tie add
+  // <path>, drops, the file template), 'url' (an optional URL: tie add <url>, tie add <kind>
   // [url], its template). `cmd+D` on a kind that isn't 'bare' splits a terminal.
   opens: 'bare' | 'file' | 'url'
 }
 
 // Shelf templates (decision 2026-10-17): a terminal; a file (picker: any file, its kind decided as
-// for tie open: extension, else content); a browser (empty, location focused). Not one per kind.
+// for tie add: extension, else content); a browser (empty, location focused). Not one per kind.
 export interface Template {
   id: 'terminal' | 'file' | 'browser'
   label: string

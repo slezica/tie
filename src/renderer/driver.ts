@@ -13,8 +13,8 @@ interface Params {
   kind?: string
   cmd?: string
   cwd?: string
-  path?: string // `tie open <path>`: absolute, resolved against the caller's cwd
-  url?: string // `tie open <url>`, `tie open browser [url]`
+  path?: string // `tie add <path>`: absolute, resolved against the caller's cwd
+  url?: string // `tie add <url>`, `tie add browser [url]`
   title?: string
   text?: string
   emoji?: string
@@ -23,11 +23,10 @@ interface Params {
   float?: boolean
   shelve?: boolean
   shelved?: boolean
-  focus?: boolean // open, move: give the tile input
-  tab?: string // open, move: target tab (`s1`..., 1-based position, or `new`)
+  focus?: boolean // add, replace, move: give the tile input
+  tab?: string // add, move: target tab (`s1`..., 1-based position, or `new`)
   swap?: TileId // move: exchange places with this tile (same tab)
-  replace?: boolean // open: take the caller terminal's place (main checked it, socket.ts)
-  old?: TileId // replace (main only, socket.ts): the tile to replace
+  old?: TileId // replaced (main only, socket.ts): the tile to replace
   clear?: boolean
 }
 
@@ -126,6 +125,13 @@ function swapWith(id: TileId, p: Params) {
   if (p.focus) bring(id)
 }
 
+// `add`, `replace`: the kind (resolved by resolveOpen) and its open options.
+function toOpen(p: Params) {
+  const kind = p.kind ?? 'terminal'
+  if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
+  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url } }
+}
+
 const methods: Record<string, (p: Params) => unknown> = {
   list: () => ({
     board: boardRect(),
@@ -135,16 +141,8 @@ const methods: Record<string, (p: Params) => unknown> = {
     shelf: S.shelf,
     tiles: [...S.tiles.keys()].map(tileInfo),
   }),
-  // Kind (resolved by resolveOpen): a kind name, or a file's viewer.
-  open: (p) => {
-    const kind = p.kind ?? 'terminal'
-    if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
-    const opts = { cmd: p.cmd, cwd: p.cwd, title: p.title, path: p.path, url: p.url }
-    // --replace: waits hidden on the caller's shelf; main swaps it in once tie exits (`replace`).
-    if (p.replace) {
-      if (p.at || p.side || p.float || p.shelve || p.shelved || p.tab !== undefined) throw new Error('--replace takes no other placement (--at, --side, --float, --shelve, --tab)')
-      return tileInfo(openTile(kind as Kind, { type: 'shelf' }, opts, { activate: false }))
-    }
+  add: (p) => {
+    const { kind, opts } = toOpen(p)
     // Input moves to the new tile only with --focus: a script showing something never redirects typing.
     if (p.tab === undefined) return tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus }))
     // Another tab: shown only with --focus; a hidden one gets the tile active (as move --tab).
@@ -153,8 +151,15 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (p.focus) switchTab(to)
     return withSpace(to, () => tileInfo(openTile(kind as Kind, placement(p), opts, { activate: !!p.focus || to !== S.visible })))
   },
-  // Main only (socket.ts refuses it from clients): after `open --replace`, tie exited.
+  // Main checked the caller (socket.ts). Waits hidden on the caller's shelf; main swaps it in once
+  // tie exits (`replaced`).
   replace: (p) => {
+    if (p.at || p.side || p.float || p.shelve || p.shelved || p.tab !== undefined) throw new Error('replace takes no placement (--at, --side, --float, --shelve, --tab)')
+    const { kind, opts } = toOpen(p)
+    return tileInfo(openTile(kind as Kind, { type: 'shelf' }, opts, { activate: false }))
+  },
+  // Main only (socket.ts refuses it from clients): after `replace`, tie exited.
+  replaced: (p) => {
     replaceTile(String(p.old), String(p.id), { focus: !!p.focus })
     return null
   },
@@ -207,7 +212,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   }),
 }
 
-// `tie open <arg>`: a known kind name opens that kind (today's behavior). An http(s) URL (`url`,
+// `tie add|replace <arg>`: a known kind name opens that kind (today's behavior). An http(s) URL (`url`,
 // kind unset or 'browser') → a browser tile. Otherwise <arg> is a file (main checks: exists, regular
 // file, has a viewer) → its viewer kind. Kinds that show a file can't be opened bare.
 async function resolveOpen(p: Params) {
@@ -224,7 +229,7 @@ async function resolveOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
   const spec = kindSpec(kind)
   if (spec) {
-    if (spec.opens === 'file') throw new Error(`${kind} shows a file: tie open <path>`)
+    if (spec.opens === 'file') throw new Error(`${kind} shows a file: tie add <path>`)
     delete p.path
     return
   }
@@ -241,7 +246,7 @@ export function initDriver() {
       const fn = methods[method]
       if (!fn) throw new Error(`unknown method: ${method}`)
       const p = (params ?? {}) as Params
-      if (method === 'open') await resolveOpen(p) // async: before choosing the space
+      if (method === 'add' || method === 'replace') await resolveOpen(p) // async: before choosing the space
       // Act in the tab of the tile concerned (or the caller's terminal), else the visible tab.
       const ref = [p.id, p.at, p.caller].find((x) => x && S.tiles.has(x))
       const space = (ref && spaceOf(ref)?.id) || S.visible

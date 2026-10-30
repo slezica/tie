@@ -191,7 +191,7 @@ export function initPty(wc: () => WebContents | null) {
       const { busy, proc } = busyOf(id)
       return { busy, proc }
     },
-    // `tie open --replace` (socket.ts): as busy, `ignore` (tie itself) not counted; the other
+    // `tie replace` (socket.ts): as busy, `ignore` (tie itself) not counted; the other
     // children. (No child lookup: no tile callers either, socket.ts, so never asked.)
     busyIgnoring(id: number, ignore: number): { busy: boolean; others: number[] } {
       const { busy, others } = busyOf(id, ignore)

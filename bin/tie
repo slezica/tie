@@ -8,19 +8,21 @@ const HELP = `tie - control Tie, the tiled workspace this shell runs in
 
 USAGE
   tie list [--json]                       List tiles
-  tie open terminal [options]             Open a terminal tile, prints its id
-  tie open <file> [placement]             Open a file in its viewer, prints its id
-  tie open <url> [placement]              Open an http(s) URL in a browser tile, prints its id
-  tie open browser [url] [placement]      Open a browser tile (empty: address field focused)
+  tie add|replace terminal [options]      Terminal tile, prints its id
+  tie add|replace <file> [placement]      File in its viewer, prints its id
+  tie add|replace <url> [placement]       http(s) URL in a browser tile, prints its id
+  tie add|replace browser [url] [placement]
+                                          Browser tile (empty: address field focused)
+      add: the tile goes beside this terminal (or as placed below). replace: it takes this
+      terminal's place, and the terminal closes once tie exits (see PLACEMENT, BEHAVIOR)
       --cmd <command>                     Run command instead of interactive shell
       --cwd <dir>                         Working directory (default: current)
       --title <text>                      Custom title
-      --at <id> [--side l|r|t|b]          Split next to tile (default: caller/active, longer side)
-      --float                             Open floating
-      --shelved                           Open on the shelf (alias --shelve)
-      --tab <tab|new>                     Open in another tab (see PLACEMENT)
+      --at <id> [--side l|r|t|b]          add: split next to tile (default: caller/active, longer side)
+      --float                             add: floating
+      --shelved                           add: on the shelf (alias --shelve)
+      --tab <tab|new>                     add: in another tab (see PLACEMENT)
       --focus                             Give the new tile keyboard input (default: input stays)
-      --replace                           Take this terminal's place (closes it; see PLACEMENT)
   tie close [id]                          Close tile
   tie move [id] --at <id> [--side l|r|t|b] | --float | --shelve (alias --shelved) [--focus]
   tie move [id] --tab <tab|new> [--focus] Move tile to another tab
@@ -39,15 +41,16 @@ DESCRIPTION
   - Show rich content: open a markdown file in a live viewer beside you. It re-renders whenever
     the file changes, so writing the file updates what the user sees.
   - Run something the user should watch or answer in its own terminal (servers, tests, prompts):
-    tie open terminal --cmd "npm test".
-  - Show a web page or a local dev server: tie open http://localhost:3000.
+    tie add terminal --cmd "npm test".
+  - Show a web page or a local dev server: tie add http://localhost:3000.
   - Ask for attention without interrupting: tie ping.
-  - Keep the workspace tidy: title, move, shelve or close the tiles you opened.
+  - Keep the workspace tidy: title, move, shelve or close the tiles you added.
+  - Turn this terminal into what it produced (a report, a page): tie replace report.md.
 
 TILE KINDS
   terminal   Interactive shell (the user's login shell), or --cmd. A shell tile closes when its
              shell exits. A --cmd tile stays after the command ends and shows the exit status.
-  markdown   Files .md, .markdown (tie open <file>). Rendered with headings, lists, tables,
+  markdown   Files .md, .markdown (tie add <file>). Rendered with headings, lists, tables,
              highlighted code, \`\`\`mermaid diagrams (flowchart, sequence, class, state, ER, gantt,
              pie, gitGraph), task boxes, footnotes, definition lists, :emoji: shortcodes; a
              leading --- front matter block is shown as-is (not parsed). Read-only: Tie never
@@ -80,7 +83,7 @@ TILE KINDS
              markdown (view stays still, changed lines marked, n jumps). Shown literally:
              HTML is text, control characters and bidi overrides are visible. Links don't open.
   hex        Any other file (binary): offset | bytes | ASCII. Live: changed rows highlighted.
-  browser    Web pages: tie open <http(s) URL>, tie open browser [url] (a bare host[:port][/path]
+  browser    Web pages: tie add <http(s) URL>, tie add browser [url] (a bare host[:port][/path]
              gets https://). A regular browser with the network, logins kept across restarts
              (shared by all browser tiles), no access to Tie, files or other tiles. Address bar:
              http(s) only, no search. Pages open in the tile; links that would open a new
@@ -89,17 +92,17 @@ TILE KINDS
              (camera,
              notifications, location...) are denied. Not live: it doesn't watch files; reload
              (cmd+R) after rebuilding. Other schemes (file:, mailto:...) are refused.
-  Size limits: markdown 8 MB, text 10 MB, html 10 MB, hex 16 MB, image 50 MB (larger: tie open
+  Size limits: markdown 8 MB, text 10 MB, html 10 MB, hex 16 MB, image 50 MB (larger: tie add
   fails).
   Folders can't be opened. File tiles never write files and never reach the network.
 
 TILE IDS
-  t1, t2, ... open (and every command acting on a tile) prints the id; --json prints full info.
+  t1, t2, ... add (and every command acting on a tile) prints the id; --json prints full info.
   [id] defaults to $TIE_TILE: the tile this command runs in. tie list shows all tiles, all tabs.
   Tabs: s1, s2, ... (tie list --json: tabs, and each tile's tab); tie list's TAB column is the
   tab's position (1 = leftmost).
 
-PLACEMENT (open, move)
+PLACEMENT (add, move)
   Default: split next to the calling tile, along its longer side.
   --at <id> [--side l|r|t|b]  next to another tile (must be on the board, not shelved).
   --float                     floating over the board.
@@ -111,20 +114,20 @@ PLACEMENT (open, move)
                               screen: the user follows it). A tab left without tiles closes.
   --swap <id>                 (move) exchange places with another tile of the same tab: slots
                               (sizes stay with the places), floats, shelf. Other tab: error.
-  --replace                   (open) the new tile takes the place of the terminal this command
-                              runs in (same slot, float or shelf spot), and that terminal closes
-                              once tie exits. The new tile gets input if the terminal had it.
-                              Run it straight from the terminal's shell, with nothing else running
-                              there (see BEHAVIOR). No other placement flag (--focus is ok).
+  replace                     no placement flags: the new tile takes the place of the terminal
+                              this command runs in (same slot, float or shelf spot), and that
+                              terminal closes once tie exits. The new tile gets input if the
+                              terminal had it. Run it straight from the terminal's shell, with
+                              nothing else running there (see BEHAVIOR). --focus is ok.
 
 BEHAVIOR
-  - open and move never take the user's keyboard input: typing stays where it was. --focus gives
+  - add and move never take the user's keyboard input: typing stays where it was. --focus gives
     the tile input (only when the user expects it); with --tab or --swap it also shows the tile's
     tab. Empty board: the new tile gets input.
   - focus switches to the tile's tab, expands it, and gives it input. Use sparingly.
   - ping marks the tile (and its tab) with a dot until the user activates it. No focus change.
     Pinging the tile the user is already on does nothing.
-  - open --replace fails, opening nothing, when: run outside a Tie terminal (no terminal to
+  - replace fails, opening nothing, when: run outside a Tie terminal (no terminal to
     replace); tie runs under another program, not straight from the shell (tie runs under vim);
     the shell runs something else, background jobs included (A process is running: sleep).
     It closes the terminal without asking: the shell and its session end.
@@ -140,8 +143,8 @@ BEHAVIOR
 OUTPUT AND EXIT STATUS
   Plain output is the tile id (list: a table). --json prints JSON (list: tiles + tabs).
   Errors go to stderr with exit status 1: unknown id, missing file, folder, file too large,
-  not a web address (tie open browser <url>), no such tab, not in the same tab (--swap), --replace
-  refused (see BEHAVIOR), Tie not reachable, external control off.
+  not a web address (tie add browser <url>), no such tab, not in the same tab (--swap), replace
+  refused or given placement (see BEHAVIOR), Tie not reachable, external control off.
 
 ENVIRONMENT
   TIE_TILE      Id of the tile this shell runs in. Set by Tie. Tie checks it: the caller is the
@@ -150,22 +153,22 @@ ENVIRONMENT
   TIE_INSTANCE  Instance name (dev builds); outside Tie, selects which instance to control.
 
 EXAMPLES
-  tie open docs/plan.md                       Show a document beside this terminal
-  tie open out/chart.png --float              Show an image (re-shown when rewritten)
-  tie open report/index.html                  Show a local page (reloads when report/ changes)
-  tie open http://localhost:5173 --shelved    Park a dev server's page on the shelf
-  tie open terminal --cmd "npm run dev" --title dev --shelved
-  tie open notes.md --tab new                 Show a document in a tab of its own
+  tie add docs/plan.md                        Show a document beside this terminal
+  tie add out/chart.png --float               Show an image (re-shown when rewritten)
+  tie add report/index.html                   Show a local page (reloads when report/ changes)
+  tie add http://localhost:5173 --shelved     Park a dev server's page on the shelf
+  tie add terminal --cmd "npm run dev" --title dev --shelved
+  tie add notes.md --tab new                  Show a document in a tab of its own
   tie move t7 --tab 2                         Send a tile to the second tab
   tie title "migrating db"; tie icon 🛠️        Label this tile
   tie ping                                    Done: ask the user to look here
-  id=$(tie open report.md --float)            Later: tie close $id
-  tie open notes.md --replace                 Turn this terminal into the document`
+  id=$(tie add report.md --float)             Later: tie close $id
+  tie replace notes.md                        Turn this terminal into the document`
 
 const argv = process.argv.slice(2)
 const flags = {}
 const pos = []
-const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear', 'focus', 'replace'])
+const BOOL = new Set(['json', 'float', 'shelved', 'shelve', 'help', 'clear', 'focus'])
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
   if (a === '-h') flags.help = true
@@ -188,7 +191,7 @@ const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'),
 const socket = process.env.TIE_SOCKET || join(stateDir, `${process.env.TIE_INSTANCE || 'default'}.sock`)
 const caller = process.env.TIE_TILE
 
-// hold: keep the connection until this process exits (open --replace: Tie swaps the new tile in
+// hold: keep the connection until this process exits (replace: Tie swaps the new tile in
 // when it closes, after the caller's shell got the id; the kernel closes it at exit).
 function call(method, params = {}, { hold = false } = {}) {
   return new Promise((resolve, reject) => {
@@ -209,6 +212,7 @@ function call(method, params = {}, { hold = false } = {}) {
   })
 }
 
+const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'ping', 'title', 'icon']
 const pad = (s, n) => String(s).padEnd(n)
 function printTile(t) {
   if (flags.json) console.log(JSON.stringify(t, null, 2))
@@ -234,11 +238,13 @@ async function main() {
       }
       return
     }
-    case 'open': {
+    case 'add':
+    case 'replace': {
       // An http(s) URL (browser), a kind name (browser takes a URL after it), else a file path
-      // (resolved here, against the caller's cwd).
-      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, replace: flags.replace, ...place }
-      const open = (p) => call('open', { ...p, ...common }, { hold: !!flags.replace })
+      // (resolved here, against the caller's cwd). replace: same params (placement refused by Tie).
+      const replace = cmd === 'replace'
+      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, ...place }
+      const open = (p) => call(cmd, { ...p, ...common }, { hold: replace })
       if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await open({ url: rest[0] }))
       if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await open({ kind: 'browser', url: rest[1] }))
       const kind = rest[0] || 'terminal'
@@ -265,7 +271,7 @@ async function main() {
     case 'state': // dev: internal state dump
       return console.log(JSON.stringify(await call('state'), null, 2))
     default:
-      die(`unknown command: ${cmd} (see tie --help)`)
+      die(`unknown command: ${cmd} (commands: ${COMMANDS.join(', ')}; see tie --help)`)
   }
 }
 

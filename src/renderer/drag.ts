@@ -150,7 +150,7 @@ async function applyDrop(src: DragSource, t: Target) {
 }
 
 // What a template opens: its kind, or for `file` the picked file's (main's dialog, any file; cancel
-// = null, no tile). Its kind as for tie open (main: extension, else content); not openable (too
+// = null, no tile). Its kind as for tie add (main: extension, else content); not openable (too
 // large...): a modal says why, null.
 async function templateOpts(template: Template['id'], cwd: string | undefined): Promise<{ kind: Kind; opts: OpenOpts } | null> {
   if (template !== 'file') return { kind: template, opts: { cwd } }

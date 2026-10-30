@@ -1,5 +1,5 @@
 // Driver socket: newline-delimited JSON-RPC over a unix socket, forwarded to the renderer.
-// SECURITY: whoever connects can run commands as the user (tie open terminal --cmd). The socket is
+// SECURITY: whoever connects can run commands as the user (tie add terminal --cmd). The socket is
 // 0600 inside the 0700 state dir (env.ts): the user's own processes only. Each connection's caller
 // is identified by the kernel (peer pid + uid, then process lineage: core/callers.ts): processes
 // in a Tie terminal act as that terminal's tile; others only with the allowExternalControl
@@ -41,7 +41,7 @@ function resolveCaller(conn: Socket, tiles: Map<number, string>): { caller: Call
   return { caller: callerTile(peer, process.getuid!(), peerLib.parentOf, tiles), pid: peer?.pid ?? null }
 }
 
-// `tie open --replace` (CLI.md): the tile to replace, after the checks (core/callers replaceBlock).
+// `tie replace` (CLI.md): the tile to replace, after the checks (core/callers replaceBlock).
 // SECURITY: always the caller's lineage tile (its own terminal), never anything from the request.
 function replaceTarget(caller: Caller, pid: number | null, callers: Callers): string {
   if (caller.kind !== 'tile' || pid === null || !peerLib) throw new Error('no terminal to replace')
@@ -79,7 +79,7 @@ export function startSocket(path: string, call: Call, callers: Callers): Server 
     })
     conn.on('error', () => {})
 
-    // --replace: the new tile waits on the shelf until tie exits (the connection closes), so the
+    // replace: the new tile waits on the shelf until tie exits (the connection closes), so the
     // shell isn't killed under it. Reply delivered, then closed: the renderer swaps it in.
     // Closed before the reply went out (tie killed): no replace, the tile stays shelved.
     let replacing: { old: string; focus: boolean } | null = null
@@ -87,7 +87,7 @@ export function startSocket(path: string, call: Call, callers: Callers): Server 
     let closed = false
     const fireReplace = (r: { old: string; id: string; focus: boolean }) => {
       log('rpc', 'replace', r.old, '->', r.id)
-      call('replace', r).catch((e) => log('rpc', 'replace failed', String(e)))
+      call('replaced', r).catch((e) => log('rpc', 'replace failed', String(e)))
     }
     conn.on('close', () => {
       closed = true
@@ -116,10 +116,10 @@ export function startSocket(path: string, call: Call, callers: Callers): Server 
           params.caller = caller.tile
         }
         // SECURITY: internal (connection close above): a client could otherwise close any tile.
-        if (msg.method === 'replace') throw new Error('unknown method: replace')
-        const replace = msg.method === 'open' && !!params.replace
+        if (msg.method === 'replaced') throw new Error('unknown method: replaced')
+        const replace = msg.method === 'replace'
         if (replace) {
-          if (replacing) throw new Error('one --replace per connection')
+          if (replacing) throw new Error('one replace per connection')
           replacing = { old: replaceTarget(caller, pid, callers), focus: !!params.focus }
         }
         log('rpc', '<-', untrusted(msg.method), untrusted(params))

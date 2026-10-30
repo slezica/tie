@@ -25,7 +25,7 @@ export function callerTile(peer: Peer | null, uid: number, parentOf: (pid: numbe
   return { kind: 'external' }
 }
 
-// `tie open --replace` (CLI.md): the caller's terminal gives its place to the opened tile.
+// `tie replace` (CLI.md): the caller's terminal gives its place to the opened tile.
 // SECURITY: kernel facts only, and only the caller's own terminal (the lineage tile's pty). tie must
 // run straight in that shell (peer's parent = the pty process: nothing in between, like an editor,
 // would lose its terminal), and the shell must run nothing else (busy, TERMINALS.md, tie aside).

@@ -110,7 +110,7 @@ export function swap(a: TileId, b: TileId) {
   })
 }
 
-// `tie open --replace` (CLI.md): `id` (waiting on the shelf) takes `old`'s exact place: its leaf,
+// `tie replace` (CLI.md): `id` (waiting on the shelf) takes `old`'s exact place: its leaf,
 // float rect and z-order, or shelf index, with its state there (active, zoomed, collapsed, pinned,
 // revealed); not its custom title / icon. Then `old` closes (scripted: no question). `old` gone (the
 // user closed it) or not in `id`'s tab: nothing, `id` stays where it is. `focus`: `id` takes input
@@ -147,7 +147,7 @@ export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { act
 }
 
 // A new tile split from `id` (or, if it isn't slotted, from the active / most recent slotted tile),
-// along the longer side: like `tie open` from that tile.
+// along the longer side: like `tie add` from that tile.
 export function besidePlacement(id: TileId | null): Placement {
   const at = [id, S.active, ...S.mru].find((x): x is TileId => !!x && contains(S.tree, x)) ?? null
   const r = at ? S.rects.get(at) : null
