@@ -64,6 +64,14 @@ try {
   process.exit(1)
 }
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
+// Killed (runner interrupted, ctrl-C): the fresh instance goes too.
+for (const sig of ['SIGINT', 'SIGTERM'])
+  process.on(sig, async () => {
+    console.error(`${sig}: stopping ${instance}`)
+    if (fresh && !keep) await fresh.stop().catch(() => {})
+    appendFileSync(join(runDir, 'drive.log'), `exit=1 (${sig})\n`)
+    process.exit(1)
+  })
 const shotDir = join(runDir, 'shots')
 rmSync(shotDir, { recursive: true, force: true })
 mkdirSync(shotDir, { recursive: true })
@@ -98,7 +106,11 @@ try {
     appLog: () => plainLog(existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
     rawLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
   }
-  const result = await mod.default(ctx, helpers)
+  // A scenario stuck on a promise that never settles fails (instance stopped below), never hangs.
+  const limit = Number(process.env.TIE_SCENARIO_TIMEOUT || 180) * 1000
+  let timer
+  const result = await Promise.race([mod.default(ctx, helpers), new Promise((_, no) => (timer = setTimeout(() => no(new Error(`scenario timed out after ${limit / 1000} s (TIE_SCENARIO_TIMEOUT)`)), limit)))])
+  clearTimeout(timer)
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
 } catch (e) {
   console.error(e.stack || e.message)

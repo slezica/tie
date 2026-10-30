@@ -2,9 +2,12 @@ import { rpc } from './lib.mjs'
 
 // Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
 
+// `tie list --json` (straight over the socket: a `bin/tie` process per poll is slow under load).
 export async function list(ctx) {
-  return ctx.tie('list')
+  return rpc(ctx.instance, 'list')
 }
+// `tie state` (dev), same way.
+export const state = (ctx) => rpc(ctx.instance, 'state')
 
 export async function rectOf(ctx, id) {
   const t = (await list(ctx)).tiles.find((t) => t.id === id)
@@ -83,7 +86,7 @@ export async function boardCenter(ctx) {
 export async function hoverShelf(ctx, id) {
   const p = await shelfItem(ctx, id)
   await ctx.page.mouse.move(p.x, p.y, { steps: 4 })
-  await waitFor(ctx, async () => { const s = await ctx.tie('state'); return s.revealed === id || s.pinned === id }, `hover reveals ${id}`)
+  await waitFor(ctx, async () => { const s = await state(ctx); return s.revealed === id || s.pinned === id }, `hover reveals ${id}`)
 }
 
 export async function pin(ctx, id) {
@@ -114,11 +117,14 @@ export function assert(cond, msg) {
 }
 
 // Every terminal's pty size matches its xterm grid (catches missed resizes).
-export async function assertPtySizes(ctx) {
-  for (const t of (await list(ctx)).tiles.filter((t) => t.kind === 'terminal')) {
-    const { cols, rows, pty } = t.term
-    assert(pty && pty.cols === cols && pty.rows === rows, `${t.id} pty ${JSON.stringify(pty)} != xterm ${cols}x${rows}`)
-  }
+// Pty resizes are async (IPC to main): retried a while after a layout change.
+export async function assertPtySizes(ctx, ms = 4000) {
+  await eventually(ctx, async () => {
+    for (const t of (await list(ctx)).tiles.filter((t) => t.kind === 'terminal')) {
+      const { cols, rows, pty } = t.term
+      assert(pty && pty.cols === cols && pty.rows === rows, `${t.id} pty ${JSON.stringify(pty)} != xterm ${cols}x${rows}`)
+    }
+  }, ms)
 }
 
 // Terminal grid vs what's visible (TERMINALS.md "Size"): the screen (cols × cell, rows × cell) inside
@@ -309,12 +315,15 @@ export async function mdState(ctx, id) {
 }
 
 // Poll until fn() is truthy (returns its value), else throw `what`.
+// Each try is raced against the time left: a promise that never settles (e.g. evaluate in a frame
+// that navigated away) can't hang the scenario.
 export async function waitFor(ctx, fn, what, ms = 4000) {
-  for (let t = 0; t < ms; t += 50) {
-    const v = await fn().catch(() => null)
+  const end = Date.now() + ms
+  do {
+    const v = await Promise.race([fn().catch(() => null), ctx.sleep(Math.max(0, end - Date.now())).then(() => null)])
     if (v) return v
     await ctx.sleep(50)
-  }
+  } while (Date.now() < end)
   throw new Error(`timed out: ${what}`)
 }
 
@@ -360,7 +369,11 @@ export async function clickIn(ctx, frame, selector, { meta = false } = {}) {
     await ctx.page.mouse.click(x, y)
     if (meta) await ctx.page.keyboard.up('Meta')
     for (let t = 0; t < 500; t += 50) {
-      if (!(await lost(before))) return
+      if (!(await lost(before))) {
+        // Focus went to the iframe: its document has it a moment later (keys typed now reach it).
+        if ((await where()).startsWith('IFRAME')) await waitFor(ctx, () => frame.evaluate(() => document.hasFocus()), 'frame focused', 1000).catch(() => {})
+        return
+      }
       await ctx.sleep(50)
     }
     ctx.log(`clickIn: click #${attempt + 1} lost (${selector})`)
@@ -419,7 +432,13 @@ export async function eventually(ctx, fn, ms = 4000) {
   const end = Date.now() + ms
   for (;;) {
     try {
-      return await fn()
+      let timer
+      const stuck = new Promise((_, no) => (timer = setTimeout(() => no(new Error(`eventually: a try did not settle in ${ms} ms`)), Math.max(0, end - Date.now()) + 50)))
+      try {
+        return await Promise.race([fn(), stuck])
+      } finally {
+        clearTimeout(timer)
+      }
     } catch (e) {
       if (Date.now() > end) throw e
     }
@@ -472,4 +491,22 @@ export const waitNoDialog = (ctx, ms) => waitFor(ctx, async () => !(await ctx.pa
 export const waitArmed = (ctx, ms) => waitFor(ctx, () => ctx.page.$eval('.dialog .confirm', (e) => !e.disabled), 'dialog confirm armed', ms)
 
 // Shelf hover reveal (`tie state` revealed): the given id, or null (dismissed).
-export const waitRevealed = (ctx, id, ms) => waitFor(ctx, async () => (await ctx.tie('state')).revealed === id || null, `revealed ${id}`, ms)
+export const waitRevealed = (ctx, id, ms) => waitFor(ctx, async () => (await state(ctx)).revealed === id || null, `revealed ${id}`, ms)
+
+// Terminal running a program matching `re`: the tile's own process (a `--cmd` bash may exec its
+// single command in place) or a child of its shell.
+export async function waitRunning(ctx, id, re, ms) {
+  const { execFileSync } = await import('node:child_process')
+  return waitFor(ctx, async () => {
+    const pid = (await tileOf(ctx, id))?.term?.pid
+    if (!pid) return false
+    const own = execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' }).trim()
+    return re.test(own) || (await children(ctx, id)).some((c) => re.test(c.command))
+  }, `${id} running ${re}`, ms)
+}
+
+// App log (the run's app.log, as read by ctx.appLog) with at least n matches of `re`; returns them.
+export const waitLog = (ctx, re, n = 1, ms) => waitFor(ctx, async () => {
+  const m = ctx.appLog().match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')) ?? []
+  return m.length >= n && m
+}, `log ${re} x${n}`, ms)

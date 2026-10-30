@@ -8,7 +8,6 @@ export default async (ctx, h) => {
     const link = (url, text) => `printf '\\033]8;;${url}\\033\\\\${text}\\033]8;;\\033\\\\\\n'`
     await ctx.page.keyboard.type(`clear; ${link(p.url + '/osc', 'web-link')}; ${link('file:///etc/hosts', 'file-link')}`)
     await ctx.page.keyboard.press('Enter')
-    await h.waitText(ctx, (await h.list(ctx)).tiles[0].id, /web-link[\s\S]*file-link/)
     // Center of a word printed in the terminal (DOM renderer rows).
     const pointOf = (word) =>
       ctx.page.evaluate((word) => {
@@ -26,9 +25,14 @@ export default async (ctx, h) => {
         }
         return null
       }, word)
-    const web = await pointOf('web-link')
-    const file = await pointOf('file-link')
-    h.assert(web && file, 'links printed')
+    // Printed, not just typed: the command line (which names them too) cleared.
+    const t1 = (await h.list(ctx)).tiles[0].id
+    const [web, file] = await h.waitFor(ctx, async () => {
+      if ((await h.screen(ctx, t1)).includes('printf')) return null
+      const w = await pointOf('web-link')
+      const f = await pointOf('file-link')
+      return w && f && [w, f]
+    }, 'links printed')
     const opened = () => ctx.appLog().match(/external open .*/g) || []
 
     await ctx.page.mouse.click(web.x, web.y)
