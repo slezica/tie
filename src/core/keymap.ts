@@ -3,6 +3,7 @@
 
 export type Action =
   | 'split-right' | 'split-down'
+  | 'file-right' | 'file-down' // the file template (picker) beside the active tile, like split-*
   | 'focus-left' | 'focus-right' | 'focus-up' | 'focus-down'
   | 'swap-left' | 'swap-right' | 'swap-up' | 'swap-down' // with the tile focus-* would reach
   | 'toggle-shelf' // shelve the active tile; shown shelved: unshelve
@@ -17,6 +18,8 @@ export type Action =
 export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+D': 'split-right',
   'Cmd+Shift+D': 'split-down',
+  'Cmd+O': 'file-right',
+  'Cmd+Shift+O': 'file-down',
   'Cmd+Left': 'focus-left',
   'Cmd+Right': 'focus-right',
   'Cmd+Up': 'focus-up',

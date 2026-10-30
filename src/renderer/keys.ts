@@ -8,6 +8,7 @@ import { askQuit } from './quit'
 import type { Action } from '@core/keymap'
 import { kindSpec } from './kinds'
 import { navAction, focusLocation } from './nav'
+import { templateOpts } from './drag'
 
 // Text fields keep their own editing shortcuts; the terminal's hidden textarea does not count.
 function editingText(target: Element | null): boolean {
@@ -45,6 +46,10 @@ export function run(action: Action) {
       return splitActive('r')
     case 'split-down':
       return splitActive('b')
+    case 'file-right':
+      return splitActive('r', 'file')
+    case 'file-down':
+      return splitActive('b', 'file')
     case 'focus-left':
       return focusDirection('l')
     case 'focus-right':
@@ -91,7 +96,10 @@ export function run(action: Action) {
 // New tile of the active tile's kind, as if its template were dropped on that edge. Slotted only.
 // The new terminal starts where the source shell is now. Kinds showing a file (or a page) split
 // into a terminal in the file's directory (browser: the default directory).
-async function splitActive(side: Side) {
+// `file` (cmd+O): the file template instead: the picker from that directory, the picked file's kind;
+// cancel = nothing. Empty board: a root tile (terminal, or the picked file from the default directory).
+async function splitActive(side: Side, template: 'terminal' | 'file' = 'terminal') {
+  if (template === 'file') return fileBeside(side)
   if (!S.tree) return void openTile('terminal', { type: 'slot', at: null, side })
   const src = S.active
   if (!src || location(src) !== 'slotted') return
@@ -100,6 +108,22 @@ async function splitActive(side: Side) {
   const cwd = await cwdOf(src)
   if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved meanwhile
   withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))
+}
+
+async function fileBeside(side: Side) {
+  const space = S.current
+  const src = S.tree ? S.active : null
+  if (S.tree && (!src || location(src) !== 'slotted')) return
+  const cwd = src ? await cwdOf(src) : undefined
+  if (src && (!S.tiles.has(src) || location(src) !== 'slotted')) return // closed/moved meanwhile
+  const picked = await templateOpts('file', cwd)
+  if (!picked) return
+  if (src) {
+    if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved during the picker
+    return void withSpace(spaceOf(src)!.id, () => openTile(picked.kind, { type: 'slot', at: src, side }, picked.opts))
+  }
+  if (!S.spaces.some((x) => x.id === space)) return // tab closed during the picker
+  withSpace(space, () => openTile(picked.kind, { type: 'slot', at: null, side }, picked.opts))
 }
 
 // Nearest visible tile in a direction from the active one (slotted and floating), or null. Prefers

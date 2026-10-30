@@ -18,6 +18,8 @@ describe('actionFor', () => {
   it('maps the default shortcuts', () => {
     expect(actionFor(k('d', { meta: true }))).toBe('split-right')
     expect(actionFor(k('D', { meta: true, shift: true }))).toBe('split-down')
+    expect(actionFor(k('o', { meta: true }))).toBe('file-right')
+    expect(actionFor(k('O', { meta: true, shift: true }))).toBe('file-down')
     expect(actionFor(k('ArrowUp', { meta: true }))).toBe('focus-up')
     expect(actionFor(k('ArrowLeft', { meta: true, shift: true }))).toBe('swap-left')
     expect(actionFor(k('ArrowRight', { meta: true, shift: true }))).toBe('swap-right')
