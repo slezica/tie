@@ -23,9 +23,10 @@ export interface Settings {
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
   confirmExternal: boolean // all tiles: confirm before a link opens in the system browser
   allowExternalControl: boolean // app-wide: socket callers outside Tie terminals may run commands
+  'files.gitignore': boolean // file picker: the walk skips what git ignores
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false, 'files.gitignore': true }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -83,6 +84,7 @@ function sanitize(s: Settings): Settings {
     confirmExternal: typeof s.confirmExternal === 'boolean' ? s.confirmExternal : DEFAULTS.confirmExternal,
     // SECURITY: only a real true opens the socket to external callers.
     allowExternalControl: s.allowExternalControl === true,
+    'files.gitignore': typeof s['files.gitignore'] === 'boolean' ? s['files.gitignore'] : DEFAULTS['files.gitignore'],
   }
 }
 
@@ -153,5 +155,7 @@ export function validateSettings(s: Partial<Settings>): SettingsError[] {
   }
   if (s.terminalTitle !== undefined && !TERMINAL_TITLES.includes(s.terminalTitle))
     errors.push({ field: 'terminalTitle', message: `Unknown terminal title mode: ${String(s.terminalTitle)}` })
+  if (s['files.gitignore'] !== undefined && typeof s['files.gitignore'] !== 'boolean')
+    errors.push({ field: 'files.gitignore', message: `Not a boolean: files.gitignore = ${String(s['files.gitignore'])}` })
   return errors
 }

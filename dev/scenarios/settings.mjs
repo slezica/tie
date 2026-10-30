@@ -1,4 +1,4 @@
-// Settings: nav pages, theme + line height (live preview, cancel reverts), shell command.
+// Settings: nav pages, theme + line height (live preview, cancel reverts), shell command, Files page.
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
   await ctx.tie('move', '--tile', b, '--shelve')
@@ -95,6 +95,7 @@ export default async (ctx, h) => {
 
   await terminalTitle(ctx, h, open)
   await securityPage(ctx, h, open)
+  await filesPage(ctx, h, open)
 }
 
 // Terminal title setting: command (default: foreground program, program titles ignored) | auto
@@ -155,5 +156,22 @@ async function securityPage(ctx, h, open) {
   await ctx.page.check('#set-allow-external')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again'))
+}
 
+// Files page (after Terminal): "Respect .gitignore", default on; saved as files.gitignore.
+async function filesPage(ctx, h, open) {
+  await open()
+  const pages = await ctx.page.$$eval('.settings nav button', (bs) => bs.map((b) => b.dataset.page))
+  h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'terminal', 'files', 'security']), `pages: ${pages}`)
+  await ctx.page.locator('nav button[data-page="files"]').click()
+  h.assert(await ctx.page.isChecked('#set-gitignore'), 'gitignore on by default')
+  await ctx.shot('files-page')
+  await ctx.page.uncheck('#set-gitignore')
+  await ctx.page.locator('.save').click()
+  await ctx.page.waitForSelector('.settings', { state: 'detached' })
+  h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings['files.gitignore'] === false, 'files.gitignore saved off')
+  await open()
+  await ctx.page.locator('nav button[data-page="files"]').click()
+  h.assert(!(await ctx.page.isChecked('#set-gitignore')), 'gitignore off persisted')
+  await ctx.page.keyboard.press('Escape')
 }

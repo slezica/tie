@@ -1,5 +1,5 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
-// Pages: Appearance (app-wide look) | Terminal | Security (socket callers, links out).
+// Pages: Appearance (app-wide look) | Terminal | Files (picker) | Security (socket callers, links out).
 import { S, tie } from './state'
 import { refreshTitle } from './tile'
 import type { Settings } from '../preload'
@@ -35,6 +35,7 @@ export async function toggleSettings() {
         <button data-page="appearance">Appearance</button>
         <hr />
         <button data-page="terminal">Terminal</button>
+        <button data-page="files">Files</button>
         <button data-page="security">Security</button>
       </nav>
       <div class="pages">
@@ -86,6 +87,11 @@ export async function toggleSettings() {
           <label class="check"><input id="set-warn-control" type="checkbox" /> Confirm control characters <span class="scope">pastes and drops</span></label>
           <label class="check"><input id="set-warn-run" type="checkbox" /> Confirm pastes that would run commands <span class="scope">newlines, program without bracketed paste</span></label>
         </section>
+        <section data-page="files">
+          <h2>Files</h2>
+          <h3>Picker</h3>
+          <label class="check"><input id="set-gitignore" type="checkbox" /> Respect .gitignore <span class="scope">skip what git ignores when listing files</span></label>
+        </section>
         <section data-page="security">
           <h2>Security</h2>
           <h3>Control</h3>
@@ -116,6 +122,7 @@ export async function toggleSettings() {
   const warnRun = $<HTMLInputElement>('#set-warn-run')
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
   const allowExternal = $<HTMLInputElement>('#set-allow-external')
+  const gitignore = $<HTMLInputElement>('#set-gitignore')
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
   // Font list arrives async (system font query can be slow); fields never wait on it.
@@ -138,6 +145,7 @@ export async function toggleSettings() {
   warnRun.checked = settings.warnPasteRun
   confirmExternal.checked = settings.confirmExternal
   allowExternal.checked = settings.allowExternalControl
+  gitignore.checked = settings['files.gitignore']
   shell.placeholder = defaults.shell
 
   const swatches = () => {
@@ -158,6 +166,7 @@ export async function toggleSettings() {
     warnPasteRun: warnRun.checked,
     confirmExternal: confirmExternal.checked,
     allowExternalControl: allowExternal.checked,
+    'files.gitignore': gitignore.checked,
   })
   const preview = () => {
     swatches()
@@ -173,7 +182,7 @@ export async function toggleSettings() {
   const show = (p: string) => {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
-    ;(p === 'terminal' ? shell : p === 'security' ? allowExternal : themeSel).focus()
+    ;(p === 'terminal' ? shell : p === 'files' ? gitignore : p === 'security' ? allowExternal : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
 

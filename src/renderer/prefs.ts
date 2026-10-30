@@ -5,10 +5,12 @@ import type { Settings } from '../preload'
 export interface Prefs {
   confirmExternal: boolean // confirm before opening a link in the system browser
   terminalTitle: Settings['terminalTitle'] // what terminal titles show (kinds/terminal.ts)
+  gitignore: boolean // file picker walks skip what git ignores (setting `files.gitignore`)
 }
-export const prefs: Prefs = { confirmExternal: true, terminalTitle: 'command' }
+export const prefs: Prefs = { confirmExternal: true, terminalTitle: 'command', gitignore: true }
 
-export function applyPrefs(s: Pick<Settings, 'confirmExternal' | 'terminalTitle'>) {
+export function applyPrefs(s: Pick<Settings, 'confirmExternal' | 'terminalTitle' | 'files.gitignore'>) {
   prefs.confirmExternal = s.confirmExternal
   prefs.terminalTitle = s.terminalTitle
+  prefs.gitignore = s['files.gitignore']
 }
