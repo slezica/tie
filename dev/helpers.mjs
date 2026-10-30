@@ -330,8 +330,26 @@ export async function waitFor(ctx, fn, what, ms = 4000) {
 // `tie list --json` entry of a tile.
 export const tileOf = async (ctx, id) => (await list(ctx)).tiles.find((t) => t.id === id)
 
-// Next file picker answer in this harness instance (path, or null = cancel). Main, dev socket.
-export const pickNext = (ctx, path) => rpc(ctx.instance, 'pick', { path })
+// Next answer of the native file dialog (the picker's "…") in this harness instance (path, or null
+// = cancel). Main, dev socket `pick`.
+export const nativePickNext = (ctx, path) => rpc(ctx.instance, 'pick', { path })
+
+// Tie's file picker (renderer/picker.ts): once open, replace the line with `text` (an absolute path,
+// or a prefix + query), Enter, wait for it to close. A typed path naming a file opens that file.
+export async function pick(ctx, text, ms) {
+  await ctx.page.waitForSelector('#picker', { timeout: ms ?? 4000 })
+  await ctx.page.$eval('#picker-input', (e) => e.select())
+  await ctx.page.keyboard.insertText(text)
+  await ctx.page.keyboard.press('Enter')
+  await ctx.page.waitForSelector('#picker', { state: 'detached', timeout: ms ?? 4000 })
+}
+
+// Dismiss the open picker (Esc).
+export async function pickCancel(ctx, ms) {
+  await ctx.page.waitForSelector('#picker', { timeout: ms ?? 4000 })
+  await ctx.page.keyboard.press('Escape')
+  await ctx.page.waitForSelector('#picker', { state: 'detached', timeout: ms ?? 4000 })
+}
 
 // Resize the window (dev socket `window-size`); waits for the renderer to re-layout.
 export async function resizeWindow(ctx, w, h) {

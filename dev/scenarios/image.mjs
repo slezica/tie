@@ -56,10 +56,10 @@ export default async (ctx, h) => {
     h.assert((await view(b)).errors === 1 && (await h.contentFrame(ctx, b).then((f) => f.isVisible('#msg'))), 'broken image: message')
     h.assert(!(await h.tileOf(ctx, b)).error, 'tile itself fine')
 
-    // File template + picker (any file; kind by extension; harness answers).
+    // File template + picker (any file; kind by extension).
     const n = (await h.list(ctx)).tiles.length
-    await h.pickNext(ctx, png)
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, t0, 'b'))
+    await h.pick(ctx, png)
     await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length === 4 && (await h.list(ctx)).tiles.length === n + 1, 'template opens an image')
   } finally {
     rmSync(dir, { recursive: true, force: true })

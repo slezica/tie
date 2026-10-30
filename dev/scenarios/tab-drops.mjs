@@ -142,8 +142,8 @@ export default async (ctx, h) => {
 
   // File template onto a tab: picker, then the file there.
   const md = `${process.cwd()}/dev/samples/markdown.md`
-  await h.pickNext(ctx, md)
   await h.drag(ctx, await h.template(ctx, 'file'), await tabPoint(t2))
+  await h.pick(ctx, md)
   await h.waitFor(ctx, async () => (await L()).tiles.some((t) => t.kind === 'markdown' && t.tab === t2), 'markdown tile in tab 2')
   h.assert((await L()).tab === t2, 'file template: tab 2 shown')
 

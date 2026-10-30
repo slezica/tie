@@ -89,15 +89,14 @@ export default async (ctx, h) => {
 
     // File template + picker: answered → tile there (markdown by extension); cancelled → nothing.
     const n = (await tiles()).length
-    await h.pickNext(ctx, md2)
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
+    await h.pick(ctx, md2)
     const picked = await h.waitFor(ctx, async () => (await tiles()).length === n + 1 && (await mdTiles()).find((t) => t.active), 'picked file opens')
     await shows(picked.id, 'Other')
-    await h.pickNext(ctx, null)
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
-    await h.waitFor(ctx, async () => ctx.appLog().includes('picker (harness) cancel'), 'picker cancelled')
+    await h.pickCancel(ctx)
     await h.settle(ctx)
-    h.assert((await tiles()).length === n + 1 && ctx.appLog().includes('picker (harness) cancel'), 'cancel: no tile')
+    h.assert((await tiles()).length === n + 1, 'cancel: no tile')
     await ctx.shot('opened')
   } finally {
     rmSync(dir, { recursive: true, force: true })
