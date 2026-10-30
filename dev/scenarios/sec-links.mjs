@@ -8,7 +8,7 @@ export default async (ctx, h) => {
     const link = (url, text) => `printf '\\033]8;;${url}\\033\\\\${text}\\033]8;;\\033\\\\\\n'`
     await ctx.page.keyboard.type(`clear; ${link(p.url + '/osc', 'web-link')}; ${link('file:///etc/hosts', 'file-link')}`)
     await ctx.page.keyboard.press('Enter')
-    await ctx.sleep(500)
+    await h.waitText(ctx, (await h.list(ctx)).tiles[0].id, /web-link[\s\S]*file-link/)
     // Center of a word printed in the terminal (DOM renderer rows).
     const pointOf = (word) =>
       ctx.page.evaluate((word) => {
@@ -39,12 +39,10 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const strip = () => ctx.page.textContent(`.tile[data-id="${t0}"] .link-strip`).catch(() => null)
     await ctx.page.mouse.move(web.x, web.y)
-    await ctx.sleep(300)
-    h.assert((await strip())?.includes(p.url + '/osc'), `hover shows the full URL in the link strip (got ${await strip()})`)
+    await h.eventually(ctx, async () => h.assert((await strip())?.includes(p.url + '/osc'), `hover shows the full URL in the link strip (got ${await strip()})`))
     await ctx.shot('hover')
     await ctx.page.mouse.move(file.x, file.y)
-    await ctx.sleep(300)
-    h.assert(/^Blocked link: file:\/\/\/etc\/hosts/.test((await strip()) ?? ''), `blocked scheme shown as blocked (got ${await strip()})`)
+    await h.eventually(ctx, async () => h.assert(/^Blocked link: file:\/\/\/etc\/hosts/.test((await strip()) ?? ''), `blocked scheme shown as blocked (got ${await strip()})`))
 
     await ctx.page.keyboard.down('Meta')
     await ctx.page.mouse.click(file.x, file.y)

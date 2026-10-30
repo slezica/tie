@@ -24,12 +24,12 @@ export default async (ctx, h) => {
     await h.hoverShelf(ctx, id)
     const p = await center(id)
     await page.mouse.move(p.x, p.y, { steps: 25 })
-    await ctx.sleep(300)
+    await h.settle(ctx)
     return p
   }
   const away = async () => {
     await page.mouse.move(60, 300, { steps: 10 })
-    await ctx.sleep(200)
+    await h.settle(ctx)
   }
 
   const dir = join(ROOT, 'tmp', `shelf-reveal-${process.pid}`)
@@ -41,7 +41,9 @@ export default async (ctx, h) => {
     const c = (await ctx.tie('add', 'terminal', '--shelve')).id
     const md = (await ctx.tie('add', join(dir, 'doc.md'), '--shelve')).id
     const w = (await ctx.tie('add', s.url + '/', '--shelve')).id
-    await ctx.sleep(1500)
+    await h.waitShell(ctx, c)
+    await h.waitTile(ctx, md, (t) => t.doc?.rev, 'markdown loaded')
+    await h.waitTile(ctx, w, (t) => t.web?.ready && !t.web.loading, 'guest loaded')
 
     // Terminal: hover the item, move into the reveal: kept, takes the pointer, not the keys.
     let p = await into(c)
@@ -56,9 +58,10 @@ export default async (ctx, h) => {
 
     // Click inside: pins + activates; typing reaches its terminal; the pin survives leaving.
     await page.mouse.click(p.x, p.y)
-    await ctx.sleep(200)
-    l = await L()
-    h.assert((await info(c)).pinned && l.active === c, 'click in hover reveal pins + activates')
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert((await info(c)).pinned && l.active === c, 'click in hover reveal pins + activates')
+    })
     await page.keyboard.type('echo reveal-$((6*7))\n')
     await h.waitFor(ctx, async () => (await h.screen(ctx, c)).includes('reveal-42'), 'typed into the revealed terminal')
     await away()
@@ -74,16 +77,15 @@ export default async (ctx, h) => {
     p = await into(c)
     const it = await h.shelfItem(ctx, c)
     await page.mouse.move(it.x, it.y, { steps: 15 })
-    await ctx.sleep(150)
+    await h.settle(ctx)
     h.assert((await revealed()) === c, 'back across the band to the item: kept')
     await page.mouse.move(it.x - 200, it.y, { steps: 6 })
-    await ctx.sleep(200)
-    h.assert((await revealed()) === null, 'along the toolbar, off the item: dismissed')
+    await h.eventually(ctx, async () => h.assert((await revealed()) === null, 'along the toolbar, off the item: dismissed'))
 
     // Markdown (content frame): kept while the pointer is over the frame; a click inside pins.
     p = await into(md)
     await page.mouse.move(p.x + 40, p.y + 30, { steps: 5 })
-    await ctx.sleep(300)
+    await h.settle(ctx)
     h.assert((await revealed()) === md, 'markdown reveal kept over its frame')
     await away()
     h.assert((await revealed()) === null, 'leaving the frame and the reveal dismisses')
@@ -94,9 +96,10 @@ export default async (ctx, h) => {
     await ctx.shot('markdown-pinned')
     const mp = await center(md)
     await page.mouse.click(60, 300) // click outside: terminal a
-    await ctx.sleep(200)
-    l = await L()
-    h.assert(l.active === a && (await info(md)).pinned, `outside click activates a, pin stays (active ${l.active})`)
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert(l.active === a && (await info(md)).pinned, `outside click activates a, pin stays (active ${l.active})`)
+    })
     h.assert((await under(mp.x, mp.y)) === md, 'pinned markdown stays on top')
     await h.clickButton(ctx, md, 'pin') // Unpin
     l = await L()
@@ -106,12 +109,13 @@ export default async (ctx, h) => {
     // Browser (guest): kept over the guest; a real click inside pins.
     p = await into(w)
     await page.mouse.move(p.x - 30, p.y + 20, { steps: 5 })
-    await ctx.sleep(300)
+    await h.settle(ctx)
     h.assert((await revealed()) === w, 'browser reveal kept over its guest')
     await page.mouse.click(p.x - 30, p.y + 20)
-    await ctx.sleep(400)
-    l = await L()
-    h.assert((await info(w)).pinned && l.active === w, `click in browser reveal pins + activates (active ${l.active})`)
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert((await info(w)).pinned && l.active === w, `click in browser reveal pins + activates (active ${l.active})`)
+    })
     await h.pin(ctx, w)
     h.assert(!(await info(w)).pinned, 'unpinned')
     await away()
@@ -130,26 +134,28 @@ export default async (ctx, h) => {
     await away()
     // Pin survives focus keys, tie focus of a board tile, and a click on a board terminal.
     await h.press(ctx, 'Meta+ArrowLeft')
-    await ctx.sleep(200)
-    l = await L()
-    h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, `focus key: a active, pin stays on top (active ${l.active})`)
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, `focus key: a active, pin stays on top (active ${l.active})`)
+    })
     await page.mouse.click(p.x, p.y) // back into the pinned reveal
-    await ctx.sleep(200)
-    h.assert((await L()).active === c, 'click in pinned reveal activates it')
+    await h.eventually(ctx, async () => h.assert((await L()).active === c, 'click in pinned reveal activates it'))
     await ctx.tie('focus', a)
-    await ctx.sleep(200)
-    l = await L()
-    h.assert(l.active === a && (await info(c)).pinned, 'tie focus of a board tile keeps the pin')
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert(l.active === a && (await info(c)).pinned, 'tie focus of a board tile keeps the pin')
+    })
     await page.mouse.click(p.x, p.y)
-    await ctx.sleep(200)
+    await h.waitActive(ctx, c)
     await page.mouse.click(60, 300) // terminal a
-    await ctx.sleep(200)
-    l = await L()
-    h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, 'click on a board terminal: pin stays on top')
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert(l.active === a && (await info(c)).pinned && (await under(p.x, p.y)) === c, 'click on a board terminal: pin stays on top')
+    })
     await page.keyboard.type('echo after-pin\n')
     await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('after-pin'), 'keys go to the clicked terminal')
     await page.mouse.click(p.x, p.y)
-    await ctx.sleep(200)
+    await h.waitActive(ctx, c)
     await h.clickButton(ctx, c, 'pin') // Unpin while active: focus moves back to the board
     l = await L()
     h.assert(!(await info(c)).pinned && l.active === a, `Unpin button unpins, focusNext (active ${l.active})`)
@@ -159,8 +165,7 @@ export default async (ctx, h) => {
     p = await into(c)
     const vw = await page.evaluate(() => window.innerWidth)
     await page.mouse.move(vw + 20, p.y, { steps: 8 })
-    await ctx.sleep(200)
-    h.assert((await revealed()) === null, 'leaving the window dismisses')
+    await h.eventually(ctx, async () => h.assert((await revealed()) === null, 'leaving the window dismisses'))
     await away()
     // The document reporting the pointer gone while it is in the band (the toolbar strip between
     // item and board is a window drag region: macOS takes the pointer there) keeps the reveal.
@@ -168,11 +173,10 @@ export default async (ctx, h) => {
     const it2 = await h.shelfItem(ctx, c)
     const rr = await h.rectOf(ctx, c)
     await page.evaluate(([x, y]) => document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { clientX: x, clientY: y })), [it2.x, (rr.y + rr.h + it2.y) / 2])
-    await ctx.sleep(100)
+    await h.settle(ctx)
     h.assert((await revealed()) === c, 'document pointerleave inside the band (drag region) keeps the reveal')
     await page.evaluate(([x, y]) => document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { clientX: x, clientY: y })), [it2.x - 200, it2.y])
-    await ctx.sleep(100)
-    h.assert((await revealed()) === null, 'document pointerleave outside the zone dismisses')
+    await h.eventually(ctx, async () => h.assert((await revealed()) === null, 'document pointerleave outside the zone dismisses'))
     await away()
 
     // Above a zoomed tile; the pin survives keyboard focus moving off it.
@@ -180,11 +184,12 @@ export default async (ctx, h) => {
     p = await into(c)
     h.assert((await under(p.x, p.y)) === c, 'hover reveal above the zoomed tile')
     await page.mouse.click(p.x, p.y)
-    await ctx.sleep(200)
+    await h.waitActive(ctx, c)
     await h.press(ctx, 'Meta+ArrowLeft')
-    await ctx.sleep(200)
-    l = await L()
-    h.assert(l.active === a && (await info(a)).zoomed, `focus key moves to the zoomed tile (active ${l.active})`)
+    await h.eventually(ctx, async () => {
+      l = await L()
+      h.assert(l.active === a && (await info(a)).zoomed, `focus key moves to the zoomed tile (active ${l.active})`)
+    })
     h.assert((await info(c)).pinned && (await under(p.x, p.y)) === c, 'pinned reveal stays on top after a focus change')
     await ctx.shot('pinned-over-zoomed')
   } finally {

@@ -13,22 +13,21 @@ export default async (ctx, h) => {
   // Click on collapsed bar expands.
   const ra = await h.rectOf(ctx, a)
   await ctx.page.mouse.click(ra.x + ra.w / 2, ra.y + 200)
-  await ctx.sleep(150)
-  h.assert(!(await h.list(ctx)).tiles.find((t) => t.id === a).collapsed, 'click expands')
+  await h.eventually(ctx, async () => h.assert(!(await h.list(ctx)).tiles.find((t) => t.id === a).collapsed, 'click expands'))
   await h.clickButton(ctx, c, 'zoom')
   h.assert((await h.list(ctx)).tiles.find((t) => t.id === c).zoomed, 'zoomed')
   await ctx.shot('zoomed')
   const p = await h.titlePoint(ctx, c)
   await ctx.page.mouse.dblclick(p.x, p.y)
-  await ctx.sleep(150)
-  h.assert(!(await h.list(ctx)).tiles.find((t) => t.id === c).zoomed, 'dblclick unzooms')
+  await h.eventually(ctx, async () => h.assert(!(await h.list(ctx)).tiles.find((t) => t.id === c).zoomed, 'dblclick unzooms'))
 
   // A newly active board tile is never left under a zoomed one.
   await h.clickButton(ctx, c, 'zoom')
   await h.press(ctx, 'Meta+d')
-  await ctx.sleep(1200)
-  let s = await ctx.tie('state')
-  h.assert(s.active !== c && !s.zoomed, `split while zoomed unzooms (zoomed=${s.zoomed}, active=${s.active})`)
+  await h.eventually(ctx, async () => {
+    const s = await ctx.tie('state')
+    h.assert(s.active !== c && !s.zoomed, `split while zoomed unzooms (zoomed=${s.zoomed}, active=${s.active})`)
+  })
   await h.clickButton(ctx, a, 'zoom')
   await ctx.tie('focus', b)
   h.assert(!(await ctx.tie('state')).zoomed, 'tie focus unzooms')
@@ -36,26 +35,24 @@ export default async (ctx, h) => {
   // Focusing a collapsed tile: keys must not keep going to the previous terminal.
   const txt = (id) => ctx.page.$eval(`.tile[data-id="${id}"] .xterm-rows`, (e) => e.textContent)
   const x = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
-  await ctx.sleep(800)
+  await h.waitShell(ctx, x)
   await h.clickButton(ctx, x, 'collapse')
   await ctx.tie('focus', a)
   await h.press(ctx, 'Meta+ArrowRight')
-  await ctx.sleep(200)
-  h.assert((await h.list(ctx)).active === x, 'collapsed tile active')
+  await h.eventually(ctx, async () => h.assert((await h.list(ctx)).active === x, 'collapsed tile active'))
   await ctx.page.keyboard.type('echo TYPED_INTO\n')
-  await ctx.sleep(500)
+  await h.waitText(ctx, x, 'TYPED_INTO').catch(() => null) // where the keys belong; then: not in a
   h.assert(!(await txt(a)).includes('TYPED_INTO'), 'keys not sent to previous tile')
 
   // A collapsed tile left alone on the board drops its collapse (fresh tab: just its terminal).
   await h.press(ctx, 'Meta+t')
-  await ctx.sleep(300)
+  await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === 2, 'new tab')
   const lone = (await h.list(ctx)).active
   const q = (await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')).id
-  await ctx.sleep(300)
+  await h.settle(ctx)
   await h.clickButton(ctx, lone, 'collapse')
   await ctx.tie('close', q)
   h.assert(!(await ctx.tie('state')).collapsed.includes(lone), 'sole tile not collapsed')
   await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')
-  await ctx.sleep(300)
-  h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split')
+  await h.eventually(ctx, async () => h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split'))
 }

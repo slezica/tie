@@ -60,7 +60,7 @@ export default async (ctx, h) => {
 
     // Real click on a link (other tile active): navigates; the click activates the tile.
     await ctx.tie('focus', t0)
-    await ctx.sleep(200)
+    await h.waitActive(ctx, t0)
     const r = await h.rectOf(ctx, b)
     const box = await g.locator('#two').boundingBox()
     const body = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
@@ -96,7 +96,7 @@ export default async (ctx, h) => {
     h.assert(split.kind === 'terminal', `split is a terminal: ${split.kind}`)
     await ctx.tie('close', split.id)
     await ctx.tie('focus', b)
-    await ctx.sleep(200)
+    await h.waitActive(ctx, b)
 
     // Location bar: cmd+L (from the guest) focuses it; a typed URL loads; junk is refused.
     await h.guestKey(ctx, b, 'Meta+l')
@@ -123,19 +123,23 @@ export default async (ctx, h) => {
 
     // Another tab and back; shelved and back: same page, no reload.
     const three = hits('/three')
+    const L = () => h.list(ctx)
     await h.press(ctx, 'Meta+t')
-    await ctx.sleep(300)
+    await h.waitFor(ctx, async () => (await L()).tabs.length === 2 && (await L()).tab !== (await h.tileOf(ctx, b)).tab, 'new tab shown')
     await h.press(ctx, 'Meta+1')
-    await ctx.sleep(300)
+    await h.waitFor(ctx, async () => (await L()).tab === (await h.tileOf(ctx, b)).tab, 'back to tab 1')
     await ctx.tie('move', b, '--shelve')
-    await ctx.sleep(300)
+    await h.settle(ctx)
     await ctx.tie('move', b, '--at', t0, '--side', 'r')
-    await ctx.sleep(300)
+    await h.settle(ctx)
     g = await h.guestPage(ctx, b)
+    await ctx.sleep(300) // absence: no reload follows the moves
     h.assert((await g.evaluate(() => document.querySelector('h1').textContent)) === 'three' && hits('/three') === three, 'tab switch / shelve keep the page')
-    const rb = await h.rectOf(ctx, b)
-    const wv = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
-    h.assert(Math.abs(wv.width - (rb.w - 2)) < 4 && wv.height > rb.h - 80, `webview fills the body after moves: ${JSON.stringify(wv)} in ${JSON.stringify(rb)}`)
+    await h.eventually(ctx, async () => {
+      const rb = await h.rectOf(ctx, b)
+      const wv = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
+      h.assert(Math.abs(wv.width - (rb.w - 2)) < 4 && wv.height > rb.h - 80, `webview fills the body after moves: ${JSON.stringify(wv)} in ${JSON.stringify(rb)}`)
+    })
     await ctx.shot('three')
 
     // Browser template: empty tile, location focused; typed bare host:port → https:// (refused by
@@ -156,7 +160,8 @@ export default async (ctx, h) => {
     const rr = await h.rectOf(ctx, red)
     h.assert((await pixel(ctx, rr.x + rr.w / 2, rr.y + rr.h / 2))[0] > 200, 'guest paints (red)')
     await ctx.page.mouse.click(rr.x + 60, rr.y + 15, { button: 'right' })
-    await ctx.sleep(300)
+    await ctx.page.waitForSelector('.menu')
+    await h.settle(ctx)
     const mb = (await h.boxOf(ctx, '.menu')).box
     h.assert(mb.y + mb.height > rr.y + 60, 'menu reaches over the guest')
     const pm = await pixel(ctx, mb.x + mb.width / 2, mb.y + mb.height - 4)

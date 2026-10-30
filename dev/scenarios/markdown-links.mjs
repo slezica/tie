@@ -43,7 +43,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, shows('B'), 'forward')
     h.assert(JSON.stringify((await doc()).history) === '{"index":1,"length":2}', `history ${JSON.stringify((await doc()).history)}`)
     await h.press(ctx, 'Meta+]') // at the end: nothing
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: no navigation
     h.assert((await doc()).path.endsWith('/b.md'), 'forward at the end: no-op')
     await h.press(ctx, 'Meta+[')
     await h.waitFor(ctx, shows('A'), 'back again')
@@ -68,9 +68,12 @@ export default async (ctx, h) => {
 
     // Keyboard scroll in the focused frame.
     await ctx.page.keyboard.press('PageDown')
-    await ctx.sleep(300)
-    h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame')
+    await h.eventually(ctx, async () => h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame'))
+    // Smooth scroll over (same position twice), else it carries on past the reset.
+    let y = -1
+    await h.waitFor(ctx, async () => y === (y = (await h.mdState(ctx, id)).scrollY), 'PageDown scroll ends')
     await (await fr()).evaluate(() => scrollTo(0, 0))
+    await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).scrollY === 0, 'scrolled back to the top')
 
     // A file outside the document's folder: asks first (full path shown); Cancel → nothing; Open →
     // the same tile (same kind).
@@ -78,7 +81,8 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'outside link: confirm dialog')
     h.assert((await ctx.page.textContent('.dialog.open-file .url')) === outside && (await ctx.page.evaluate(() => document.activeElement?.className)).includes('cancel'), 'path shown, Cancel focused')
     await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(300)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(300) // absence: Cancel opens nothing
     h.assert((await doc()).path.endsWith('/a.md') && (await count()) === 2, 'Cancel: nothing opened')
     await h.clickIn(ctx, await fr(), 'a >> text=up')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'outside link: dialog again')
@@ -133,7 +137,7 @@ export default async (ctx, h) => {
     // History keys on a terminal: nothing.
     await ctx.tie('focus', t0)
     await h.press(ctx, 'Meta+[')
-    await ctx.sleep(300)
+    await ctx.sleep(300) // absence: no navigation
     h.assert((await count()) === 3, 'cmd+[ on a terminal: no-op')
     await ctx.shot('links')
   } finally {

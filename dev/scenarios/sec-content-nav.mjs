@@ -28,20 +28,19 @@ export default async (ctx, h) => {
 
     // Its own viewer: loads, script runs.
     await frame(url)
-    await ctx.sleep(800)
-    const [v] = viewerIn()
-    h.assert(v && (await v.evaluate(() => typeof window.probe)) === 'object', `viewer loads (frames: ${page.frames().map((f) => f.url())})`)
+    await h.eventually(ctx, async () => {
+      const [v] = viewerIn()
+      h.assert(v && (await v.evaluate(() => typeof window.probe)) === 'object', `viewer loads (frames: ${page.frames().map((f) => f.url())})`)
+    }, 8000)
 
     // Not registered, or not the viewer page, or a second frame for the same token: refused.
     const other = 'f'.repeat(32) // all digits would parse as an IPv4 host
     for (const u of [`tie-content://${other}/_tie/probe.html`, `tie-content://${token}/_tie/probe.js`, `tie-content://${token}/package.json`]) {
       await frame(u)
-      await ctx.sleep(400)
-      h.assert(blocked(u), `refused frame ${u}`)
+      await h.eventually(ctx, async () => h.assert(blocked(u), `refused frame ${u}`))
     }
     await frame(url)
-    await ctx.sleep(400)
-    h.assert(viewerIn().length === 1 && blocked(url), 'second frame for the same token refused')
+    await h.eventually(ctx, async () => h.assert(viewerIn().length === 1 && blocked(url), 'second frame for the same token refused'))
 
     // From inside: no navigation away (location, meta refresh, link), not even to its own files.
     // UI CSP (frame-src) or the nav lock refuses; the frame may end on an error page (it only
@@ -49,11 +48,12 @@ export default async (ctx, h) => {
     const tryIn = async (what, fn, arg) => {
       const { token, url } = await page.evaluate((root) => window.tie.content.open(root, 'probe'), root)
       await frame(url)
-      await ctx.sleep(600)
-      const f = page.frames().find((f) => f.url() === url)
-      h.assert(f, `${what}: viewer loaded`)
+      const f = await h.waitFor(ctx, async () => {
+        const f = page.frames().find((f) => f.url() === url)
+        return f && (await f.evaluate(() => typeof window.probe === 'object')) && f
+      }, `${what}: viewer loaded`, 8000)
       await f.evaluate(fn, { u: p.url, token }).catch(() => {})
-      await ctx.sleep(500)
+      await ctx.sleep(500) // absence: the attempt must not take the frame anywhere
       const now = f.isDetached() ? '(detached)' : f.url()
       h.assert(now === url || now.startsWith('chrome-error:'), `${what}: frame reached ${now}`)
     }
