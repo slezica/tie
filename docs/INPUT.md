@@ -44,6 +44,7 @@
 | Chord | Action |
 |---|---|
 | `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
+| `cmd+O` / `cmd+shift+O` | Open a file (picker) right / down of the active tile: the `file` template's drop, by key |
 | `cmd+←/→/↑/↓` | Focus neighbor |
 | `cmd+shift+←/→/↑/↓` | Swap the active tile with the neighbor `cmd+arrows` would focus (`swap`, `LAYOUT.md`); stays active. No neighbor: no-op |
 | `cmd+S` | Shelve the active tile; a shown (pinned / revealed) shelved active tile: back on the board beside the active / recent slotted tile (`besidePlacement`). Nothing active: no-op |
@@ -65,6 +66,7 @@
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
+- Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the default directory); active tile not slotted → no-op. Picker starts in the active tile's cwd (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
 - Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 

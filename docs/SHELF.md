@@ -5,7 +5,7 @@ The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === '
 Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; each a `GLYPH` SVG: prompt, folder, globe), not part of the shelf.
 
 - Template: drag onto board → new tile there (next to a tile: starts in its shell's cwd); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
-- `file` template: the drop opens a file picker first (any file; starts in the target tile's directory); cancel → no tile. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
+- `file` template: the drop opens a file picker first (any file; starts in the target tile's directory); cancel → no tile. By key: `cmd+O` / `cmd+shift+O` (`INPUT.md`). Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
 - Item: icon only (`displayIcon`, `TERMINALS.md`: built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
 - Right-click item: tile menu (`INPUT.md`).
