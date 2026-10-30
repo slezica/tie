@@ -224,6 +224,27 @@ function call(method, params = {}, { hold = false } = {}) {
 const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'set', 'ping']
 // Single-letter aliases (first letters, unique). Option flags have none.
 const ALIASES = Object.fromEntries(COMMANDS.map((c) => [c[0], c]))
+// Per command: accepted options and max positional arguments. Anything else is refused.
+const PLACE = ['at', 'side', 'float', 'shelve', 'shelved', 'tab', 'focus']
+const OPEN = ['cmd', 'cwd', 'title', 'icon', ...PLACE]
+const SPEC = {
+  list: { opts: [], args: 0 },
+  add: { opts: OPEN, args: 2 },
+  replace: { opts: OPEN, args: 2 },
+  close: { opts: ['tile'], args: 0 },
+  move: { opts: ['tile', 'swap', ...PLACE], args: 0 },
+  focus: { opts: ['tile'], args: 0 },
+  set: { opts: ['tile', 'title', 'icon'], args: 0 },
+  ping: { opts: ['tile', 'clear'], args: 0 },
+  frames: { opts: [], args: 0 },
+  state: { opts: [], args: 0 },
+}
+function check(cmd, rest) {
+  const spec = SPEC[cmd]
+  if (!spec) return
+  for (const k of Object.keys(flags)) if (!['json', 'help'].includes(k) && !spec.opts.includes(k)) die(`unknown option --${k} for ${cmd} (see tie --help)`)
+  if (rest.length > spec.args) die(`unexpected argument: ${rest[spec.args]}`)
+}
 const pad = (s, n) => String(s).padEnd(n)
 function printTile(t) {
   if (flags.json) console.log(JSON.stringify(t, null, 2))
@@ -234,8 +255,7 @@ async function main() {
   const [given, ...rest] = pos
   if (!given || flags.help) return console.log(HELP)
   const cmd = ALIASES[given] ?? given
-  // Tile commands: the tile is --tile (default: the caller); no positional arguments.
-  const noArgs = () => rest.length && die(`unexpected argument: ${rest[0]}`)
+  check(cmd, rest)
   const id = flags.tile
   const place = { at: flags.at, side: flags.side, float: flags.float, shelve: flags.shelve, shelved: flags.shelved, tab: flags.tab, focus: flags.focus }
 
@@ -262,24 +282,20 @@ async function main() {
       const open = (p) => call(cmd, { ...p, ...common }, { hold: replace })
       if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await open({ url: rest[0] }))
       if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await open({ kind: 'browser', url: rest[1] }))
+      if (rest.length > 1) die(`unexpected argument: ${rest[1]}`)
       const kind = rest[0] || 'terminal'
       const path = rest[0] ? resolve(rest[0]) : undefined
       return printTile(await open({ kind, path }))
     }
     case 'close':
-      noArgs()
       return void (await call('close', { id }))
     case 'move':
-      noArgs()
       return printTile(await call('move', { id, swap: flags.swap, ...place }))
     case 'ping':
-      noArgs()
       return printTile(await call('ping', { id, clear: flags.clear }))
     case 'focus':
-      noArgs()
       return printTile(await call('focus', { id }))
     case 'set':
-      noArgs()
       if (flags.title === undefined && flags.icon === undefined) die('set needs --title or --icon')
       return printTile(await call('set', { id, title: flags.title, icon: flags.icon }))
     case 'frames': // dev: window frame tree (url, origin, pid, out-of-process)

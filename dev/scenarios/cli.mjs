@@ -70,6 +70,11 @@ export default async (ctx, h) => {
   h.assert((await fails('ping', a))?.includes(`unexpected argument: ${a}`), 'positional id refused')
   h.assert((await fails('close'))?.includes('no current tile: use --tile <id>'), 'no current tile')
   h.assert((await fails('focus', '--tile', 'tzzzzzz'))?.includes('no such tile: tzzzzzz'), 'unknown --tile')
+  // Invalid arguments are refused everywhere: stray positionals, options of another command, unknown options.
+  h.assert((await fails('list', 'x'))?.includes('unexpected argument: x'), 'list: positional refused')
+  h.assert((await fails('add', 'terminal', 'x'))?.includes('unexpected argument: x'), 'add: extra positional refused')
+  h.assert((await fails('close', '--tile', a, '--clear'))?.includes('unknown option --clear for close'), 'close: option of another command refused')
+  h.assert((await fails('add', 'terminal', '--bogus', '1'))?.includes('unknown option --bogus for add'), 'add: unknown option refused')
 
   // add --icon, single-letter aliases (l a c), entropic ids.
   const ai = await ctx.tie('a', 'terminal', '--shelved', '--title', 'iconed', '--icon', '🧪')

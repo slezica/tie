@@ -42,6 +42,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - `--tile <id>` (`close`, `move`, `focus`, `ping`, `set`): the tile acted on. Default: the caller (`caller`, by lineage). No positional id: a stray argument → `unexpected argument: <arg>`. No `--tile` and no caller tile (external caller, or a stale `TIE_TILE`) → `no current tile: use --tile <id>`; an unknown `--tile` → `no such tile: <id>`.
 - `set`: at least one of `--title` / `--icon` (else `set needs --title or --icon`); only the given fields change. `""` restores the automatic value (general rule for properties). Multi-word values need quotes.
 - `--json`: full `TileInfo` instead of the id. Errors: stderr, exit 1.
+- Arguments are checked per command (`SPEC` in `bin/tie`): a positional beyond the command's (`list`, tile commands: none; `add`/`replace`: the thing, plus a URL after `browser`) → `unexpected argument: <x>`; an option the command doesn't take → `unknown option --<x> for <cmd>`. Both exit 1.
 - Unknown command (e.g. `open`, the old name of `add`): `unknown command: <cmd> (commands: ...; see tie --help)`, exit 1.
 
 ## Placement (`add`, `move`)
