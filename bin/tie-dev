@@ -19,7 +19,9 @@ Commands:
   status                   Show instance info (pid, socket, debug port)
   logs [-f]                Show instance log (enable tags with TIE_DEBUG=layout,shelf,pty,rpc or *)
   test --unit              Unit tests (vitest)
-  test --e2e               Run every scenario in dev/scenarios on fresh instances
+  test --e2e [--jobs N] [names|globs...]
+                           Scenarios on fresh instances, N at a time (default 4, TIE_JOBS); names or globs
+                           (e.g. 'sec-*' shelf* cli-replace) select, none = all
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
@@ -149,21 +151,10 @@ case "$cmd" in
     case "${1:-}" in
       --unit) shift; exec npx vitest run "$@" ;;
       --e2e)
+        shift
         if needs_build; then build; fi
-        fail=0
-        run="$RUNS/$(date +%Y%m%d-%H%M%S)-e2e"
-        mkdir -p "$run"
-        for s in dev/scenarios/*.mjs; do
-          name="$(basename "$s" .mjs)"
-          if TIE_RUN_DIR="$run/$name" node dev/drive.mjs "$s" >/dev/null 2>&1; then line="ok   $name"
-          else line="FAIL $name ($run/$name/)"; fail=1; fi
-          leaked="$(sed -n 's/^ptys=//p' "$run/$name/drive.log" 2>/dev/null || true)"
-          [[ "${leaked:-0}" -gt 0 ]] && line="$line (ptys +$leaked)"
-          echo "$line" | tee -a "$run/summary.txt"
-        done
-        echo "trace: $run"
-        exit $fail ;;
-      *) echo "test --unit | --e2e"; exit 1 ;;
+        exec node dev/e2e.mjs "$@" ;;
+      *) echo "test --unit | --e2e [--jobs N] [names|globs...]"; exit 1 ;;
     esac ;;
   typecheck)
     exec npx tsc --noEmit -p tsconfig.json ;;

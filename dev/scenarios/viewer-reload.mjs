@@ -5,6 +5,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
 
+// Rewrites out/viewers/markdown.html, which every instance serves: run alone (test --e2e).
+export const exclusive = true
+
 export default async (ctx, h) => {
   const page = join(ROOT, 'out/viewers/markdown.html')
   const original = readFileSync(page, 'utf8')

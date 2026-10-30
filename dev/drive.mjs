@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, sleep, tie, connectPage, launch, plainLog, ptys } from './lib.mjs'
+import { ROOT, sleep, tie, connectPage, launch, plainLog, leftovers, leakedPtys } from './lib.mjs'
 import * as helpers from './helpers.mjs'
 
 const args = process.argv.slice(2)
@@ -54,7 +54,6 @@ for (const k of ['log', 'error']) {
     orig(...a)
   }
 }
-const ptys0 = ptys()
 const fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
 const instance = fresh?.instance ?? (process.env.TIE_INSTANCE || 'dev')
 const shotDir = join(runDir, 'shots')
@@ -96,9 +95,12 @@ try {
   await browser?.close().catch(() => {})
   if (fresh && !keep) {
     await fresh.stop()
-    // ptys left behind after the instance is gone: a leak in Tie, or the wedge (`tie-dev ptys`).
-    const leaked = ptys() - ptys0
-    appendFileSync(join(runDir, 'drive.log'), `ptys=${leaked}\n`)
+    // ptys left behind after the instance is gone: its terminal processes still alive (a leak in
+    // Tie) or stuck spawn-helpers (the wedge, `tie-dev ptys`). This instance's only: parallel runs.
+    let left = leftovers(instance)
+    for (let i = 0; i < 20 && left.length; i++) (await sleep(100), (left = leftovers(instance)))
+    const leaked = leakedPtys(left)
+    appendFileSync(join(runDir, 'drive.log'), `ptys=${leaked}\n` + left.map((p) => `  left: ${p.pid} ${p.tty} ${p.command.slice(0, 80)}\n`).join(''))
     if (leaked > 0) console.error(`ptys leaked: +${leaked}`)
   }
   if (fresh && keep) console.log(`kept instance: ${instance}`)

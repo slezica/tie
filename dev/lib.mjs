@@ -197,3 +197,21 @@ import { readdirSync } from 'node:fs'
 export function ptys() {
   return readdirSync('/dev').filter((n) => n.startsWith('ttys')).length
 }
+
+// Processes of an instance still alive (environment TIE_INSTANCE=<instance>: every terminal's
+// processes inherit it), from `ps eww`. After stop: terminal processes left behind (holding a pty) or
+// spawn-helpers stuck in the kernel (the pty wedge). Per instance: parallel runs don't disturb it.
+// Electron's own helpers (no tty) may linger a moment and are not counted.
+import { execFileSync } from 'node:child_process'
+export function leftovers(instance) {
+  const out = execFileSync('ps', ['eww', '-o', 'pid=,tty=,command=', '-U', String(process.getuid())], { encoding: 'utf8', maxBuffer: 64 << 20 })
+  const mark = ` TIE_INSTANCE=${instance} `
+  return out
+    .split('\n')
+    .filter((l) => `${l} `.includes(mark))
+    .map((l) => /^\s*(\d+)\s+(\S+)\s+(.*)$/.exec(l))
+    .filter((m) => m && (m[2] !== '??' || m[3].includes('spawn-helper')))
+    .map((m) => ({ pid: Number(m[1]), tty: m[2], command: m[3].slice(0, 120) }))
+}
+// Ptys an instance left behind: distinct ttys of its leftover processes (each stuck spawn-helper: one).
+export const leakedPtys = (procs) => new Set(procs.map((p) => (p.tty === '??' ? `helper-${p.pid}` : p.tty))).size
