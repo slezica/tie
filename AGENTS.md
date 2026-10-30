@@ -86,7 +86,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`), `helpers.mjs` (incl. `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*`; `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `electron-check.mjs`, `drive.mjs` (runner), `e2e.mjs` (`test --e2e`: parallel, selection), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 - `patches/`: `patch-package` patches applied at install (`node-pty`: disclaimed spawn).
 
@@ -138,6 +138,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the UI realm; socket callers by kernel lineage (`@core/callers`), never `TIE_TILE`; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
 - Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
+- Harness runs: after a change, only the scenarios of the feature worked on (`test --e2e <names|globs>`) + `test --unit` + `typecheck`. Full `test --e2e` only when specifically needed (shared harness / `lib.mjs`, layout core, handing back a large refactor) and for release prep (`tie-dev release` runs it).
+- Scenarios wait, never sleep for something observable: `h.eventually`, `h.wait*` (`HARNESS.md`); a `ctx.sleep` only for "nothing happens" / debounce, commented.
 - Harness shortcuts: `h.press(ctx, 'Meta+d')` (through main); `ctx.page.keyboard` only for typing. Frame and guest input (real clicks): `export const hiddenWindow = true`. Clicks into content frames: `h.clickIn` (Playwright `evaluate` carries a user gesture: test gesture-less script behaviour from page timers). Guest keys: `h.guestKey(ctx, id, 'Meta+d')`.
 
 ## Toolkit
@@ -155,7 +157,9 @@ Commands:
   status                   Show instance info (pid, socket, debug port)
   logs [-f]                Show instance log (enable tags with TIE_DEBUG=layout,shelf,pty,rpc or *)
   test --unit              Unit tests (vitest)
-  test --e2e               Run every scenario in dev/scenarios on fresh instances
+  test --e2e [--jobs N] [names|globs...]
+                           Scenarios on fresh instances, N at a time (default 4, TIE_JOBS); names or globs
+                           (e.g. 'sec-*' shelf* cli-replace) select, none = all
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
