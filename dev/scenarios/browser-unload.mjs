@@ -38,7 +38,7 @@ export default async (ctx, h) => {
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const open = async () => {
-      const id = (await ctx.tie('open', s.url + '/form', '--at', t0, '--side', 'r', '--focus')).id
+      const id = (await ctx.tie('add', s.url + '/form', '--at', t0, '--side', 'r', '--focus')).id
       await touch(id)
       return id
     }

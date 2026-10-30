@@ -36,7 +36,7 @@ export default async (ctx, h) => {
   writeFileSync(f, doc)
   try {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', f, '--at', a, '--side', 'r')).id
+    const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     const fr = await h.contentFrame(ctx, id)
     await fr.evaluate(() => {
       window.__cb = () => (window.__xss = 'callback')

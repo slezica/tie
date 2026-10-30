@@ -151,7 +151,7 @@ plain fenced block
 set -euo pipefail
 for f in "$@"; do
   echo "processing $f" >&2   # comment
-  tie open "$f" --shelved
+  tie add "$f" --shelved
 done
 ```
 
@@ -265,7 +265,7 @@ ___
 
 ```mermaid
 flowchart LR
-  A[Terminal] -->|tie open| B(Markdown tile)
+  A[Terminal] -->|tie add| B(Markdown tile)
   B --> C{Shelved?}
   C -->|yes| D[Toolbar strip]
   C -->|no| E[Board]

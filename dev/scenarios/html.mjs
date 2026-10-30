@@ -33,7 +33,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'log.txt'), 'log line\n')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const pg = async () => (await h.tileOf(ctx, id)).page
     const fr = () => h.htmlFrame(ctx, id)
     const text = async (sel) => (await fr()).evaluate((s) => document.querySelector(s)?.textContent, sel)
@@ -145,7 +145,7 @@ export default async (ctx, h) => {
     // from disk on close (Chromium skips the custom scheme: plan Results, PENDING).
     await (await fr()).evaluate(() => localStorage.setItem('k', 'v'))
     await ctx.tie('close', id)
-    const again = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
+    const again = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const fa = await h.htmlFrame(ctx, again)
     h.assert((await fa.evaluate(() => localStorage.getItem('k'))) === null, 'reopened: fresh storage')
   } finally {

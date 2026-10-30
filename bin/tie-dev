@@ -173,7 +173,7 @@ case "$cmd" in
     exec node dev/screenshot.mjs "$@" ;;
   sample)
     # TIE_SOCKET would point at the hosting Tie (a Tie terminal): the instance by name instead.
-    exec env -u TIE_SOCKET TIE_INSTANCE="$TIE_INSTANCE" "$ROOT/bin/tie" open "$ROOT/dev/samples/${1:-markdown}.md" ;;
+    exec env -u TIE_SOCKET TIE_INSTANCE="$TIE_INSTANCE" "$ROOT/bin/tie" add "$ROOT/dev/samples/${1:-markdown}.md" ;;
   frames)
     exec node dev/frames.mjs ;;
   drive)

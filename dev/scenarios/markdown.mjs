@@ -1,4 +1,4 @@
-// Markdown tile: tie open renders (headings, lists, highlighted code, theme colors), live reload for
+// Markdown tile: tie add renders (headings, lists, highlighted code, theme colors), live reload for
 // every writer (in place, temp + rename, backup rename + new file), scroll kept, deleted → frozen +
 // Missing pill, recreated → updates, shelved → activity dot, theme changes reach the frame.
 import { mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs'
@@ -14,7 +14,7 @@ export default async (ctx, h) => {
   try {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
     // Relative path: resolved against the caller's cwd (bin/tie runs in the repo root here).
-    const id = (await ctx.tie('open', relative(process.cwd(), f), '--at', a, '--side', 'r')).id
+    const id = (await ctx.tie('add', relative(process.cwd(), f), '--at', a, '--side', 'r')).id
     const t = await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).doc, 'doc open')
     h.assert(t.path === f && /^[0-9a-f]{16}$/.test(t.rev) && !t.missing, `doc info: ${JSON.stringify(t)}`)
     const info = await h.tileOf(ctx, id)

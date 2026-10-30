@@ -35,7 +35,7 @@ export default async (ctx, h) => {
 
   // Focusing a collapsed tile: keys must not keep going to the previous terminal.
   const txt = (id) => ctx.page.$eval(`.tile[data-id="${id}"] .xterm-rows`, (e) => e.textContent)
-  const x = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  const x = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await ctx.sleep(800)
   await h.clickButton(ctx, x, 'collapse')
   await ctx.tie('focus', a)
@@ -50,12 +50,12 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+t')
   await ctx.sleep(300)
   const lone = (await h.list(ctx)).active
-  const q = (await ctx.tie('open', 'terminal', '--at', lone, '--side', 'r')).id
+  const q = (await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')).id
   await ctx.sleep(300)
   await h.clickButton(ctx, lone, 'collapse')
   await ctx.tie('close', q)
   h.assert(!(await ctx.tie('state')).collapsed.includes(lone), 'sole tile not collapsed')
-  await ctx.tie('open', 'terminal', '--at', lone, '--side', 'r')
+  await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')
   await ctx.sleep(300)
   h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split')
 }

@@ -1,4 +1,4 @@
-// Opening files: `tie open <path>` (kind by extension, else by content: text; missing / folder fail
+// Opening files: `tie add <path>` (kind by extension, else by content: text; missing / folder fail
 // with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal:
 // still the path), shelf template + file picker (harness stub: dev socket `pick`).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
@@ -27,20 +27,20 @@ export default async (ctx, h) => {
   const shows = (id, title) => h.waitFor(ctx, () => h.mdState(ctx, id).then((s) => s.text.startsWith(title)), `${id} shows ${title}`)
   try {
     // CLI: path relative to the caller's cwd; kind names keep working; failures exit 1.
-    const ok = await cli('open', 'notes.md')
-    h.assert(ok.code === 0 && /^t\d+$/.test(ok.out), `tie open notes.md: ${JSON.stringify(ok)}`)
+    const ok = await cli('add', 'notes.md')
+    h.assert(ok.code === 0 && /^t\d+$/.test(ok.out), `tie add notes.md: ${JSON.stringify(ok)}`)
     await shows(ok.out, 'Notes')
-    const plain = await cli('open', 'plain.txt')
-    h.assert(plain.code === 0 && (await h.tileOf(ctx, plain.out)).kind === 'text', `tie open plain.txt: text tile ${JSON.stringify(plain)}`)
+    const plain = await cli('add', 'plain.txt')
+    h.assert(plain.code === 0 && (await h.tileOf(ctx, plain.out)).kind === 'text', `tie add plain.txt: text tile ${JSON.stringify(plain)}`)
     for (const [args, msg] of [
-      [['open', 'missing.md'], `No such file: ${join(dir, 'missing.md')}`],
-      [['open', '.'], `Not a file: ${dir}`],
-      [['open', 'markdown'], 'markdown shows a file'],
+      [['add', 'missing.md'], `No such file: ${join(dir, 'missing.md')}`],
+      [['add', '.'], `Not a file: ${dir}`],
+      [['add', 'markdown'], 'markdown shows a file'],
     ]) {
       const r = await cli(...args)
       h.assert(r.code === 1 && r.err.includes(msg), `tie ${args.join(' ')}: ${JSON.stringify(r)}`)
     }
-    h.assert((await cli('open', 'terminal')).code === 0, 'tie open terminal still opens a terminal')
+    h.assert((await cli('add', 'terminal')).code === 0, 'tie add terminal still opens a terminal')
     h.assert((await tiles()).length === 4, 'failures opened nothing')
     for (const t of await tiles()) await ctx.tie('close', t.id)
     await ctx.sleep(200)
@@ -80,7 +80,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await mdTiles()).some((t) => t.state === 'shelved'), 'shelved tile')
 
     // Onto a terminal: still pastes the path, no tile.
-    const z = (await ctx.tie('open', 'terminal', '--cmd', 'zsh -f', '--at', m.id)).id
+    const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f', '--at', m.id)).id
     await ctx.sleep(800)
     const before = (await tiles()).length
     await h.osDrop(ctx, await h.sidePoint(ctx, z, 'c'), { files: [md] })

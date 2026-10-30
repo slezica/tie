@@ -19,7 +19,7 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const view = (id) => h.contentFrame(ctx, id).then((f) => f.evaluate(() => ({ size: window.hex.size, rev: window.hex.rev, first: window.hex.first, drawn: window.hex.drawn, changed: window.hex.changed, rows: [...document.querySelectorAll('.r')].map((r) => r.textContent), marked: document.querySelectorAll('.r.changed').length })))
     const open = async (path, at = t0) => {
-      const id = (await ctx.tie('open', path, '--at', at, '--side', 'r')).id
+      const id = (await ctx.tie('add', path, '--at', at, '--side', 'r')).id
       await h.waitFor(ctx, () => view(id).then((v) => v.rev), `${path} shown`)
       return id
     }
@@ -56,7 +56,7 @@ export default async (ctx, h) => {
 
     // Empty file (no extension → text); the file template on a binary file → hex.
     writeFileSync(join(dir, 'empty'), '')
-    const e = (await ctx.tie('open', join(dir, 'empty'), '--at', b)).id
+    const e = (await ctx.tie('add', join(dir, 'empty'), '--at', b)).id
     h.assert((await h.tileOf(ctx, e)).kind === 'text', 'empty file: text')
     const n = (await h.list(ctx)).tiles.length
     writeFileSync(join(dir, 'png-bytes'), readFileSync(join(process.cwd(), 'build/icon.png')))

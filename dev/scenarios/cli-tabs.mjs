@@ -1,4 +1,4 @@
-// tie move --tab / --swap, tie open --tab: target tab, visible tab and input kept, emptied tabs close.
+// tie move --tab / --swap, tie add --tab: target tab, visible tab and input kept, emptied tabs close.
 export default async (ctx, h) => {
   const list = () => h.list(ctx)
   const tabTiles = (l, tab) => l.tiles.filter((t) => t.tab === tab).map((t) => t.id)
@@ -23,7 +23,7 @@ export default async (ctx, h) => {
   const x = tabTiles(l, s2)[0]
   await h.press(ctx, 'Meta+1')
   await ctx.sleep(300)
-  const b = (await ctx.tie('open', 'terminal')).id
+  const b = (await ctx.tie('add', 'terminal')).id
   await ctx.sleep(300)
   l = await list()
   h.assert(l.tab === s1 && l.active === a, 'start: tab 1, a has input')
@@ -72,17 +72,17 @@ export default async (ctx, h) => {
   h.assert(l.tabs.length === 1 && l.tab === s1 && l.active === b, `last tile of the visible tab: tab closed, user follows (${JSON.stringify(l.tabs)})`)
   await h.press(ctx, 'Meta+1')
 
-  // open --tab new: a new tab with just that tile, not shown; open --tab <id> --focus: shown, input.
+  // add --tab new: a new tab with just that tile, not shown; add --tab <id> --focus: shown, input.
   const before = (await list()).active
-  const y = (await ctx.tie('open', 'terminal', '--tab', 'new')).id
+  const y = (await ctx.tie('add', 'terminal', '--tab', 'new')).id
   await ctx.sleep(300)
   l = await list()
   const s4 = l.tiles.find((t) => t.id === y).tab
-  h.assert(l.tabs.length === 2 && l.tab === s1 && l.active === before && tabTiles(l, s4).join() === y, 'open --tab new: own tab, not shown')
-  const z = (await ctx.tie('open', 'terminal', '--tab', s4, '--focus')).id
+  h.assert(l.tabs.length === 2 && l.tab === s1 && l.active === before && tabTiles(l, s4).join() === y, 'add --tab new: own tab, not shown')
+  const z = (await ctx.tie('add', 'terminal', '--tab', s4, '--focus')).id
   await ctx.sleep(300)
   l = await list()
-  h.assert(l.tab === s4 && l.active === z && tabTiles(l, s4).length === 2, 'open --tab --focus: shown, new tile active')
+  h.assert(l.tab === s4 && l.active === z && tabTiles(l, s4).length === 2, 'add --tab --focus: shown, new tile active')
   await h.assertPtySizes(ctx)
   await h.press(ctx, 'Meta+1')
   await ctx.sleep(300)

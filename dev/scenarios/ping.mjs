@@ -3,7 +3,7 @@ export default async (ctx, h) => {
   const L = () => h.list(ctx)
   const info = async (id) => (await L()).tiles.find((t) => t.id === id)
   const [a, b, c] = await h.threeWaySplit(ctx) // c active
-  const s = (await ctx.tie('open', 'terminal', '--shelved')).id
+  const s = (await ctx.tie('add', 'terminal', '--shelved')).id
 
   await ctx.tie('ping', c)
   h.assert(!(await info(c)).pinged, 'ping ignored on the tile in front of the user')

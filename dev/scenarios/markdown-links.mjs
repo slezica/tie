@@ -22,7 +22,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'page.html'), '<!doctype html><title>page</title><a id="md" href="b.md" style="display:block;padding:20px">to b.md</a>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'a.md'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r')).id
     const shows = (title) => () => h.mdState(ctx, id).then((s) => s.text.startsWith(title))
     await h.waitFor(ctx, shows('A'), 'a.md')
     const fr = () => h.contentFrame(ctx, id)

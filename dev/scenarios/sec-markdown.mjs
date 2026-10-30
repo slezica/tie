@@ -43,7 +43,7 @@ export default async (ctx, h) => {
   const file = () => readFileSync(f, 'utf8')
   try {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', f, '--at', a, '--side', 'r')).id
+    const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('alpha'), 'render')
     const fr = await h.contentFrame(ctx, id)
 

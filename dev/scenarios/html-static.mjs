@@ -22,7 +22,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'b.html'), '<!doctype html><title>B</title><h1>B</h1><p>no scripts here</p>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const pill = () => ctx.page.evaluate((id) => { const p = document.querySelector(`.tile[data-id="${id}"] .pill`); return { text: p?.textContent, hidden: p?.hidden, static: p?.classList.contains('static') } }, id)
     const ran = (f) => f.evaluate(() => ({ inline: window.__inline, file: window.__file, module: window.__module, out: document.getElementById('out').textContent, color: getComputedStyle(document.getElementById('h')).color }))
     const fr = await h.htmlFrame(ctx, id)

@@ -30,7 +30,7 @@ export default async (ctx, h) => {
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     await ctx.tie('focus', t0)
-    const id = (await ctx.tie('open', join(dir, 'grab.html'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'grab.html'), '--at', t0, '--side', 'r')).id
     const fr = await h.htmlFrame(ctx, id)
     await ctx.sleep(800)
     h.assert((await fr.evaluate(() => window.__ran)) === undefined, 'the page script never ran (static html)')

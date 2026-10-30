@@ -11,7 +11,7 @@ export default async (ctx, h) => {
     return execSync(`ps -o pid=,comm= -p ${kids.join(',')}`).toString().trim().split('\n').filter((l) => /sh$/.test(l.trim()))
   }
 
-  // Close before the pty spawn resolves: one socket write carrying open + close.
+  // Close before the pty spawn resolves: one socket write carrying add + close.
   const before = shells().length
   const next = `t${Math.max(...(await h.list(ctx)).tiles.map((t) => Number(t.id.slice(1)))) + 1}`
   await new Promise((res) => {
@@ -22,7 +22,7 @@ export default async (ctx, h) => {
       if (buf.split('\n').filter(Boolean).length >= 2) c.end(), res()
     })
     const rpc = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'
-    c.on('connect', () => c.write(rpc(1, 'open', { kind: 'terminal' }) + rpc(2, 'close', { id: next })))
+    c.on('connect', () => c.write(rpc(1, 'add', { kind: 'terminal' }) + rpc(2, 'close', { id: next })))
   })
   await ctx.sleep(1500)
   h.assert(shells().length === before, `no leaked shell (${before} -> ${shells().length})`)
@@ -32,13 +32,13 @@ export default async (ctx, h) => {
 
   // Closed during its own title drag: the drop is dropped, no exception.
   const a = (await h.list(ctx)).tiles[0].id
-  const b = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await ctx.sleep(300)
   await h.drag(ctx, await h.titlePoint(ctx, b), await h.sidePoint(ctx, a, 'l'), { during: () => ctx.tie('close', b) })
   h.assert(!errors.length, `no page errors after drop: ${errors}`)
 
   // Context menu goes away with its tile.
-  const c = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  const c = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await ctx.sleep(300)
   const p = await h.titlePoint(ctx, c)
   await ctx.page.mouse.click(p.x, p.y, { button: 'right' })

@@ -1,8 +1,8 @@
-// Browser tiles (<webview> guest on a local site): tie open <url>, title from the page, links
+// Browser tiles (<webview> guest on a local site): tie add <url>, title from the page, links
 // (real clicks), back / forward / reload (keys from the UI and from inside the guest), location
 // bar (cmd+L, typed URL, refused input), keys from the guest (cmd+D splits), focus activation,
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
-// focused), tie open browser [url], CLI errors. Hidden window: real clicks reach the guest.
+// focused), tie add browser [url], CLI errors. Hidden window: real clicks reach the guest.
 import { execFileSync } from 'node:child_process'
 import { inflateSync } from 'node:zlib'
 import { join } from 'node:path'
@@ -49,8 +49,8 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const hits = (p) => s.hits.filter((x) => x === p).length
 
-    // tie open <url>: a browser tile; title from the page, location = URL.
-    const b = (await ctx.tie('open', s.url + '/one', '--at', t0, '--side', 'r')).id
+    // tie add <url>: a browser tile; title from the page, location = URL.
+    const b = (await ctx.tie('add', s.url + '/one', '--at', t0, '--side', 'r')).id
     let g = await h.guestPage(ctx, b)
     let t = await h.tileOf(ctx, b)
     h.assert(t.kind === 'browser' && t.title === 'Page One' && t.web.url === s.url + '/one', `opened: ${JSON.stringify(t.web)} ${t.title}`)
@@ -151,7 +151,7 @@ export default async (ctx, h) => {
     await ctx.tie('close', e.id)
 
     // Layering: the UI's tile menu paints over the guest.
-    const red = (await ctx.tie('open', s.url + '/red', '--at', b, '--side', 'b')).id
+    const red = (await ctx.tie('add', s.url + '/red', '--at', b, '--side', 'b')).id
     await h.guestPage(ctx, red)
     const rr = await h.rectOf(ctx, red)
     h.assert((await pixel(ctx, rr.x + rr.w / 2, rr.y + rr.h / 2))[0] > 200, 'guest paints (red)')
@@ -165,23 +165,23 @@ export default async (ctx, h) => {
     await ctx.tie('close', red)
 
     // Partition persists: storage and cookies of a closed tile are there for a new one.
-    const st = (await ctx.tie('open', s.url + '/store', '--at', b, '--side', 'b')).id
+    const st = (await ctx.tie('add', s.url + '/store', '--at', b, '--side', 'b')).id
     await h.guestPage(ctx, st)
     await ctx.tie('close', st)
-    const st2 = (await ctx.tie('open', s.url + '/store', '--at', b, '--side', 'b')).id
+    const st2 = (await ctx.tie('add', s.url + '/store', '--at', b, '--side', 'b')).id
     const sp = await h.guestPage(ctx, st2)
     h.assert((await sp.evaluate(() => window.__before)) === 'v' && (await sp.evaluate(() => document.cookie)) === 'c=1', 'storage and cookies persist across tiles')
     await ctx.tie('close', st2)
 
-    // CLI: tie open browser [url]; errors.
-    const bare = JSON.parse(cli('open', 'browser', '--json').out)
-    h.assert(bare.kind === 'browser' && bare.web.url === 'about:blank' && !bare.active, `tie open browser: ${JSON.stringify(bare.web)}`)
-    const withUrl = JSON.parse(cli('open', 'browser', s.url + '/two', '--json').out)
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, withUrl.id)).title === 'Page Two', 'tie open browser <url>')
+    // CLI: tie add browser [url]; errors.
+    const bare = JSON.parse(cli('add', 'browser', '--json').out)
+    h.assert(bare.kind === 'browser' && bare.web.url === 'about:blank' && !bare.active, `tie add browser: ${JSON.stringify(bare.web)}`)
+    const withUrl = JSON.parse(cli('add', 'browser', s.url + '/two', '--json').out)
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, withUrl.id)).title === 'Page Two', 'tie add browser <url>')
     for (const [args, err] of [
-      [['open', 'browser', 'file:///etc/hosts'], 'Not a web address'],
-      [['open', 'browser', 'javascript:alert(1)'], 'Not a web address'],
-      [['open', 'browser', 'how to'], 'Not a web address'],
+      [['add', 'browser', 'file:///etc/hosts'], 'Not a web address'],
+      [['add', 'browser', 'javascript:alert(1)'], 'Not a web address'],
+      [['add', 'browser', 'how to'], 'Not a web address'],
     ]) {
       const res = cli(...args)
       h.assert(res.code === 1 && res.err.includes(err), `${args.join(' ')}: ${JSON.stringify(res)}`)

@@ -5,7 +5,7 @@ export default async (ctx, h) => {
     await ctx.sleep(400)
   }
   // zsh -f: bracketed paste on.
-  const z = (await ctx.tie('open', 'terminal', '--cmd', 'zsh -f')).id
+  const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f')).id
   await ctx.sleep(800)
 
   // Bracketed-paste escape: control warning; Cancel = nothing typed, nothing run.
@@ -32,7 +32,7 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Control+c')
 
   // cat: bracketed paste off, newlines would be sent as Enter.
-  const c = (await ctx.tie('open', 'terminal', '--cmd', 'cat')).id
+  const c = (await ctx.tie('add', 'terminal', '--cmd', 'cat')).id
   await ctx.sleep(800)
   await h.paste(ctx, c, 'R1-line\nR2-line')
   w = await h.pasteWarning(ctx)

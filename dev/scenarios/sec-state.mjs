@@ -18,7 +18,7 @@ export default async (ctx, h) => {
     let closed = false
     c.on('error', () => {})
     c.on('close', () => resolve(true))
-    c.on('connect', () => c.write('{"jsonrpc":"2.0","id":1,"method":"open","params":{"kind":"terminal","cmd":"' + 'A'.repeat(1100 * 1024) + '"}'))
+    c.on('connect', () => c.write('{"jsonrpc":"2.0","id":1,"method":"add","params":{"kind":"terminal","cmd":"' + 'A'.repeat(1100 * 1024) + '"}'))
     setTimeout(() => !closed && resolve(false), 3000)
   })
   h.assert(dropped, 'oversized request line: connection dropped')

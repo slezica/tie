@@ -25,7 +25,7 @@ export default async (ctx, h) => {
   h.assert(JSON.stringify(await state()) === before, 'nothing left of c: no change')
 
   // Slot ↔ float: the centered float is c's right neighbor; c takes its rect, f takes c's slot.
-  const f = (await ctx.tie('open', 'terminal', '--float')).id
+  const f = (await ctx.tie('add', 'terminal', '--float')).id
   await ctx.sleep(400)
   const fr = (await state()).floats.find((x) => x.id === f)
   await k('Meta+Shift+ArrowRight')

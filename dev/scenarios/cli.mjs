@@ -16,14 +16,14 @@ export default async (ctx, h) => {
 
   // Relative --cwd resolves against the caller's directory, not Tie's.
   const dir = join(ROOT, 'dev')
-  const rel = tieIn(dir, 'open', 'terminal', '--cwd', '.', '--cmd', 'pwd -P; sleep 30').id
+  const rel = tieIn(dir, 'add', 'terminal', '--cwd', '.', '--cmd', 'pwd -P; sleep 30').id
   const pwd = (await h.waitFor(ctx, async () => (await text(rel)).trim(), 'pwd output', 10000)).split('\n')[0]
   h.assert(pwd === realpathSync(dir), `relative --cwd: ${pwd}`)
   await ctx.tie('close', rel)
 
   // list: flags of background-tab tiles come from their own tab.
   const a = (await h.list(ctx)).tiles[0].id
-  await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')
+  await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')
   await ctx.sleep(300)
   await h.clickButton(ctx, a, 'collapse')
   await h.press(ctx, 'Meta+t')
@@ -36,7 +36,7 @@ export default async (ctx, h) => {
   await ctx.sleep(300)
 
   // move --float on a floating tile keeps its rect.
-  const f = (await ctx.tie('open', 'terminal', '--float')).id
+  const f = (await ctx.tie('add', 'terminal', '--float')).id
   await ctx.sleep(300)
   const tp = await h.titlePoint(ctx, f)
   await h.drag(ctx, tp, { x: tp.x - 150, y: tp.y - 100 }, { shift: true })
@@ -47,7 +47,7 @@ export default async (ctx, h) => {
 
   // --shelve and --shelved are interchangeable.
   h.assert((await ctx.tie('move', f, '--shelved')).state === 'shelved', 'move --shelved')
-  h.assert((await ctx.tie('open', 'terminal', '--shelve')).state === 'shelved', 'open --shelve')
+  h.assert((await ctx.tie('add', 'terminal', '--shelve')).state === 'shelved', 'add --shelve')
 
   // Unquoted multi-word title keeps every word.
   h.assert((await ctx.tie('title', a, 'my', 'build')).title === 'my build', 'multi-word title')
@@ -77,7 +77,7 @@ export default async (ctx, h) => {
   {
     const help = execFileSync(join(ROOT, 'bin/tie'), ['--help']).toString()
     const want = ['USAGE', 'DESCRIPTION', 'TILE KINDS', 'TILE IDS', 'PLACEMENT', 'BEHAVIOR', 'OUTPUT AND EXIT STATUS', 'ENVIRONMENT', 'EXAMPLES']
-    for (const w of [...want, 'tie list', 'tie open', 'tie close', 'tie move', '--tab', '--swap', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'browser', 'tie open <url>', 'tie open browser', 'http(s)', 'Downloads', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
+    for (const w of [...want, 'tie list', 'tie add', 'tie close', 'tie move', '--tab', '--swap', 'tie focus', 'tie ping', 'tie title', 'tie icon', 'terminal', 'markdown', '.md', 'text', 'image', '.png', '.svg', 'hex', 'html', '.html', 'browser', 'tie add|replace <url>', 'tie add browser', 'tie replace', 'http(s)', 'Downloads', 'Size limits', 'TIE_TILE', 'TIE_SOCKET', 'TIE_INSTANCE'])
       h.assert(help.includes(w), `help mentions ${w}`)
   }
 }

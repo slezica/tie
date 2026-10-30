@@ -3,8 +3,8 @@
 // is logged. (Uid mismatch → refused: not testable here, the harness runs as the same user.)
 export default async (ctx, h) => {
   const a = (await h.list(ctx)).tiles[0].id
-  const b = (await ctx.tie('open', 'terminal')).id
-  const c = (await ctx.tie('open', 'terminal')).id
+  const b = (await ctx.tie('add', 'terminal')).id
+  const c = (await ctx.tie('add', 'terminal')).id
   await ctx.sleep(800)
   // Typed in a (active); runs after focus moved to c (pinging the tile in front does nothing).
   await ctx.page.keyboard.type(`sleep 1.5; TIE_TILE=${b} tie ping; echo pinged-$?\n`)

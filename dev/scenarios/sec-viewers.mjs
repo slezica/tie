@@ -51,7 +51,7 @@ export default async (ctx, h) => {
 
     // Hostile text: literal. Escapes, controls and bidi overrides visible; no element from the file.
     for (const name of ['hostile.txt', 'page.html.txt']) {
-      const id = (await ctx.tie('open', join(dir, name), '--at', t0)).id
+      const id = (await ctx.tie('add', join(dir, name), '--at', t0)).id
       const fr = await h.waitFor(ctx, async () => {
         const f = await h.contentFrame(ctx, id)
         return (await f.evaluate(() => window.text.rev)) && f
@@ -73,7 +73,7 @@ export default async (ctx, h) => {
     }
 
     // SVG: an inert image. Shown (has a size), nothing ran, nothing requested.
-    const s = (await ctx.tie('open', join(dir, 'evil.svg'), '--at', t0)).id
+    const s = (await ctx.tie('add', join(dir, 'evil.svg'), '--at', t0)).id
     const sv = await h.waitFor(ctx, async () => {
       const f = await h.contentFrame(ctx, s)
       const v = await f.evaluate(() => ({ loads: window.image.loads, natural: window.image.natural, errors: window.image.errors, imgs: document.images.length, frames: document.querySelectorAll('iframe, object, embed').length }))
@@ -90,11 +90,11 @@ export default async (ctx, h) => {
       [sized('big.bin', 16 * MB + 1), 16],
       [sized('big.png', 50 * MB + 1), 50],
     ]) {
-      const r = await cli('open', f)
+      const r = await cli('add', f)
       h.assert(r.code === 1 && r.err.includes(`File too large: ${f} (max ${max} MB)`), `cap: ${JSON.stringify(r)}`)
     }
     h.assert((await h.list(ctx)).tiles.length === before, 'over cap: no tiles')
-    const ok = await cli('open', sized('under.txt', 10 * MB - 16, 0x62))
+    const ok = await cli('add', sized('under.txt', 10 * MB - 16, 0x62))
     h.assert(ok.code === 0, `under the cap opens: ${JSON.stringify(ok)}`)
     await h.waitFor(ctx, async () => (await h.contentFrame(ctx, ok.out)).evaluate(() => window.text.lines === 1), '10 MB text shown', 20000)
     h.assert(!(await h.tileOf(ctx, ok.out)).error, 'big text: no error')

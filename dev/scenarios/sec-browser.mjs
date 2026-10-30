@@ -39,7 +39,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
   const log = () => ctx.appLog()
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const b = (await ctx.tie('open', s.url + '/', '--at', t0, '--side', 'r')).id
+    const b = (await ctx.tie('add', s.url + '/', '--at', t0, '--side', 'r')).id
     let g = await h.guestPage(ctx, b)
 
     // Guest realm: no bridge, no Node.
@@ -49,7 +49,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     h.assert(/Partitions\/browser$/.test(gl.partition), `browser partition: ${gl.partition}`)
 
     // Page-initiated navigation away to local schemes: refused, the page stays.
-    const html = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'b')).id
+    const html = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'b')).id
     await h.htmlFrame(ctx, html)
     const tokenUrl = (await h.tileOf(ctx, html)).page.url
     for (const u of ['file:///etc/hosts', 'tie://app/index.html', tokenUrl, 'chrome://gpu', 'devtools://devtools/bundled/inspector.html']) {
@@ -67,7 +67,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)), `redirect ${r}: ${now}`)
     }
     await ctx.tie('close', b)
-    const b2 = (await ctx.tie('open', s.url + '/frames', '--at', t0, '--side', 'r')).id
+    const b2 = (await ctx.tie('add', s.url + '/frames', '--at', t0, '--side', 'r')).id
     g = await h.guestPage(ctx, b2)
     // Subresources and fetches of local schemes: fail (no handlers on the browser partition; file:
     // never from http).
@@ -121,7 +121,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     h.assert((log().match(/blocked webview src/g) ?? []).length >= 3, 'bad src refused at attach')
     await ctx.page.evaluate(() => document.querySelectorAll('webview.bad').forEach((w) => w.remove()))
     // A content frame can't create guests (no <webview> outside the UI's main frame).
-    const probe = (await ctx.tie('open', 'probe')).id
+    const probe = (await ctx.tie('add', 'probe')).id
     const pf = await h.probeFrame(ctx, probe)
     const tag = await pf.evaluate((src) => {
       const w = document.createElement('webview')
@@ -137,7 +137,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     // Popups: never a window, never loaded by Tie; http(s) ones are links out: the confirm dialog
     // (Cancel → nothing, Open → system browser, harness logs); non-http → blocked even with a click.
     // A script's popup without a gesture gets the same dialog (Electron has no popup blocker).
-    const p = (await ctx.tie('open', s.url + '/?auto', '--at', t0, '--side', 'r')).id
+    const p = (await ctx.tie('add', s.url + '/?auto', '--at', t0, '--side', 'r')).id
     g = await h.guestPage(ctx, p)
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'script popup without a gesture: the dialog')
     h.assert((await ctx.page.textContent('.dialog.external-open .url')) === `${s.url}/popup-auto` && !s.hits.includes('/popup-auto'), 'nothing loaded, URL shown')
@@ -200,7 +200,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const realAfter = existsSync(real) ? statSync(real).mtimeMs : null
       h.assert(realAfter === realBefore && !(realAfter && realAfter > start), 'real ~/Downloads untouched')
       // A download a script starts with no input: asks too, saves nothing until you say so.
-      const auto = (await ctx.tie('open', s.url + '/autodl', '--at', t0, '--side', 'b')).id
+      const auto = (await ctx.tie('add', s.url + '/autodl', '--at', t0, '--side', 'b')).id
       await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'script download: asks')
       await ctx.page.click('.dialog .cancel')
       await ctx.sleep(500)
@@ -230,7 +230,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await rpc(ctx.instance, 'guest', { action: 'crash', id: (await h.tileOf(ctx, p)).web.guest })
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, p)).error === 'Page crashed', 'crash → error')
     h.assert(!(await ctx.page.$(`.tile[data-id="${p}"] webview`)), 'crashed guest removed')
-    const other = (await ctx.tie('open', s.url + '/?after', '--at', t0, '--side', 'r')).id
+    const other = (await ctx.tie('add', s.url + '/?after', '--at', t0, '--side', 'r')).id
     await h.guestPage(ctx, other)
     h.assert((await h.tileOf(ctx, html)).page.ready && (await h.list(ctx)).tiles.every((t) => t.id === p || !t.error), 'other tiles fine')
     await ctx.shot('sec-browser')

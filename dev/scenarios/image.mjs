@@ -20,7 +20,7 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const view = (id) => h.contentFrame(ctx, id).then((f) => f.evaluate(() => ({ mode: window.image.mode, natural: window.image.natural, loads: window.image.loads, errors: window.image.errors, rev: window.image.rev, shown: Math.round(document.getElementById('img').getBoundingClientRect().width), info: document.getElementById('info').textContent, y: Math.round(scrollY) })))
     const open = async (path, at = t0) => {
-      const id = (await ctx.tie('open', path, '--at', at, '--side', 'r')).id
+      const id = (await ctx.tie('add', path, '--at', at, '--side', 'r')).id
       await h.waitFor(ctx, () => view(id).then((v) => v.loads || v.errors), `${path} shown`)
       return id
     }

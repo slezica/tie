@@ -17,7 +17,7 @@ export default async (ctx, h) => {
     await ctx.sleep(250)
   }
 
-  await ctx.tie('open', 'terminal', '--shelved')
+  await ctx.tie('add', 'terminal', '--shelved')
   await h.resizeWindow(ctx, 900, 600)
   const shelf0 = await box('#shelf')
   h.assert(!(await cls('#tabs')).includes('overflow'), 'one tab: no overflow')
@@ -51,7 +51,7 @@ export default async (ctx, h) => {
   await ctx.shot('overflow-start')
 
   // Narrow window, more shelved tiles: the tab list stops at its floor, the shelf scrolls.
-  for (let i = 0; i < 5; i++) await ctx.tie('open', 'terminal', '--shelved')
+  for (let i = 0; i < 5; i++) await ctx.tie('add', 'terminal', '--shelved')
   await h.resizeWindow(ctx, 420, 600)
   const tabs = await box('#tabs')
   const floor = await ctx.page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tabs-min')))

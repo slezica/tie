@@ -19,7 +19,7 @@ export default async (ctx, h) => {
 
   // Tab 1: a | b. Tab 2: c.
   const a = (await L()).tiles[0].id
-  const b = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'r')).id
+  const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await k('Meta+t')
   let l = await L()
   const [t1, t2] = l.tabs.map((t) => t.id)
@@ -72,7 +72,7 @@ export default async (ctx, h) => {
   await h.assertPtySizes(ctx)
 
   // Shelf item onto another tab: unshelved there (slotted), active.
-  const d = (await ctx.tie('open', 'terminal', '--shelved')).id
+  const d = (await ctx.tie('add', 'terminal', '--shelved')).id
   await ctx.sleep(300)
   await h.drag(ctx, await h.shelfItem(ctx, d), await tabPoint(t2))
   l = await L()
@@ -81,7 +81,7 @@ export default async (ctx, h) => {
   h.assert(!l.shelf?.includes(d), 'd off the shelf')
 
   // A shelf item onto its own tab: back on the board there.
-  const e = (await ctx.tie('open', 'terminal', '--shelved')).id
+  const e = (await ctx.tie('add', 'terminal', '--shelved')).id
   await ctx.sleep(300)
   await h.drag(ctx, await h.shelfItem(ctx, e), await tabPoint(t2))
   const et = await h.tileOf(ctx, e)

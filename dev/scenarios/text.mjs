@@ -21,7 +21,7 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const view = (id) => h.contentFrame(ctx, id).then((f) => f.evaluate(() => ({ ...window.text, port: undefined, scrolls: undefined, marks: window.text.marks(), y: Math.round(scrollY), gutter: document.getElementById('gutter').textContent.split('\n').length })))
     const open = async (path, at = t0) => {
-      const id = (await ctx.tie('open', path, '--at', at, '--side', 'r')).id
+      const id = (await ctx.tie('add', path, '--at', at, '--side', 'r')).id
       await h.waitFor(ctx, () => view(id).then((v) => v.rev), `${path} shown`)
       return id
     }

@@ -1,7 +1,7 @@
 // Toolbar bottom (default) / top, borderless + bottom (no top strip): live, re-laid out, persisted.
 // The board spans the full width; the shelf sits in the toolbar.
 export default async (ctx, h) => {
-  const sh = (await ctx.tie('open', 'terminal', '--shelved')).id
+  const sh = (await ctx.tie('add', 'terminal', '--shelved')).id
   const board = async () => (await h.list(ctx)).board
   const stripOf = () => ctx.page.evaluate(() => document.getElementById('toolbar').parentElement.id)
   const box = (sel) => ctx.page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().toJSON(), sel)

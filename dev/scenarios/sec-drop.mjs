@@ -18,7 +18,7 @@ export default async (ctx, h) => {
       for (const k of ['dragover', 'drop']) window.addEventListener(k, (e) => window.__ev.push(`${k}:${e.defaultPrevented}`), true)
     })
     const cdp = await ctx.page.context().newCDPSession(ctx.page)
-    const z = (await ctx.tie('open', 'terminal', '--cmd', 'zsh -f')).id
+    const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f')).id
     await ctx.sleep(800)
     const drop = async (at, data) => {
       for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { dragOperationsMask: 1, items: [], ...data } })

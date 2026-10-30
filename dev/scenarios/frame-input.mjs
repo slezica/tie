@@ -5,7 +5,7 @@ export const hiddenWindow = true
 export default async (ctx, h) => {
   const page = ctx.page
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
-  const p = (await ctx.tie('open', 'probe', '--at', a, '--side', 'r')).id
+  const p = (await ctx.tie('add', 'probe', '--at', a, '--side', 'r')).id
   await ctx.sleep(1000)
   const pf = page.frames().find((f) => f.url().startsWith('tie-content://'))
   h.assert(pf && (await pf.evaluate(() => window.probe.inits)) === 1, 'probe frame up, one handshake')
@@ -19,7 +19,7 @@ export default async (ctx, h) => {
   h.assert((await h.list(ctx)).active === p, `click in frame activates its tile (active ${(await h.list(ctx)).active})`)
 
   // Tile drag whose path crosses the frame: lands where released.
-  const c = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'b')).id
+  const c = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'b')).id
   await ctx.sleep(400)
   await h.drag(ctx, await h.titlePoint(ctx, c), await h.sidePoint(ctx, p, 'r'), { steps: 20 })
   const tree = (await ctx.tie('state')).tree

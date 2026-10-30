@@ -29,14 +29,14 @@ export default async (ctx, h) => {
   await ctx.page.locator('.save').click()
   await ctx.sleep(200)
   h.assert(!(await ctx.page.$('.settings')), 'saved')
-  const ok = await ctx.tie('open', 'terminal')
+  const ok = await ctx.tie('add', 'terminal')
   await ctx.sleep(500)
   t = (await h.list(ctx)).tiles.find((x) => x.id === ok.id)
   h.assert(t && !t.error && t.term.pty, 'new terminal works')
 
   // Missing working directory: error state, for shells and --cmd tiles alike.
-  const sh = (await ctx.tie('open', 'terminal', '--cwd', '/nonexistent/dir')).id
-  const cmd = (await ctx.tie('open', 'terminal', '--cwd', '/nonexistent/dir', '--cmd', 'true')).id
+  const sh = (await ctx.tie('add', 'terminal', '--cwd', '/nonexistent/dir')).id
+  const cmd = (await ctx.tie('add', 'terminal', '--cwd', '/nonexistent/dir', '--cmd', 'true')).id
   await ctx.sleep(1500)
   for (const id of [sh, cmd]) {
     t = (await h.list(ctx)).tiles.find((x) => x.id === id)

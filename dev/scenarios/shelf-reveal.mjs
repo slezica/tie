@@ -38,9 +38,9 @@ export default async (ctx, h) => {
   const s = await h.site(ctx, () => '<!doctype html><title>Guest</title><body style="margin:0;height:100vh;background:#c33">guest</body>')
   try {
     const [a] = (await L()).tiles.map((t) => t.id)
-    const c = (await ctx.tie('open', 'terminal', '--shelve')).id
-    const md = (await ctx.tie('open', join(dir, 'doc.md'), '--shelve')).id
-    const w = (await ctx.tie('open', s.url + '/', '--shelve')).id
+    const c = (await ctx.tie('add', 'terminal', '--shelve')).id
+    const md = (await ctx.tie('add', join(dir, 'doc.md'), '--shelve')).id
+    const w = (await ctx.tie('add', s.url + '/', '--shelve')).id
     await ctx.sleep(1500)
 
     // Terminal: hover the item, move into the reveal: kept, takes the pointer, not the keys.

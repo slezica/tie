@@ -20,7 +20,7 @@ export default async (ctx, h) => {
   await ctx.shot('shelved-custom')
 
   // A dialog (close a busy tile, cancelled) gives focus back too.
-  await ctx.tie('open', 'terminal', '--cmd', 'sleep 30', '--focus')
+  await ctx.tie('add', 'terminal', '--cmd', 'sleep 30', '--focus')
   await ctx.sleep(500)
   await h.press(ctx, 'Meta+w')
   await ctx.page.waitForSelector('.dialog')

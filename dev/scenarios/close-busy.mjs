@@ -65,7 +65,7 @@ export default async (ctx, h) => {
   h.assert(!(await dialog()) && !(await has(d)), 'job ended: closes at once')
 
   // --cmd tile: busy while the command lives, not after it exited (the tile stays to show it).
-  const e = (await ctx.tie('open', 'terminal', '--cmd', 'sleep 2', '--focus')).id
+  const e = (await ctx.tie('add', 'terminal', '--cmd', 'sleep 2', '--focus')).id
   await ctx.sleep(500)
   await k('Meta+w')
   h.assert(await dialog() && /sleep 2 is running\./.test(await text()), `cmd tile: dialog: ${await text()}`)
@@ -87,7 +87,7 @@ export default async (ctx, h) => {
   await k('Meta+t')
   await ctx.sleep(900)
   const g = (await L()).active
-  const s = (await ctx.tie('open', 'terminal', '--shelved')).id
+  const s = (await ctx.tie('add', 'terminal', '--shelved')).id
   await ctx.sleep(900)
   await type('sleep 30\n')
   await ctx.page.click('.tab.current .tab-close')

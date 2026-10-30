@@ -18,8 +18,8 @@ export default async (ctx, h) => {
   await ctx.shot('docked')
 
   // Resizing a background float activates and raises it.
-  const f1 = (await ctx.tie('open', 'terminal', '--float')).id
-  const f2 = (await ctx.tie('open', 'terminal', '--float')).id
+  const f1 = (await ctx.tie('add', 'terminal', '--float')).id
+  const f2 = (await ctx.tie('add', 'terminal', '--float')).id
   await ctx.sleep(500)
   const tp = await h.titlePoint(ctx, f2)
   await h.drag(ctx, tp, { x: tp.x + 300, y: tp.y + 200 }, { shift: true })

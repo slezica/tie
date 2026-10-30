@@ -1,7 +1,7 @@
 // Security: with both paste guards turned off in settings, pastes go through raw, no dialog.
 export const settings = { warnPasteControl: false, warnPasteRun: false }
 export default async (ctx, h) => {
-  const c = (await ctx.tie('open', 'terminal', '--cmd', 'cat')).id
+  const c = (await ctx.tie('add', 'terminal', '--cmd', 'cat')).id
   await ctx.sleep(800)
   await h.paste(ctx, c, 'OFF1\x07-bell\nOFF2\n')
   h.assert(!(await h.pasteWarning(ctx)), 'no dialog')

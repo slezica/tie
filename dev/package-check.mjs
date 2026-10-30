@@ -51,7 +51,7 @@ try {
     const md = join(ROOT, 'tmp', `${instance}.md`)
     writeFileSync(md, '# smoke\n\n```mermaid\nflowchart LR\n  A --> B\n```\n')
     const tie = (...a) => JSON.parse(execFileSync(join(app, 'Contents/Resources/bin/tie'), [...a, '--json'], { env, encoding: 'utf8' }))
-    const id = tie('open', md).id
+    const id = tie('add', md).id
     let t
     for (let i = 0; i < 30 && !t?.doc; i++) (await sleep(100), (t = tie('list').tiles.find((x) => x.id === id)))
     if (t?.doc && !t.error) console.log('ok   smoke: markdown opens')
@@ -67,8 +67,8 @@ try {
     const txt = join(ROOT, 'tmp', `${instance}-plain`)
     writeFileSync(html, '<!doctype html><title>smoke</title><p>smoke</p>')
     writeFileSync(txt, 'plain\n')
-    const hid = tie('open', html).id
-    const xid = tie('open', txt).id
+    const hid = tie('add', html).id
+    const xid = tie('add', txt).id
     let ht, xt
     for (let i = 0; i < 50 && !(ht?.page?.ready && xt?.doc); i++) (await sleep(100), (ht = tie('list').tiles.find((x) => x.id === hid)), (xt = tie('list').tiles.find((x) => x.id === xid)))
     // Close before removing: the html tile watches its folder (a reload of a removed page logs a refusal).
@@ -83,7 +83,7 @@ try {
     const srv = createServer((_q, r) => (r.setHeader('content-type', 'text/html'), r.end('<!doctype html><title>smoke web</title><p>web')))
     await new Promise((r) => srv.listen(0, '127.0.0.1', r))
     try {
-      const bid = tie('open', `http://127.0.0.1:${srv.address().port}/`).id
+      const bid = tie('add', `http://127.0.0.1:${srv.address().port}/`).id
       let bt = null
       for (let i = 0; i < 50 && bt?.title !== 'smoke web'; i++) (await sleep(100), (bt = tie('list').tiles.find((x) => x.id === bid)))
       if (bt?.kind === 'browser' && bt.title === 'smoke web' && !bt.error) console.log('ok   smoke: browser tile loads a local page')

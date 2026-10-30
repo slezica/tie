@@ -5,7 +5,7 @@
 export const env = { TIE_DEBUG: '' }
 
 export default async (ctx, h) => {
-  const id = (await ctx.tie('open', 'probe')).id
+  const id = (await ctx.tie('add', 'probe')).id
   const f = await h.probeFrame(ctx, id)
   const token = new URL(f.url()).host
   await f.evaluate(async (t) => {

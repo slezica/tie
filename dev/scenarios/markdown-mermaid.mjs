@@ -14,7 +14,7 @@ export default async (ctx, h) => {
   const served = () => (ctx.appLog().match(/\[content\] viewer markdown-mermaid\.js/g) ?? []).length
   try {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', f, '--at', a, '--side', 'r')).id
+    const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('Plain'), 'plain render')
     const fr = await h.contentFrame(ctx, id)
     await fr.evaluate(() => {

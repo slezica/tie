@@ -43,12 +43,12 @@ export default async (ctx, h) => {
 
   // CLI from a terminal in a background tab acts in that tab and doesn't switch.
   await k('Meta+1')
-  const c = (await ctx.tie('open', 'terminal', '--shelved', '--cmd', 'sleep 30')).id
+  const c = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'sleep 30')).id
   const x = (await ctx.tie('move', c, '--at', a, '--side', 'r')).id
   l = await L()
   h.assert(l.tiles.find((t) => t.id === x).tab === l.tabs[0].id, 'opened in tab 1')
   await k('Meta+2')
-  const d = (await ctx.tie('open', 'terminal', '--at', a, '--side', 'b')).id
+  const d = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'b')).id
   l = await L()
   h.assert(l.tab === l.tabs[1].id && l.tiles.find((t) => t.id === d).tab === l.tabs[0].id, 'CLI targets background tab without switching')
 
@@ -139,7 +139,7 @@ export default async (ctx, h) => {
   await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === self), 'hidden tab closed by its own shell')
   l = await L()
   h.assert(l.tab === l.tabs[0].id, 'visible tab kept')
-  await ctx.tie('open', 'terminal') // ops still work on the visible space afterwards
+  await ctx.tie('add', 'terminal') // ops still work on the visible space afterwards
   h.assert((await L()).tiles.length > 0, 'open after the drop lands on the visible tab')
   for (const t of (await L()).tiles) await ctx.tie('close', t.id)
   await ctx.sleep(200)

@@ -35,7 +35,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'doc.md'), src)
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'doc.md'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'doc.md'), '--at', t0, '--side', 'r')).id
     await h.waitFor(ctx, () => h.mdState(ctx, id).then((s) => s.text.includes('Syntax')), 'render')
     const fr = await h.contentFrame(ctx, id)
 

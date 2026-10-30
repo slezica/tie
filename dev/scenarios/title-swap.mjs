@@ -40,8 +40,8 @@ export default async (ctx, h) => {
   await ctx.shot('swapped')
 
   // Shelf item ↔ slot: d onto b's title bar; b shelved at d's index.
-  await ctx.tie('open', 'terminal', '--shelved')
-  const d = (await ctx.tie('open', 'terminal', '--shelved')).id
+  await ctx.tie('add', 'terminal', '--shelved')
+  const d = (await ctx.tie('add', 'terminal', '--shelved')).id
   await ctx.sleep(300)
   const idx = (await state()).shelf.indexOf(d)
   await ctx.page.mouse.move(400, 400)
@@ -57,7 +57,7 @@ export default async (ctx, h) => {
   await h.assertPtySizes(ctx)
 
   // Float ↔ slot: f onto c's title bar; c floats with f's rect.
-  const f = (await ctx.tie('open', 'terminal', '--float')).id
+  const f = (await ctx.tie('add', 'terminal', '--float')).id
   await ctx.sleep(400)
   const fr = (await state()).floats.find((x) => x.id === f)
   await h.drag(ctx, await h.titlePoint(ctx, f), await h.titlePoint(ctx, c))

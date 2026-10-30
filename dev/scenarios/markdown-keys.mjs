@@ -11,7 +11,7 @@ export default async (ctx, h) => {
   const f = join(dir, 'long.md')
   writeFileSync(f, '# Long\n\n' + Array.from({ length: 300 }, (_, i) => `Line ${i}.`).join('\n\n') + '\n')
   try {
-    const id = (await ctx.tie('open', f)).id
+    const id = (await ctx.tie('add', f)).id
     const frame = await h.contentFrame(ctx, id)
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('Line 299'), 'rendered')
     await h.clickIn(ctx, frame, 'h1') // focus the frame

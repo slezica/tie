@@ -73,7 +73,7 @@ window.stored = (async () => {
   try {
     const profile = userDataPath(ctx.instance)
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const f = await h.htmlFrame(ctx, id)
     h.assert((await f.evaluate(() => window.stored)) === undefined, 'page scripts never ran (static html)')
     const store = (fr) =>
@@ -111,7 +111,7 @@ window.stored = (async () => {
     h.assert(!found.length, `content storage on disk (closed): ${found.join(', ')}`)
 
     // Reopened: a new token, empty storage.
-    const id2 = (await ctx.tie('open', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
+    const id2 = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r')).id
     const f2 = await h.htmlFrame(ctx, id2)
     const fresh = await f2.evaluate(() => localStorage.getItem('k') === null)
     h.assert(fresh, 'reopened file starts with empty storage')

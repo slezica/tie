@@ -8,7 +8,7 @@ export default async (ctx, h) => {
   h.assert(Math.abs(ra2.w - (ra.w - 200)) < 3, `a shrank by 200 (${ra.w} -> ${ra2.w})`)
   await ctx.shot('resized')
 
-  // Mid-drag change (CLI close/open, new tab): the drag must not write back its stale tree.
+  // Mid-drag change (CLI close/add, new tab): the drag must not write back its stale tree.
   const m = ctx.page.mouse
   const midDrag = async (change) => {
     const br = await ctx.page.locator('#borders .border.row').first().boundingBox()
@@ -30,7 +30,7 @@ export default async (ctx, h) => {
   await ctx.tie('focus', a) // throws if render is wedged
 
   let d
-  await midDrag(async () => (d = (await ctx.tie('open', 'terminal', '--at', b, '--side', 'b')).id))
+  await midDrag(async () => (d = (await ctx.tie('add', 'terminal', '--at', b, '--side', 'b')).id))
   s = await ctx.tie('state')
   h.assert(leaves(s.tree).includes(d), `opened tile kept in tree: ${leaves(s.tree)}`)
 

@@ -11,8 +11,8 @@ export default async (ctx, h) => {
   writeFileSync(join(root, 'pic.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>')
   try {
     const home = await h.uiUrl(ctx)
-    const a = (await ctx.tie('open', 'probe', '--cwd', root)).id
-    const b = (await ctx.tie('open', 'probe', '--cwd', root)).id
+    const a = (await ctx.tie('add', 'probe', '--cwd', root)).id
+    const b = (await ctx.tie('add', 'probe', '--cwd', root)).id
     const fa = await h.probeFrame(ctx, a)
     const fb = await h.probeFrame(ctx, b)
     const tokenOf = (f) => new URL(f.url()).host

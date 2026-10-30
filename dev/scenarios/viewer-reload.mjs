@@ -9,8 +9,8 @@ export default async (ctx, h) => {
   const page = join(ROOT, 'out/viewers/markdown.html')
   const original = readFileSync(page, 'utf8')
   try {
-    const a = (await ctx.tie('open', join(ROOT, 'dev/samples/markdown.md'))).id
-    const b = (await ctx.tie('open', join(ROOT, 'docs/SHELF.md'))).id
+    const a = (await ctx.tie('add', join(ROOT, 'dev/samples/markdown.md'))).id
+    const b = (await ctx.tie('add', join(ROOT, 'docs/SHELF.md'))).id
     await ctx.sleep(2000)
     const fa = await h.contentFrame(ctx, a)
     const ua = fa.url()

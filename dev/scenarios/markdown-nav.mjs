@@ -13,7 +13,7 @@ export default async (ctx, h) => {
   try {
     const page = ctx.page
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('open', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--focus')).id
+    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--focus')).id
     const shows = (title) => () => h.mdState(ctx, id).then((s) => s.text.startsWith(title))
     await h.waitFor(ctx, shows('A'), 'a.md')
     const bar = (id) =>

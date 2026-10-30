@@ -65,7 +65,7 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Enter')
   await ctx.sleep(150)
   h.assert(!(await ctx.page.$('.settings')), 'closed on Enter')
-  const t = await ctx.tie('open', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
+  const t = await ctx.tie('add', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
   await ctx.sleep(800)
   const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
   h.assert(line.startsWith('argv0=bash'), `custom shell used: ${line}`)
@@ -103,7 +103,7 @@ export default async (ctx, h) => {
 // Terminal title setting: command (default: foreground program, program titles ignored) | auto
 // (program's OSC title) | directory (basename, full path as tooltip). Applies live to open terminals.
 async function terminalTitle(ctx, h, open) {
-  const x = (await ctx.tie('open', 'terminal', '--focus')).id
+  const x = (await ctx.tie('add', 'terminal', '--focus')).id
   await ctx.sleep(800)
   await ctx.page.keyboard.type("cd /tmp\nprintf '\\e]0;hello\\a'\n")
   await ctx.sleep(2600) // cwd poll

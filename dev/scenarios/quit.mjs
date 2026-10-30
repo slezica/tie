@@ -27,7 +27,7 @@ export default async (ctx, h) => {
   await k('Meta+t')
   await ctx.sleep(900)
   const b = (await h.list(ctx)).active
-  await ctx.tie('open', 'terminal', '--shelved', '--cmd', 'sleep 31')
+  await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'sleep 31')
   await ctx.page.keyboard.type('sleep 32 &\n')
   await ctx.sleep(500)
   await k('Meta+q')

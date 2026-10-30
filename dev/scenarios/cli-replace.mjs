@@ -1,17 +1,18 @@
-// tie open --replace (CLI.md): typed in a Tie terminal (a tile caller), the opened tile takes the
+// tie replace (CLI.md): typed in a Tie terminal (a tile caller), the opened tile takes the
 // terminal's place (slot, float, shelf index) with its state once tie exits; the terminal closes.
-// Failures (busy shell, tie under another process, flag conflicts, external caller) open nothing.
+// Failures (busy shell, tie under another process, placement flags, external caller) open nothing.
+// tie open (the old name) is an unknown command, open an unknown method.
 import { join } from 'node:path'
 import { ROOT, rpc } from '../lib.mjs'
 
 export default async (ctx, h) => {
   const md = join(ROOT, 'dev/samples/markdown.md')
-  const cmd = `tie open ${md} --replace`
+  const cmd = `tie replace ${md}`
   const L = () => h.list(ctx)
   const ids = async () => (await L()).tiles.map((t) => t.id).join(',')
   const has = async (id) => (await L()).tiles.some((t) => t.id === id)
   const terminal = async (...flags) => {
-    const id = (await ctx.tie('open', 'terminal', ...flags)).id
+    const id = (await ctx.tie('add', 'terminal', ...flags)).id
     await ctx.sleep(900) // shell up, rc files done (their children would count as busy)
     return id
   }
@@ -43,12 +44,18 @@ export default async (ctx, h) => {
   await ctx.sleep(800)
 
   // External caller (the harness): no terminal of its own.
-  const ext = await ctx.tie('open', md, '--replace').then(() => null, (e) => e.message)
+  const ext = await ctx.tie('replace', md).then(() => null, (e) => e.message)
   h.assert(/no terminal to replace/.test(ext ?? ''), `external: ${ext}`)
-  // Clients can't call the internal replace method (it would close any tile).
+  // Clients can't call the internal replaced method (it would close any tile).
   const a = (await L()).tiles[0].id
-  const raw = await rpc(ctx.instance, 'replace', { old: a, id: a }).then(() => null, (e) => e.message)
-  h.assert(/unknown method: replace/.test(raw ?? '') && (await has(a)), `client replace refused: ${raw}`)
+  const raw = await rpc(ctx.instance, 'replaced', { old: a, id: a }).then(() => null, (e) => e.message)
+  h.assert(/unknown method: replaced/.test(raw ?? '') && (await has(a)), `client replaced refused: ${raw}`)
+  // Old name: gone from the CLI and the protocol, nothing opened.
+  const before = await ids()
+  const old = await ctx.tie('open', md).then(() => null, (e) => e.message)
+  h.assert(/unknown command: open \(commands: list, add, replace,/.test(old ?? ''), `tie open: unknown command: ${old}`)
+  const oldRpc = await rpc(ctx.instance, 'open', { kind: 'terminal' }).then(() => null, (e) => e.message)
+  h.assert(/unknown method: open/.test(oldRpc ?? '') && (await ids()) === before, `open method: unknown: ${oldRpc}`)
 
   // Slotted, active: same rect, the new tile active (and has input).
   const b = await terminal()
@@ -90,7 +97,7 @@ export default async (ctx, h) => {
 
   // Failures, typed in c (idle shell, active).
   await ctx.sleep(300)
-  await fails(c, `${cmd} --float`, /--replace takes no other placement/)
+  for (const p of ['--float', `--at ${nb.id}`, '--side l', '--shelved', '--tab new']) await fails(c, `${cmd} ${p}`, /replace takes no placement/)
   await fails(c, `sh -c '${cmd} || exit 1; true'`, /tie runs under (sh|bash)/)
   await ctx.page.keyboard.type('sleep 100 &\n')
   await ctx.sleep(500)
