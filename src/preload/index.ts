@@ -1,4 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { WalkChunk } from '../main/walk'
+export type { WalkChunk }
 
 export interface Settings {
   shell: string
@@ -14,6 +16,7 @@ export interface Settings {
   warnPasteRun: boolean
   confirmExternal: boolean
   allowExternalControl: boolean
+  'files.gitignore': boolean
 }
 
 type DataCb = (id: number, data: string) => void
@@ -79,6 +82,13 @@ const api = {
     onChange: (cb: (id: number, p: ({ rev: string } & DocBody) | { missing: true }) => void) => {
       ipcRenderer.on('doc:changed', (_e, id, p) => cb(id, p))
     },
+    // Picker: walk `dir` (absolute, existing directory), streamed as chunks tagged `gen`. One walk
+    // at a time: a new one stops the previous. Paths relative to `dir`, dirs end in `/`.
+    walk: (dir: string, opts: { gen: number; gitignore: boolean }): Promise<{ ok: true } | { error: string }> => ipcRenderer.invoke('doc:walk', dir, opts),
+    onWalkChunk: (cb: (gen: number, chunk: WalkChunk) => void) => {
+      ipcRenderer.on('doc:walk-chunk', (_e, gen, chunk) => cb(gen, chunk))
+    },
+    stopWalk: (gen: number) => ipcRenderer.send('doc:walk-stop', gen),
   },
   // Browser tiles: main's reports about guests (by guest webContents id); downloads asked (the user
   // confirms in the UI) and allowed once.

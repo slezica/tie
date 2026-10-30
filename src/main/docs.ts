@@ -1,13 +1,14 @@
-// Files open in viewer tiles: open + watch, push changes, file picker. Read-only: no path here
+// Files open in viewer tiles: open + watch, push changes, file picker, directory walks (picker). Read-only: no path here
 // writes a file. The renderer names files; main checks them (absolute, existing regular file, its
 // kind: core/kinds, by extension or content; size cap) and owns every read. Payload (text, bytes or
 // nothing) and size cap per kind: policy table (core/policy). docs/TILES.md "File view".
-import { dialog, type BrowserWindow } from 'electron'
+import { app, dialog, type BrowserWindow } from 'electron'
 import { open, stat } from 'node:fs/promises'
-import { isAbsolute } from 'node:path'
+import { isAbsolute, normalize } from 'node:path'
 import { log } from './env'
 import { untrusted } from '../core/log'
 import { watchFile, readStable, revision, type Watch } from './watch'
+import { walkDir, type Walk, type WalkChunk } from './walk'
 import { fileKind, sniff, sniffKind, canOpenAs, isFileKind, SNIFF_BYTES } from '../core/kinds'
 import { policyOf, type ContentKind, type ContentPolicy } from '../core/policy'
 
@@ -120,4 +121,62 @@ export async function pickFile(win: BrowserWindow | null, defaultPath: unknown):
   if (!win) return null
   const r = await dialog.showOpenDialog(win, { properties: ['openFile'], defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined })
   return r.canceled ? null : (r.filePaths[0] ?? null)
+}
+
+// Directory walks for Tie's picker (walk.ts): one live walk per window (by sender id); a new one
+// stops the previous. Chunks go to `send(gen, chunk)`; the renderer drops stale gens.
+const walks = new Map<number, { gen: number; walk: Walk }>()
+const walkCalls = new Map<number, number>() // latest doc:walk call per window (calls race on stat)
+
+// SECURITY: the UI realm is trusted, but a compromised one could list any directory the user can
+// read: only absolute, normalized paths of existing directories; the walker never follows
+// directory symlinks, never enters protected (TCC) roots unless rooted there, and is bounded
+// (entries, time). Lists names only, never reads file content (only .gitignore / git config).
+export async function startWalk(owner: number, dir: unknown, opts: unknown, send: (gen: number, chunk: WalkChunk) => void): Promise<{ ok: true } | { error: string }> {
+  const call = (walkCalls.get(owner) ?? 0) + 1
+  walkCalls.set(owner, call)
+  stopWalk(owner)
+  if (typeof dir !== 'string' || !isAbsolute(dir) || dir.includes('\0') || normalize(dir) !== dir) {
+    log('security', 'refused walk', untrusted(dir))
+    return { error: `Bad directory: ${String(dir)}` }
+  }
+  const o = (typeof opts === 'object' && opts) || {}
+  const { gen, gitignore } = o as { gen?: unknown; gitignore?: unknown }
+  if (typeof gen !== 'number' || !Number.isSafeInteger(gen)) return { error: `Bad walk generation: ${String(gen)}` }
+  if (typeof gitignore !== 'boolean') return { error: 'Bad walk options' }
+  const st = await stat(dir).catch(() => null)
+  if (!st?.isDirectory()) return { error: `Not a directory: ${dir}` }
+  if (walkCalls.get(owner) !== call) return { error: 'Superseded' } // a newer walk was asked meanwhile
+  // Dev builds (harness): TIE_WALK_CAP: entry cap (partial marker); TIE_WALK_DELAY: ms before each
+  // directory read (stop / supersede land mid-walk).
+  const devNum = (v: string | undefined) => (!app.isPackaged && Number(v) > 0 ? Number(v) : undefined)
+  const cap = devNum(process.env.TIE_WALK_CAP)
+  const delayMs = devNum(process.env.TIE_WALK_DELAY)
+  const t0 = performance.now()
+  let n = 0
+  log('walk', 'start', gen, untrusted(dir), { gitignore, cap, delayMs })
+  const walk = walkDir(dir, { gitignore, cap, delayMs }, (chunk) => {
+    n += chunk.paths.length
+    if (chunk.done) {
+      if (walks.get(owner)?.walk === walk) walks.delete(owner)
+      log('walk', 'done', gen, { entries: n, ms: Math.round(performance.now() - t0), partial: chunk.partial, errors: chunk.errors }, untrusted(chunk.waiting ?? []))
+    }
+    send(gen, chunk)
+  })
+  walks.set(owner, { gen, walk })
+  return { ok: true }
+}
+
+// Stop the window's walk (only `gen`'s, if given).
+export function stopWalk(owner: number, gen?: unknown) {
+  const w = walks.get(owner)
+  if (!w || (gen !== undefined && w.gen !== gen)) return
+  w.walk.stop()
+  walks.delete(owner)
+  log('walk', 'stop', w.gen)
+}
+
+// Window closed or UI reloaded.
+export function stopWalks() {
+  for (const owner of [...walks.keys()]) stopWalk(owner)
 }

@@ -7,7 +7,7 @@ import { startSocket } from './socket'
 import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION, noNetwork, noWebRtcUdp } from './security'
 import { initKeys, setKeysSuspended } from './keys'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
-import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, type DocPush } from './docs'
+import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startWalk, stopWalk, stopWalks, type DocPush } from './docs'
 import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
 
@@ -117,6 +117,9 @@ ipc.handle('doc:viewer', (_e, path: unknown, kind: unknown) => fileViewer(path, 
 ipc.handle('doc:open', (_e, path: unknown, kind: unknown) => openDoc(path, kind, pushDoc))
 ipc.on('doc:close', (_e, id: unknown) => closeDoc(id))
 ipc.handle('doc:pick', (_e, defaultPath: unknown) => pickFile(win, defaultPath))
+// Picker walks (docs.ts startWalk: checks dir + gen; one per window): chunks as doc:walk-chunk.
+ipc.handle('doc:walk', (e, dir: unknown, opts: unknown) => startWalk(e.sender.id, dir, opts, (gen, chunk) => !e.sender.isDestroyed() && e.sender.send('doc:walk-chunk', gen, chunk)))
+ipc.on('doc:walk-stop', (e, gen: unknown) => stopWalk(e.sender.id, gen))
 ipc.on('keys:suspend', (_e, on: unknown) => setKeysSuspended(on))
 ipc.on('guest:download-ok', (_e, url: unknown, guest: unknown) => allowDownload(url, guest))
 ipc.handle('guest:unload', (_e, guest: unknown) => unloadGuest(guest))
@@ -163,6 +166,7 @@ function createWindow(ses: Electron.Session) {
     uiUp = false // until the fresh page says ready
     clearContent()
     clearDocs()
+    stopWalks()
     if (pty.count()) {
       log('pty', 'page reload, killing', pty.count())
       pty.killAll()
@@ -180,7 +184,10 @@ function createWindow(ses: Electron.Session) {
     e.preventDefault()
     askQuit()
   })
-  win.on('closed', () => (win = null))
+  win.on('closed', () => {
+    stopWalks()
+    win = null
+  })
   if (process.env.ELECTRON_RENDERER_URL) {
     setUiUrl(process.env.ELECTRON_RENDERER_URL)
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
