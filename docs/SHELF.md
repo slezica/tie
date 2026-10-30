@@ -48,7 +48,7 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - Title bar pin button (`.btn.pin`, `setButtons` in `render.ts`): shown only on a shown shelved tile. Hover reveal → Pin (pins + activates, on click; pointerdown on it doesn't pin); pinned → Unpin. Hidden for slotted / floating tiles.
 - A pin stays until released. Unpin paths: item click, Unpin button, closing the tile, unshelving by drag, `tie move` (`detach`). Unpinning an active shelved tile → `focusNext()`.
 - Nothing else unpins: clicks outside (board tiles, frames, guests: they activate that tile), focus keys, `tie focus` of a board tile, new tiles. The reveal stays on top, unfocused.
-- `tie focus <shelved id>` pins (switches tab first).
+- `tie focus --tile <shelved id>` pins (switches tab first).
 - Hover reveal cleared on drag start and when leaving the tab.
 - Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.

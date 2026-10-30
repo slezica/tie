@@ -60,6 +60,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/content.ts`: content URL/token/path checks, viewer files, nav rules `navAllowed` (viewer-exact, within-root), `documentUrl`, `bootstrapAt`, `htmlCharset` (main). Tests: `content.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
+- `src/core/ids.ts`: entropic ids (`randomId`: prefix + 6 chars base32 minus `0 1 l o`, live uniqueness check) (renderer). Tests: `ids.test.ts`.
 - `src/core/keymap.ts`: keymap, chords, `actionFor` (main + renderer). Tests: `keymap.test.ts`.
 - `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit, dev socket methods incl. `window-size`), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`; `watchKeys` per guest), `docs.ts` (viewer files: check, open + watch, picker; read-only), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile, `busy` / `busyIgnoring`), `socket.ts` (JSON-RPC server, caller gate, `replace` checks + `replaced` on connection close), `settings.ts` (file, sanitize, validate, shell argv), `env.ts` (instance, paths, debug port, `log()`).
 - `src/preload/index.ts`: `window.tie` bridge.
@@ -97,13 +98,13 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `tree`: `Leaf {id}` | `Split {dir: 'row'|'col', children, sizes}` (fractions). Normalized. Null when empty.
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered).
-- `Space` also: `id` (`s1`...), `customTitle`, `customIcon`.
+- `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
 - Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
-  - `id` (`t1`...), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon` (user text).
+  - `id` (`t` + 6 random chars, never reused: `@core/ids`), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon` (user text).
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
@@ -184,5 +185,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `add` (file, URL, kind; `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `title`, `icon`; dev-only `state`, `frames`, `add probe`. See `docs/CLI.md`.
+- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

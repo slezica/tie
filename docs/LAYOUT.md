@@ -67,7 +67,7 @@
 
 ## Ping
 
-`tie ping [id] [--clear]`: soft attention mark (`Tile.pinged`). Strong counterpart: `tie focus`.
+`tie ping [--tile id] [--clear]`: soft attention mark (`Tile.pinged`). Strong counterpart: `tie focus`.
 
 - No focus, layout or tab change. Ignored for the active tile of the visible tab.
 - Yellow (`--yellow`): title-bar icon glow (the active tile's icon glows accent; no extra element, title text never moves), shelf item dot (hides activity dot), tab dot (non-current tabs only).
