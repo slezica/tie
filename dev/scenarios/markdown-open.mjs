@@ -43,7 +43,7 @@ export default async (ctx, h) => {
     h.assert((await cli('add', 'terminal')).code === 0, 'tie add terminal still opens a terminal')
     h.assert((await tiles()).length === 4, 'failures opened nothing')
     for (const t of await tiles()) await ctx.tie('close', t.id)
-    await ctx.sleep(200)
+    await h.waitFor(ctx, async () => !(await tiles()).length, 'board empty')
 
     // Finder drop on the empty board: root tile.
     await h.osDrop(ctx, await h.boardCenter(ctx), { files: [md] })
@@ -68,7 +68,7 @@ export default async (ctx, h) => {
     await ctx.page.click('.dialog .ok')
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [dir, md] })
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog-backdrop'), 'modal for mixed drop')
-    h.assert((await mdTiles()).length === 3, 'markdown part opened')
+    await h.eventually(ctx, async () => h.assert((await mdTiles()).length === 3, 'markdown part opened'))
     await ctx.page.click('.dialog .ok')
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'r'), { files: [txt] })
     await h.waitFor(ctx, async () => (await tiles()).some((t) => t.kind === 'text'), 'text file dropped: text tile')
@@ -81,10 +81,10 @@ export default async (ctx, h) => {
 
     // Onto a terminal: still pastes the path, no tile.
     const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f', '--at', m.id)).id
-    await ctx.sleep(800)
+    await h.waitShell(ctx, z)
     const before = (await tiles()).length
     await h.osDrop(ctx, await h.sidePoint(ctx, z, 'c'), { files: [md] })
-    h.assert((await h.screen(ctx, z)).includes(`'${md}'`) && (await tiles()).length === before, 'terminal drop pastes the path')
+    await h.eventually(ctx, async () => h.assert((await h.screen(ctx, z)).includes(`'${md}'`) && (await tiles()).length === before, 'terminal drop pastes the path'))
     await ctx.tie('close', z)
 
     // File template + picker: answered → tile there (markdown by extension); cancelled → nothing.
@@ -95,7 +95,8 @@ export default async (ctx, h) => {
     await shows(picked.id, 'Other')
     await h.pickNext(ctx, null)
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
-    await ctx.sleep(500)
+    await h.waitFor(ctx, async () => ctx.appLog().includes('picker (harness) cancel'), 'picker cancelled')
+    await h.settle(ctx)
     h.assert((await tiles()).length === n + 1 && ctx.appLog().includes('picker (harness) cancel'), 'cancel: no tile')
     await ctx.shot('opened')
   } finally {

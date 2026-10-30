@@ -44,7 +44,7 @@ export default async (ctx, h) => {
     // A page without scripts: no tag.
     await h.clickIn(ctx, fr, '#b')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).page.path.endsWith('/b.html') && (await h.tileOf(ctx, id)).page.ready, 'b.html')
-    await ctx.sleep(400)
+    await ctx.sleep(400) // absence: no blocked-script report follows the load
     p = await pill()
     h.assert(p.hidden && (await h.tileOf(ctx, id)).page.blocked === 0, `no tag on a page without scripts: ${JSON.stringify(p)}`)
     await ctx.shot('clean')

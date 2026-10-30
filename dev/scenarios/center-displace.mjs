@@ -21,7 +21,7 @@ export default async (ctx, h) => {
   try {
     const [a, b, c] = await h.threeWaySplit(ctx) // a | b over c
     await ctx.tie('add', 'terminal', '--shelved')
-    await ctx.sleep(200)
+    await h.settle(ctx)
     const shelf0 = (await state()).shelf
     const rb = await h.rectOf(ctx, b)
 
@@ -63,7 +63,7 @@ export default async (ctx, h) => {
     // Onto a terminal's center: the terminal still takes the drop (the path, pasted), nothing displaced.
     const before = leafIds((await state()).tree).join()
     await h.osDrop(ctx, await h.sidePoint(ctx, n, 'c'), { files: [md] })
-    await ctx.sleep(300)
+    await h.waitText(ctx, n, md) // the terminal took it
     h.assert(leafIds((await state()).tree).join() === before, 'terminal drop: no displace')
   } finally {
     rmSync(dir, { recursive: true, force: true })

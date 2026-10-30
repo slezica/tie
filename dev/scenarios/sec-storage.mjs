@@ -101,12 +101,12 @@ window.stored = (async () => {
     // Chromium commits localStorage in batches (seconds); IndexedDB on transaction commit.
     let found = []
     for (let i = 0; i < 8 && !found.length; i++) {
-      await ctx.sleep(1000)
+      await ctx.sleep(1000) // absence: nothing reaches the disk over the commit interval
       found = holders(profile, marker)
     }
     h.assert(!found.length, `content storage on disk (open): ${found.join(', ')}`)
     await ctx.tie('close', id)
-    await ctx.sleep(2000)
+    await ctx.sleep(2000) // absence: closing doesn't flush it to disk either
     found = holders(profile, marker)
     h.assert(!found.length, `content storage on disk (closed): ${found.join(', ')}`)
 

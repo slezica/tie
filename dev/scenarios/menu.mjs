@@ -13,15 +13,16 @@ export default async (ctx, h) => {
   await ctx.page.locator('.menu-item', { hasText: 'Set icon' }).click()
   await ctx.page.keyboard.type('🚀')
   await ctx.page.keyboard.press('Enter')
-  await ctx.sleep(100)
-  const t = (await h.list(ctx)).tiles[0]
-  h.assert(t.title === 'my server' && t.icon === '🚀', 'renamed + icon')
+  await h.eventually(ctx, async () => {
+    const t = (await h.list(ctx)).tiles[0]
+    h.assert(t.title === 'my server' && t.icon === '🚀', 'renamed + icon')
+  })
   await ctx.tie('move', a, '--shelve')
   await ctx.shot('shelved-custom')
 
   // A dialog (close a busy tile, cancelled) gives focus back too.
-  await ctx.tie('add', 'terminal', '--cmd', 'sleep 30', '--focus')
-  await ctx.sleep(500)
+  const busy = (await ctx.tie('add', 'terminal', '--cmd', 'sleep 30', '--focus')).id
+  await h.waitTile(ctx, busy, (t) => t.term?.pid, 'cmd started')
   await h.press(ctx, 'Meta+w')
   await ctx.page.waitForSelector('.dialog')
   await ctx.page.keyboard.press('Escape')

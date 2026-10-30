@@ -26,7 +26,7 @@ export default async (ctx, h) => {
     for (const [directive, fn] of Object.entries(attempts)) {
       seen.length = 0
       await ctx.page.evaluate(`(${fn})(${JSON.stringify(p.url)})`).catch((e) => ctx.log(directive, e.message.split("\n")[0]))
-      await ctx.sleep(300)
+      await h.waitFor(ctx, async () => seen.includes(directive), directive, 2000).catch(() => {})
       if (!seen.includes(directive)) missing.push(`${directive} (saw ${seen.join(',') || 'nothing'})`)
     }
     h.assert(!missing.length, `CSP did not refuse: ${missing.join('; ')}`)
