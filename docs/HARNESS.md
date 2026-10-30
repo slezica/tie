@@ -41,6 +41,7 @@
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |
+| `TIE_WALK_CAP`, `TIE_WALK_DELAY` | not set by default; scenario `env` (dev builds only, read by main `docs.ts` `startWalk`): picker walk entry cap (partial marker; default 50k), ms before each directory read (`sec-walk`: stop / a newer walk land mid-walk) |
 | `BASH_SILENCE_DEPRECATION_WARNING` | `1`: macOS bash's zsh notice off (terminal screens start with the prompt) |
 
 - `TIE_SOCKET` / `TIE_TILE` stripped: a run inside Tie never targets it.

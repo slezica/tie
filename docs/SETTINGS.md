@@ -6,7 +6,7 @@
 - Loaded once at main startup; missing → defaults. Hand edits while running are not picked up.
 - `sanitize()` at load and save: numbers clamped, wrong types → defaults. Theme alias `elegant-dark` → `tie-dark`.
 - Unreadable / unparseable → defaults; Save blocked (file never overwritten), panel status shows why. Re-read on each `settings:get`/`set`, so fixing the file unblocks Save.
-- `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
+- `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `files.gitignore` a boolean), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
 
 | Key | Default | Scope | Values |
 |---|---|---|---|
@@ -22,6 +22,7 @@
 | `warnPasteControl` | true | terminal kind | confirm pastes/drops with control characters |
 | `warnPasteRun` | true | terminal kind | confirm pastes that would run commands |
 | `confirmExternal` | true | all tiles | confirm before a link opens in the system browser (`TILES.md` "Links out") |
+| `files.gitignore` | true | file picker | walks skip what git ignores (`.gitignore` chain, `.git/info/exclude`, global excludes; inside repos only). Dotted key (not camelCase) |
 | `allowExternalControl` | false | app | socket callers outside Tie terminals (scripts, other apps) may run commands (`CLI.md` "Callers"); only a real `true` counts |
 
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
@@ -32,7 +33,7 @@
 ## Panel (`src/renderer/settings.ts`)
 
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
-- Pages `Appearance` | `Terminal` (shell, terminal title, paste confirms) | `Security` (external control, link confirm) (last one remembered).
+- Pages `Appearance` | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
 - Enter (not in a select) or Save saves. Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
