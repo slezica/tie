@@ -1,4 +1,5 @@
 // Shell exit closes tile; --cmd tile stays with exit status; focus doesn't shift content; login shell used.
+export const settings = { shell: '' } // the default (login shell), not the harness's bare bash
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
   const bodyRect = (id) => ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .body`).getBoundingClientRect().toJSON(), id)

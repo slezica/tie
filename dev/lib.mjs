@@ -103,6 +103,11 @@ export async function quitInstance(instance) {
   await browser.close().catch(() => {})
 }
 
+// Settings of a fresh instance: external control on (the harness is an external socket caller);
+// terminals run a bare bash, never the user's profile (speed; rc output can't break scenarios).
+// Prompt: `bash-3.2$ `. A scenario wanting the login shell: `export const settings = { shell: '' }`.
+export const SEED = { allowExternalControl: true, shell: '/bin/bash --noprofile --norc' }
+
 // Launch a fresh built instance in the background; returns { instance, stop }.
 // A port nobody is listening on right now (instance-name hashing can collide).
 function freePort() {
@@ -116,8 +121,8 @@ function freePort() {
   })
 }
 
-// opts.settings: pre-seed the instance's settings file (object, merged over the seed
-// { allowExternalControl: true }; or raw string e.g. malformed JSON, written as-is).
+// opts.settings: pre-seed the instance's settings file (object, merged over SEED; or raw string
+// e.g. malformed JSON, written as-is).
 // opts.hiddenWindow: never-shown real window instead of offscreen (input reaches content frames).
 // opts.env: extra environment (scenario `export const env`).
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
@@ -132,6 +137,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     TIE_DOWNLOADS: downloadsPath(instance),
     TIE_DEBUG_PORT: String(await freePort()),
     TIE_SCALE: process.env.TIE_SCALE || '2', // like a retina Mac
+    BASH_SILENCE_DEPRECATION_WARNING: '1', // macOS bash's zsh notice: screens start with the prompt
     ...opts.env,
   }
   // Trace folder (TIE_RUN_DIR): app log with all debug tags + Electron stderr, kept after the run.
@@ -148,7 +154,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(env.TIE_SETTINGS, { force: true })
   // The harness drives Tie from outside (not from a Tie terminal): external control seeded on.
   // Scenario settings win (seed first); a raw string is written as-is (no seed).
-  const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ allowExternalControl: true, ...opts.settings })
+  const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ ...SEED, ...opts.settings })
   writeFileSync(env.TIE_SETTINGS, seeded)
   const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
   const err = openSync(errFile, 'w')
