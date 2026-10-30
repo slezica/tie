@@ -76,13 +76,21 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   const sr = shelfRect()
   const srcId = src.type === 'tile' ? src.id : null
 
-  if (inside(sr, x, y)) {
+  // The shelf takes the strip, plus the empty toolbar between + and the strip right of the
+  // toolbar's midpoint (left of it: a new tab, below), over the toolbar's height. Rect math only: a
+  // tab area past the midpoint keeps the whole gap, a strip past it takes it.
+  const tb = document.getElementById('toolbar')!.getBoundingClientRect()
+  const add = document.getElementById('tab-add')!.getBoundingClientRect()
+  const left = Math.min(sr.x, Math.max(tb.left + tb.width / 2, add.right))
+  const hit = { x: left, y: tb.top, w: sr.x + sr.w - left, h: tb.height }
+  if (inside(hit, x, y)) {
     // Slot under the pointer, by pitch from the strip's left edge (the strip holds the "+" hint or
-    // the ghost as one more slot, so its width is stable while dragging). The dragged item is
-    // hidden: the slot counts the items shown; the index is into S.shelf (place() detaches first).
+    // the ghost as one more slot, so its width is stable while dragging); left of the strip: slot 0.
+    // The dragged item is hidden: the slot counts the items shown; the index is into S.shelf
+    // (place() detaches first).
     const list = document.getElementById('shelf')!
     const shown = S.shelf.filter((id) => id !== srcId)
-    const slot = Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
+    const slot = x < sr.x ? 0 : Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
     const srcIdx = srcId ? S.shelf.indexOf(srcId) : -1
     const index = srcIdx >= 0 && slot > srcIdx ? slot + 1 : slot
     return { drop: { type: 'shelf', index }, preview: null, slot }
