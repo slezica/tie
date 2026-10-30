@@ -18,6 +18,7 @@ export interface OpenOpts {
   path?: string // file to view (kinds that open 'file')
   url?: string // page to load (kinds that open 'url': http(s), checked by the kind)
   hash?: string // anchor to show first (#part)
+  id?: TileId // dev builds: the id to use (harness, `tie add --id`); checked by the driver
 }
 
 // What the host offers a kind.

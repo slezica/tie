@@ -108,7 +108,7 @@ async function boot() {
   initShelf()
   initMenu()
   initPaste()
-  initDriver()
+  initDriver({ dev: !!info.dev })
   initSettings()
   initKeys()
   initTabs()

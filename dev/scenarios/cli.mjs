@@ -70,6 +70,12 @@ export default async (ctx, h) => {
   h.assert((await fails('ping', a))?.includes(`unexpected argument: ${a}`), 'positional id refused')
   h.assert((await fails('close'))?.includes('no current tile: use --tile <id>'), 'no current tile')
   h.assert((await fails('focus', '--tile', 'tzzzzzz'))?.includes('no such tile: tzzzzzz'), 'unknown --tile')
+  // Dev builds: add --id names the new tile (harness); tile-shaped and free, else refused.
+  const named = await ctx.tie('add', 'terminal', '--shelved', '--id', 'tnamed')
+  h.assert(named.id === 'tnamed', `add --id: ${named.id}`)
+  h.assert((await fails('add', 'terminal', '--id', 'tnamed'))?.includes('id in use: tnamed'), 'add --id: taken refused')
+  h.assert((await fails('add', 'terminal', '--id', 's1'))?.includes('bad id: s1'), 'add --id: not tile-shaped refused')
+  await ctx.tie('close', '--tile', 'tnamed')
   // Invalid arguments are refused everywhere: stray positionals, options of another command, unknown options.
   h.assert((await fails('list', 'x'))?.includes('unexpected argument: x'), 'list: positional refused')
   h.assert((await fails('add', 'terminal', 'x'))?.includes('unexpected argument: x'), 'add: extra positional refused')

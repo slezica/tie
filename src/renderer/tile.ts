@@ -18,7 +18,7 @@ export function displayIcon(t: Tile): Icon {
 export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   const factory = kindSpec(kind)?.factory
   if (!factory) throw new Error(`unknown kind: ${kind}`)
-  const id = newId()
+  const id = opts.id ?? newId()
   const el = document.createElement('div')
   el.className = 'tile'
   el.dataset.id = id

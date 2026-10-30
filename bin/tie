@@ -226,7 +226,7 @@ const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'set', 'pi
 const ALIASES = Object.fromEntries(COMMANDS.map((c) => [c[0], c]))
 // Per command: accepted options and max positional arguments. Anything else is refused.
 const PLACE = ['at', 'side', 'float', 'shelve', 'shelved', 'tab', 'focus']
-const OPEN = ['cmd', 'cwd', 'title', 'icon', ...PLACE]
+const OPEN = ['cmd', 'cwd', 'title', 'icon', 'id', ...PLACE] // id: dev builds only (not in HELP)
 const SPEC = {
   list: { opts: [], args: 0 },
   add: { opts: OPEN, args: 2 },
@@ -278,7 +278,7 @@ async function main() {
       // An http(s) URL (browser), a kind name (browser takes a URL after it), else a file path
       // (resolved here, against the caller's cwd). replace: same params (placement refused by Tie).
       const replace = cmd === 'replace'
-      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, icon: flags.icon, ...place }
+      const common = { cmd: flags.cmd, cwd: resolve(flags.cwd || '.'), title: flags.title, icon: flags.icon, as: flags.id, ...place }
       const open = (p) => call(cmd, { ...p, ...common }, { hold: replace })
       if (/^https?:\/\//i.test(rest[0] ?? '')) return printTile(await open({ url: rest[0] }))
       if (rest[0] === 'browser' && rest[1] !== undefined) return printTile(await open({ kind: 'browser', url: rest[1] }))

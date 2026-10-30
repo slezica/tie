@@ -185,5 +185,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe`. See `docs/CLI.md`.
+- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe`, `add --id`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

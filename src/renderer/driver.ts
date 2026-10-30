@@ -16,6 +16,7 @@ interface Params {
   path?: string // `tie add <path>`: absolute, resolved against the caller's cwd
   url?: string // `tie add <url>`, `tie add browser [url]`
   title?: string // add, replace, set ('' = automatic)
+  as?: string // add, replace: the new tile's id (dev builds only: `tie add --id`)
   icon?: string // add, replace, set ('' = automatic)
   at?: TileId
   side?: Side
@@ -136,7 +137,19 @@ function target(p: Params): TileId {
 function toOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
   if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
-  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, icon: p.icon, path: p.path, url: p.url } }
+  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, icon: p.icon, path: p.path, url: p.url, id: requestedId(p) } }
+}
+
+// `--id` (dev builds): scenarios name a tile before Tie answers (e.g. close it in the same write).
+// Tile-shaped (`t` + the id alphabet, so never a tab position) and free.
+let devBuild = false
+function requestedId(p: Params): TileId | undefined {
+  if (p.as === undefined) return undefined
+  if (!devBuild) throw new Error('--id: dev builds only')
+  const id = String(p.as)
+  if (!/^t[a-z0-9]{1,31}$/.test(id)) throw new Error(`bad id: ${id} (t + lowercase letters or digits)`)
+  if (S.tiles.has(id)) throw new Error(`id in use: ${id}`)
+  return id
 }
 
 const methods: Record<string, (p: Params) => unknown> = {
@@ -243,7 +256,8 @@ async function resolveOpen(p: Params) {
   p.kind = v.kind
 }
 
-export function initDriver() {
+export function initDriver(o: { dev: boolean }) {
+  devBuild = o.dev
   tie.rpc.onRequest(async (reqId, method, params) => {
     debug('rpc', method, params)
     try {

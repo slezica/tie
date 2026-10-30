@@ -33,6 +33,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie state` | Dev: internal state of the targeted space (not in `--help`) |
 | `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
 | `tie add probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
+| `tie add\|replace ... --id <id>` | Dev builds: the new tile's id (socket param `as`): `t` + `[a-z0-9]`, free; else `bad id` / `id in use`. Packaged: `--id: dev builds only`. Harness only (`lifecycle` closes a tile in the same write as its `add`); not in `--help` |
 
 - Aliases: `l a r c m f s p` = `list add replace close move focus set ping` (first letters, unique). Option flags have no single-letter forms (`--tab/--tile/--title` would collide).
 - `add` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--icon E`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`. `replace`: the same minus placement.

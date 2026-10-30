@@ -15,15 +15,8 @@ export default async (ctx, h) => {
   const before = shells().length
   const spawned = () => [...ctx.appLog().matchAll(/\[pty\] spawn (\d+)/g)].map((m) => m[1])
   const n0 = spawned().length
-  // Ids are random: make the next one known (all-zero bytes → taaaaaa), once, to close it unseen.
-  const next = 'taaaaaa'
-  await ctx.page.evaluate(() => {
-    const real = crypto.getRandomValues.bind(crypto)
-    crypto.getRandomValues = (a) => {
-      crypto.getRandomValues = real
-      return a.fill(0)
-    }
-  })
+  // Ids are random: `as` (dev `--id`) names the tile so the close can follow in the same write.
+  const next = 'tlifecycle'
   await new Promise((res) => {
     const c = connect(info.socket)
     let buf = ''
@@ -32,7 +25,7 @@ export default async (ctx, h) => {
       if (buf.split('\n').filter(Boolean).length >= 2) c.end(), res()
     })
     const rpc = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'
-    c.on('connect', () => c.write(rpc(1, 'add', { kind: 'terminal' }) + rpc(2, 'close', { id: next })))
+    c.on('connect', () => c.write(rpc(1, 'add', { kind: 'terminal', as: next }) + rpc(2, 'close', { id: next })))
   })
   // Its pty spawn resolves after the close: the shell is killed (app log: spawn, then exit).
   const pid = await h.waitFor(ctx, async () => spawned()[n0], 'pty spawn of the closed tile')
