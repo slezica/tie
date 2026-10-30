@@ -20,7 +20,7 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 - Highlighting: highlight.js (shared `highlight.ts` subset) by file name: extension as language/alias (`ts`, `py`, `rs`, `json`, `yaml`, `sh`...), a few mapped (`mjs`/`jsx` → javascript, `tsx` → typescript, `h` → c, `toml` → ini, `svg`/`htm` → xml, `Makefile`, `Dockerfile`, `.bashrc`...). Files over 512 KB: plain (cost). Multi-line tokens split per line (spans closed and reopened).
 - Literal: escaped (or highlight.js-escaped) text only. Control characters → Control Pictures (`␛`, `␇`, `␀`...); bidi overrides/isolates (U+202A–202E, U+2066–2069) → `⟨U+202E⟩`; both in red (`.ctl`). CRLF = line end.
 - Live (`live.ts`): changed lines marked, view never moves, edge markers, `n` (as markdown, `MARKDOWN.md` "Live updates").
-- Keys: Shift+↑/↓ third-page scroll, `n`, `cmd+R` reload (page render, scroll kept). Links: not clickable (v1).
+- Keys: Shift+↑/↓ third-page scroll (animated), `n`, `cmd+R` reload (page render, scroll kept). Links: not clickable (v1).
 - Empty file: "(empty file)".
 - Harness: `window.text` (`rev`, `key`, `text`, `lang`, `highlighted`, `lines`, `renders`, `marks()`).
 

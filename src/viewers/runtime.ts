@@ -124,8 +124,8 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
     state.port?.postMessage({ verb: 'followLink', href, newTile: e.metaKey })
   })
 
-  // Shift+Up / Shift+Down: scroll a third of the tile's height (fast scanning). Plain arrows keep the
-  // browser's small step. Plain keys: the viewer's (`keys`); viewers have no text input to steal from.
+  // Shift+Up / Shift+Down: scroll a third of the tile's height (fast scanning), animated: a glide, not
+  // a jump (key repeat chains glides). Plain arrows keep the browser's small step. Plain keys: the viewer's (`keys`); viewers have no text input to steal from.
   addEventListener('keydown', (e) => {
     const plain = !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey
     const fn = plain && spec.keys && Object.hasOwn(spec.keys, e.key) ? spec.keys[e.key] : null
@@ -135,7 +135,7 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
     }
     if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
     e.preventDefault()
-    scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'instant' })
+    scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * Math.round(innerHeight / 3), behavior: 'smooth' })
   })
 
   // Pointer over a link: the host shows its real target in the tile's link strip ('' = left).

@@ -90,7 +90,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 - Per tile: list + index. Push drops forward entries.
 - Nav bar (`TILES.md` "Navigation"): the file's path (not editable), back / forward, reload.
 - `cmd+[` / `cmd+]` (`nav-back` / `nav-forward`): history step; no-op at the ends. `cmd+R` (`nav-reload`): read the file again, render it as a page, scroll kept. `cmd+L`: nothing (location not editable).
-- Shift+Up / Shift+Down (viewer, frame focused): scroll a third of the tile height. Plain arrows: browser step.
+- Shift+Up / Shift+Down (viewer, frame focused): scroll a third of the tile height, animated (smooth, no jump). Plain arrows: browser step.
 
 ## Read-only
 
