@@ -158,7 +158,7 @@ async function securityPage(ctx, h, open) {
   await h.eventually(ctx, async () => h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again'))
 }
 
-// Files page (after Terminal): "Respect .gitignore", default on; saved as files.gitignore.
+// Files page (after Terminal): "Respect .gitignore", default on; saved as gitignore.
 async function filesPage(ctx, h, open) {
   await open()
   const pages = await ctx.page.$$eval('.settings nav button', (bs) => bs.map((b) => b.dataset.page))
@@ -169,7 +169,7 @@ async function filesPage(ctx, h, open) {
   await ctx.page.uncheck('#set-gitignore')
   await ctx.page.locator('.save').click()
   await ctx.page.waitForSelector('.settings', { state: 'detached' })
-  h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings['files.gitignore'] === false, 'files.gitignore saved off')
+  h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.gitignore === false, 'gitignore saved off')
   await open()
   await ctx.page.locator('nav button[data-page="files"]').click()
   h.assert(!(await ctx.page.isChecked('#set-gitignore')), 'gitignore off persisted')

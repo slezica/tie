@@ -16,7 +16,7 @@ export interface Settings {
   warnPasteRun: boolean
   confirmExternal: boolean
   allowExternalControl: boolean
-  'files.gitignore': boolean
+  gitignore: boolean
 }
 
 type DataCb = (id: number, data: string) => void

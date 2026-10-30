@@ -145,7 +145,7 @@ export async function toggleSettings() {
   warnRun.checked = settings.warnPasteRun
   confirmExternal.checked = settings.confirmExternal
   allowExternal.checked = settings.allowExternalControl
-  gitignore.checked = settings['files.gitignore']
+  gitignore.checked = settings.gitignore
   shell.placeholder = defaults.shell
 
   const swatches = () => {
@@ -166,7 +166,7 @@ export async function toggleSettings() {
     warnPasteRun: warnRun.checked,
     confirmExternal: confirmExternal.checked,
     allowExternalControl: allowExternal.checked,
-    'files.gitignore': gitignore.checked,
+    gitignore: gitignore.checked,
   })
   const preview = () => {
     swatches()
