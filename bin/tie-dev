@@ -41,7 +41,10 @@ Commands:
   check-package [app]      Packaged app: fuses as expected, smoke launch (boots, CLI answers)
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
-  install                  Package, then install to /Applications/Tie.app (Tie must not be running)
+  install [--restart]      Package, then install to /Applications/Tie.app (TIE_INSTALL_DIR overrides); while it runs:
+                           staged, swapped in at its next launch; --restart: quit it (its question), install, reopen
+  check-install            Install while running, end to end in a tmp sandbox (never /Applications, ~/.config/tie):
+                           stage, swap at launch, --restart, non-target and incomplete stages
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
 
 Instance: --instance NAME (or =NAME, anywhere) or TIE_INSTANCE (default "dev"; the installed app is "default"). Inside a Tie
@@ -104,6 +107,17 @@ needs_build() {
 PKG_INPUTS=(src bin/tie resources build electron-builder.yml electron.vite.config.ts package.json package-lock.json)
 fingerprint() { find "${PKG_INPUTS[@]}" -type f -print0 | sort -z | xargs -0 shasum | shasum | cut -c1-16; }
 bundle_fp() { cat "$1/Contents/Resources/fingerprint" 2>/dev/null; }
+# Pid of the main process of the copy at $1 (not the bundled CLI: same executable + a script path),
+# by resolved path: a command line may spell it differently (//, /tmp vs /private/tmp). ps, not
+# pgrep: pgrep skips its own ancestors, and from a Tie terminal Tie is one.
+running_main() {
+  local want p c
+  want="$(cd "$1/Contents/MacOS" 2>/dev/null && pwd -P)/Tie" || return 0
+  ps -axwwo pid=,command= | while read -r p c; do
+    [[ "$c" =~ ^(.*/Contents/MacOS/Tie)(\ -|$) ]] || continue
+    [[ "$(cd "${BASH_REMATCH[1]%/Tie}" 2>/dev/null && pwd -P)/Tie" == "$want" ]] && { echo "$p"; break; }
+  done
+}
 
 build() { npx electron-vite build >/dev/null && touch "$STAMP"; }
 
@@ -182,7 +196,7 @@ case "$cmd" in
     if [[ "$(bundle_fp "$APP_OUT")" == "$fp" ]] && codesign -v "$APP_OUT" 2>/dev/null; then
       echo "$APP_OUT ($version, up to date)"; exit 0
     fi
-    if pgrep -f "^$ROOT/$APP_OUT/Contents/MacOS/Tie" >/dev/null; then
+    if [[ -n "$(running_main "$APP_OUT" || true)" ]]; then
       echo "Tie is running from $APP_OUT: quit it first (or run the installed copy)"; exit 1
     fi
     if needs_build; then build; fi
@@ -194,6 +208,8 @@ case "$cmd" in
     echo "$APP_OUT ($version)" ;;
   check-package)
     node dev/package-check.mjs "${1:-$APP_OUT}" ;;
+  check-install)
+    exec dev/install-check.sh ;;
   electron-check)
     node dev/electron-check.mjs ;;
   release)
@@ -228,19 +244,61 @@ case "$cmd" in
     echo "released v$want"
     [[ -z "$warnings" ]] || echo "$warnings" ;;
   install)
+    restart=
+    [[ "${1:-}" == "--restart" ]] && restart=1
     dest="${TIE_INSTALL_DIR:-/Applications}/Tie.app"
+    [[ "$dest" == /* ]] || dest="$ROOT/$dest"
+    stage="$STATE/staged" # Tie.app + target (the bundle it replaces, written last): src/main/update.ts
     "$0" package >/dev/null
-    if [[ -n "$(bundle_fp "$APP_OUT")" && "$(bundle_fp "$APP_OUT")" == "$(bundle_fp "$dest")" ]]; then
-      echo "$dest up to date"; exit 0
+    fp="$(bundle_fp "$APP_OUT")"
+    [[ -n "$fp" ]] || { echo "no fingerprint in $APP_OUT"; exit 1; }
+    if [[ "$fp" == "$(bundle_fp "$dest")" ]]; then
+      rm -rf "$stage"; echo "$dest up to date"; exit 0
     fi
-    # Refuse only to replace the copy that is actually running.
-    if pgrep -f "^$dest/Contents/MacOS/Tie" >/dev/null; then
-      echo "Tie is running from $dest: quit it first (cmd+Q)"; exit 1
+    # Running copy: its bundle is never replaced (Electron spawns helpers from it). Stage; the next
+    # launch swaps.
+    main="$(running_main "$dest" || true)"
+    if [[ -n "$main" ]]; then
+      if [[ "$fp" == "$(bundle_fp "$stage/Tie.app")" && "$(cat "$stage/target" 2>/dev/null)" == "$dest" ]]; then
+        echo "already staged $stage/Tie.app"
+      else
+        rm -rf "$stage"
+        mkdir -p "$stage"
+        ditto "$APP_OUT" "$stage/Tie.app"
+        echo "$dest" > "$stage/target"
+        echo "staged $stage/Tie.app: takes effect at the next launch of Tie"
+      fi
+      [[ -n "$restart" ]] || exit 0
+      # The rest runs detached (own session): from a Tie terminal, quitting Tie ends this script but
+      # not the finisher. Its output goes to install.log, shown here when it ends.
+      ilog="$STATE/log/install.log"
+      rm -f "$ilog"
+      fin="$(node -e "const fd=require('fs').openSync(process.argv[1],'a');const c=require('child_process').spawn(process.argv[2],process.argv.slice(3),{detached:true,stdio:['ignore',fd,fd]});console.log(c.pid);c.unref()" "$ilog" "$0" install-finish "$main" "$dest")"
+      # SIGTERM = the normal quit flow: a visible Tie asks first (busy terminals listed).
+      kill -TERM "$main"
+      echo "asked Tie (pid $main) to quit: answer its question; waiting up to 60 s"
+      while kill -0 "$fin" 2>/dev/null; do sleep 0.2; done
+      cat "$ilog"
+      tail -1 "$ilog" | grep -q '^restarted '; exit
     fi
     rm -rf "$dest"
     ditto "$APP_OUT" "$dest"
+    rm -rf "$stage"
     echo "installed $dest"
     echo "tie CLI outside Tie terminals: add /Applications/Tie.app/Contents/Resources/bin to PATH" ;;
+  install-finish)
+    # Internal (install --restart, detached): waits for Tie (pid $1) to quit, installs to $2, opens it.
+    pid="$1"; dest="$2"
+    for _ in $(seq 1 300); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Tie did not quit within 60 s: still staged at $STATE/staged/Tie.app (takes effect at the next launch)"; exit 1
+    fi
+    rm -rf "$dest"
+    ditto "$APP_OUT" "$dest"
+    rm -rf "$STATE/staged"
+    echo "installed $dest"
+    open -a "$dest"
+    echo "restarted $dest" ;;
   icon)
     node_modules/electron/dist/Electron.app/Contents/MacOS/Electron dev/icon.cjs -ApplePersistenceIgnoreState YES 2>/dev/null
     rm -rf tmp/icon.iconset && mkdir -p tmp/icon.iconset
