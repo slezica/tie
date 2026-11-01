@@ -12,7 +12,8 @@ interface Params {
   caller?: TileId
   kind?: string
   cmd?: string
-  cwd?: string
+  cwd?: string // add, replace: the new tile's cwd (every kind), resolved against the caller's
+  root?: string // add probe (dev): its frame root, resolved against the caller's cwd
   path?: string // `tie add <path>`: absolute, resolved against the caller's cwd
   url?: string // `tie add <url>`, `tie add browser [url]`
   title?: string // add, replace, set ('' = automatic)
@@ -41,6 +42,7 @@ function tileInfo(id: TileId) {
     id,
     kind: t.kind,
     title: displayTitle(t),
+    cwd: t.cwd,
     icon: t.customIcon ?? '', // custom icon (user text); '' = automatic
     glyph: t.surface.icon(), // built-in icon (icons.ts GLYPH)
     state: location(id),
@@ -137,7 +139,8 @@ function target(p: Params): TileId {
 function toOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
   if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
-  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, title: p.title, icon: p.icon, path: p.path, url: p.url, id: requestedId(p) } }
+  if (p.root !== undefined && kind !== 'probe') throw new Error('--root: probe only')
+  return { kind, opts: { cmd: p.cmd, cwd: p.cwd, root: p.root, title: p.title, icon: p.icon, path: p.path, url: p.url, id: requestedId(p) } }
 }
 
 // `--id` (dev builds): scenarios name a tile before Tie answers (e.g. close it in the same write).

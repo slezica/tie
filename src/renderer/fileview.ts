@@ -4,9 +4,10 @@
 // What the viewer gets from the file is the kind's payload (policy table): text, bytes
 // (transferred), or nothing (it loads `src` from its own token). Here: the doc's lifecycle
 // (open, live changes, missing → frozen, close), navigation (history, reload; the host's nav bar)
-// and folder (token) switching, link routing, title / dir / cwd, activity, the theme message.
+// and folder (token) switching, link routing, title, activity, the theme message.
 // docs/TILES.md "File view".
-import { S, tie, debug, spaceOf, withSpace, type Kind } from './state'
+import { tie, debug, spaceOf, withSpace, type Kind } from './state'
+import { tildePath } from './tabs'
 import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
 import { frameSurface } from './frame'
@@ -40,7 +41,7 @@ export function reloadViewers(kind: string) {
 }
 
 export const dirOf = (p: string) => p.slice(0, p.lastIndexOf('/')) || '/'
-const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
+export const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 
 // Theme for viewers: base colors, ANSI palette (code), fonts. Set as CSS custom properties there
 // (runtime.ts; CSSOM: the frame's CSP blocks style attributes).
@@ -181,22 +182,22 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     if (l.kind !== kind) return void beside(l.path, l.hash)
     if (newTile) {
       const sp = spaceOf(host.id)
-      const open = () => openTile(kind, besidePlacement(host.id), { path: l.path, hash: l.hash })
+      const open = () => openTile(kind, besidePlacement(host.id), { path: l.path, hash: l.hash, cwd: host.cwd() })
       return void (sp ? withSpace(sp.id, open) : open())
     }
     if (l.path === doc.path) return frame.post({ type: 'scroll', hash: l.hash })
     void go(l.path, 'push', l.hash)
   }
 
-  // A file of another kind: a new tile beside this one, in the kind main decides (extension, else
-  // content); not openable → dialog.
+  // A file of another kind: a new tile beside this one (this tile's cwd), in the kind main decides
+  // (extension, else content); not openable → dialog.
   async function beside(path: string, hash: string) {
     const v = await tie.doc.viewer(path)
     if (!host.alive()) return
     if ('error' in v) return void infoDialog("Can't open link", v.error)
     debug(kind, 'open beside', host.id, v.kind, untrusted(v.path))
     const sp = spaceOf(host.id)
-    const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash })
+    const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash, cwd: host.cwd() })
     sp ? withSpace(sp.id, open) : open()
   }
 
@@ -229,10 +230,8 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
         tie.doc.close(doc.id)
       }
     },
-    title: () => nameOf(path() ?? kind),
+    title: () => tildePath(path() ?? kind), // full path, `~` for home
     icon: () => spec.icon,
-    dir: () => dirOf(path() ?? S.cwd),
-    cwd: async () => dirOf(path() ?? S.cwd),
     appearance: () => frame.post(themeMessage()),
     // Path shown, not editable (links navigate). Reload: read the file again, render it as a page
     // (scroll kept).

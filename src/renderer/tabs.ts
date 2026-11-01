@@ -4,7 +4,6 @@ import { render } from './render'
 import { activate, openTile, closeTile, moveToSpace, setEmptySpaceHandler } from './ops'
 import { showMetaMenu } from './menu'
 import { requestCloseTab } from './close'
-import { displayTitle } from './tile'
 import { iconHtml } from './icons'
 import { ICON } from './icons'
 import { track } from './drag'
@@ -26,17 +25,14 @@ export function tildePath(dir: string): string {
   return home && (dir === home || dir.startsWith(home + '/')) ? '~' + dir.slice(home.length) : dir
 }
 
-// Custom title, else the active (or first shelved) terminal's working directory, else its title.
+// Custom title, else the cwd of the active (or first shelved) tile, any kind (DIRECTORIES.md).
 export function tabTitle(sp: Space): string {
   if (sp.customTitle) return sp.customTitle
   const t = S.tiles.get(sp.active ?? sp.shelf[0] ?? '')
-  const dir = t?.surface.dir?.()
-  if (dir) return prettyDir(dir)
-  if (t) return displayTitle(t)
-  return 'empty'
+  return t ? prettyDir(t.cwd) : 'empty'
 }
 
-// A new tab starts with a terminal (like a template dropped on an empty board: default cwd).
+// A new tab starts with a terminal in the app cwd (a tile from nothing: no context tile).
 // `empty`: no terminal, for a tile dropped onto the tab list (the caller fills it at once).
 // `show: false` (CLI `--tab new` without --focus): created after the visible tab but not shown.
 export function newTab(o: { empty?: boolean; show?: boolean } = {}): string {

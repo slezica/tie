@@ -1,9 +1,9 @@
 // Files from outside (Finder drops on the board): opened in their kind where they land, like a
-// template dropped there. Not openable (folder, too large...): a modal says so (failures stay
-// visible). docs/INPUT.md.
+// template dropped there (cwd: the tile under / beside the drop, else the active one). Not
+// openable (folder, too large...): a modal says so (failures stay visible). docs/INPUT.md.
 import { S, tie, debug, type Kind } from './state'
 import { untrusted } from '@core/log'
-import { openTile, displaceTile, besidePlacement } from './ops'
+import { openTile, displaceTile, besidePlacement, contextOf, cwdOf } from './ops'
 import { placementAt } from './drag'
 import { infoDialog } from './dialog'
 
@@ -16,11 +16,13 @@ export async function dropFiles(paths: string[], x: number, y: number) {
       continue
     }
     debug('files', 'drop', v.kind, untrusted(v.path))
-    // Each file where it lands (re-read: the board changed with the last one). Onto a tile's
-    // center: it takes that leaf, the tile goes to the shelf.
-    const p = placementAt(x, y) ?? besidePlacement(S.active)
-    if (p.type === 'displace') displaceTile(p.with, v.kind as Kind, { path: v.path })
-    else openTile(v.kind as Kind, p, { path: v.path })
+    // Each file where it lands (re-read: the board changed with the last one, or meanwhile). Onto
+    // a tile's center: it takes that leaf, the tile goes to the shelf.
+    const at = () => placementAt(x, y) ?? besidePlacement(S.active)
+    const cwd = await cwdOf(contextOf(at()))
+    const p = at()
+    if (p.type === 'displace') displaceTile(p.with, v.kind as Kind, { path: v.path, cwd })
+    else openTile(v.kind as Kind, p, { path: v.path, cwd })
   }
   if (failed.length) await infoDialog("Can't open", [...new Set(failed)].join('\n'))
 }

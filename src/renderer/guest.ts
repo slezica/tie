@@ -2,8 +2,8 @@
 // webContents on the browser partition (main/guest.ts rebuilds its prefs at attach: no preload, no
 // Node, sandboxed; guards its navigation, popups, downloads; matches shortcuts in its own
 // before-input-event). No channel to the UI: no requests, no window.tie. Here: the element
-// (never re-parented, like every tile body), title from the page, nav bar (editable location:
-// core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
+// (never re-parented, like every tile body), title from the URL (host + path), nav bar (editable
+// location: core/guest locationUrl), focus, crash / hang → host error. docs/BROWSER.md.
 import { tie, debug } from './state'
 import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
@@ -61,6 +61,17 @@ async function askLeave(o: { page: boolean }): Promise<boolean> {
 const hostOf = (url: string) => {
   try {
     return new URL(url).host
+  } catch {
+    return ''
+  }
+}
+
+// Tile title: host + path, no scheme, no trailing `/` (DIRECTORIES.md "Titles"). Not the page's
+// title (the site can't label the tile).
+const urlTitle = (url: string) => {
+  try {
+    const u = new URL(url)
+    return u.host ? (u.host + u.pathname).replace(/\/+$/, '') : ''
   } catch {
     return ''
   }
@@ -193,7 +204,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
       } else wv.focus()
       return true
     },
-    title: () => title || hostOf(url) || 'browser',
+    title: () => urlTitle(url) || 'browser',
     icon: () => ICON,
     nav: {
       state: () => ({

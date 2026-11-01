@@ -3,7 +3,7 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SHELLS } from '../icons'
-import { S, tie, debug } from '../state'
+import { tie, debug } from '../state'
 import { termOptions } from '../appearance'
 import { activate } from '../ops'
 import { pasteInto } from '../paste'
@@ -23,15 +23,10 @@ interface Term {
   oscTitle?: string // title escape
   proc?: string // foreground process (polled)
   cmd?: string // `--cmd`: run instead of an interactive shell
-  cwd?: string // start directory
-  cwdNow?: string // shell's current directory (polled)
   exited?: boolean // pty exited
 }
 
 const byPty = new Map<number, Term>()
-
-// Last known directory: polled, else the start directory.
-const dirOf = (t: Term) => t.cwdNow || t.cwd || S.cwd
 
 // SECURITY: terminal output is untrusted, and OSC 8 links can hide any URL behind any text.
 // xterm's default handler (confirm + window.open) would load it in-app. Here: hover shows the real
@@ -60,7 +55,7 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
   })
   const fit = new FitAddon()
   term.loadAddon(fit)
-  const t: Term = { host, term, fit, pty: null, cmd: opts.cmd, cwd: opts.cwd }
+  const t: Term = { host, term, fit, pty: null, cmd: opts.cmd }
   term.onTitleChange((title) => {
     t.oscTitle = title
     host.changed()
@@ -82,20 +77,16 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       return true
     },
     title: () => {
-      if (prefs.terminalTitle === 'directory') return prettyDir(dirOf(t))
+      if (prefs.terminalTitle === 'directory') return prettyDir(host.cwd())
       if (prefs.terminalTitle === 'auto' && t.oscTitle) return t.oscTitle
       if (t.cmd) return t.cmd
       if (t.proc && !SHELLS.has(t.proc)) return t.proc
       return t.proc || 'terminal'
     },
-    tip: () => (prefs.terminalTitle === 'directory' ? tildePath(dirOf(t)) : ''),
+    tip: () => tildePath(host.cwd()),
     icon: () => 'terminal', // same for every program (no per-program icons)
-    dir: () => t.cwdNow,
     // Where the shell is right now (fresh read, not the 2 s poll).
-    cwd: async () => {
-      const now = t.pty !== null ? await tie.pty.cwd(t.pty) : null
-      return now ?? t.cwdNow ?? t.cwd
-    },
+    cwdNow: async () => (t.pty !== null && !t.exited ? ((await tie.pty.cwd(t.pty)) ?? undefined) : undefined),
     appearance: () => {
       const o = termOptions()
       term.options.theme = o.theme
@@ -134,7 +125,7 @@ async function start(t: Term) {
   fixWidthCache(term)
   t.fit.fit()
   const { cols, rows } = term
-  const res = await tie.pty.spawn({ cmd: t.cmd, cwd: t.cwd || S.cwd, cols, rows, env: { TIE_TILE: host.id } }).catch((e: Error) => ({ error: e.message }))
+  const res = await tie.pty.spawn({ cmd: t.cmd, cwd: host.cwd(), cols, rows, env: { TIE_TILE: host.id } }).catch((e: Error) => ({ error: e.message }))
   // Closed while spawning: dispose had no pty to kill yet.
   if (!host.alive()) return void (typeof res === 'number' && tie.pty.kill(res))
   if (typeof res !== 'number') return host.error(res.error)
@@ -217,8 +208,7 @@ export function initTerminals() {
   tie.pty.onCwd((pid, cwd) => {
     const t = byPty.get(pid)
     if (!t) return
-    t.cwdNow = cwd
-    t.host.changed()
+    t.host.setCwd(cwd)
   })
   tie.pty.onProcess((pid, name) => {
     const t = byPty.get(pid)

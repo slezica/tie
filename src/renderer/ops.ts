@@ -138,8 +138,21 @@ export function replaceTile(old: TileId, id: TileId, o: { focus?: boolean } = {}
   })
 }
 
+// The tile a new one opens from (DIRECTORIES.md): the tile it splits / displaces, else the active
+// tile of the target space (S.current: withSpace). Null: none (a tile from nothing: the app cwd).
+export function contextOf(p?: Placement | { type: 'displace'; with: TileId }): TileId | null {
+  if (p?.type === 'displace') return S.tiles.has(p.with) ? p.with : null
+  if (p?.type === 'slot' && p.at && S.tiles.has(p.at)) return p.at
+  return S.active && S.tiles.has(S.active) ? S.active : null
+}
+
+// Stored cwd of the context tile, else the app cwd (synchronous; callers wanting a fresh read
+// pass `opts.cwd` from `cwdOf`).
+const contextCwd = (ctx: TileId | null) => (ctx && S.tiles.get(ctx)?.cwd) || S.cwd
+
+// `opts.cwd`: the new tile's cwd; absent: its context tile's (contextOf).
 export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { activate?: boolean } = {}): TileId {
-  const t = createTile(kind, opts)
+  const t = createTile(kind, { ...opts, cwd: opts.cwd || contextCwd(contextOf(p)) })
   place(t.id, p, o)
   render()
   mountTile(t).then(() => S.active === t.id && t.surface.focus())
@@ -151,7 +164,7 @@ export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { act
 // a template or file dropped on a tile's center). `old` no longer slotted: nothing, null.
 export function displaceTile(old: TileId, kind: Kind, opts: OpenOpts = {}): TileId | null {
   if (!contains(S.tree, old)) return debug('layout', 'displace refused', old), null
-  const t = createTile(kind, opts)
+  const t = createTile(kind, { ...opts, cwd: opts.cwd || contextCwd(old) })
   place(t.id, { type: 'shelf' })
   swap(t.id, old) // exchanges shelf ↔ slot: old takes the new tile's (last) shelf index
   activate(t.id)
@@ -167,10 +180,20 @@ export function besidePlacement(id: TileId | null): Placement {
   return { type: 'slot', at, side: r && r.h > r.w ? 'b' : 'r' }
 }
 
-// A tile's directory right now (terminal: its shell's, fresh read), for new terminals divided from it.
+// A tile's cwd right now, for tiles opened from it: terminal: its shell's (fresh read, not the
+// poll); others: the stored one. No tile: undefined (openTile falls back).
 export async function cwdOf(id: TileId | null | undefined): Promise<string | undefined> {
   const t = id ? S.tiles.get(id) : undefined
-  return t?.surface.cwd?.()
+  if (!t) return undefined
+  return (await t.surface.cwdNow?.()) || t.cwd
+}
+
+// The tile's cwd changed (terminal: the shell's `cd`): title, tab title (tile-meta).
+export function setCwd(id: TileId, dir: string) {
+  const t = getTile(id)
+  if (!dir || t.cwd === dir) return
+  t.cwd = dir
+  refreshTitle(t)
 }
 
 // A space emptied by closing its last tile closes too, unless it is the only one (tabs.ts owns

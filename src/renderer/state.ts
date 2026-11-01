@@ -50,6 +50,7 @@ export interface Tile {
   kind: Kind
   customTitle?: string
   customIcon?: string
+  cwd: string // context directory (DIRECTORIES.md): inherited at open, terminals follow `cd`; never a frame root
   exit: number | null // content ended with this code (terminal: process exit)
   activity: boolean
   pinged: boolean // asked for attention (tie ping); clears when the tile becomes active
@@ -103,7 +104,7 @@ export const S = {
   spaces: [first] as Space[],
   visible: first.id, // the space shown on screen
   current: first.id, // the space ops act on (== visible except inside withSpace)
-  cwd: '',
+  cwd: '', // app cwd: tiles opened from nothing (boot, new tab); TIE_CWD, else home
   rects: new Map<TileId, Rect>(), // last rendered rects (visible space), window coords
   get sp(): Space {
     return this.spaces.find((x) => x.id === this.current) ?? this.spaces[0]

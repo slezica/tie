@@ -13,7 +13,8 @@ import { browserKind } from '../guest'
 export interface OpenOpts {
   title?: string // custom title ('' = automatic)
   icon?: string // custom icon (user text; '' = automatic)
-  cwd?: string // start directory
+  cwd?: string // the tile's cwd (DIRECTORIES.md); absent: its context tile's (ops `openTile`)
+  root?: string // dev probe: its frame root (`tie add probe --root`); absent: its cwd
   cmd?: string
   path?: string // file to view (kinds that open 'file')
   url?: string // page to load (kinds that open 'url': http(s), checked by the kind)
@@ -26,7 +27,9 @@ export interface Host {
   id: TileId
   body: HTMLElement // the kind's area; sized by the host
   alive(): boolean // still open: async work re-checks before touching the tile
-  changed(): void // automatic title / icon / dir / navigation changed
+  changed(): void // automatic title / icon / navigation changed
+  cwd(): string // the tile's cwd
+  setCwd(dir: string): void // the tile's cwd changed (terminal: the shell's `cd`, polled)
   activity(): void // new output (marks shelved tiles)
   exit(code: number): void // content ended: status shown in the title bar
   error(message: string): void // failed to start: message replaces the content
@@ -42,8 +45,7 @@ export interface Surface {
   title(): string // automatic title
   tip?(): string // title tooltip (e.g. full path when the title is its basename)
   icon(): Glyph // automatic icon (built-in glyph; custom icons are the host's)
-  dir?(): string | undefined // directory for tab titles (last known)
-  cwd?(): Promise<string | undefined> // directory now, for tiles split from this one
+  cwdNow?(): Promise<string | undefined> // fresh cwd read (terminal: the shell's, `lsof`), for tiles opened from this one
   paste?(text: string): void
   drop?(data: DataTransfer): void
   appearance?(): void // theme / font settings changed

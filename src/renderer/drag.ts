@@ -1,7 +1,7 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropZone, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, withSpace, type Kind } from './state'
-import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, besidePlacement, type Placement } from './ops'
+import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, contextOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab, edgeScroll } from './tabs'
 import { render } from './render'
@@ -154,9 +154,10 @@ async function applyDrop(src: DragSource, t: Target) {
   }
   if (d.type === 'slot' && d.at && !contains(S.tree, d.at)) return
   if (src.type === 'tile') return d.type === 'displace' ? undefined : place(src.id, d) // a tile's center drop is a swap
-  // Template dropped next to (or on) a tile: start where that tile's shell is (like cmd+D).
+  // Template: the new tile starts in its context tile's cwd (contextOf: the tile next to / under the
+  // drop, else the active one: shelf, empty board area, float); fresh (a terminal: its shell now).
   const at = d.type === 'slot' ? d.at : d.type === 'displace' ? d.with : null
-  const cwd = at ? await cwdOf(at) : undefined
+  const cwd = await cwdOf(contextOf(d))
   if (at && !contains(S.tree, at)) return
   const opts = await templateOpts(src.template, cwd)
   if (!opts || (at && !contains(S.tree, at))) return
@@ -164,25 +165,25 @@ async function applyDrop(src: DragSource, t: Target) {
   else openTile(opts.kind, d, opts.opts)
 }
 
-// What a template opens: its kind, or for `file` the picked file's (Tie's picker from `cwd`, else
-// the default directory; any file; cancel = null, no tile). Its kind as for tie add (main: extension, else content); not openable (too
-// large...): a modal says why, null.
+// What a template opens, with the new tile's `cwd`: its kind, or for `file` the picked file's
+// (Tie's picker from `cwd`, else the app cwd; any file; cancel = null, no tile). Its kind as for
+// tie add (main: extension, else content); not openable (too large...): a modal says why, null.
 export async function templateOpts(template: Template['id'], cwd: string | undefined): Promise<{ kind: Kind; opts: OpenOpts } | null> {
   if (template !== 'file') return { kind: template, opts: { cwd } }
-  const path = await pickPath(cwd ?? S.cwd)
+  const path = await pickPath(cwd || S.cwd)
   if (!path) return null
   const v = await tie.doc.viewer(path)
   if ('error' in v) return void infoDialog("Can't open", v.error), null
-  return { kind: v.kind as Kind, opts: { path: v.path } }
+  return { kind: v.kind as Kind, opts: { path: v.path, cwd } }
 }
 
 // Onto a tab: the tile joins it (or a new tab: `space` null), the tab is shown, the tile active.
 // A template: a new tile of its kind there, beside its active tile, starting in that tile's cwd
-// (fresh; terminal and file alike); a new tab: the default cwd.
+// (fresh; contextOf: the tab's active tile); a new tab: the app cwd.
 async function dropOnTab(src: DragSource, space: string | null) {
   const exists = () => space === null || S.spaces.some((x) => x.id === space)
   if (src.type === 'tile') return moveToTab(src.id, space ?? newTab({ empty: true }))
-  const cwd = space ? await cwdOf(withSpace(space, () => S.active)) : undefined
+  const cwd = space ? await cwdOf(withSpace(space, () => contextOf())) : undefined
   if (!exists()) return
   const opts = await templateOpts(src.template, cwd)
   if (!opts || !exists()) return

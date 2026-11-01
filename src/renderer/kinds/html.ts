@@ -12,7 +12,8 @@ import { untrusted } from '@core/log'
 import { frameSurface } from '../frame'
 import { openTile, besidePlacement } from '../ops'
 import { infoDialog } from '../dialog'
-import { dirOf } from '../fileview'
+import { dirOf, nameOf } from '../fileview'
+import { tildePath } from '../tabs'
 import { openExternal, confirmFile } from '../external'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from '.'
@@ -21,7 +22,6 @@ const ICON: Glyph = 'html'
 const RELOAD_MS = 100 // folder change → reload (main already debounced)
 const NEW_TILE_MS = 1000 // at most one tile opened per this, per html tile (a page can hold many links)
 
-const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/')
 
 export function htmlKind(host: Host, opts: OpenOpts): Surface {
@@ -143,7 +143,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     if (!host.alive()) return
     if ('error' in v) return void infoDialog("Can't open link", v.error)
     const sp = spaceOf(host.id)
-    const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash: l.hash })
+    const open = () => openTile(v.kind as Kind, besidePlacement(host.id), { path: v.path, hash: l.hash, cwd: host.cwd() })
     debug('html', 'open beside', host.id, v.kind, untrusted(v.path))
     sp ? withSpace(sp.id, open) : open()
   }
@@ -170,10 +170,8 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       if (reloadTimer) clearTimeout(reloadTimer)
       frame.dispose()
     },
-    title: () => nameOf(path),
+    title: () => tildePath(path), // full path, `~` for home
     icon: () => ICON,
-    dir: () => root,
-    cwd: async () => root,
     // The page had scripts; Tie didn't run them. A tag, not a switch: html tiles are static by
     // design (dynamic pages: serve them and open a browser tile).
     pills: [

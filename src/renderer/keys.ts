@@ -1,7 +1,7 @@
 // Keyboard shortcuts: actions from main (keymap: @core/keymap, matched in src/main/keys.ts).
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, tie, location, getTile, spaceOf, withSpace } from './state'
-import { openTile, activate, cwdOf, swap, place, besidePlacement } from './ops'
+import { openTile, activate, cwdOf, contextOf, swap, place, besidePlacement } from './ops'
 import { newTab, cycleTab, switchTabIndex } from './tabs'
 import { requestCloseTile, requestCloseTab } from './close'
 import { askQuit } from './quit'
@@ -94,18 +94,24 @@ export function run(action: Action) {
 }
 
 // New tile of the active tile's kind, as if its template were dropped on that edge. Slotted only.
-// The new terminal starts where the source shell is now. Kinds showing a file (or a page) split
-// into a terminal in the file's directory (browser: the default directory).
-// `file` (cmd+O): the file template instead: the picker from that directory, the picked file's kind;
-// cancel = nothing. Empty board: a root tile (terminal, or the picked file from the default directory).
+// It starts in the source tile's cwd (DIRECTORIES.md; a terminal: where its shell is now). Kinds
+// showing a file (or a page) split into a terminal.
+// `file` (cmd+O): the file template instead: the picker from that cwd, the picked file's kind;
+// cancel = nothing. Empty board: a root tile (terminal, or the picked file), from the active tile
+// if any (floating, shelved), else the app cwd.
 async function splitActive(side: Side, template: 'terminal' | 'file' = 'terminal') {
   if (template === 'file') return fileBeside(side)
-  if (!S.tree) return void openTile('terminal', { type: 'slot', at: null, side })
+  if (!S.tree) {
+    const space = S.current
+    const cwd = await cwdOf(contextOf({ type: 'slot', at: null, side }))
+    if (!S.spaces.some((x) => x.id === space)) return
+    return void withSpace(space, () => openTile('terminal', { type: 'slot', at: null, side }, { cwd }))
+  }
   const src = S.active
   if (!src || location(src) !== 'slotted') return
   const own = getTile(src).kind
   const kind = kindSpec(own)?.opens === 'bare' ? own : 'terminal'
-  const cwd = await cwdOf(src)
+  const cwd = await cwdOf(contextOf({ type: 'slot', at: src, side }))
   if (!S.tiles.has(src) || location(src) !== 'slotted') return // closed/moved meanwhile
   withSpace(spaceOf(src)!.id, () => openTile(kind, { type: 'slot', at: src, side }, { cwd }))
 }
@@ -114,7 +120,7 @@ async function fileBeside(side: Side) {
   const space = S.current
   const src = S.tree ? S.active : null
   if (S.tree && (!src || location(src) !== 'slotted')) return
-  const cwd = src ? await cwdOf(src) : undefined
+  const cwd = await cwdOf(contextOf({ type: 'slot', at: src, side }))
   if (src && (!S.tiles.has(src) || location(src) !== 'slotted')) return // closed/moved meanwhile
   const picked = await templateOpts('file', cwd)
   if (!picked) return

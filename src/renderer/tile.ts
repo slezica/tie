@@ -4,7 +4,7 @@ import { ICON, iconHtml, type Icon } from './icons'
 import { S, type Tile, type Kind, newId, debug } from './state'
 import { kindSpec, type Host, type OpenOpts } from './kinds'
 import { noteActivity } from './shelf'
-import { closeTile } from './ops'
+import { closeTile, setCwd } from './ops'
 import { createNavBar, refreshNav } from './nav'
 
 export function displayTitle(t: Tile): string {
@@ -15,6 +15,7 @@ export function displayIcon(t: Tile): Icon {
   return t.customIcon ? { text: t.customIcon } : { glyph: t.surface.icon() }
 }
 
+// `opts.cwd`: resolved by the caller (ops `openTile`); absent: the app cwd.
 export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   const factory = kindSpec(kind)?.factory
   if (!factory) throw new Error(`unknown kind: ${kind}`)
@@ -41,12 +42,14 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
   document.getElementById('tiles')!.appendChild(el)
   const body = el.querySelector('.body') as HTMLElement
 
-  const tile = { id, kind, exit: null, activity: false, pinged: false, el, body, customTitle: opts.title || undefined, customIcon: opts.icon || undefined } as Omit<Tile, 'surface'> as Tile
+  const tile = { id, kind, cwd: opts.cwd || S.cwd, exit: null, activity: false, pinged: false, el, body, customTitle: opts.title || undefined, customIcon: opts.icon || undefined } as Omit<Tile, 'surface'> as Tile
   const host: Host = {
     id,
     body,
     alive: () => S.tiles.get(id) === tile,
     changed: () => host.alive() && refreshTitle(tile),
+    cwd: () => tile.cwd,
+    setCwd: (dir) => host.alive() && setCwd(id, dir),
     activity: () => noteActivity(id),
     exit: (code) => {
       tile.exit = code
