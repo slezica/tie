@@ -1,4 +1,4 @@
-// Browser tiles (<webview> guest on a local site): tie add <url>, title from the page, links
+// Browser tiles (<webview> guest on a local site): tie add <url>, title from the URL, links
 // (real clicks), back / forward / reload (keys from the UI and from inside the guest), location
 // bar (cmd+L, typed URL, refused input), keys from the guest (cmd+D splits), focus activation,
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
@@ -49,11 +49,12 @@ export default async (ctx, h) => {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const hits = (p) => s.hits.filter((x) => x === p).length
 
-    // tie add <url>: a browser tile; title from the page, location = URL.
+    // tie add <url>: a browser tile; title = host + path (not the page's), location = URL.
+    const at = (path) => s.url.replace(/^https?:\/\//, '') + path
     const b = (await ctx.tie('add', s.url + '/one', '--at', t0, '--side', 'r')).id
     let g = await h.guestPage(ctx, b)
-    let t = await h.tileOf(ctx, b)
-    h.assert(t.kind === 'browser' && t.title === 'Page One' && t.web.url === s.url + '/one', `opened: ${JSON.stringify(t.web)} ${t.title}`)
+    let t = await h.waitTile(ctx, b, (t) => t.web.title === 'Page One')
+    h.assert(t.kind === 'browser' && t.title === at('/one') && t.web.url === s.url + '/one', `opened: ${JSON.stringify(t.web)} ${t.title}`)
     const loc = () => ctx.page.$eval(`.tile[data-id="${b}"] .navbar .location`, (e) => e.value)
     h.assert((await loc()) === s.url + '/one', 'location shows the URL')
     await ctx.shot('one')
@@ -65,17 +66,18 @@ export default async (ctx, h) => {
     const box = await g.locator('#two').boundingBox()
     const body = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
     await ctx.page.mouse.click(body.x + box.x + 10, body.y + box.y + box.height / 2)
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'Page Two', 'link navigates')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Two', 'link navigates')
     h.assert((await h.list(ctx)).active === b, 'click in the guest activates its tile')
     h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'WEBVIEW', 'guest focused')
     t = await h.tileOf(ctx, b)
     h.assert(t.web.back && !t.web.forward && (await loc()) === s.url + '/two', `history after link: ${JSON.stringify(t.web)}`)
+    h.assert(t.title === at('/two'), `title follows the URL: ${t.title}`)
 
     // Back / forward: cmd+[ / cmd+] (through main, UI side) and from inside the guest.
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'Page One', 'cmd+[ back')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page One', 'cmd+[ back')
     await h.guestKey(ctx, b, 'Meta+]')
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'Page Two', 'cmd+] forward from the guest')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Two', 'cmd+] forward from the guest')
     g = await h.guestPage(ctx, b)
     h.assert(!(await g.evaluate(() => window.__keys)).some((k) => k.startsWith('Meta+')), 'shortcut keys never reach the page')
 
@@ -103,7 +105,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, () => ctx.page.evaluate(() => document.activeElement?.classList.contains('location')), 'cmd+L focuses the location')
     await ctx.page.keyboard.type(s.url + '/three')
     await ctx.page.keyboard.press('Enter')
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).title === 'Page Three', 'typed URL loads')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Three', 'typed URL loads')
     h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'WEBVIEW', 'Enter: keys back to the page')
     await h.press(ctx, 'Meta+l')
     await ctx.page.keyboard.type('how to cook')
@@ -182,7 +184,7 @@ export default async (ctx, h) => {
     const bare = JSON.parse(cli('add', 'browser', '--json').out)
     h.assert(bare.kind === 'browser' && bare.web.url === 'about:blank' && !bare.active, `tie add browser: ${JSON.stringify(bare.web)}`)
     const withUrl = JSON.parse(cli('add', 'browser', s.url + '/two', '--json').out)
-    await h.waitFor(ctx, async () => (await h.tileOf(ctx, withUrl.id)).title === 'Page Two', 'tie add browser <url>')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, withUrl.id)).web.title === 'Page Two', 'tie add browser <url>')
     for (const [args, err] of [
       [['add', 'browser', 'file:///etc/hosts'], 'Not a web address'],
       [['add', 'browser', 'javascript:alert(1)'], 'Not a web address'],

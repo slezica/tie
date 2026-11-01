@@ -33,7 +33,7 @@ export default async (ctx, h) => {
     const src0 = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)
     await h.clickIn(ctx, await fr(), 'a >> text=to b')
     await h.waitFor(ctx, shows('B'), 'b.md in the same tile')
-    h.assert((await h.tileOf(ctx, id)).title === 'b.md' && (await count()) === 2, 'title follows, no new tile')
+    h.assert((await h.tileOf(ctx, id)).title === h.tilde(join(dir, 'b.md')) && (await count()) === 2, 'title follows, no new tile')
     h.assert((await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)) === src0, 'same directory: same frame')
 
     // History keys (through main, frame focused).
@@ -119,7 +119,7 @@ export default async (ctx, h) => {
     // back: beside too.
     await ctx.tie('focus', '--tile', id)
     await h.clickIn(ctx, await fr(), 'a >> text=script')
-    const txt = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'text' && t.title === 'run.sh'), 'run.sh opens as text beside')
+    const txt = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'text' && t.title === h.tilde(join(dir, 'run.sh'))), 'run.sh opens as text beside')
     h.assert(txt.state === 'slotted' && (await doc()).path.endsWith('/a.md'), 'text beside, markdown unchanged')
     await ctx.tie('close', '--tile', txt.id)
     await ctx.tie('focus', '--tile', id)

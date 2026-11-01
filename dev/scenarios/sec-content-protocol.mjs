@@ -15,7 +15,7 @@ export default async (ctx, h) => {
   symlinkSync(dir, join(root, 'dirlink'))
   symlinkSync(join(root, 'ok.svg'), join(root, 'inner-link.svg'))
   try {
-    const id = (await ctx.tie('add', 'probe', '--cwd', root)).id
+    const id = (await ctx.tie('add', 'probe', '--root', root)).id
     const f = await h.probeFrame(ctx, id)
     const token = new URL(f.url()).host
     const img = (path) => f.evaluate((src) => new Promise((r) => Object.assign(new Image(), { onload: () => r('load'), onerror: () => r('error'), src })), `tie-content://${token}${path}`)
@@ -35,7 +35,7 @@ export default async (ctx, h) => {
     await h.eventually(ctx, async () => h.assert(ctx.appLog().includes(`blocked navigation subframe ${url}`), 'dead token: frame refused'))
 
     // Bad root: failure stays visible.
-    const bad = (await ctx.tie('add', 'probe', '--cwd', join(dir, 'missing'))).id
+    const bad = (await ctx.tie('add', 'probe', '--root', join(dir, 'missing'))).id
     await h.eventually(ctx, async () => {
       const t = (await h.list(ctx)).tiles.find((t) => t.id === bad)
       h.assert(/Directory not found/.test(t?.error ?? ''), `bad root shows error: ${JSON.stringify(t)}`)

@@ -180,7 +180,7 @@ export default async (ctx, h) => {
     await ctx.tie('close', '--tile', other)
 
     // Opaque viewer frames (markdown, probe) still can't fetch their own token.
-    const pr = (await ctx.tie('add', 'probe', '--cwd', dir)).id
+    const pr = (await ctx.tie('add', 'probe', '--root', dir)).id
     const pf = await h.probeFrame(ctx, pr)
     const opaque = await pf.evaluate((t) => fetch(`tie-content://${t}/data.json`).then(() => 'ok', () => 'threw'), new URL(pf.url()).host)
     h.assert(opaque === 'threw', `probe frame fetch: ${opaque}`)

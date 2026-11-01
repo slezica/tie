@@ -63,7 +63,7 @@ export default async (ctx, h) => {
     writeFileSync(join(dir, 'png-bytes'), readFileSync(join(process.cwd(), 'build/icon.png')))
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, t0, 'b'))
     await h.pick(ctx, join(dir, 'png-bytes'))
-    const p = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((x) => x.kind === 'hex' && x.title === 'png-bytes'), 'file template opens a binary as hex')
+    const p = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((x) => x.kind === 'hex' && x.title === h.tilde(join(dir, 'png-bytes'))), 'file template opens a binary as hex')
     h.assert((await view(p.id)).rows[0].startsWith('00000000  89 50 4e 47') && (await h.list(ctx)).tiles.length === n + 1, 'PNG bytes')
   } finally {
     rmSync(dir, { recursive: true, force: true })

@@ -29,7 +29,7 @@ export default async (ctx, h) => {
     const r0 = await ran(fr)
     h.assert(!r0.inline && !r0.file && !r0.module && r0.out === 'static' && r0.color === 'rgb(1, 2, 3)', `static: no scripts ran, CSS did: ${JSON.stringify(r0)}`)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).page.blocked >= 3, 'blocked scripts counted')
-    h.assert((await h.tileOf(ctx, id)).title === 'index.html', 'title = file name')
+    h.assert((await h.tileOf(ctx, id)).title === h.tilde(join(dir, 'index.html')), 'title = its path')
     let p = await pill()
     h.assert(p.text === 'Scripts blocked' && !p.hidden && p.static, `tag shown, not a toggle: ${JSON.stringify(p)}`)
     await ctx.shot('blocked')

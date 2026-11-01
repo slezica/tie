@@ -1,3 +1,4 @@
+import { homedir } from 'node:os'
 import { rpc } from './lib.mjs'
 
 // Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
@@ -329,6 +330,9 @@ export async function waitFor(ctx, fn, what, ms = 4000) {
 
 // `tie list --json` entry of a tile.
 export const tileOf = async (ctx, id) => (await list(ctx)).tiles.find((t) => t.id === id)
+
+// A path as Tie titles it (file / html tiles; terminal tooltips): home abbreviated to `~`.
+export const tilde = (p) => (p === homedir() || p.startsWith(homedir() + '/') ? '~' + p.slice(homedir().length) : p)
 
 // Next answer of the native file dialog (the picker's "…") in this harness instance (path, or null
 // = cancel). Main, dev socket `pick`.

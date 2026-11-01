@@ -45,11 +45,11 @@ export default async (ctx, h) => {
     const r = await f0.evaluate(() => ({ color: getComputedStyle(document.getElementById('h')).color, origin: location.origin }))
     h.assert(r.color === 'rgb(1, 2, 3)' && /^tie-content:\/\/[0-9a-f]{32}$/.test(r.origin), `siblings: ${JSON.stringify(r)}`)
     const t = await h.tileOf(ctx, id)
-    h.assert(t.kind === 'html' && t.title === 'index.html' && !t.error, `html tile, title = file name: ${JSON.stringify(t)}`)
+    h.assert(t.kind === 'html' && t.title === h.tilde(join(dir, 'index.html')) && !t.error, `html tile, title = its path: ${JSON.stringify(t)}`)
     // The page's <title> never names the tile (decision 2026-10-20: content can't label itself).
     await f0.evaluate(() => (document.title = 'Changed'))
     await ctx.sleep(400) // absence: the tile title must not follow
-    h.assert((await h.tileOf(ctx, id)).title === 'index.html', 'title stays the file name')
+    h.assert((await h.tileOf(ctx, id)).title === h.tilde(join(dir, 'index.html')), 'title stays the path')
     await ctx.shot('index')
 
     // Link in the folder: same tile, same token; back / forward. (A first click focuses the frame:
@@ -61,7 +61,7 @@ export default async (ctx, h) => {
     await shows('B')
     let p = await pg()
     h.assert(p.path.endsWith('/site/b.html') && p.history.index === 1 && p.url.split('/')[2] === url0.split('/')[2], `b.html in the tile: ${JSON.stringify(p)}`)
-    h.assert((await h.tileOf(ctx, id)).title === 'b.html', 'title follows the file')
+    h.assert((await h.tileOf(ctx, id)).title === h.tilde(join(dir, 'b.html')), 'title follows the file')
     await h.press(ctx, 'Meta+[')
     await shows('Index')
     await h.press(ctx, 'Meta+]')
@@ -96,10 +96,10 @@ export default async (ctx, h) => {
 
     // Other kinds: beside, in their kind (target=_blank markdown, plain-click text).
     await h.clickIn(ctx, await fr(), '#md')
-    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'markdown' && x.title === 'notes.md'), 'markdown beside')
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'markdown' && x.title === h.tilde(join(dir, 'notes.md'))), 'markdown beside')
     await ctx.sleep(1100) // throttle: one new tile per second per html tile
     await h.clickIn(ctx, await fr(), '#txt')
-    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'text' && x.title === 'log.txt'), 'text beside')
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.some((x) => x.kind === 'text' && x.title === h.tilde(join(dir, 'log.txt'))), 'text beside')
     for (const x of (await h.list(ctx)).tiles.filter((x) => x.id !== id && x.id !== t0)) await ctx.tie('close', '--tile', x.id)
     h.assert((await pg()).path.endsWith('/site/index.html'), 'still on index')
 

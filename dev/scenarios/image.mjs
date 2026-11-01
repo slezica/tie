@@ -28,7 +28,7 @@ export default async (ctx, h) => {
     // PNG larger than the tile: fit (shrunk), info shows size and scale.
     const id = await open(png)
     const t = await h.tileOf(ctx, id)
-    h.assert(t.kind === 'image' && t.title === 'icon.png', `image tile: ${JSON.stringify(t)}`)
+    h.assert(t.kind === 'image' && t.title === h.tilde(png), `image tile: ${JSON.stringify(t)}`)
     let v = await view(id)
     h.assert(v.mode === 'fit' && v.natural.w === 1024 && v.shown < 1024 && /^1024 × 1024 · \d+%$/.test(v.info), `fit: ${JSON.stringify(v)}`)
     await ctx.shot('fit')

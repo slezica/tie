@@ -29,7 +29,7 @@ export default async (ctx, h) => {
     // Kind by content: .ts, Makefile, unknown extension, empty → text.
     const id = await open(code)
     const t = await h.tileOf(ctx, id)
-    h.assert(t.kind === 'text' && t.title === 'app.ts' && !t.error, `text tile: ${JSON.stringify(t)}`)
+    h.assert(t.kind === 'text' && t.title === h.tilde(code) && !t.error, `text tile: ${JSON.stringify(t)}`)
     let v = await view(id)
     h.assert(v.lines === 400 && v.gutter === 400 && v.highlighted && v.lang === 'ts', `numbered, highlighted: ${JSON.stringify({ ...v, text: '' })}`)
     const fr = await h.contentFrame(ctx, id)
