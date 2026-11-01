@@ -42,13 +42,14 @@ function hash(s: string) {
 }
 export const debugPort = Number(process.env.TIE_DEBUG_PORT) || 9300 + (hash(instance) % 600)
 
-// TIE_DEBUG=layout,shelf,pty (or "*") enables tagged logs to logPath. SECURITY: the `security`
+// TIE_DEBUG=layout,shelf,pty (or "*") enables tagged logs to logPath. `update` (staged update
+// swap, update.ts: rare, failures must be diagnosable) is always on. SECURITY: the `security`
 // tag is always on (every refusal and block is on record); values that aren't Tie's are marked
 // <untrusted>…</untrusted> and escaped (core/log.ts `untrusted`).
 const tags = new Set((process.env.TIE_DEBUG || '').split(',').filter(Boolean))
 export const debugTags = [...tags]
 export function log(tag: string, ...args: unknown[]) {
-  if (tag !== 'security' && !tags.has(tag) && !tags.has('*')) return
+  if (tag !== 'security' && tag !== 'update' && !tags.has(tag) && !tags.has('*')) return
   const line = `${new Date().toISOString()} [${tag}] ${args.map(formatArg).join(' ')}\n`
   try {
     appendFileSync(logPath, line, { mode: PRIVATE })

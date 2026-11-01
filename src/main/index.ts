@@ -10,8 +10,11 @@ import { openContent, closeContent, killContent, clearContent, serveContent, ini
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startWalk, stopWalk, stopWalks, type DocPush } from './docs'
 import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
+import { applyStaged } from './update'
 
 const dev = !app.isPackaged
+// A staged update (tie-dev install while Tie ran) swaps in first, then relaunches: update.ts.
+const updating = applyStaged()
 app.setName('Tie')
 // macOS press-and-hold (accent picker) off: held keys repeat, as in any terminal. Registration
 // domain: in memory, this launch only, nothing written to disk (the dev bundle id,
@@ -41,7 +44,9 @@ if (background) app.commandLine.appendSwitch('use-mock-keychain')
 // frame.ts `allow`); the check is behind this runtime feature.
 app.commandLine.appendSwitch('enable-blink-features', 'BlockingFocusWithoutUserActivation')
 
-if (!app.requestSingleInstanceLock()) {
+if (updating) {
+  // exiting: the relaunch starts the new version
+} else if (!app.requestSingleInstanceLock()) {
   console.error(`tie: instance "${instance}" already running`)
   app.exit(1)
 }
@@ -254,6 +259,7 @@ function setMenu() {
 harden()
 
 app.whenReady().then(async () => {
+  if (updating) return
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
   setMenu()
   const ses = session.fromPartition(UI_PARTITION)
