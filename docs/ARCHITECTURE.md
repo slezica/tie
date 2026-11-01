@@ -43,14 +43,15 @@ Other env (main):
 - `TIE_CWD`: app cwd `S.cwd`, for tiles from nothing: boot, new tab (default: home; `DIRECTORIES.md`).
 - `TIE_DOWNLOADS` (dev builds only): browser downloads folder (harness instances; default `~/Downloads`).
 - `TIE_BACKGROUND=1`: offscreen, no dock icon, never focused (`HARNESS.md`). `TIE_BACKGROUND=hidden`: same, but a real never-shown window (input routes into content frames). `TIE_SCALE`: offscreen device scale (default 1).
-- `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`, `keys`, `docs` (main), `markdown`.
+- `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`, `keys`, `docs` (main), `markdown`. Always on: `security`, `update` (staged update swap).
 
 ## Startup
 
-1. Main: name, userData, debug port; single-instance lock (held → exit 1).
-2. `whenReady`: menu, `tie://` and `tie-content://` protocols, window (shown on `ready-to-show` unless background), socket.
-3. Renderer `boot()`: info + settings, appearance, init modules, open one terminal, `ready()`.
-4. Main writes the info file only after `ready()`. Socket calls wait for it. So harness/CLI never race startup.
+1. Main (packaged): staged update (`tie-dev install` while Tie ran) swaps in, then relaunches (`main/update.ts`, `PACKAGING.md` "Install while running").
+2. Main: name, userData, debug port; single-instance lock (held → exit 1).
+3. `whenReady`: menu, `tie://` and `tie-content://` protocols, window (shown on `ready-to-show` unless background), socket.
+4. Renderer `boot()`: info + settings, appearance, init modules, open one terminal, `ready()`.
+5. Main writes the info file only after `ready()`. Socket calls wait for it. So harness/CLI never race startup.
 
 ## Quit
 
