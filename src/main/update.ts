@@ -28,12 +28,15 @@ const real = (p: string) => {
 }
 
 // Other processes running this bundle's executable (another instance, the bundled CLI): swapping
-// under them would make them spawn new-version helpers. The swap then waits for a later launch.
+// under them would make them spawn new-version helpers (or get killed: invalid code pages). The swap
+// then waits for a later launch. Compared by resolved path: a command line may spell the same
+// executable differently (`//`, /tmp vs /private/tmp, a symlinked folder).
 function othersRunning(exe: string) {
+  const want = real(exe)
   const out = execFileSync('/bin/ps', ['-axwwo', 'pid=,command='], { encoding: 'utf8' })
   return out.split('\n').some((l) => {
-    const m = l.trim().match(/^(\d+) (.*)$/)
-    return !!m && Number(m[1]) !== process.pid && (m[2] === exe || m[2].startsWith(`${exe} `))
+    const m = l.trim().match(/^(\d+) (.*?\/Contents\/MacOS\/Tie)(?: |$)/)
+    return !!m && Number(m[1]) !== process.pid && real(m[2]) === want
   })
 }
 
