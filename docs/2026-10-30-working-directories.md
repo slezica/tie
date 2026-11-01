@@ -115,7 +115,7 @@ Settled 2026-11-01:
 - Done 2026-11-01:
   - `Tile.cwd` on every tile; `ops.ts` `contextOf`, `cwdOf` (fresh via `Surface.cwdNow`), `setCwd`; `Host.cwd` / `setCwd`. `Surface.dir` / `cwd` gone; terminal `Term.cwd` / `cwdNow` gone.
   - Callers (`keys.ts`, `drag.ts`, `files.ts`, `fileview.ts`, `kinds/html.ts`) pass the context's cwd; template → shelf / empty board inherit the active tile.
-  - Titles: tab = active tile's cwd (every kind); file / html = `~` path; browser = host + path; terminal tooltip = cwd (every mode).
+  - Titles: tab = active tile's cwd (every kind); file / html = `~` path; browser = host + path; terminal `directory` mode = `Tile.cwd`.
   - `tie add probe --root`; `tie list --json` `cwd`.
   - Guide `DIRECTORIES.md`; tables in `TERMINALS.md` / `2026-10-30-file-picker.md` → pointers.
   - Scenarios `cwd-split`, `cwd-templates`, `cwd-links`; title assertions updated; `h.tilde`.

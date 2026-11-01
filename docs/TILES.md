@@ -28,7 +28,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `mount`, `resize`, `dispose` | host lifecycle |
 | `focus()` → bool | `refocus()`, `openTile` |
 | `title()`, `icon()` | title bar, shelf, tabs, `tie list` |
-| `tip?()` | title bar tooltip (terminal: its cwd, full path) |
+| `tip?()` | title bar tooltip (terminal, directory mode: its cwd, full path) |
 | `cwdNow?()` | fresh cwd for tiles opened from it (`cwdOf`; terminal: `lsof`); else `Tile.cwd` |
 | `paste?(text)`, `drop?(dataTransfer)` | `paste.ts` routing |
 | `appearance?()` | settings changes (`appearance.ts`) |

@@ -83,7 +83,7 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       if (t.proc && !SHELLS.has(t.proc)) return t.proc
       return t.proc || 'terminal'
     },
-    tip: () => tildePath(host.cwd()),
+    tip: () => (prefs.terminalTitle === 'directory' ? tildePath(host.cwd()) : ''),
     icon: () => 'terminal', // same for every program (no per-program icons)
     // Where the shell is right now (fresh read, not the 2 s poll).
     cwdNow: async () => (t.pty !== null && !t.exited ? ((await tie.pty.cwd(t.pty)) ?? undefined) : undefined),

@@ -55,7 +55,7 @@ Net: `cd` the first terminal of a tab into a project; everything opened from the
 | What | Title |
 |---|---|
 | Tab | custom, else `prettyDir(cwd)` of the active (else first shelved) tile, every kind: basename, `~` for home |
-| Terminal | `terminalTitle` modes (`TERMINALS.md`); `directory` = basename of `Tile.cwd`; tooltip: `tildePath(cwd)` |
+| Terminal | `terminalTitle` modes (`TERMINALS.md`); `directory` = basename of `Tile.cwd`, tooltip `tildePath(cwd)` |
 | File kinds, html | `tildePath(path)`: full path, `~` for home (ellipsized at the end) |
 | Browser | host + path of the current URL (no scheme, trailing `/` stripped); before any URL, the start URL's; nothing → `browser` |
 

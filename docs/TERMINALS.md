@@ -73,9 +73,9 @@ The tile's cwd at open (`DIRECTORIES.md` "Pathways"). Opened from a terminal: it
 
 | `terminalTitle` | Title (first match) | Tooltip |
 |---|---|---|
-| `auto` | `oscTitle`, `cmd`, `proc` (shells too: `zsh`), `terminal` | as `directory` |
-| `command` (default) | `cmd`, `proc`, `terminal` (program titles ignored) | as `directory` |
-| `directory` | basename of `Tile.cwd`; `~` for home | full path, `~`-abbreviated (`Surface.tip`, every mode) |
+| `auto` | `oscTitle`, `cmd`, `proc` (shells too: `zsh`), `terminal` | none |
+| `command` (default) | `cmd`, `proc`, `terminal` (program titles ignored) | none |
+| `directory` | basename of `Tile.cwd`; `~` for home | full path, `~`-abbreviated (`Surface.tip`) |
 
 - Basename + tooltip: titles ellipsize at the end (title bar, shelf, tab), so a full path would hide its last part.
 - Setting saved: panel calls `refreshTitle` on every tile.
