@@ -6,20 +6,15 @@ Terminal = a tile kind (`kinds/terminal.ts`) behind the `Surface` interface (`ki
 
 1. `createTile()` (host): element (title bar, `.body`, `.rz` handles) in `#tiles`; `terminalKind()`: xterm + fit addon (`scrollback: 5000`, `macOptionIsMeta`, appearance options, `linkHandler`).
 2. `place()` + `render()`: element gets its rect.
-3. `mountTile()` → `Surface.mount()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd, cols, rows, env: {TIE_TILE}})`.
+3. `mountTile()` → `Surface.mount()`: `term.open(body)`, fit, `tie.pty.spawn({cmd, cwd: host.cwd(), cols, rows, env: {TIE_TILE}})`.
 4. Returns pty id (= pid) or `{error}`; rejection counts as `{error}`.
 5. Tile closed while spawning (`host.alive()` false): new pty killed.
 
-Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`. Shell code reaches it only through `Surface` (`title`, `icon`, `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`).
+Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitle`, `proc`, `cmd`. The cwd is the tile's (`Tile.cwd`, `DIRECTORIES.md`): read via `host.cwd()`, the poll reports via `host.setCwd`. Shell code reaches it only through `Surface` (`title`, `tip`, `icon`, `cwdNow`, `paste`, `drop`, `appearance`, `info`).
 
 ## Start directory
 
-| Opened by | cwd |
-|---|---|
-| `tie add` / `tie replace` | `--cwd` resolved against caller's cwd; default caller's cwd |
-| `cmd+D`, template dropped next to a tile | that shell's cwd, read fresh (`cwdOf` → `pty:cwd` → `lsof`), not the 2 s poll |
-| Template dropped on a tab | that tab's active tile's cwd (fresh `cwdOf`); none (browser) or a new tab → `S.cwd` |
-| Other | `S.cwd` (`TIE_CWD`, else home) |
+The tile's cwd at open (`DIRECTORIES.md` "Pathways"). Opened from a terminal: its shell's cwd, read fresh (`cwdOf` → `Surface.cwdNow` → `pty:cwd` → `lsof`), not the 2 s poll.
 
 ## Spawn (`src/main/pty.ts`, `settings.ts`)
 
@@ -72,15 +67,15 @@ Terminal state (`Term`, kind-private): `term`, `fit`, `pty`, `ptySize`, `oscTitl
 | Output | `pty:data` | `term.write`, shelf activity (`host.activity()`) |
 | Title escape | xterm `onTitleChange` | `oscTitle` |
 | Foreground process | node-pty `process`, polled 500 ms | `proc` |
-| Shell cwd | one batched `lsof -d cwd` every 2 s | `cwdNow` (tab title) |
+| Shell cwd | one batched `lsof -d cwd` every 2 s | `Tile.cwd` (`host.setCwd`: titles, tab title) |
 
 `displayTitle()`: `customTitle`, else `Surface.title()`, by setting `terminalTitle` (`SETTINGS.md`, read from `prefs`):
 
 | `terminalTitle` | Title (first match) | Tooltip |
 |---|---|---|
-| `auto` | `oscTitle`, `cmd`, `proc` (shells too: `zsh`), `terminal` | none |
-| `command` (default) | `cmd`, `proc`, `terminal` (program titles ignored) | none |
-| `directory` | basename of `cwdNow`, else start dir (`cwd`, `S.cwd`); `~` for home | full path, `~`-abbreviated (`Surface.tip`) |
+| `auto` | `oscTitle`, `cmd`, `proc` (shells too: `zsh`), `terminal` | as `directory` |
+| `command` (default) | `cmd`, `proc`, `terminal` (program titles ignored) | as `directory` |
+| `directory` | basename of `Tile.cwd`; `~` for home | full path, `~`-abbreviated (`Surface.tip`, every mode) |
 
 - Basename + tooltip: titles ellipsize at the end (title bar, shelf, tab), so a full path would hide its last part.
 - Setting saved: panel calls `refreshTitle` on every tile.
@@ -123,4 +118,4 @@ A terminal is busy when closing it would kill something (`Surface.busy()`, asked
 ## Limitations
 
 - No terminal read/write over the CLI (by design: secrets, elevated programs).
-- `cwdNow` up to 2 s stale.
+- `Tile.cwd` up to 2 s stale (poll); tiles opened from a terminal read it fresh.

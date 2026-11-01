@@ -38,13 +38,13 @@ Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the 
 Title (`tabTitle`), first match:
 
 1. `customTitle`.
-2. Tile = active, else first shelved. Its `cwdNow` basename (`~` for home).
+2. Tile = active, else first shelved, any kind. Its cwd's basename (`Tile.cwd`, `~` for home; `DIRECTORIES.md`).
 3. That tile's display title.
 4. `empty`.
 
 ## Open and close
 
-- New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (`{empty: true}`: none, for drops) (root slot, default cwd `S.cwd`, like a template on an empty board). Boot: same, first space gets a terminal (`main.ts`).
+- New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (`{empty: true}`: none, for drops) (root slot, app cwd `S.cwd`: no context tile). Boot: same, first space gets a terminal (`main.ts`).
 - Emptied tab: closing its last tile by any path (close button, cmd+W, exit of a `--cmd` tile closed by the user, `tie close`, from another tab) closes the tab (`closeTile` empty hook → `dropSpace`, registered by `initTabs`). Visible: back to the tab before; hidden: gone, the visible tab stays. The only tab stays: board empty (notice), title `empty`; cmd+W there (nothing active) does nothing.
 - Close (tab ×, cmd+shift+W → `requestCloseTab`, `close.ts`): the tab with every tile (board, floats, shelf). Busy terminals listed first (confirm); idle or empty: at once (`INPUT.md` "Closing").
 - `closeTab(id)`: closes its tiles (no questions), then `dropSpace`: visible → switch to the tab before; hidden → removed, visible tab kept, `S.current` back to visible.
@@ -61,7 +61,7 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
   - Tab area past the midpoint: the whole gap is tabs; shelf past it: the whole gap is shelf. Plain rect math, no special cases.
 - Tile → `moveToTab`: switch to the target tab, then `moveToSpace` (`ops.ts`): `detach`, `place(besidePlacement(null))` in the target space (root slot if its board is empty), active there; keys follow it. The source space: dropped from its `mru`, `focusNext` if it was active there; emptied, it closes like after `closeTile` (already hidden: just removed).
 - Same tab: a board tile = no target (no highlight); a shelf item = unshelved beside the active tile (as `cmd+S`).
-- Template → a new tile of its kind in that tab (or a new one), beside its active tile; the tab is shown. Start dir: that tab's active tile's cwd (fresh `cwdOf`; none → `S.cwd`), terminal and file alike; new tab → `S.cwd`. `file`: picker first (from that dir), cancel → nothing, no switch.
+- Template → a new tile of its kind in that tab (or a new one), beside its active tile; the tab is shown. Cwd: that tab's active tile's (fresh `cwdOf`; none → `S.cwd`), every kind; new tab → `S.cwd` (`DIRECTORIES.md`). `file`: picker first (from that dir), cancel → nothing, no switch.
 - Feedback: `.tab.drop` / `#tab-add.drop` (accent border + `--accent-soft` fill, like the board's `#preview`). While any tile drag runs (`body.tile-drag`) `+` matches the shelf's "+" hint: a `--slot` square, `--slot-gap` from the last tab, dashed accent border. Outside drags: its usual look. No board preview.
 - CLI (`CLI.md` "Placement"): `tie move --tab <tab|new>`, `tie add --tab`: same placement (`moveToSpace`, `activate: false` into the visible tab), but the visible tab stays unless `--focus` (or the moved tile was the last of the tab on screen: the user follows it). `new`: an empty tab after the visible one, not shown (driver `addTab`; `newTab` would switch).
 

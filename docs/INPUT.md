@@ -28,7 +28,7 @@
 
 - Zones of a slotted tile (`dropZone`, `core/layout.ts`): center rectangle = `CENTER_ZONE` (25%) of the tile's width and of its height, centered; around it four edge bands (trapezoids), nearest edge wins (normalized coords: the bands meet on the diagonals). The title bar has no role of its own: it is part of the top band (or the center, by geometry). A collapsed tile (all title bar) is all center for a dragged tile; for a template or file, the zones apply.
 - Floats are not targets; the slotted tile under them is.
-- Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`); next to or on a tile: in that tile's cwd. OS file drops (`files.ts`, `placementAt`) too, one tile per file, each against the board as it is then (several files on a center: the last one slotted, the others shelved). A tile with its own drop (terminal: pastes the path) keeps it.
+- Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`); cwd: the tile next to / under the drop, else the active one (`DIRECTORIES.md`). OS file drops (`files.ts`, `placementAt`) too, one tile per file, each against the board as it is then (several files on a center: the last one slotted, the others shelved). A tile with its own drop (terminal: pastes the path) keeps it.
 - Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 
@@ -43,7 +43,7 @@
 
 | Chord | Action |
 |---|---|
-| `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its shell's cwd) |
+| `cmd+D` / `cmd+shift+D` | Split active tile right / down (new terminal in its cwd: a shell's, fresh) |
 | `cmd+O` / `cmd+shift+O` | Open a file right / down of the active tile: the file picker ("File picker" below) from its cwd; the `file` template's drop, by key |
 | `cmd+←/→/↑/↓` | Focus neighbor |
 | `cmd+shift+←/→/↑/↓` | Swap the active tile with the neighbor `cmd+arrows` would focus (`swap`, `LAYOUT.md`); stays active. No neighbor: no-op |
@@ -65,8 +65,8 @@
 - Blocked keydowns lose their keyup (Chromium suppresses it).
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
-- Split: empty board (no tree) → root terminal; active tile not slotted → no-op. File tiles → terminal in the file's directory; browser → terminal in the default directory.
-- Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the default directory); active tile not slotted → no-op. Picker starts in the active tile's cwd (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
+- Split: empty board (no tree) → root terminal (the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Other kinds (file, html, browser) → a terminal in the tile's cwd (`DIRECTORIES.md`).
+- Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Picker starts in the active tile's cwd, every kind (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
 - Inside the file picker: its own keys (below); shortcuts suspended (a `.dialog-backdrop` modal).
 - Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.

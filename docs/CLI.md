@@ -32,11 +32,11 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie set [--tile id] [--title T] [--icon E]` | Custom title / icon (given fields only; `""` = automatic) |
 | `tie state` | Dev: internal state of the targeted space (not in `--help`) |
 | `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
-| `tie add probe [--cwd root]` | Dev builds: probe content tile (harness, `TILES.md`) |
+| `tie add probe [--root D]` | Dev builds: probe content tile (harness, `TILES.md`); root `D` (against the caller's cwd; other kinds refuse it), else its cwd |
 | `tie add\|replace ... --id <id>` | Dev builds: the new tile's id (socket param `as`): `t` + `[a-z0-9]`, free; else `bad id` / `id in use`. Packaged: `--id: dev builds only`. Harness only (`lifecycle` closes a tile in the same write as its `add`); not in `--help` |
 
 - Aliases: `l a r c m f s p` = `list add replace close move focus set ping` (first letters, unique). Option flags have no single-letter forms (`--tab/--tile/--title` would collide).
-- `add` options: `--cmd C`, `--cwd D` (relative to caller; default caller's cwd), `--title T`, `--icon E`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`. `replace`: the same minus placement.
+- `add` options: `--cmd C`, `--cwd D` (the tile's cwd, every kind: `DIRECTORIES.md`; relative to caller; default caller's cwd), `--title T`, `--icon E`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`. `replace`: the same minus placement.
 - `add` and `replace` share one parse in `bin/tie` (a `replace` boolean: method, held connection).
 - `add <arg>` (and `replace <arg>`): `http(s)://...` → browser. A registered kind name → that kind (`./terminal` for a file named so; `browser` takes an optional URL after it: refused input → `Not a web address: <url> (http(s) only)`, exit 1). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie add markdown` → error).
 - `--shelve` = `--shelved` (both commands).
@@ -101,7 +101,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 `TileInfo` (also returned by `add`, `replace`, `move`, `focus`, `ping`, `set`):
 
-- `id`, `kind`, `title`, `icon` (custom icon; `""` = automatic), `glyph` (built-in icon name, `icons.ts` `GLYPH`), `state` (`slotted|floating|shelved`), `tab` (space id).
+- `id`, `kind`, `title`, `cwd` (the tile's: `DIRECTORIES.md`), `icon` (custom icon; `""` = automatic), `glyph` (built-in icon name, `icons.ts` `GLYPH`), `state` (`slotted|floating|shelved`), `tab` (space id).
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
@@ -121,7 +121,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ← {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no such tile: tzzzzzz"}}
 ```
 
-Methods = commands (full names, no aliases). Params: `add` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `title`, `icon`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `replace` {as `add`, no placement}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `set` {`id`, `title?`, `icon?`}; `list`, `state` none. `close` returns `{id}`.
+Methods = commands (full names, no aliases). Params: `add` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `root` (probe, dev), `title`, `icon`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `replace` {as `add`, no placement}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `set` {`id`, `title?`, `icon?`}; `list`, `state` none. `close` returns `{id}`.
 
 - `id`: `--tile`; absent → `caller`'s tile, else `no current tile: use --tile <id>`.
 - No `title` / `icon` methods (replaced by `set`): `unknown method: title`.

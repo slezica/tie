@@ -16,7 +16,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 |---|---|
 | `id`, `body` | tile id; the kind's area |
 | `alive()` | tile still open (async work re-checks) |
-| `changed()` | automatic title/icon/dir/navigation changed → `refreshTitle` (+ nav bar) → `tile-meta` |
+| `changed()` | automatic title/icon/navigation changed → `refreshTitle` (+ nav bar) → `tile-meta` |
+| `cwd()`, `setCwd(dir)` | the tile's cwd (`DIRECTORIES.md`); a change (terminal poll) → ops `setCwd` → `tile-meta` |
 | `activity()` | output while shelved (shelf mark) |
 | `exit(code)` | content ended: `✓` / `✗ N` |
 | `error(msg)` | `showError`: message replaces the content |
@@ -27,8 +28,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `mount`, `resize`, `dispose` | host lifecycle |
 | `focus()` → bool | `refocus()`, `openTile` |
 | `title()`, `icon()` | title bar, shelf, tabs, `tie list` |
-| `tip?()` | title bar tooltip (terminal, directory mode: full path) |
-| `dir?()`, `cwd?()` | tab titles; new tiles split from it (`cwdOf`) |
+| `tip?()` | title bar tooltip (terminal: its cwd, full path) |
+| `cwdNow?()` | fresh cwd for tiles opened from it (`cwdOf`; terminal: `lsof`); else `Tile.cwd` |
 | `paste?(text)`, `drop?(dataTransfer)` | `paste.ts` routing |
 | `appearance?()` | settings changes (`appearance.ts`) |
 | `info?()` | extra `tie list --json` fields (terminal: `term`; file views: `doc`) |
@@ -112,7 +113,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme message, then the doc.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
 - Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
-- Title = file name; `dir` / `cwd` = its directory; `info` → `doc {path, rev, missing, history}`.
+- Title = the file's path, `~` for home (`DIRECTORIES.md` "Titles"); tiles opened beside get this tile's cwd; `info` → `doc {path, rev, missing, history}`.
 - Theme message (`themeMessage`): `--bg`, `--fg`, `--accent`, `--a0..15`, `--font`, `--mono`, `--size`, `dark`.
 
 ## Content kinds: frame host (`renderer/frame.ts`)

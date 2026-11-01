@@ -11,6 +11,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
 - `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
+- `docs/DIRECTORIES.md`: tile `cwd` vs frame `root`, inheritance (`contextOf`), pathway table, titles.
 - `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, links, history, watching, opening.
 - `docs/VIEWERS.md`: text, image, hex, html kinds: kind by extension or content, caps, viewers; html isolation, bootstrap, routing.
 - `docs/BROWSER.md`: browser kind: `<webview>` guest, attach + guest guards, partition, downloads, popups, nav bar.
@@ -36,6 +37,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
 - `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
 - `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
+- `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
@@ -70,10 +72,10 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations (incl. `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved). `render.ts`: state → DOM.
+  - `ops.ts`: all mutations (incl. `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind; root `--root`, else its cwd).
   - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`, `terminalTitle`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
   - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
@@ -104,19 +106,20 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
 - Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
-- `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: default start dir.
+- `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
   - `id` (`t` + 6 random chars, never reused: `@core/ids`), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon` (user text).
+  - `cwd`: context directory, always set (`DIRECTORIES.md`): inherited at open (`contextOf`), terminals follow `cd`; never a frame root.
   - `exit` (code or null), `error` (start error).
   - `activity` (unseen output, shelved), `pinged` (`tie ping`).
   - `el`, `body`, `surface`.
-- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `tip` (title tooltip), `dir`, `cwd`, `paste`, `drop`, `appearance`, `info`, `busy` (→ `{what}` or null: terminals, `TERMINALS.md`), `unload` (→ may close: browser beforeunload), `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pills` (`{label, title, on, toggle?, color?, gravity?}[]`: title-bar states, html "Scripts blocked", file kinds "Missing").
+- `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `tip` (title tooltip), `cwdNow` (fresh cwd read: terminal), `paste`, `drop`, `appearance`, `info`, `busy` (→ `{what}` or null: terminals, `TERMINALS.md`), `unload` (→ may close: browser beforeunload), `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `pills` (`{label, title, on, toggle?, color?, gravity?}[]`: title-bar states, html "Scripts blocked", file kinds "Missing").
 - `Icon` (`icons.ts`): `{glyph: Glyph}` (built-in SVG, `GLYPH` key) | `{text}` (custom icon, escaped). `displayIcon(t)` → `Icon`; `iconHtml(icon)` renders it (title bar, shelf, tabs, ghost).
-- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `cwd`, `cmd`, `path`, `hash`, `url`.
+- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `cwd` (absent: context tile's), `root` (dev probe), `cmd`, `path`, `hash`, `url`.
 - `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
-- `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).
-- Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd`, `cwd`, `cwdNow`.
+- `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `cwd` / `setCwd` (tile cwd), `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).
+- Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd` (cwd: the tile's).
 - Browser state (private, `guest.ts`): `wv` (the `<webview>`), `url`, `title`, `loading`, `ready` (dom-ready), `gid` (guest webContents id). Rules: `core/guest.ts`. Main: `guests` (live guest webContents).
 - File view state (private, `fileview.ts`): `doc {id, path, rev, text?, bytes?, missing}` (payload per policy), `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).
 
@@ -191,5 +194,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe`, `add --id`. See `docs/CLI.md`.
+- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe [--root D]`, `add --id`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

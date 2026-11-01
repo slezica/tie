@@ -66,7 +66,7 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
 - Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the UI's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
-- Title = the file name, never the page's `<title>` (2026-10-20: content can't label its tile); dir / cwd = the root. Harness: `tie list --json` `page {path, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
+- Title = the file's path (`~` for home), never the page's `<title>` (2026-10-20: content can't label its tile); cwd = the tile's (`DIRECTORIES.md`), never the root. Harness: `tie list --json` `page {path, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
 

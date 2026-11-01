@@ -40,7 +40,7 @@
 
 Other env (main):
 
-- `TIE_CWD`: default start dir for terminals (default: home).
+- `TIE_CWD`: app cwd `S.cwd`, for tiles from nothing: boot, new tab (default: home; `DIRECTORIES.md`).
 - `TIE_DOWNLOADS` (dev builds only): browser downloads folder (harness instances; default `~/Downloads`).
 - `TIE_BACKGROUND=1`: offscreen, no dock icon, never focused (`HARNESS.md`). `TIE_BACKGROUND=hidden`: same, but a real never-shown window (input routes into content frames). `TIE_SCALE`: offscreen device scale (default 1).
 - `TIE_DEBUG=tag,...|*`: tagged logs. Tags: `app`, `layout`, `shelf`, `pty`, `rpc`, `security`, `content`, `keys`, `docs` (main), `markdown`.

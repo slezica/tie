@@ -67,19 +67,7 @@ Session record. Replace the native open dialog (`doc:pick` → `pickFile`, `dial
 
 # Start directory
 
-`S.cwd` = `TIE_CWD`, else home (never the process cwd).
-
-| Pathway | Start dir |
-|---|---|
-| cmd+O, active terminal | shell cwd (fresh, `cwdOf`) |
-| cmd+O, active file tile | file's dir |
-| cmd+O, active browser | `S.cwd` |
-| cmd+O, empty board | `S.cwd` |
-| Template → edge / center of a tile | that tile's cwd |
-| Template → empty board | `S.cwd` |
-| Template → tab | target tab's active tile cwd (changed from `S.cwd`; the terminal template too, for consistency) |
-| Template → new tab | `S.cwd` |
-| Template → shelf | `S.cwd` |
+The context tile's cwd: `DIRECTORIES.md` "Pathways" (2026-11-01, `2026-10-30-working-directories.md`).
 
 # Research
 
