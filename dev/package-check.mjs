@@ -85,8 +85,8 @@ try {
     try {
       const bid = tie('add', `http://127.0.0.1:${srv.address().port}/`).id
       let bt = null
-      for (let i = 0; i < 50 && bt?.title !== 'smoke web'; i++) (await sleep(100), (bt = tie('list').tiles.find((x) => x.id === bid)))
-      if (bt?.kind === 'browser' && bt.title === 'smoke web' && !bt.error) console.log('ok   smoke: browser tile loads a local page')
+      for (let i = 0; i < 50 && bt?.web?.title !== 'smoke web'; i++) (await sleep(100), (bt = tie('list').tiles.find((x) => x.id === bid)))
+      if (bt?.kind === 'browser' && bt.web?.title === 'smoke web' && !bt.error) console.log('ok   smoke: browser tile loads a local page')
       else fail(`smoke: browser tile ${JSON.stringify(bt)}`)
     } finally {
       srv.closeAllConnections?.()
