@@ -66,6 +66,10 @@
 
 ## Directories
 
-34. Review every place Tie picks a directory and make the rules consistent: new terminal cwd (`tie add`, cmd+D, template drops on tiles / tabs / shelf / empty board, `S.cwd`), file picker start dir (same pathways), file view roots (markdown images, html root: item 22), tile `dir` / title (`cwdNow`, basename, `~`), `tie add` path resolution against the caller's cwd, OS drops, `TIE_CWD`. Table of pathway → working / parent / root / title directory; one doc section (TERMINALS.md cwd table generalized, or a `docs/DIRECTORIES.md` guide). Starting point: `2026-10-30-file-picker.md` "Start directory".
+34. Done 2026-11-01: `docs/DIRECTORIES.md`, record `2026-10-30-working-directories.md` (cwd on every tile, inherited from the context tile; titles from cwd / path / URL; roots unchanged).
 35. TCC prompts (2026-10-30): every `tie-dev install` changes Tie.app's cdhash, invalidating its TCC records; the next `sec-browser` (mic) and picker walks into protected folders prompt again, and prompts can hide behind windows. Options: a stable signing identity (Developer ID or a self-signed certificate in the keychain: same code requirement across builds), or the harness launching from a plain terminal so prompts land on the dev Electron.app. HARNESS.md "macOS permission prompts".
 
+
+## Layout
+
+36. Zoom (tile expansion): evaluate collapsing all sibling tiles instead of hiding them (the collapsed strips stay visible as a map of the tab), and/or animating the expansion. Today: `zoomed` hides everything else (`LAYOUT.md` "Zoom").

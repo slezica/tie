@@ -17,6 +17,7 @@ export default async (ctx, h) => {
   writeFileSync(pic, svg(40, 30, 'red'))
   writeFileSync(join(dir, 'bad.png'), 'not a png')
   try {
+    await h.resizeWindow(ctx, 1200, 800) // the 1024 px png must not fit: display-independent
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const view = (id) => h.contentFrame(ctx, id).then((f) => f.evaluate(() => ({ mode: window.image.mode, natural: window.image.natural, loads: window.image.loads, errors: window.image.errors, rev: window.image.rev, shown: Math.round(document.getElementById('img').getBoundingClientRect().width), info: document.getElementById('info').textContent, y: Math.round(scrollY) })))
     const open = async (path, at = t0) => {
