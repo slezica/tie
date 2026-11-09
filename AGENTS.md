@@ -187,7 +187,7 @@ Commands:
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install [--restart]      Package, then install to /Applications/Tie.app (TIE_INSTALL_DIR overrides); while it runs:
-                           staged, swapped in at its next launch; --restart: quit it (its question), install, reopen
+                           staged, swapped in at its next launch; --restart: quit it (its question), install, open
   check-install            Install while running, end to end in a tmp sandbox (never /Applications, ~/.config/tie):
                            stage, swap at launch, --restart, non-target and incomplete stages
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)

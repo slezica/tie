@@ -7,7 +7,7 @@
 | Command | Does |
 |---|---|
 | `tie-dev package` | `out/package/mac-arm64/Tie.app`, security fuses, signed ad hoc, then `check-package` (fuses + smoke; failure removes it) |
-| `tie-dev install [--restart]` | package, replace `/Applications/Tie.app` (`TIE_INSTALL_DIR` overrides); while it runs: stage (below); `--restart`: quit it, install, reopen |
+| `tie-dev install [--restart]` | package, replace `/Applications/Tie.app` (`TIE_INSTALL_DIR` overrides); while it runs: stage (below); `--restart`: quit it, install, reopen (not running: install, open) |
 | `tie-dev check-install` | install while running, end to end in a `/tmp` sandbox (below) |
 | `tie-dev release --version X.Y.Z` | below |
 | `tie-dev icon` | `dev/icon.cjs` → `build/icon.png` → `.icns` |
@@ -23,7 +23,7 @@ Idempotent:
 1. Fails unless repo clean and `X.Y.Z` ≥ `package.json` version.
 2. Tag `vX.Y.Z` on HEAD with matching version: already released, just `package`. Tag elsewhere: fail.
 3. `electron-check`: behind the latest patch of our Electron major = fail. Newer major: info. npm unreachable: warning, repeated at the end.
-4. Typecheck, unit, e2e; any failure stops (nothing committed).
+4. Typecheck, unit, e2e, `check-install`; any failure stops (nothing committed).
 5. Higher version: set it, commit `package: set version X.Y.Z`.
 6. Tag `vX.Y.Z`, package.
 
@@ -35,7 +35,7 @@ Why: Electron spawns helpers (renderers, GPU, utility) from the bundle path lazi
 - Swap at launch (`main/update.ts` `applyStaged`, first thing in main, before the single-instance lock): packaged builds only; only the bundle named by `target` (resolved paths: never `out/package`, smoke or harness copies); stage a real directory owned by the user, with `Contents/MacOS/Tie` and `Resources/fingerprint`; fingerprint differs from the running bundle's (equal: stage removed); no other process runs this bundle's executable (another instance, the CLI: the swap waits for a later launch). Then: bundle → `Tie.app.old`, stage → bundle (rename; across volumes `ditto` + remove), stage dir and `.old` removed, `app.relaunch()`, `app.exit(0)`.
 - Failure (any step): the old bundle moves back if it was moved, the stage stays (retried next launch), the current version starts. Logged under the always-on `update` tag (instance log).
 - `--restart`: stage, SIGTERM the running Tie (its normal quit flow: a visible Tie asks, busy terminals listed), then a detached finisher (own session: survives Tie's terminals closing, so it works from a Tie terminal) waits up to 60 s for the pid, installs directly from the package, removes the stage, `open -a`. Output: `<state dir>/log/install.log`, shown when it ends. Cancelled or slow: "did not quit", stage stays, exit 1.
-- `check-install` (`dev/install-check.sh`): `TIE_INSTALL_DIR` and `XDG_CONFIG_HOME` in `/tmp/tie-ic.*` (short: socket path limit). Install; run that copy (fingerprint faked old); install stages, again "already staged"; a second instance (path spelled with `//`) doesn't swap; quit, relaunch swaps (one `ready`: the relaunch); "up to date"; `--restart` (`open` stubbed); stage not swapped by the package copy; incomplete stage left + logged.
+- `check-install` (`dev/install-check.sh`): `TIE_INSTALL_DIR` and `XDG_CONFIG_HOME` in `/tmp/tie-ic.*` (short: socket path limit). Install; run that copy (fingerprint faked old); install stages, again "already staged"; a second instance (path spelled with `//`) doesn't swap; quit, relaunch swaps (one `ready`: the relaunch); "up to date"; `--restart` (`open` stubbed), also with no Tie running (install, open); stage not swapped by the package copy; incomplete stage left + logged.
 
 ## Bundle (`Tie.app/Contents`)
 

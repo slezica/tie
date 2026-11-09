@@ -42,7 +42,7 @@ Commands:
   electron-check           Pinned Electron vs latest of its major (npm); exit 1 if behind
   release --version X.Y.Z  Clean repo, all checks, bump + commit version, tag vX.Y.Z, package
   install [--restart]      Package, then install to /Applications/Tie.app (TIE_INSTALL_DIR overrides); while it runs:
-                           staged, swapped in at its next launch; --restart: quit it (its question), install, reopen
+                           staged, swapped in at its next launch; --restart: quit it (its question), install, open
   check-install            Install while running, end to end in a tmp sandbox (never /Applications, ~/.config/tie):
                            stage, swap at launch, --restart, non-target and incomplete stages
   icon                     Re-render placeholder icon (build/icon.png, build/icon.icns)
@@ -234,6 +234,7 @@ case "$cmd" in
     "$0" typecheck && "$0" test --unit >/dev/null && echo "  typecheck, unit ok" || { echo "checks failed"; exit 1; }
     e2e="$("$0" test --e2e)" || { echo "$e2e"; echo "e2e failed"; exit 1; }
     echo "  e2e ok ($(grep -c '^ok' <<<"$e2e") scenarios)"
+    "$0" check-install >/dev/null && echo "  check-install ok" || { "$0" check-install; echo "check-install failed"; exit 1; }
     if [[ "$cmp" == "1" ]]; then
       npm version "$want" --no-git-tag-version >/dev/null
       git add package.json package-lock.json
@@ -285,6 +286,7 @@ case "$cmd" in
     ditto "$APP_OUT" "$dest"
     rm -rf "$stage"
     echo "installed $dest"
+    if [[ -n "$restart" ]]; then open -a "$dest"; echo "opened $dest"; fi
     echo "tie CLI outside Tie terminals: add /Applications/Tie.app/Contents/Resources/bin to PATH" ;;
   install-finish)
     # Internal (install --restart, detached): waits for Tie (pid $1) to quit, installs to $2, opens it.

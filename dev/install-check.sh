@@ -88,6 +88,12 @@ grep -q -- "-a $app" "$tmp/open.log" 2>/dev/null && ok "--restart: reopened (ope
 alive && bad "--restart: old instance still running" || true
 pid=
 
+# Restart with no Tie running: direct install, then open.
+echo "old-$$" > "$app/Contents/Resources/fingerprint"
+: > "$tmp/open.log"
+out="$(PATH="$tmp/stub:$PATH" install --restart)" || bad "--restart (not running) exit $?"
+[[ "$out" == *"installed $app"* && "$(fp "$app")" == "$want" ]] && grep -q -- "-a $app" "$tmp/open.log" && ok "--restart, not running: installed, opened" || bad "--restart, not running: $out / $(cat "$tmp/open.log")"
+
 # Only the target bundle swaps: the package copy (smoke, harness) leaves the stage alone.
 mkdir -p "$stage" && ditto "$pkg" "$stage/Tie.app" && echo "$app" > "$stage/target"
 echo "other-$$" > "$stage/Tie.app/Contents/Resources/fingerprint"
