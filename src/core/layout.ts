@@ -291,3 +291,12 @@ export function resize(root: Node, path: number[], index: number, deltaPx: numbe
   s[index + 1] = pair - a
   return clone
 }
+
+// Equal sizes for every child of the split at path (border double-click).
+export function equalize(root: Node, path: number[]): Node {
+  const clone: Node = structuredClone(root)
+  const split = splitAt(clone, path)
+  if (!split) return root
+  split.sizes = split.children.map(() => 1 / split.children.length)
+  return clone
+}

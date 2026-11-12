@@ -1,5 +1,5 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
-import { compute, dropZone, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
+import { compute, dropZone, equalize, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, withSpace, type Kind } from './state'
 import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, contextOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
@@ -299,7 +299,7 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
   window.addEventListener('keyup', onKey, true)
 }
 
-// Border between slotted siblings: drag resizes both neighbors.
+// Border between slotted siblings: drag resizes both neighbors; double-click equalizes the split's children.
 const borderData = new WeakMap<HTMLElement, Border>()
 export const setBorder = (h: HTMLElement, br: Border) => borderData.set(h, br)
 
@@ -325,6 +325,12 @@ export function attachBorder(h: HTMLElement) {
       up: done,
       cancel: done,
     })
+  })
+  h.addEventListener('dblclick', () => {
+    const br = borderData.get(h)
+    if (!S.tree || !br) return
+    S.sp.tree = equalize(S.tree, br.path)
+    render()
   })
 }
 

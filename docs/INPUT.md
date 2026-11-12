@@ -6,7 +6,7 @@
 - Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
 - Title buttons: pin / unpin (shelf reveals only, `SHELF.md`) / collapse / zoom / close.
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; Enter loads, Escape restores; refused input → dialog).
-- Border between slotted tiles: drag resizes neighbors.
+- Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
 - Shelf: `SHELF.md`. Tabs: `TABS.md`.
 

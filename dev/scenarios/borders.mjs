@@ -8,6 +8,14 @@ export default async (ctx, h) => {
   h.assert(Math.abs(ra2.w - (ra.w - 200)) < 3, `a shrank by 200 (${ra.w} -> ${ra2.w})`)
   await ctx.shot('resized')
 
+  // Double-click on the border: every child of that split gets an equal share.
+  await ctx.page.mouse.dblclick(x - 200, ra.y + 300)
+  await h.settle(ctx)
+  const rb = await h.rectOf(ctx, b)
+  const ra3 = await h.rectOf(ctx, a)
+  h.assert(Math.abs(ra3.w - rb.w) < 3, `a and b equal after double-click (${ra3.w} vs ${rb.w})`)
+  await ctx.shot('equalized')
+
   // Mid-drag change (CLI close/add, new tab): the drag must not write back its stale tree.
   const m = ctx.page.mouse
   const midDrag = async (change, applied) => {

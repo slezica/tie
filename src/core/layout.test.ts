@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CENTER_ZONE, compute, dropZone, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
+import { CENTER_ZONE, compute, dropZone, equalize, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -340,5 +340,15 @@ describe('resize', () => {
     expect(r.sizes[0]).toBeCloseTo(0.7)
     const c = resize(t, [], 0, 100, 100, 10) as any
     expect(c.sizes[0]).toBeCloseTo(0.9)
+  })
+})
+
+describe('equalize', () => {
+  it('gives every child of the split at path the same size', () => {
+    let t = insert(insert(leaf('a'), 'a', 'r', 'b'), 'b', 'r', 'c')
+    t = resize(t, [], 0, 30, 100, 10)
+    const e = equalize(t, []) as any
+    expect(e.sizes).toEqual([1 / 3, 1 / 3, 1 / 3])
+    expect(equalize(t, [0])).toBe(t) // not a split: unchanged
   })
 })
