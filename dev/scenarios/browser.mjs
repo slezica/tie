@@ -117,6 +117,33 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => !(await ctx.page.isVisible('.dialog')), 'dialog closed')
     h.assert((await h.tileOf(ctx, b)).web.url === s.url + '/three' && (await loc()) === s.url + '/three', 'refused: page and location unchanged')
 
+    // Click into the location (tile inactive: the click activates it, the field keeps the focus):
+    // all selected, typing replaces; a drag selects its range; a click into the focused field
+    // places the caret.
+    await ctx.tie('focus', '--tile', t0)
+    await h.waitActive(ctx, t0)
+    const locBox = await ctx.page.locator(`.tile[data-id="${b}"] .location`).boundingBox()
+    const locY = locBox.y + locBox.height / 2
+    const sel = () => ctx.page.$eval(`.tile[data-id="${b}"] .location`, (i) => (document.activeElement === i ? [i.selectionStart, i.selectionEnd] : null))
+    await ctx.page.mouse.click(locBox.x + 30, locY)
+    await h.waitActive(ctx, b)
+    h.assert(JSON.stringify(await sel()) === JSON.stringify([0, (s.url + '/three').length]), `click: focused, all selected: ${JSON.stringify(await sel())}`)
+    await ctx.page.keyboard.type('x')
+    h.assert((await loc()) === 'x', `typing replaces: ${await loc()}`)
+    await ctx.page.keyboard.press('Escape')
+    await h.waitFor(ctx, async () => (await loc()) === s.url + '/three', 'Escape restores')
+    await ctx.page.mouse.move(locBox.x + 10, locY)
+    await ctx.page.mouse.down()
+    await ctx.page.mouse.move(locBox.x + 40, locY, { steps: 4 })
+    await ctx.page.mouse.up()
+    let range = await sel()
+    h.assert(range && range[0] < range[1] && range[1] < (s.url + "/three").length, `drag selects a range: ${JSON.stringify(range)}`)
+    await ctx.page.mouse.click(locBox.x + 30, locY)
+    range = await sel()
+    h.assert(range && range[0] === range[1] && range[0] > 0, `click while focused: caret: ${JSON.stringify(range)}`)
+    await ctx.page.keyboard.press('Escape')
+    await h.waitFor(ctx, () => ctx.page.evaluate(() => document.activeElement?.tagName === 'WEBVIEW'), 'Escape: keys back to the page')
+
     // Pointer shield: while tracking a drag, the webview ignores the pointer.
     const tp = await h.titlePoint(ctx, b)
     let shield = null

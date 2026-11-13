@@ -53,7 +53,7 @@ tiles.addEventListener('pointerdown', (e) => {
   const id = tileId(target)
   if (!id || !S.tiles.has(id)) return
   if (location(id) !== 'shelved' || S.pinned === id) {
-    if (S.active !== id) activate(id)
+    if (S.active !== id) activate(id, { focus: !target.closest('.navbar .location') })
   } else if (S.revealed === id && !target.closest('.btn.pin')) pin(id) // a click into a hover reveal pins it (SHELF.md); Pin acts on click
   if (target.closest('.rz')) return startFloatResize(e, id)
   if (e.button !== 0 || target.closest('.btn') || !target.closest('.titlebar')) return

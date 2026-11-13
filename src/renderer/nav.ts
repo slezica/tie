@@ -51,6 +51,14 @@ export function createNavBar(t: Tile) {
     refocus()
   })
   input.addEventListener('blur', () => (input.value = nav.state().location))
+  // A click into the unfocused field selects it all (type to replace, cmd+C to copy); a drag keeps
+  // its range; a click into the focused field places the caret.
+  let selectAll = false
+  input.addEventListener('pointerdown', () => (selectAll = document.activeElement !== input))
+  input.addEventListener('click', () => {
+    if (selectAll && input.selectionStart === input.selectionEnd) input.select()
+    selectAll = false
+  })
   refreshNav(t)
 }
 

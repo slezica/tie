@@ -244,9 +244,11 @@ export function moveToSpace(id: TileId, spaceId: string, o: { activate?: boolean
   dropIfEmpty(from)
 }
 
-export function activate(id: TileId): void {
+// `focus: false`: the user clicked into a field of the tile's own chrome (nav bar location); the
+// mousedown focuses it, `refocus` would hand the keys to the content instead.
+export function activate(id: TileId, o: { focus?: boolean } = {}): void {
   const sp = spaceOf(id)
-  if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id))
+  if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id, o))
   getTile(id)
   // A zoomed tile covers the board: unzoom rather than activate a tile hidden under it.
   if (S.zoomed && S.zoomed !== id && location(id) !== 'shelved') S.zoomed = null
@@ -257,7 +259,7 @@ export function activate(id: TileId): void {
   if (f && S.floats[S.floats.length - 1] !== f) S.floats = [...S.floats.filter((x) => x !== f), f]
   render()
   // Only steal keyboard focus for the space on screen.
-  if (S.current === S.visible) refocus()
+  if (S.current === S.visible && o.focus !== false) refocus()
 }
 
 // Ask for attention without taking focus or changing layout. Ignored for the tile already in

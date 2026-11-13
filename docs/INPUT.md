@@ -5,7 +5,7 @@
 - Tile pointerdown: activate; a hover-revealed shelved tile pins instead (`SHELF.md`); hidden shelved tiles take no pointer. Clicks inside content frames and browser guests never reach the shell: the window blur + `activeElement` activate (or pin) instead (`initFrames`).
 - Title bar: drag = move; click on collapsed = expand; double-click (350 ms, `main.ts`) = toggle zoom; right-click = menu.
 - Title buttons: pin / unpin (shelf reveals only, `SHELF.md`) / collapse / zoom / close.
-- Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; Enter loads, Escape restores; refused input → dialog).
+- Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; click into it selects all, type to replace, cmd+C copies, drag selects a range; Enter loads, Escape restores; refused input → dialog). A click there activates the tile without handing the keys to its content.
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
 - Shelf: `SHELF.md`. Tabs: `TABS.md`.

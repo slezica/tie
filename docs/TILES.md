@@ -41,7 +41,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 - Nav bar: compact row (`--nav-h`) under the title bar: back / forward / reload buttons (square 18 px) + location field. Only for surfaces with `nav` (terminals: none). Hidden when collapsed. Refreshed on `host.changed()`.
 - Buttons never take focus (keys stay with the content). Disabled at the ends.
-- Location: read-only unless `editable` (then Enter → `go(input)`, Escape restores). Read-only paths scroll to their end (file name).
+- Location: read-only unless `editable` (then Enter → `go(input)`, Escape restores). A click into the unfocused field selects all (drag: its range); the tile activates with `focus: false` (`activate`), so the field keeps the focus. Read-only paths scroll to their end (file name).
 - Keys (`INPUT.md`): `nav-back` / `nav-forward` / `nav-reload` / `nav-location` act on the active tile; no-op without `nav`; `cmd+L` no-op unless editable.
 
 ## Kind registry (`renderer/kinds/index.ts`)
