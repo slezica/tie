@@ -18,6 +18,7 @@
   const prevent = Event.prototype.preventDefault
   const closest = Element.prototype.closest
   const getAttr = Element.prototype.getAttribute
+  const raf = window.requestAnimationFrame
   let store: Storage | null = null
   try {
     store = window.sessionStorage
@@ -40,7 +41,9 @@
         // Watchdog (frame.ts): answering proves the page's thread isn't stuck.
         if (m.data?.type === 'tie:ping') send({ verb: 'pong', n: m.data.n })
       }
-      send({ verb: 'ready' })
+      // After the page's first paint (two rAFs: the host shows the frame on `ready`; before a
+      // first submitted frame an out-of-process frame shows as a white placeholder).
+      raf.call(window, () => raf.call(window, () => send({ verb: 'ready' })))
     }) as EventListener,
     true,
   )

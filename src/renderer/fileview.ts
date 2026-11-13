@@ -124,10 +124,8 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     root,
     title: kind,
     icon: spec.icon,
-    onReady: () => {
-      frame.post(themeMessage())
-      sendDoc()
-    },
+    init: () => ({ theme: themeMessage() }), // applied before `ready`: the first paint shown is themed
+    onReady: sendDoc,
     handlers: {
       followLink: (r) => void follow(r.href, r.newTile),
       hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
@@ -135,7 +133,7 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     },
   })
 
-  // The viewer was rebuilt (dev): reload the frame, same root, scroll restored (onReady resends
+  // The viewer was rebuilt (dev): reload the frame, same root, scroll restored (handshake again:
   // theme + doc).
   viewerTiles.set(host.id, { kind, reload: () => void (doc && ((view = { scroll: 'restore', hash: '', y: lastY }), frame.setRoot(root))) })
 

@@ -98,6 +98,7 @@ EOF
 | `htmlFrame(id)` | html tile's page frame (the page's realm), once ready; re-found after navigations (`tie list` `page.url`) |
 | `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
 | `tileOf(id)`, `waitFor(fn, what)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
+| `pixels(png)`, `fraction(pix, test)` | decode a Playwright PNG (8-bit RGB/RGBA) → `{w, h, bpp, px, at(x, y) → [r, g, b]}`; share of pixels passing `test([r, g, b])` (paint checks: a guest's red page, no white flash) |
 | `tilde(path)` | a path as Tie titles it (`~` for home): file / html tile titles |
 | `pick(text)`, `pickCancel()`, `nativePickNext(path)` | file picker (`#picker`, after the drop / cmd+O): line replaced by `text` (absolute path: that file opens; or prefix + query), Enter, waits closed; Esc; next answer of the native dialog (`…`; null = cancel) |
 | `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered) |

@@ -104,11 +104,19 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
   }
 
   // Handshake: the host posts tie:init with one port after load; everything after goes over it.
+  // Its `theme` (a theme message) is applied before `ready`: the host shows the frame on `ready`,
+  // so the first paint it shows is already in the tile's colors (no white flash).
   addEventListener('message', (e) => {
     if (state.port || e.source !== parent || (e.data as { type?: string })?.type !== 'tie:init' || !e.ports[0]) return
     state.port = e.ports[0]
     state.port.onmessage = (m) => typeof m.data?.type === 'string' && onMessage(m.data as Message)
-    state.port.postMessage({ verb: 'ready' })
+    const theme = (e.data as { theme?: unknown }).theme
+    if (theme && typeof theme === 'object' && (theme as Message).type === 'theme') onMessage(theme as Message)
+    // `ready` once a themed frame has been painted (two rAFs: the first runs before this frame's
+    // paint, the second after it was submitted): the host shows the iframe on `ready`, and an
+    // out-of-process frame without a submitted frame yet shows as a white placeholder.
+    const port = state.port
+    requestAnimationFrame(() => requestAnimationFrame(() => port.postMessage({ verb: 'ready' })))
   })
 
   // Clicks on links: nothing navigates. With `links`, anchors scroll here and the rest become

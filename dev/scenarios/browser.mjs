@@ -4,24 +4,14 @@
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
 // focused), tie add browser [url], CLI errors. Hidden window: real clicks reach the guest.
 import { execFileSync } from 'node:child_process'
-import { inflateSync } from 'node:zlib'
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
+import * as h from '../helpers.mjs'
 
 export const hiddenWindow = true
 
-// One window pixel (CSS px) as [r, g, b] (1-px PNG: first row, after the filter byte).
-async function pixel(ctx, x, y) {
-  const png = await ctx.page.screenshot({ clip: { x, y, width: 1, height: 1 }, scale: 'css' })
-  const idat = []
-  for (let i = 8; i < png.length; ) {
-    const len = png.readUInt32BE(i)
-    if (png.toString('ascii', i + 4, i + 8) === 'IDAT') idat.push(png.subarray(i + 8, i + 8 + len))
-    i += 12 + len
-  }
-  const raw = inflateSync(Buffer.concat(idat))
-  return [raw[1], raw[2], raw[3]]
-}
+// One window pixel (CSS px) as [r, g, b].
+const pixel = async (ctx, x, y) => h.pixels(await ctx.page.screenshot({ clip: { x, y, width: 1, height: 1 }, scale: 'css' })).at(0, 0)
 
 const page = (title, body) => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body style="font: 16px sans-serif">${body}
 <script>window.__keys = []; addEventListener('keydown', (e) => window.__keys.push((e.metaKey ? 'Meta+' : '') + e.key))</script></body></html>`

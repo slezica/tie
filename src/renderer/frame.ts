@@ -20,6 +20,7 @@ export interface FrameSpec {
   title: string
   icon: Glyph
   handlers: Handlers
+  init?: () => Record<string, unknown> // extra fields of each `tie:init` (viewers: `theme`, applied before `ready`)
   onReady?: () => void // viewer answered the handshake (each load): send it its content
   page?: string // document kinds: the page to show, path relative to root (as on disk)
   onNavigate?: (page: string) => void // document kinds: the frame now shows `page` (relative, decoded)
@@ -138,6 +139,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       ready = true
       dog = watchdog(Date.now())
       ticker ??= setInterval(onTick, TICK_MS)
+      frame?.classList.remove('loading') // shown now: the viewer has its theme (init), the document its own styles
       spec.onReady?.()
     }
     const fn = spec.handlers[req.verb] as ((r: Request) => void) | undefined
@@ -169,7 +171,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       readyTimer = null
       graceTimer ??= setTimeout(() => fail('Page crashed', 'crashed'), NAV_GRACE_MS)
     }
-    frame?.contentWindow?.postMessage({ type: 'tie:init' }, '*', [ch.port2])
+    frame?.contentWindow?.postMessage({ type: 'tie:init', ...spec.init?.() }, '*', [ch.port2])
     if (readyTimer) clearTimeout(readyTimer)
     readyTimer = setTimeout(() => fail('Content did not load', 'no ready'), READY_MS)
   }
@@ -210,7 +212,9 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       token = res.token
       if (navigates) track(token)
       frame = document.createElement('iframe')
-      frame.className = 'content'
+      // Invisible (opacity: still focusable) until `ready`: a fresh document paints white before
+      // the viewer runs, the body shows the tile background instead.
+      frame.className = 'content loading'
       // SECURITY: sandbox from the policy table (viewers: scripts only. No allow-same-origin: opaque
       // origin, can't reach the UI or its storage. Documents: allow-same-origin = their own
       // token's origin, still cross-origin to the UI: they can't lift the sandbox. No popups, top
@@ -256,6 +260,7 @@ export function frameSurface(host: Host, spec: FrameSpec): FrameSurface {
       if (navigates) track(token)
       if (p !== undefined) page = p
       detach()
+      frame.classList.add('loading') // until the new document's `ready`
       frame.src = res.url // same element: the nav lock binds the new token to this frame
       if (old) byToken.delete(old)
       if (old) tie.content.close(old)

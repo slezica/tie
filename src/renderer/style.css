@@ -705,6 +705,9 @@ body.tile-drag #tab-add.drop {
   border: 0;
   background: var(--tile-bg);
 }
+.body iframe.content.loading {
+  opacity: 0; /* until the viewer's `ready` (frame.ts): no white first paint */
+}
 .body webview.guest {
   background: var(--web-canvas);
 }

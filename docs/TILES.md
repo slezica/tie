@@ -110,7 +110,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 - Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, text | bytes}` + shelf activity; missing → last render frozen + "Missing" pill (until the file comes back); close on dispose.
 - Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token, = `/<name>`) itself (image).
-- Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme message, then the doc.
+- Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme in `tie:init`, then the doc on `ready`.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
 - Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
 - Title = the file's path, `~` for home (`DIRECTORIES.md` "Titles"); tiles opened beside get this tile's cwd; `info` → `doc {path, rev, missing, history}`.
@@ -122,8 +122,8 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 1. `mount`: `tie.content.open(root, viewer, page?)` → main registers `root` under a fresh token → `{token, url}` (viewers: the viewer page; documents: `page` in the root) (or `{error}` → `host.error`).
 2. `<iframe class="content" sandbox=<policy> allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
-3. On each `load`: new `MessageChannel`; `tie:init` + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
-4. Viewer answers `{verb: 'ready'}` within 5 s, else "Content did not load". Each `ready` → `onReady()` (kind sends content).
+3. On each `load`: new `MessageChannel`; `tie:init` (+ the kind's `init()` fields: file kinds send `theme`, the theme message) + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
+4. Viewer answers `{verb: 'ready'}` within 5 s, else "Content did not load" (`runtime.ts` and the html bootstrap: the init theme applied, then after the first paint, two rAFs: an out-of-process frame shows as a white placeholder until it has submitted a frame). Each `ready` → `onReady()` (kind sends content), and the iframe shows: it is `.loading` (`opacity: 0`, still focusable) from mount / `setRoot` until then, so a new document's white first paint never shows (the body's tile background does). Checked by `content-paint`.
 5. Requests: port → `parseRequest` (`core/requests.ts`) → gesture rule → `handlers[verb]` → IPC → main (re-validates). Invalid, unhandled or refused: dropped, `debug('security', ...)`.
 6. `post(msg)`: host → viewer over the port (dropped before the handshake).
 7. `setRoot(root)`: new token for another directory, same iframe (`src` changes; nav lock binds the new token to it), old token closed. Handshake again.

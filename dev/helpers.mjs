@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib'
 import { homedir } from 'node:os'
 import { rpc } from './lib.mjs'
 
@@ -532,3 +533,53 @@ export const waitLog = (ctx, re, n = 1, ms) => waitFor(ctx, async () => {
   const m = ctx.appLog().match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')) ?? []
   return m.length >= n && m
 }, `log ${re} x${n}`, ms)
+
+// Playwright PNG (8-bit RGB / RGBA, not interlaced) → {w, h, bpp, px, at(x, y) → [r, g, b]}.
+export function pixels(png) {
+  let w = 0
+  let h = 0
+  let ct = 0
+  const idat = []
+  for (let i = 8; i < png.length; ) {
+    const len = png.readUInt32BE(i)
+    const type = png.toString('ascii', i + 4, i + 8)
+    const d = png.subarray(i + 8, i + 8 + len)
+    if (type === 'IHDR') ((w = d.readUInt32BE(0)), (h = d.readUInt32BE(4)), (ct = d[9]))
+    if (type === 'IDAT') idat.push(d)
+    i += 12 + len
+  }
+  const bpp = ct === 6 ? 4 : 3
+  const raw = inflateSync(Buffer.concat(idat))
+  const stride = w * bpp
+  const px = Buffer.alloc(h * stride)
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)]
+    const src = y * (stride + 1) + 1
+    const dst = y * stride
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? px[dst + x - bpp] : 0
+      const b = y > 0 ? px[dst - stride + x] : 0
+      const c = x >= bpp && y > 0 ? px[dst - stride + x - bpp] : 0
+      let v = raw[src + x]
+      if (f === 1) v += a
+      else if (f === 2) v += b
+      else if (f === 3) v += (a + b) >> 1
+      else if (f === 4) {
+        const p = a + b - c
+        const pa = Math.abs(p - a)
+        const pb = Math.abs(p - b)
+        const pc = Math.abs(p - c)
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+      }
+      px[dst + x] = v & 255
+    }
+  }
+  const at = (x, y) => [px[(y * w + x) * bpp], px[(y * w + x) * bpp + 1], px[(y * w + x) * bpp + 2]]
+  return { w, h, bpp, px, at }
+}
+// Share (0..1) of a decoded image's pixels passing test([r, g, b]).
+export function fraction(pix, test) {
+  let n = 0
+  for (let i = 0; i < pix.w * pix.h; i++) if (test([pix.px[i * pix.bpp], pix.px[i * pix.bpp + 1], pix.px[i * pix.bpp + 2]])) n++
+  return n / (pix.w * pix.h)
+}
