@@ -11,7 +11,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/INPUT.md`: mouse, drops, drags, keys, menu.
 - `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
-- `docs/DIRECTORIES.md`: tile `cwd` vs frame `root`, inheritance (`contextOf`), pathway table, titles.
+- `docs/DIRECTORIES.md`: tile `cwd` vs frame `root` (root rule, `/` dialog), inheritance (`contextOf`), pathway table, titles.
 - `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, links, history, watching, opening.
 - `docs/VIEWERS.md`: text, image, hex, html kinds: kind by extension or content, caps, viewers; html isolation, bootstrap, routing.
 - `docs/BROWSER.md`: browser kind: `<webview>` guest, attach + guest guards, partition, downloads, popups, nav bar.
@@ -38,6 +38,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
 - `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
 - `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
+- `docs/2026-11-13-content-roots.md`: frame root = the context cwd when it holds the file; `--root`; `/` asks.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
@@ -61,6 +62,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/core/kinds.ts`: file → kind by extension (`fileKind`), else content (`sniff`, `sniffKind`: text/hex), `canOpenAs`, `extsOf`, `FILE_KINDS` (main + renderer). Tests: `kinds.test.ts`.
 - `src/core/links.ts`: `classifyLink` for file views (main + renderer). Tests: `links.test.ts`.
 - `src/core/content.ts`: content URL/token/path checks, viewer files, nav rules `navAllowed` (viewer-exact, within-root), `documentUrl`, `bootstrapAt`, `htmlCharset` (main). Tests: `content.test.ts`.
+- `src/core/roots.ts`: content frame roots: `rootFor(cwd, path, current?, explicit?)` (current while it holds the file, else cwd when it does, else the folder), `contains`, `dirOf`, `withinRoot` (main-free; renderer). Tests: `roots.test.ts`.
 - `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
 - `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
 - `src/core/ids.ts`: entropic ids (`randomId`: prefix + 6 chars base32 minus `0 1 l o`, live uniqueness check) (renderer). Tests: `ids.test.ts`.
@@ -76,6 +78,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
   - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind; root `--root`, else its cwd).
+  - `roots.ts`: `resolveRoot(cwd, path, current?, explicit?)`: the rule + the `/` question (`choiceDialog`: Stop / Use file directory / Open anyway).
   - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`, `terminalTitle`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
   - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
@@ -84,7 +87,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker (`pickPath(startDir)`: path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
-  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts`, `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
+  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus-direction. `quit.ts`: quit question (`askQuit`).
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.
@@ -121,7 +124,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `cwd` / `setCwd` (tile cwd), `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd` (cwd: the tile's).
 - Browser state (private, `guest.ts`): `wv` (the `<webview>`), `url`, `title`, `loading`, `ready` (dom-ready), `gid` (guest webContents id). Rules: `core/guest.ts`. Main: `guests` (live guest webContents).
-- File view state (private, `fileview.ts`): `doc {id, path, rev, text?, bytes?, missing}` (payload per policy), `history {list, index}`, `root` (frame's directory). Main: `docs` (id → path, watcher).
+- File view state (private, `fileview.ts`): `doc {id, path, rev, text?, bytes?, missing}` (payload per policy), `history {list, index}`, `root` (frame root, `DIRECTORIES.md` 5). Main: `docs` (id → path, watcher).
 
 ## Patterns
 
@@ -197,5 +200,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe [--root D]`, `add --id`. See `docs/CLI.md`.
+- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`, `--cwd`, `--root`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe [--root D]`, `add --id`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).

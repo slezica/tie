@@ -10,12 +10,14 @@ import { tie, debug, spaceOf, withSpace, type Kind } from './state'
 import { tildePath } from './tabs'
 import type { Glyph } from './icons'
 import { untrusted } from '@core/log'
-import { frameSurface } from './frame'
+import { frameSurface, type FrameSpec } from './frame'
 import { appearance, fontStack } from './appearance'
 import { theme } from './themes'
 import { openTile, besidePlacement } from './ops'
 import { infoDialog } from './dialog'
 import { openExternal, confirmFile } from './external'
+import { contains, withinRoot } from '@core/roots'
+import { resolveRoot } from './roots'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from './kinds'
 import type { DocBody } from '../preload'
@@ -40,7 +42,7 @@ export function reloadViewers(kind: string) {
   for (const v of viewerTiles.values()) if (v.kind === kind) v.reload()
 }
 
-export const dirOf = (p: string) => p.slice(0, p.lastIndexOf('/')) || '/'
+export { dirOf } from '@core/roots'
 export const nameOf = (p: string) => p.slice(p.lastIndexOf('/') + 1)
 
 // Theme for viewers: base colors, ANSI palette (code), fonts. Set as CSS custom properties there
@@ -75,7 +77,7 @@ export interface FileKindSpec {
 export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surface {
   const { kind } = spec
   let doc: Doc | null = null
-  let root = dirOf(opts.path ?? '/')
+  let root = '' // the frame's root (DIRECTORIES.md: the context cwd when it holds the file, else its folder); set at mount
   const history = { list: [] as string[], index: -1 }
   // How the next render positions itself: keep (live change), top (new page), restore (back/forward,
   // reload).
@@ -84,11 +86,11 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   let seq = 0 // latest navigation wins
 
   // To the viewer: the doc (key = path), its revision, `src` (the file's URL path on the frame's
-  // token: root = its directory), and the payload. Bytes go as a transferred copy (the tile keeps its
-  // own for the next handshake).
+  // token: its path within the root), and the payload. Bytes go as a transferred copy (the tile
+  // keeps its own for the next handshake).
   const sendDoc = () => {
     if (!doc) return
-    const msg = { type: 'doc', key: doc.path, rev: doc.rev, src: '/' + encodeURIComponent(nameOf(doc.path)), scroll: view.scroll, hash: view.hash, y: view.y }
+    const msg = { type: 'doc', key: doc.path, rev: doc.rev, src: withinRoot(root, doc.path), scroll: view.scroll, hash: view.hash, y: view.y }
     if (doc.bytes) {
       const bytes = doc.bytes.slice()
       frame.post({ ...msg, bytes }, [bytes.buffer])
@@ -119,9 +121,9 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     })
   }
 
-  const frame = frameSurface(host, {
+  const fspec: FrameSpec = {
     viewer: kind,
-    root,
+    root, // set at mount, before the frame mounts
     title: kind,
     icon: spec.icon,
     init: () => ({ theme: themeMessage() }), // applied before `ready`: the first paint shown is themed
@@ -131,26 +133,30 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
       hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
       scrolled: (r) => (lastY = r.y),
     },
-  })
+  }
+  const frame = frameSurface(host, fspec)
 
   // The viewer was rebuilt (dev): reload the frame, same root, scroll restored (handshake again:
   // theme + doc).
   viewerTiles.set(host.id, { kind, reload: () => void (doc && ((view = { scroll: 'restore', hash: '', y: lastY }), frame.setRoot(root))) })
 
-  // Open `path` in this tile. Another directory: the frame reloads with a root (token) for it.
+  // Open `path` in this tile. Outside the root: the frame reloads with a root (token) for it
+  // (the rule again; `/` asks, Stop = stay here).
   async function go(path: string, how: 'push' | 'back' | 'forward' | 'reload', hash = '') {
     const n = ++seq
     const r = await tie.doc.open(path, kind)
     if (!host.alive() || n !== seq) return void ('id' in r && tie.doc.close(r.id))
     if ('error' in r) return void infoDialog(how === 'reload' ? "Can't reload" : "Can't open link", r.error)
+    const next = await resolveRoot(host.cwd(), path, root)
+    if (!host.alive() || n !== seq || next === null) return void tie.doc.close(r.id)
     setDoc(r, path)
     if (how === 'push') history.list.splice(++history.index, Infinity, path)
     else if (how !== 'reload') history.index += how === 'back' ? -1 : 1
     view = { scroll: how === 'push' ? 'top' : 'restore', hash }
     host.changed()
     debug(kind, 'go', host.id, how, untrusted(path))
-    if (dirOf(path) !== root) {
-      root = dirOf(path)
+    if (next !== root) {
+      root = next
       await frame.setRoot(root) // onReady sends the doc
     } else sendDoc()
   }
@@ -174,8 +180,8 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     if (l.type === 'web') return void openExternal(l.url, nameOf(doc.path))
     if (l.type === 'anchor') return frame.post({ type: 'scroll', hash: l.hash })
     if (l.type === 'refused') return debug('security', 'refused link', host.id, l.why, untrusted(href))
-    // Outside this file's folder: the user confirms the path first (same tile or beside alike).
-    if (!(root === '/' || l.path.startsWith(root + '/')) && !(await confirmFile(l.path, nameOf(doc.path)))) return
+    // Outside the root: the user confirms the path first (same tile or beside alike).
+    if (!contains(root, l.path) && !(await confirmFile(l.path, nameOf(doc.path)))) return
     if (!host.alive() || !doc) return
     if (l.kind !== kind) return void beside(l.path, l.hash)
     if (newTile) {
@@ -214,6 +220,10 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
       const r = await tie.doc.open(opts.path, kind)
       if (!host.alive()) return void ('id' in r && tie.doc.close(r.id))
       if ('error' in r) return host.error(r.error)
+      const rt = await resolveRoot(host.cwd(), opts.path, null, opts.root)
+      if (!host.alive()) return void tie.doc.close(r.id)
+      if (rt === null) return void (tie.doc.close(r.id), host.error('Stopped: not shown with / as its root'))
+      fspec.root = root = rt
       setDoc(r, opts.path)
       history.list = [opts.path]
       history.index = 0
@@ -248,6 +258,6 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
         color: 'red',
       },
     ],
-    info: () => ({ doc: doc && { path: doc.path, rev: doc.rev, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
+    info: () => ({ doc: doc && { path: doc.path, root, rev: doc.rev, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
   }
 }

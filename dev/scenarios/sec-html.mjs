@@ -48,7 +48,7 @@ export default async (ctx, h) => {
   const cli = []
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('add', join(dir, 'evil.html'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'evil.html'), '--at', t0, '--side', 'r', '--cwd', dir)).id // --cwd: root = the folder
     const fr = await h.htmlFrame(ctx, id)
     const token = new URL(fr.url()).host
     await h.clickIn(ctx, fr, '#h') // focused: gesture requests would pass the focus rule
@@ -149,7 +149,7 @@ export default async (ctx, h) => {
     ctx.log('RTCPeerConnection in page:', webrtc)
 
     // Other tokens: another html tile's files unreadable (fetch, XHR, img). Own folder: readable.
-    const other = (await ctx.tie('add', join(dir, 'evil.html'), '--at', id, '--side', 'b')).id
+    const other = (await ctx.tie('add', join(dir, 'evil.html'), '--at', id, '--side', 'b', '--cwd', dir)).id
     const otherToken = new URL((await h.htmlFrame(ctx, other)).url()).host
     const f1 = await h.htmlFrame(ctx, id)
     const reads = await f1.evaluate(async ({ own, other }) => {
@@ -185,7 +185,7 @@ export default async (ctx, h) => {
     const opaque = await pf.evaluate((t) => fetch(`tie-content://${t}/data.json`).then(() => 'ok', () => 'threw'), new URL(pf.url()).host)
     h.assert(opaque === 'threw', `probe frame fetch: ${opaque}`)
     writeFileSync(join(dir, 'n.md'), '# n\n')
-    const md = (await ctx.tie('add', join(dir, 'n.md'), '--at', id)).id
+    const md = (await ctx.tie('add', join(dir, 'n.md'), '--at', id, '--cwd', dir)).id
     const mf = await h.contentFrame(ctx, md)
     const mdFetch = await mf.evaluate(() => fetch(`${location.protocol}//${location.host}/n.md`).then(() => 'ok', () => 'threw'))
     h.assert(mdFetch === 'threw', `markdown frame fetch: ${mdFetch}`)
@@ -238,7 +238,7 @@ export default async (ctx, h) => {
     h.assert((await h.tileOf(ctx, id)).error.includes(`${p.url}/location`), 'error names the target')
     h.assert(/document navigation failed \w+ -?\d+/.test(ctx.appLog()), 'failed navigation reported by main')
     // Meta refresh away on load: error at once, no reload loop.
-    const loop = (await ctx.tie('add', join(dir, 'loop.html'), '--at', t0)).id
+    const loop = (await ctx.tie('add', join(dir, 'loop.html'), '--at', t0, '--cwd', dir)).id
     await h.waitFor(ctx, async () => /^Page navigated away: .*meta-loop/.test((await h.tileOf(ctx, loop)).error ?? ''), 'meta refresh → error', 8000)
     h.assert(!/navigation failed, reloading/.test(ctx.appLog()), 'never reloaded')
     await p.assertUntouched('navigation away', 500)

@@ -9,10 +9,12 @@
 import { tie, debug, spaceOf, withSpace, type Kind } from '../state'
 import type { Glyph } from '../icons'
 import { untrusted } from '@core/log'
-import { frameSurface } from '../frame'
+import { frameSurface, type FrameSpec } from '../frame'
 import { openTile, besidePlacement } from '../ops'
 import { infoDialog } from '../dialog'
-import { dirOf, nameOf } from '../fileview'
+import { nameOf } from '../fileview'
+import { contains } from '@core/roots'
+import { resolveRoot } from '../roots'
 import { tildePath } from '../tabs'
 import { openExternal, confirmFile } from '../external'
 import { classifyLink } from '@core/links'
@@ -26,7 +28,7 @@ const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/')
 
 export function htmlKind(host: Host, opts: OpenOpts): Surface {
   let path = opts.path ?? '' // page shown (absolute)
-  let root = dirOf(path) // frame's folder (token)
+  let root = '' // the frame's root (DIRECTORIES.md); set at mount
   const history = { list: [] as string[], index: -1 }
   let ready = false
   let reloads = 0
@@ -34,17 +36,17 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
   let blocked = 0 // scripts the CSP refused on the page shown (bootstrap `blocked` reports)
 
-  const inRoot = (p: string) => p.startsWith(root === '/' ? '/' : root + '/')
+  const inRoot = (p: string) => contains(root, p)
   const rel = (p: string) => p.slice(root === '/' ? 1 : root.length + 1)
   const loading = () => {
     ready = false
     blocked = 0
   }
 
-  const frame = frameSurface(host, {
+  const spec: FrameSpec = {
     viewer: 'html',
-    root,
-    page: rel(path),
+    root, // set at mount, before the frame mounts
+    page: '',
     title: 'html',
     icon: ICON,
     handlers: {
@@ -82,22 +84,25 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
         host.activity()
       }, RELOAD_MS)
     },
-  })
+  }
+  const frame = frameSurface(host, spec)
 
-  // Show `abs` in this tile: same folder → the frame navigates (nav lock: documents of its root);
-  // elsewhere → a new token for that folder.
+  // Show `abs` in this tile: inside the root → the frame navigates (nav lock: documents of its
+  // root); outside → a new token, root by the rule again (`/` asks, Stop = stay here).
   async function go(abs: string, how: 'push' | 'back' | 'forward', hash = '') {
     const v = await tie.doc.viewer(abs, 'html') // main: exists, regular file, an html document
     if (!host.alive()) return
     if ('error' in v) return void infoDialog("Can't open link", v.error)
+    const next = inRoot(abs) ? root : await resolveRoot(host.cwd(), abs, root)
+    if (!host.alive() || next === null) return
     if (how === 'push') history.list.splice(++history.index, Infinity, abs)
     else history.index += how === 'back' ? -1 : 1
     path = abs
     loading()
     debug('html', 'go', host.id, how, untrusted(abs))
-    if (inRoot(abs)) frame.load(rel(abs) + hash)
+    if (next === root) frame.load(rel(abs) + hash)
     else {
-      root = dirOf(abs)
+      root = next
       await frame.setRoot(root, rel(abs))
     }
     host.changed()
@@ -161,6 +166,11 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
       const v = await tie.doc.viewer(opts.path, 'html')
       if (!host.alive()) return
       if ('error' in v) return host.error(v.error)
+      const rt = await resolveRoot(host.cwd(), path, null, opts.root)
+      if (!host.alive()) return
+      if (rt === null) return host.error('Stopped: not shown with / as its root')
+      spec.root = root = rt
+      spec.page = rel(path)
       history.list = [path]
       history.index = 0
       host.changed()
@@ -193,7 +203,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     },
     info: () => {
       const o = frame.origin()
-      return { page: { path, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, blocked, history: { index: history.index, length: history.list.length } } }
+      return { page: { path, root, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, blocked, history: { index: history.index, length: history.list.length } } }
     },
   }
 }

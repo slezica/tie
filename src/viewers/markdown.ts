@@ -90,14 +90,16 @@ const slug = (s: string) =>
     .replace(/[^\p{L}\p{N}\s_-]/gu, '')
     .replace(/\s/g, '-')
 
-// Images: only relative paths inside the file's folder, through this tile's own tie-content
-// origin (root = the file's directory). Remote / data / out-of-folder images become a placeholder:
+// Images: only relative paths inside the root, through this tile's own tie-content origin,
+// resolved against the document's place in the root (`src` of the doc message: `/docs/a.md` →
+// `../img.png` is `/img.png`). Remote / data / absolute / out-of-root images become a placeholder:
 // no <img>, no request (the CSP would block them anyway).
 const ROOT = 'https://root.invalid/r/'
+let docBase = ROOT // ROOT + the document's folder within the root
 function localImage(src: string): string | null {
   if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith('//') || src.startsWith('\\')) return null
   try {
-    const u = new URL(src, ROOT)
+    const u = new URL(src, docBase)
     if (u.origin !== 'https://root.invalid' || !u.pathname.startsWith('/r/')) return null // left the folder
     return `${location.protocol}//${location.host}/${u.pathname.slice(3)}`
   } catch {
@@ -196,7 +198,7 @@ async function show(text: string, how: How, position?: () => void) {
   if (n === showing) live.place(next, how)
 }
 
-type Doc = { type: 'doc'; key: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string; y?: number } // y: the host's memory (viewer reloaded)
+type Doc = { type: 'doc'; key: string; src: string; text: string; rev: string; scroll: 'keep' | 'top' | 'restore'; hash: string; y?: number } // src: path within the root; y: the host's memory (viewer reloaded)
 
 function onMessage(msg: Message) {
   if (msg.type !== 'doc') return
@@ -208,6 +210,7 @@ function onMessage(msg: Message) {
   state.key = m.key
   state.text = m.text
   state.rev = m.rev
+  docBase = ROOT + String(m.src ?? '/').replace(/^\//, '').replace(/[^/]*$/, '')
   if (isLive) void show(m.text, 'live')
   else
     void show(m.text, 'page', () => {

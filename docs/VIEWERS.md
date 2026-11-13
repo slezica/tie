@@ -26,7 +26,7 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 
 ## Image (`viewers/image.ts`)
 
-- Payload: none. The doc message carries `src` (the file's path on the frame's token: root = its directory); the viewer loads `<img src=tie-content://<token>/<name>?v=<rev>>` (CSP `img-src` own token).
+- Payload: none. The doc message carries `src` (the file's path within the root, on the frame's token); the viewer loads `<img src=tie-content://<token>/<name>?v=<rev>>` (CSP `img-src` own token).
 - SVG: as `<img>` only: no scripts, no event handlers, no external loads (image context). Never inlined.
 - Fit (default): shrink to the tile, never enlarge; centered on a checkerboard (theme colors). Click or `z`: actual size (scrolls; the clicked point stays under the pointer). Info corner: `W × H` (+ `· N%` when shrunk).
 - Change on disk: new revision → loaded off-screen, swapped in when decoded (no flash), mode kept.
@@ -50,14 +50,14 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 |---|---|
 | Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: modules, storage, fetch work; cross-origin to the UI (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
 | No network | document CSP (`documentCsp(nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media); scripts `'nonce-<response>'` (the bootstrap only); no workers, frames, objects, forms, `<base>`. Plus the UI session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
-| Folder | root = the file's directory (token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
+| Folder | root = `DIRECTORIES.md` 5 (the context cwd when it holds the page, else its folder; token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
 | Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the UI CSP `frame-src` refuses → main reports `did-fail-provisional-load` (with the URL) → the tile fails at once: "Page navigated away: <url>" (no reload; decision 2026-10-21). Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
 | Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `hover` (pointer over a link → the tile's link strip), `blocked` (count of scripts the CSP refused). Page scripts never run; the bootstrap's requests are still treated as hostile |
 | Popups | no `allow-popups`; `window.open` replaced by the bootstrap (request, returns `null`) |
 
 - Bootstrap: built ASCII-only (`esbuild charset ascii`), no `</script`/`<!--` (main refuses it otherwise), injected inline first in `<head>` (else after `<html>`, the doctype, a BOM: `bootstrapAt`). Header charset = the document's declared one (`htmlCharset`: the bootstrap can push `<meta charset>` past the 1024-byte prescan). Captures `addEventListener`, `postMessage`, `stopImmediatePropagation`... before page scripts run. Handshake listener: capture phase, first, stops propagation: the page never sees the port (tested).
 - Links (bootstrap click listener, bubble phase on `window`): clicks the page didn't `preventDefault`, not `#` or `javascript:` (the page's own). Host routing (`follow`): `/x` = the root's; own-origin URLs → paths; then `classifyLink`:
-  - html file, plain click → this tile (history push). Same root (subfolders too): same token, `frame.load`. Other folder: new token (`setRoot`).
+  - html file, plain click → this tile (history push). Inside the root (subfolders too): same token, `frame.load`. Outside: new token (`setRoot`; root by the rule again).
   - other files (any kind, main decides), or new-tile requests (cmd-click, `target`, `window.open`) → beside, at most one per second per tile.
   - http(s) → `external.ts` confirm dialog (`TILES.md` "Links out"; the html note names the folder the page can read) → `openExternal`.
   - anything else → refused (`debug security`).
@@ -66,7 +66,7 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
 - Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the UI's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
-- Title = the file's path (`~` for home), never the page's `<title>` (2026-10-20: content can't label its tile); cwd = the tile's (`DIRECTORIES.md`), never the root. Harness: `tie list --json` `page {path, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
+- Title = the file's path (`~` for home), never the page's `<title>` (2026-10-20: content can't label its tile); cwd = the tile's (`DIRECTORIES.md`), never the root. Harness: `tie list --json` `page {path, root, url, ready, reloads, scripts, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
 

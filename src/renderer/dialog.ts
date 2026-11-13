@@ -69,3 +69,38 @@ export function confirmDialog(o: { cls?: string; title: string; body: Node[]; co
     ;(confirm.disabled && first === confirm ? (d as HTMLElement) : first).focus()
   })
 }
+
+// Modal question with several answers: resolves the chosen value; Escape / backdrop = the first
+// choice (the safe one: it has the focus, Enter picks it). `secondary`: styled as a lesser action.
+export function choiceDialog<V extends string>(o: { cls?: string; title: string; body: Node[]; choices: { label: string; value: V; secondary?: boolean }[] }): Promise<V> {
+  return new Promise((resolve) => {
+    const back = document.createElement('div')
+    back.className = 'dialog-backdrop'
+    back.innerHTML = `<div class="dialog" role="alertdialog"><h2></h2><div class="dialog-body"></div><div class="actions"></div></div>`
+    const d = back.querySelector('.dialog')!
+    if (o.cls) d.classList.add(o.cls)
+    back.querySelector('h2')!.textContent = o.title
+    back.querySelector('.dialog-body')!.append(...o.body)
+    const done = (v: V) => {
+      back.remove()
+      refocus()
+      resolve(v)
+    }
+    const actions = back.querySelector('.actions')!
+    for (const c of o.choices) {
+      const b = document.createElement('button')
+      b.className = `choice${c.secondary ? ' secondary' : ''}`
+      b.dataset.value = c.value
+      b.textContent = c.label
+      b.addEventListener('click', () => done(c.value))
+      actions.append(b)
+    }
+    back.addEventListener('pointerdown', (e) => e.target === back && done(o.choices[0].value))
+    back.addEventListener('keydown', (e) => {
+      e.stopPropagation()
+      if (e.key === 'Escape') done(o.choices[0].value)
+    })
+    document.body.appendChild(back)
+    ;(actions.firstElementChild as HTMLElement).focus()
+  })
+}

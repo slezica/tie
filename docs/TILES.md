@@ -109,7 +109,8 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 `fileView(host, opts, {kind, icon})` → `Surface`. A file kind is this plus its viewer (one line in `kinds/index.ts`).
 
 - Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, text | bytes}` + shelf activity; missing → last render frozen + "Missing" pill (until the file comes back); close on dispose.
-- Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token, = `/<name>`) itself (image).
+- Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token: its path within the root, `withinRoot`) itself (image).
+- Root: `DIRECTORIES.md` 5–7 (`resolveRoot` at mount, before the frame mounts; on `go` for targets outside the root). `info`: `doc.root`.
 - Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme in `tie:init`, then the doc on `ready`.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
 - Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
@@ -167,7 +168,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 ## Links out (`renderer/external.ts`)
 
-- `confirmFile(path, from)`: a document's link to a file outside its own folder (markdown, html) asks first: `.dialog.open-file` with the full path, Cancel focused, Open armed 600 ms; under the folder: no dialog. Same module, same one-at-a-time rule.
+- `confirmFile(path, from)`: a document's link to a file outside its root (markdown, html) asks first: `.dialog.open-file` with the full path, Cancel focused, Open armed 600 ms; under the root: no dialog. Same module, same one-at-a-time rule.
 - The one path from any tile to the system browser: `openExternal(url, from, note?)` → confirm dialog (setting `confirmExternal`, default on) → `tie.openExternal` (main: http(s) only). Callers: file views (markdown links), html pages (links, `window.open`, `target=_blank`), terminals (cmd-click on OSC 8). The probe kind (dev) calls main directly.
 - Dialog `.dialog.external-open`: "`<from>` wants to open:", the full URL with the site address in bold (`.url .host`), a `.warn` line for links with > 200 characters after the origin (plus the caller's note: html names the folder the page can read), Cancel focused (Enter cancels), Open disabled 600 ms (`confirmDialog` `arm`: no click-through). One dialog app-wide; requests while it is open are dropped (`debug security`). Setting off: opened directly, `debug external`.
 

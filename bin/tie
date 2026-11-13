@@ -17,6 +17,8 @@ USAGE
       terminal's place, and the terminal closes once tie exits (see PLACEMENT, BEHAVIOR)
       --cmd <command>                     Run command instead of interactive shell
       --cwd <dir>                         Working directory (default: current)
+      --root <dir>                        File tiles: folder the viewer may read (must hold the file;
+                                          default: this directory if it holds the file, else the file's)
       --title <text>                      Custom title
       --icon <emoji>                      Custom icon
       --at <id> [--side l|r|t|b]          add: split next to tile (default: caller/active, longer side)
@@ -226,7 +228,7 @@ const COMMANDS = ['list', 'add', 'replace', 'close', 'move', 'focus', 'set', 'pi
 const ALIASES = Object.fromEntries(COMMANDS.map((c) => [c[0], c]))
 // Per command: accepted options and max positional arguments. Anything else is refused.
 const PLACE = ['at', 'side', 'float', 'shelve', 'shelved', 'tab', 'focus']
-const OPEN = ['cmd', 'cwd', 'root', 'title', 'icon', 'id', ...PLACE] // id, root (probe): dev builds only (not in HELP)
+const OPEN = ['cmd', 'cwd', 'root', 'title', 'icon', 'id', ...PLACE] // id: dev builds only (not in HELP)
 const SPEC = {
   list: { opts: [], args: 0 },
   add: { opts: OPEN, args: 2 },

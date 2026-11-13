@@ -22,7 +22,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'page.html'), '<!doctype html><title>page</title><a id="md" href="b.md" style="display:block;padding:20px">to b.md</a>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r')).id
+    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--cwd', dir)).id // --cwd: root = the folder (root-cwd covers wider roots)
     const shows = (title) => () => h.mdState(ctx, id).then((s) => s.text.startsWith(title))
     await h.waitFor(ctx, shows('A'), 'a.md')
     const fr = () => h.contentFrame(ctx, id)
@@ -48,16 +48,17 @@ export default async (ctx, h) => {
     await h.press(ctx, 'Meta+[')
     await h.waitFor(ctx, shows('A'), 'back again')
 
-    // Another directory: new root (frame reloads), relative image loads there, anchor scrolled to.
+    // A subfolder: inside the root (same token), its relative image resolves from the document's
+    // place in the root, anchor scrolled to. (Another root: the outside link below, root-cwd.)
     await h.clickIn(ctx, await fr(), 'a >> text=to c')
     await h.waitFor(ctx, shows('C'), 'sub/c.md')
     const src1 = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)
-    h.assert(src1 !== src0, 'other directory: new token')
-    const c = await (await fr()).evaluate(() => ({ img: document.querySelector('img')?.naturalWidth, y: scrollY }))
-    h.assert(c.img === 8 && c.y > 200, `image from the new folder, scrolled to #part: ${JSON.stringify(c)}`)
+    h.assert(src1 === src0, 'subfolder: inside the root, same token')
+    const c = await (await fr()).evaluate(() => ({ img: document.querySelector('img')?.naturalWidth, src: document.querySelector('img')?.getAttribute('src'), y: scrollY }))
+    h.assert(c.img === 8 && c.src.endsWith('/sub/dot.svg') && c.y > 200, `image from the subfolder, scrolled to #part: ${JSON.stringify(c)}`)
     h.assert(JSON.stringify((await doc()).history) === '{"index":1,"length":2}', 'push drops forward entries')
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, shows('A'), 'back to a (frame reloads again)')
+    await h.waitFor(ctx, shows('A'), 'back to a')
 
     // Anchor: scrolls, nothing else.
     const y0 = (await h.mdState(ctx, id)).scrollY

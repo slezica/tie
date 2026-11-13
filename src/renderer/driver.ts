@@ -4,6 +4,7 @@ import { S, tie, location, boardRect, getTile, debug, spaceOf, withSpace, type K
 import { tabTitle, switchTab, newTab } from './tabs'
 import { place, openTile, closeTile, activate, pin, setMeta, setPing, swap, moveToSpace, replaceTile, type Placement } from './ops'
 import { displayTitle } from './tile'
+import { contains as holds } from '@core/roots'
 import { kindSpec } from './kinds'
 import { locationUrl } from '@core/guest'
 
@@ -13,7 +14,7 @@ interface Params {
   kind?: string
   cmd?: string
   cwd?: string // add, replace: the new tile's cwd (every kind), resolved against the caller's
-  root?: string // add probe (dev): its frame root, resolved against the caller's cwd
+  root?: string // add: the frame root of a content tile (must hold the file; probe: any), resolved against the caller's cwd
   path?: string // `tie add <path>`: absolute, resolved against the caller's cwd
   url?: string // `tie add <url>`, `tie add browser [url]`
   title?: string // add, replace, set ('' = automatic)
@@ -139,7 +140,10 @@ function target(p: Params): TileId {
 function toOpen(p: Params) {
   const kind = p.kind ?? 'terminal'
   if (!kindSpec(kind)) throw new Error(`unknown kind: ${kind}`)
-  if (p.root !== undefined && kind !== 'probe') throw new Error('--root: probe only')
+  if (p.root !== undefined && kind !== 'probe') {
+    if (kindSpec(kind)!.opens !== 'file') throw new Error('--root: file tiles only')
+    if (!p.path || !holds(p.root, p.path)) throw new Error(`--root does not hold the file: ${p.root}`)
+  }
   return { kind, opts: { cmd: p.cmd, cwd: p.cwd, root: p.root, title: p.title, icon: p.icon, path: p.path, url: p.url, id: requestedId(p) } }
 }
 

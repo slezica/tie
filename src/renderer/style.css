@@ -318,12 +318,14 @@ body.tile-drag #tab-add.drop {
 /* Html page asking for the web (kinds/html.ts): the full URL, as text, wrapped anywhere. */
 .dialog.external-open,
 .dialog.save-download,
-.dialog.open-file {
+.dialog.open-file,
+.dialog.root-slash {
   width: min(560px, calc(100vw - 32px));
 }
 .dialog.external-open .dialog-body p.url,
 .dialog.save-download .dialog-body p.url,
-.dialog.open-file .dialog-body p.url {
+.dialog.open-file .dialog-body p.url,
+.dialog.root-slash .dialog-body p.url {
   max-height: 30vh;
   overflow: auto;
   padding: 8px 10px;

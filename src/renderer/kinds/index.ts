@@ -14,7 +14,7 @@ export interface OpenOpts {
   title?: string // custom title ('' = automatic)
   icon?: string // custom icon (user text; '' = automatic)
   cwd?: string // the tile's cwd (DIRECTORIES.md); absent: its context tile's (ops `openTile`)
-  root?: string // dev probe: its frame root (`tie add probe --root`); absent: its cwd
+  root?: string // frame root (`tie add --root`): file kinds (must hold the file; else the rule, DIRECTORIES.md), probe (any; absent: its cwd)
   cmd?: string
   path?: string // file to view (kinds that open 'file')
   url?: string // page to load (kinds that open 'url': http(s), checked by the kind)

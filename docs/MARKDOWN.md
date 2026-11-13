@@ -17,7 +17,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 ## Flow
 
 1. Mount: `tie.doc.open(path, 'markdown')` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, kind, text, rev}`. Error → `showError`.
-2. Frame: root = the file's directory (`tie.content.open`). On each handshake: theme (in `tie:init`, applied before `ready`), then the doc (`onReady`). Appearance changes: a theme message.
+2. Frame: root by `DIRECTORIES.md` 5 (the context cwd when it holds the file, else its folder; `tie.content.open`). On each handshake: theme (in `tie:init`, applied before `ready`), then the doc (`onReady`). Appearance changes: a theme message.
 3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash, y?}` (`y`: the host's remembered scroll for `restore` when the viewer's own memory is gone: viewer reloaded), `{type: 'scroll', hash}`.
 4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
 5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer: live update ("Live updates" below). Shelved tile: activity dot.
@@ -38,7 +38,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 - Plugins: markdown-it org only, exact versions, bundled into the viewer; output still goes through DOMPurify.
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
 - Diagrams: ```` ```mermaid ```` fences → SVG ("Diagrams" below).
-- Images: relative paths inside the file's folder → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the folder (`../`) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
+- Images: relative paths inside the root, resolved from the document's place in it (`src` of the doc message) → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the root (`../` past it) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
 - Style: `<style nonce>` in `src/viewers/markdown.html` (markdown typography); shared parts injected by their modules (base colors, selection, focus: `runtime.ts`; marks: `marks.ts`; code tokens: `highlight.ts`). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = UI's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → the theme's `code` colors when it has them (`--code-<token>` vars), else the ANSI palette. Typography after Pico CSS v2 (`2026-10-28`, showcase of 15 stylesheets): root font-size = `--size` × `--scale` (1.15), line-height 1.5; type sizes in em (h1 2em … h6 1em, code 0.875em), spacing in rem (`--space` = 1rem: blocks one unit below, headings 1.2–2.4 units above after a block, list items a quarter), so the root knob scales everything. Definition lists: half a unit between terms, a quarter between definitions. Every size and spacing is a `:root` variable at the top of the sheet (list and meanings: `2026-10-28-markdown-typography.md` "Variables"); tweak there, not in the rules.
 - Scroll: live updates never move the view ("Live updates"); top on a new page; on back/forward restored if the frame didn't reload (same directory).
 - Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`, `sanitizeSvg`, `diagrams`, `marks()` → `{marked, unseen}`).
@@ -69,7 +69,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
 - Missing target: modal "Can't open link".
-- Another directory: frame reloads on a new token (`frameSurface.setRoot`).
+- Outside the root: frame reloads on a new token (`frameSurface.setRoot`; root by the rule again, `DIRECTORIES.md` 6).
 
 ## Live updates (`viewers/markdown.ts` `show`, `live.ts` `place`, `marks.ts`)
 
@@ -124,7 +124,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 ## Limitations
 
-- Images outside the file's folder (`../img.png`) never load (root = the file's directory).
+- Images outside the root never load (a file opened from a cwd that doesn't hold it: root = its folder, `DIRECTORIES.md` 5).
 - Diagram SVG ids aren't prefixed (Mermaid's CSS and markers reference them): they could shadow undefined `window` names. The viewer reads no such globals (`window.mermaid` is set before any diagram exists).
 - Mermaid's "neo" drop shadows use its own gray, not the theme.
 - Missing file: no visual mark yet (frozen render).
