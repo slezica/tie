@@ -127,7 +127,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 - Images outside the root never load (a file opened from a cwd that doesn't hold it: root = its folder, `DIRECTORIES.md` 5).
 - Diagram SVG ids aren't prefixed (Mermaid's CSS and markers reference them): they could shadow undefined `window` names. The viewer reads no such globals (`window.mermaid` is set before any diagram exists).
 - Mermaid's "neo" drop shadows use its own gray, not the theme.
-- Missing file: no visual mark yet (frozen render).
-- Scroll memory lost when the frame reloads (history across directories → top).
+- Missing file: last render frozen, "Missing" pill (`TILES.md`).
+- Scroll memory lost when the frame reloads (history across roots → top; same root: kept).
 - No search, no outline, no edit, by design (open an editor next to it: `cmd+D`).
 - OS drag entering the window straight over a frame: the frame gets it (viewer refuses drops).

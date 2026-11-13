@@ -3,7 +3,7 @@
 ## Interface
 
 1. Html dynamic pages: not supported (static only, decision 2026-10-21; option B of the security review). Revisit if real use needs sandboxed JS with no network; the alternative is a local server + browser tile.
-2. Settings panel review: three pages now (Appearance, Terminal, Content); structure, naming and scopes deserve a pass before more settings land.
+2. Settings panel review: four pages now (Appearance, Terminal, Files, Security); structure, naming and scopes deserve a pass before more settings land.
 3. Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/core/keymap.ts`) from the settings panel.
 4. Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
 5. Review feature, binding and menu discoverability.
@@ -18,15 +18,15 @@
 
 ## Tiles
 
-8. Kinds add custom title-bar buttons (first use: back/forward, maybe reload, beside hotkeys).
+8. Kinds add custom title-bar buttons. First use taken elsewhere: back / forward / reload in the nav bar (`Surface.nav`, 2026-10-16), states as pills (`Surface.pills`). No use left yet.
 9. Done 2026-11-13: root = the context tile's cwd when it holds the file (`DIRECTORIES.md` 5, record `2026-11-13-content-roots.md`).
-10. Markdown: scroll memory lost across a frame reload (back/forward between directories → top). Partly done 2026-10-28: the viewer reports its scroll (`scrolled`), the host restores it after a viewer reload. Left: a per-path map in the host so back/forward across directories restores too.
-11. Markdown: link target shown on hover (like terminal links), outline, search.
+10. Markdown: scroll memory lost across a frame reload (back/forward to a file under another root → top; same root: kept). Partly done 2026-10-28: the viewer reports its scroll (`scrolled`), the host restores it after a viewer reload. Left: a per-path map in the host so back/forward across directories restores too.
+11. Markdown: outline, search (`MARKDOWN.md`: none by design so far). Link target on hover done 2026-10-20 (link strip, `Host.hint`).
 12. Terminal block/box chars show row gaps (QR codes): DOM renderer uses font glyphs. Undecided whether to fix now; options in `2026-10-24-terminal-block-glyphs.md`. Sixel (`@xterm/addon-image`) separate.
 
 ## Install
 
-13. Staged install (auto-updater pattern, 2026-10-28): `tie-dev install --next` stages `/Applications/Tie.app.next` (packaging done while Tie runs); Tie's quit path, seeing a staged bundle beside its own, spawns a detached script that waits for the process to exit, moves the old bundle aside, moves the staged one into place and relaunches. Replacing or moving the bundle while running is unsafe (lazy `app.asar` reads, helpers spawned from the bundle path).
+13. Done 2026-11-01: install while Tie runs: stage under `~/.config/tie/staged/`, swapped in at the next launch (not at quit), `tie-dev install --restart`, `tie-dev check-install` (`PACKAGING.md` "Install while running", record `2026-11-01-install-while-running.md`).
 
 ## CLI
 
