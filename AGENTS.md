@@ -39,6 +39,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
 - `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
 - `docs/2026-11-13-content-roots.md`: frame root = the context cwd when it holds the file; `--root`; `/` asks.
+- `docs/2026-11-14-plannotator-research.md`: Plannotator (plan/doc annotation for agents): features, hook protocol, annotation model, agent-facing text format, lessons for Tie.
 - `docs/PENDING.md`: backlog, open questions.
 
 ## Stack
