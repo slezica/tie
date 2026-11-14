@@ -18,7 +18,7 @@
 
 ## Tiles
 
-8. Kinds add custom title-bar buttons. First use taken elsewhere: back / forward / reload in the nav bar (`Surface.nav`, 2026-10-16), states as pills (`Surface.pills`). No use left yet.
+8. Dropped 2026-11-13: the uses it was for live in the nav bar (`Surface.nav`) and pills (`Surface.pills`); no other kind button wanted.
 9. Done 2026-11-13: root = the context tile's cwd when it holds the file (`DIRECTORIES.md` 5, record `2026-11-13-content-roots.md`).
 10. Markdown: scroll memory lost across a frame reload (back/forward to a file under another root → top; same root: kept). Partly done 2026-10-28: the viewer reports its scroll (`scrolled`), the host restores it after a viewer reload. Left: a per-path map in the host so back/forward across directories restores too.
 11. Markdown: outline, search (`MARKDOWN.md`: none by design so far). Link target on hover done 2026-10-20 (link strip, `Host.hint`).
@@ -62,7 +62,7 @@
 31. Guards without a scenario (fact-check 2026-10-21): frame message flood cap (1000/s), content frames can't download (`noDownloads` + no `allow-downloads`), html new-tile throttle (1/s), `confirmExternal` off path, guest `window.focus()` not moving the UI's focus (probed by hand only), Bluetooth / client-cert / device denials (no device in the harness).
 
 32. Flake: `markdown-links` "b.md in the same tile" and `markdown-keys` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation 2026-10-21: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
-33. Flake (1 in a full e2e run, 2026-10-17; 5/5 standalone green): `html` "cmd+R: reloaded, scroll kept" right after a sibling change that fired two live reloads (fs events) 300 ms apart. Suspected: the cmd+R reload hit the second page before its scroll restore. Not reproduced with back-to-back reloads; not fixed.
+33. Dropped 2026-11-13: the step before cmd+R changed 2026-10-21 (waits for both live reloads); not seen since.
 
 ## Directories
 
@@ -73,3 +73,7 @@
 ## Layout
 
 36. Zoom (tile expansion): evaluate collapsing all sibling tiles instead of hiding them (the collapsed strips stay visible as a map of the tab), and/or animating the expansion. Today: `zoomed` hides everything else (`LAYOUT.md` "Zoom").
+
+## Docs
+
+37. Verify documentation claims against behaviour, periodically (agent pass over the guides, each claim checked in code / harness). Known suspect: `HARNESS.md` "TCC": instances launched from a Tie terminal attributed to the installed app may no longer hold since shells spawn disclaimed (`9c654db`); needs a real prompt to check.
