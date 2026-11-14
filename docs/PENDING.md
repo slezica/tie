@@ -72,7 +72,7 @@
 
 ## Layout
 
-38. Shelf reveal (hover preview of a shelved tile) resizable, like a float (edge / corner handles), size remembered per tile; today fixed at 30% × 50% of the board (`revealSize()`, `SHELF.md`). Floats already resize (`.rz` handles, `INPUT.md`); pin / unpin could carry the size between the two.
+38. Shelf reveal (hover preview of a shelved tile) resizable, like a float (edge / corner handles), size remembered per tile; today fixed at 30% × 50% of the board (`revealSize()`, `SHELF.md`).
 
 36. Zoom (tile expansion): evaluate collapsing all sibling tiles instead of hiding them (the collapsed strips stay visible as a map of the tab), and/or animating the expansion. Today: `zoomed` hides everything else (`LAYOUT.md` "Zoom").
 
