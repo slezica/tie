@@ -17,6 +17,18 @@ export default async (ctx, h) => {
     await h.clickIn(ctx, frame, 'h1') // focus the frame
     await h.waitFor(ctx, () => frame.evaluate(() => document.hasFocus()), 'frame has focus')
 
+    // Zoom: cmd+= twice → 125% (CSS zoom on the root), pill; cmd+0 resets.
+    const zoomOf = () => frame.evaluate(() => Number(getComputedStyle(document.documentElement).zoom))
+    const zoomPill = () => ctx.page.$$eval(`.tile[data-id="${id}"] .pill:not([hidden])`, (ps) => ps.map((p) => p.textContent).find((t) => /%$/.test(t)) ?? null)
+    await h.press(ctx, 'Meta+=')
+    await h.press(ctx, 'Meta+=')
+    await h.waitFor(ctx, async () => (await zoomOf()) === 1.25, 'cmd+= twice: 125%')
+    h.assert((await h.tileOf(ctx, id)).doc.zoom === 1.25 && (await zoomPill()) === '125%', `zoom pill: ${await zoomPill()}`)
+    await ctx.shot('zoomed')
+    await h.press(ctx, 'Meta+0')
+    await h.waitFor(ctx, async () => (await zoomOf()) === 1, 'cmd+0: 100%')
+    h.assert((await zoomPill()) === null, 'no zoom pill at 100%')
+
     const y = async () => (await h.mdState(ctx, id)).scrollY
     const third = await frame.evaluate(() => Math.round(innerHeight / 3))
     // A key's scroll done: the position moved and holds (keyboard scrolling animates): stable over

@@ -55,7 +55,7 @@
 | `cmd+[` / `cmd+]` | Back / forward in the active tile (kinds with navigation; no-op elsewhere) |
 | `cmd+R` | Reload the active tile (kinds with navigation: file views re-read their file; html reloads the page, scroll kept) |
 | `cmd+L` | Focus the active tile's location field (only if editable: browser; no-op otherwise) |
-| `cmd+=` (`cmd+shift+=`) / `cmd+-` / `cmd+0` | Page zoom of the active tile, in / out / back to 100% (html: CSS zoom on the page root via the bootstrap; browser: `setZoomFactor`); Chrome's presets (`@core/zoom`); kept across pages and reloads of the tile; a `125%` pill (click: reset). Other kinds: no-op |
+| `cmd+=` (`cmd+shift+=`) / `cmd+-` / `cmd+0` | Page zoom of the active tile, in / out / back to 100% (html, markdown, text: CSS zoom on the page root via the bootstrap / viewer runtime; browser: `setZoomFactor`); Chrome's presets (`@core/zoom`); kept across pages and reloads of the tile; a `125%` pill (click: reset). Other kinds: no-op |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
 | `cmd+Q` | Quit (asks first: `quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |

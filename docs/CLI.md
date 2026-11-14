@@ -105,7 +105,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 - `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
-- `doc: {path, root, rev, missing, history: {index, length}}` (file view kinds; null until open).
+- `doc: {path, root, rev, zoom, missing, history: {index, length}}` (file view kinds; null until open).
 - `page: {path, url, ready, reloads, history: {index, length}}` (html).
 - `web: {url, title, loading, ready, guest, back, forward}` (browser; `guest` = webContents id).
 - `rect`: window px, rounded; null if not rendered (background tab).

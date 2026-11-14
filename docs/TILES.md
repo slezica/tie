@@ -34,7 +34,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `appearance?()` | settings changes (`appearance.ts`) |
 | `info?()` | extra `tie list --json` fields (terminal: `term`; file views: `doc`) |
 | `nav?` | navigation (`Nav`, below): nav bar, `cmd+[` / `cmd+]` / `cmd+R` / `cmd+L` |
-| `zoom?(dir)` | page zoom (html, browser): `cmd+=` / `cmd+-` / `cmd+0` → `1` / `-1` / `0`; steps `@core/zoom`; shown as a pill |
+| `zoom?(dir)` | page zoom (html, browser; file kinds with `zoom` in their `FileKindSpec`: markdown, text): `cmd+=` / `cmd+-` / `cmd+0` → `1` / `-1` / `0`; steps `@core/zoom`; shown as a pill |
 
 ## Navigation (`renderer/nav.ts`)
 
@@ -107,7 +107,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 ## File view (`renderer/fileview.ts`)
 
-`fileView(host, opts, {kind, icon})` → `Surface`. A file kind is this plus its viewer (one line in `kinds/index.ts`).
+`fileView(host, opts, {kind, icon, zoom?})` → `Surface` (`zoom`: the page zoom keys; markdown and text, not fitted / virtualized viewers). A file kind is this plus its viewer (one line in `kinds/index.ts`).
 
 - Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, text | bytes}` + shelf activity; missing → last render frozen + "Missing" pill (until the file comes back); close on dispose.
 - Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token: its path within the root, `withinRoot`) itself (image).

@@ -106,11 +106,11 @@ export function registerKind(spec: KindSpec) {
 }
 
 // File kinds: the file view (fileview.ts) + the kind's viewer (src/viewers/<kind>.ts). One line each.
-const fileKind = (kind: Kind, icon: Glyph): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon }), opens: 'file' })
+const fileKind = (kind: Kind, icon: Glyph, zoom = false): KindSpec => ({ kind, factory: (host, opts) => fileView(host, opts, { kind, icon, zoom }), opens: 'file' })
 
 registerKind({ kind: 'terminal', factory: terminalKind, opens: 'bare' })
-registerKind(fileKind('markdown', 'markdown')) // docs/MARKDOWN.md
-registerKind(fileKind('text', 'text')) // docs/VIEWERS.md
+registerKind(fileKind('markdown', 'markdown', true)) // docs/MARKDOWN.md; zoom keys
+registerKind(fileKind('text', 'text', true)) // docs/VIEWERS.md; zoom keys
 registerKind(fileKind('image', 'image'))
 registerKind(fileKind('hex', 'hex'))
 registerKind({ kind: 'html', factory: htmlKind, opens: 'file' }) // docs/VIEWERS.md

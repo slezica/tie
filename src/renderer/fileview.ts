@@ -18,6 +18,7 @@ import { infoDialog } from './dialog'
 import { openExternal, confirmFile } from './external'
 import { contains, withinRoot } from '@core/roots'
 import { resolveRoot } from './roots'
+import { zoomLabel, zoomStep } from '@core/zoom'
 import { classifyLink } from '@core/links'
 import type { Host, OpenOpts, Surface } from './kinds'
 import type { DocBody } from '../preload'
@@ -72,6 +73,7 @@ export function themeMessage() {
 export interface FileKindSpec {
   kind: Kind // content kind: viewer name, policy row, debug tag
   icon: Glyph
+  zoom?: boolean // page zoom keys (cmd+= / - / 0): flowing text (markdown, text); not fitted or virtualized viewers
 }
 
 export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surface {
@@ -84,6 +86,15 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
   let view: { scroll: 'keep' | 'top' | 'restore'; hash: string; y?: number } = { scroll: 'top', hash: opts.hash ?? '' }
   let lastY = 0 // the viewer's last reported scroll (restored after a viewer reload)
   let seq = 0 // latest navigation wins
+  let zoom = 1 // page zoom (spec.zoom kinds), kept across documents and frame reloads of this tile
+  const sendZoom = () => zoom !== 1 && frame.post({ type: 'tie:zoom', factor: zoom })
+  const setZoom = (dir: 1 | -1 | 0) => {
+    const z = zoomStep(zoom, dir)
+    if (z === zoom) return
+    zoom = z
+    frame.post({ type: 'tie:zoom', factor: zoom })
+    host.changed()
+  }
 
   // To the viewer: the doc (key = path), its revision, `src` (the file's URL path on the frame's
   // token: its path within the root), and the payload. Bytes go as a transferred copy (the tile
@@ -127,7 +138,10 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
     title: kind,
     icon: spec.icon,
     init: () => ({ theme: themeMessage() }), // applied before `ready`: the first paint shown is themed
-    onReady: sendDoc,
+    onReady: () => {
+      sendZoom() // a new document (root change, viewer reload): the tile's zoom again, before the doc
+      sendDoc()
+    },
     handlers: {
       followLink: (r) => void follow(r.href, r.newTile),
       hover: (r) => host.hint(r.href && doc ? target(r.href) : null),
@@ -257,7 +271,9 @@ export function fileView(host: Host, opts: OpenOpts, spec: FileKindSpec): Surfac
         on: () => false,
         color: 'red',
       },
+      { label: () => zoomLabel(zoom), title: () => 'Page zoom (⌘= / ⌘-). Click: back to 100% (⌘0)', on: () => false, toggle: () => setZoom(0) },
     ],
-    info: () => ({ doc: doc && { path: doc.path, root, rev: doc.rev, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
+    ...(spec.zoom ? { zoom: setZoom } : {}),
+    info: () => ({ doc: doc && { path: doc.path, root, rev: doc.rev, zoom, missing: doc.missing, history: { index: history.index, length: history.list.length } } }),
   }
 }

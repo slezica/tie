@@ -100,6 +100,8 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
       return spec.onTheme?.(theme)
     }
     if (m.type === 'scroll') return scrollToHash(String(m.hash ?? ''))
+    // Page zoom (cmd+= / -, fileview.ts): CSS zoom on the root, as browser zoom does.
+    if (m.type === 'tie:zoom') return void (typeof m.factor === 'number' && (document.documentElement.style.zoom = String(m.factor)))
     spec.onMessage(m)
   }
 
