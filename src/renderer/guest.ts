@@ -10,6 +10,7 @@ import { untrusted } from '@core/log'
 import { infoDialog, confirmDialog } from './dialog'
 import { openExternal } from './external'
 import { guestSrc, locationUrl, pageTitle, BROWSER_PARTITION } from '@core/guest'
+import { zoomLabel, zoomStep } from '@core/zoom'
 import type { Host, OpenOpts, Surface } from './kinds'
 
 const ICON: Glyph = 'browser'
@@ -88,6 +89,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
   let loading = false
   let gid: number | null = null // guest webContents id
   let dead = false
+  let zoom = 1 // page zoom (cmd+= / -), this tile's, re-applied on every navigation (Chromium keeps zoom per host)
 
   // Webview methods throw before dom-ready (and after a crash): the tile just does nothing then.
   const call = <T>(fn: (w: Webview) => T, fallback: T): T => {
@@ -147,6 +149,14 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
     changed()
   }
 
+  const setZoom = (dir: 1 | -1 | 0) => {
+    const z = zoomStep(zoom, dir)
+    if (z === zoom) return
+    zoom = z
+    call((w) => w.setZoomFactor(zoom), undefined)
+    host.changed()
+  }
+
   return {
     mount: async () => {
       const el = document.createElement('webview') as Webview
@@ -167,6 +177,7 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
       el.addEventListener('did-navigate', (e) => {
         url = committed = e.url
         title = ''
+        if (zoom !== 1) call((w) => w.setZoomFactor(zoom), undefined)
         changed()
       })
       el.addEventListener('did-navigate-in-page', (e) => {
@@ -235,6 +246,8 @@ export function browserKind(host: Host, opts: OpenOpts): Surface {
       if (r !== 'blocked') return true
       return host.alive() ? askLeave({ page: false }) : true
     },
-    info: () => ({ web: { url, title, loading, ready, guest: gid, back: call((w) => w.canGoBack(), false), forward: call((w) => w.canGoForward(), false) } }),
+    pills: [{ label: () => zoomLabel(zoom), title: () => 'Page zoom (⌘= / ⌘-). Click: back to 100% (⌘0)', on: () => false, toggle: () => setZoom(0) }],
+    zoom: (dir) => setZoom(dir),
+    info: () => ({ web: { url, title, loading, ready, guest: gid, zoom, back: call((w) => w.canGoBack(), false), forward: call((w) => w.canGoForward(), false) } }),
   }
 }

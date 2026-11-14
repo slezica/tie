@@ -51,6 +51,7 @@ export interface Surface {
   appearance?(): void // theme / font settings changed
   info?(): Record<string, unknown> // extra fields for `tie list --json`
   nav?: Nav // navigates: the host shows the nav bar (nav.ts); keys cmd+[ / ] / R / L
+  zoom?(dir: 1 | -1 | 0): void // page zoom (html, browser): cmd+= / cmd+- / cmd+0 (`@core/zoom` steps); shown as a pill
   pills?: Pill[] // states the kind shows in its title bar (html: "Scripts blocked"; file kinds: "Missing"); toggles if they have one
   busy?(): Promise<Busy | null> // running something closing would kill (terminals); null = idle. Asked at close / quit time
   unload?(): Promise<boolean> // may the content go? (browser: the page's beforeunload, the user asked); false = keep the tile

@@ -107,6 +107,28 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => !(await ctx.page.isVisible('.dialog')), 'dialog closed')
     h.assert((await h.tileOf(ctx, b)).web.url === s.url + '/three' && (await loc()) === s.url + '/three', 'refused: page and location unchanged')
 
+    // Zoom: cmd+= (from the UI and from the guest) → setZoomFactor, the guest's devicePixelRatio follows;
+    // kept across a navigation; cmd+0 resets.
+    const dpr0 = await g.evaluate(() => devicePixelRatio)
+    await h.press(ctx, 'Meta+=')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.zoom === 1.1, 'cmd+=: 110%')
+    await h.guestKey(ctx, b, 'Meta+=')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.zoom === 1.25, 'cmd+= from the guest: 125%')
+    await h.waitFor(ctx, async () => Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1.25) < 0.01, 'guest zoomed')
+    await h.press(ctx, 'Meta+l')
+    await ctx.page.keyboard.type(s.url + '/one')
+    await ctx.page.keyboard.press('Enter')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page One', 'navigated')
+    g = await h.guestPage(ctx, b)
+    await h.waitFor(ctx, async () => Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1.25) < 0.01, 'zoom kept across the navigation')
+    await h.press(ctx, 'Meta+0')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.zoom === 1 && Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1) < 0.01, 'cmd+0: 100%')
+    await h.press(ctx, 'Meta+l')
+    await ctx.page.keyboard.type(s.url + '/three')
+    await ctx.page.keyboard.press('Enter')
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Three', 'back on /three')
+    g = await h.guestPage(ctx, b)
+
     // Click into the location (tile inactive: the click activates it, the field keeps the focus):
     // all selected, typing replaces; a drag selects its range; a click into the focused field
     // places the caret.

@@ -41,6 +41,23 @@ export default async (ctx, h) => {
     const wb = await fr.locator('#w').boundingBox()
     await ctx.page.mouse.move(wb.x + 5, wb.y + wb.height / 2)
     await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === 'https://example.com/w', 'link strip')
+    // Zoom: cmd+= twice → 125% (CSS zoom on the root), pill shows it; a reload keeps it; cmd+0 resets.
+    const zoomOf = () => fr.evaluate(() => getComputedStyle(document.documentElement).zoom)
+    const zoomPill = () => ctx.page.$$eval(`.tile[data-id="${id}"] .pill:not([hidden])`, (ps) => ps.map((p) => p.textContent).find((t) => /%$/.test(t)) ?? null)
+    await h.press(ctx, 'Meta+=')
+    await h.press(ctx, 'Meta+=')
+    await h.waitFor(ctx, async () => Number(await zoomOf()) === 1.25, 'cmd+= twice: 125%')
+    h.assert((await h.tileOf(ctx, id)).page.zoom === 1.25 && (await zoomPill()) === '125%', `zoom pill: ${await zoomPill()}`)
+    await ctx.shot('zoomed')
+    const reloads0 = (await h.tileOf(ctx, id)).page.reloads
+    await ctx.page.click(`.tile[data-id="${id}"] .nav-btn[data-nav="reload"]`)
+    await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).page.ready && (await h.tileOf(ctx, id)).page.reloads === reloads0, 'reloaded')
+    const fr2 = await h.htmlFrame(ctx, id)
+    await h.waitFor(ctx, async () => Number(await fr2.evaluate(() => getComputedStyle(document.documentElement).zoom)) === 1.25, 'zoom kept across the reload')
+    await h.press(ctx, 'Meta+0')
+    await h.waitFor(ctx, async () => Number(await fr2.evaluate(() => getComputedStyle(document.documentElement).zoom)) === 1, 'cmd+0: 100%')
+    h.assert((await zoomPill()) === null, 'no zoom pill at 100%')
+
     // A page without scripts: no tag.
     await h.clickIn(ctx, fr, '#b')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, id)).page.path.endsWith('/b.html') && (await h.tileOf(ctx, id)).page.ready, 'b.html')

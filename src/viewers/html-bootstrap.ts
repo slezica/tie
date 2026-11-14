@@ -40,6 +40,8 @@
       port.onmessage = (m) => {
         // Watchdog (frame.ts): answering proves the page's thread isn't stuck.
         if (m.data?.type === 'tie:ping') send({ verb: 'pong', n: m.data.n })
+        // Page zoom (cmd+= / -, kinds/html.ts): CSS zoom on the root, as browser zoom does.
+        if (m.data?.type === 'tie:zoom' && typeof m.data.factor === 'number') document.documentElement.style.zoom = String(m.data.factor)
       }
       // After the page's first paint (two rAFs: the host shows the frame on `ready`; before a
       // first submitted frame an out-of-process frame shows as a white placeholder).

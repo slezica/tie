@@ -86,6 +86,12 @@ export function run(action: Action) {
       return active() && navAction(active()!, 'reload')
     case 'nav-location':
       return active() && focusLocation(active()!)
+    case 'zoom-in':
+      return active()?.surface.zoom?.(1)
+    case 'zoom-out':
+      return active()?.surface.zoom?.(-1)
+    case 'zoom-reset':
+      return active()?.surface.zoom?.(0)
     case 'quit':
       return void askQuit()
     default:

@@ -18,6 +18,7 @@ import { resolveRoot } from '../roots'
 import { tildePath } from '../tabs'
 import { openExternal, confirmFile } from '../external'
 import { classifyLink } from '@core/links'
+import { zoomLabel, zoomStep } from '@core/zoom'
 import type { Host, OpenOpts, Surface } from '.'
 
 const ICON: Glyph = 'html'
@@ -35,6 +36,15 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
   let lastNewTile = 0
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
   let blocked = 0 // scripts the CSP refused on the page shown (bootstrap `blocked` reports)
+  let zoom = 1 // page zoom (cmd+= / -), kept across pages and reloads of this tile
+  const sendZoom = () => zoom !== 1 && frame.post({ type: 'tie:zoom', factor: zoom })
+  const setZoom = (dir: 1 | -1 | 0) => {
+    const z = zoomStep(zoom, dir)
+    if (z === zoom) return
+    zoom = z
+    frame.post({ type: 'tie:zoom', factor: zoom })
+    host.changed()
+  }
 
   const inRoot = (p: string) => contains(root, p)
   const rel = (p: string) => p.slice(root === '/' ? 1 : root.length + 1)
@@ -60,6 +70,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     },
     onReady: () => {
       ready = true
+      sendZoom() // a new document: the tile's zoom again
       host.changed()
     },
     // The page navigated itself (a link it handled, a meta refresh...): within the root only (nav
@@ -191,7 +202,9 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
         on: () => false,
         color: 'red',
       },
+      { label: () => zoomLabel(zoom), title: () => 'Page zoom (⌘= / ⌘-). Click: back to 100% (⌘0)', on: () => false, toggle: () => setZoom(0) },
     ],
+    zoom: setZoom,
     nav: {
       state: () => ({ location: path, back: history.index > 0, forward: history.index < history.list.length - 1, editable: false }),
       back: () => step(-1),
@@ -203,7 +216,7 @@ export function htmlKind(host: Host, opts: OpenOpts): Surface {
     },
     info: () => {
       const o = frame.origin()
-      return { page: { path, root, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, blocked, history: { index: history.index, length: history.list.length } } }
+      return { page: { path, root, url: o && `${o}/${encodePath(rel(path))}`, ready, reloads, blocked, zoom, history: { index: history.index, length: history.list.length } } }
     },
   }
 }

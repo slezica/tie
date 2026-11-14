@@ -34,6 +34,7 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `appearance?()` | settings changes (`appearance.ts`) |
 | `info?()` | extra `tie list --json` fields (terminal: `term`; file views: `doc`) |
 | `nav?` | navigation (`Nav`, below): nav bar, `cmd+[` / `cmd+]` / `cmd+R` / `cmd+L` |
+| `zoom?(dir)` | page zoom (html, browser): `cmd+=` / `cmd+-` / `cmd+0` → `1` / `-1` / `0`; steps `@core/zoom`; shown as a pill |
 
 ## Navigation (`renderer/nav.ts`)
 

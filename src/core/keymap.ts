@@ -10,6 +10,7 @@ export type Action =
   | 'close-tile'
   | 'new-tab' | 'close-tab' | 'next-tab' | 'prev-tab'
   | 'nav-back' | 'nav-forward' | 'nav-reload' | 'nav-location' // active tile's navigation (Surface.nav); no-op elsewhere
+  | 'zoom-in' | 'zoom-out' | 'zoom-reset' // active tile's page zoom (Surface.zoom: html, browser); no-op elsewhere
   | 'quit' // asks first (renderer quit.ts); never suspended (main/keys.ts)
   | `tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
 
@@ -38,6 +39,10 @@ export const DEFAULT_KEYMAP: Record<string, Action> = {
   'Cmd+]': 'nav-forward',
   'Cmd+R': 'nav-reload',
   'Cmd+L': 'nav-location',
+  'Cmd+=': 'zoom-in',
+  'Cmd+Shift++': 'zoom-in', // shift held on the = key (as browsers: cmd+shift+= too)
+  'Cmd+-': 'zoom-out',
+  'Cmd+0': 'zoom-reset',
   'Cmd+Q': 'quit',
   ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`Cmd+${n}`, `tab-${n}` as Action])),
 }

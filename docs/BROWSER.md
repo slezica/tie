@@ -41,7 +41,8 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Pointer shield: `body.tracking` / `body.os-drag` / `body.dragging` → `webview` ignores the pointer (`style.css`).
 - Split (`cmd+D`): a terminal (kinds that aren't `'bare'` split into terminals).
 - Hidden tiles: other tabs (`display: none`) and shelved (`visibility: hidden`) keep the page (no reload: `browser` scenario).
-- `tie list --json`: `web {url, title, loading, ready, guest (webContents id), back, forward}`.
+- Zoom: `cmd+=` / `cmd+-` / `cmd+0` (from the UI or the guest: main's `watchKeys`) → `setZoomFactor` (`@core/zoom` steps); re-applied on every `did-navigate` (Chromium keeps zoom per host; the tile keeps its own); pill `N%` (click: reset).
+- `tie list --json`: `web {url, title, loading, ready, guest (webContents id), zoom, back, forward}`.
 
 ## Leaving a page (beforeunload)
 
