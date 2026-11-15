@@ -217,13 +217,13 @@ function createTabEl(id: string): HTMLElement {
   const el = document.createElement('div')
   el.className = 'tab'
   el.dataset.space = id
-  el.innerHTML = `<span class="tab-ping" title="A tile here was pinged"></span><span class="tab-icon"></span><span class="tab-title"></span><button class="tab-close" title="Close tab">${ICON.close}</button>`
+  el.innerHTML = `<span class="tab-ping" title="A tile here was pinged"></span><span class="tab-icon"></span><span class="tab-title"></span><button class="tab-close" title="Close tab (shift: without asking)">${ICON.close}</button>`
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
     switchTab(id)
     dragTab(e, id)
   })
-  el.querySelector('.tab-close')!.addEventListener('click', () => void requestCloseTab(id))
+  el.querySelector('.tab-close')!.addEventListener('click', (e) => void requestCloseTab(id, { force: (e as MouseEvent).shiftKey }))
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault()
     const sp = space(id)

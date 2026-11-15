@@ -33,7 +33,7 @@ export function createTile(kind: Kind, opts: OpenOpts = {}): Tile {
       <button class="btn pin" title="Pin">${ICON.pin}</button>
       <button class="btn collapse" title="Collapse">${ICON.collapse}</button>
       <button class="btn zoom" title="Zoom">${ICON.zoom}</button>
-      <button class="btn close" title="Close">${ICON.close}</button>
+      <button class="btn close" title="Close (shift: without asking)">${ICON.close}</button>
     </div>
     <div class="body"></div>
     <div class="link-strip" hidden></div>

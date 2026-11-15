@@ -74,7 +74,7 @@ tiles.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('.btn')
   const id = tileId(btn)
   if (!btn || !id) return
-  if (btn.classList.contains('close')) void requestCloseTile(id)
+  if (btn.classList.contains('close')) void requestCloseTile(id, { force: e.shiftKey })
   else if (btn.classList.contains('collapse')) toggleCollapse(id)
   else if (btn.classList.contains('zoom')) toggleZoom(id)
   else if (btn.classList.contains('pin')) pin(S.pinned === id ? null : id)

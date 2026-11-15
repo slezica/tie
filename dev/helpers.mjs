@@ -97,8 +97,8 @@ export async function pin(ctx, id) {
   await settle(ctx)
 }
 
-export async function clickButton(ctx, id, name) {
-  await ctx.page.locator(`.tile[data-id="${id}"] .btn.${name}`).click()
+export async function clickButton(ctx, id, name, modifiers = []) {
+  await ctx.page.locator(`.tile[data-id="${id}"] .btn.${name}`).click({ modifiers })
   await settle(ctx)
 }
 

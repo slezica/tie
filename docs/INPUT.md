@@ -106,6 +106,7 @@
 - User closes (`requestCloseTile`: cmd+W, title-bar ×, menu Close; `requestCloseTab`: tab ×, cmd+shift+W): immediate unless something would be lost. One question at a time.
 - Tile: busy terminal (`TERMINALS.md` "Busy") → `.dialog.close-busy` "Close <title>?" "<command> is running." (unknown: "A process is running."), Close / Cancel. Then a browser page's beforeunload (`BROWSER.md`).
 - Tab: busy tiles (any location) → "Close tab <name>?" "Currently running:" + `title — command` list, Close tab / Cancel. Then each browser page's beforeunload. Then `closeTab` (`TABS.md`).
+- Shift+click on a × (title bar, tab; `force`): no questions, neither busy nor beforeunload. Mouse only (not the keys, not menu Close).
 - Scripted (`tie close`, shell exit): `closeTile`, never asks.
 
 ## OS drops (`paste.ts` → `Surface.drop`)

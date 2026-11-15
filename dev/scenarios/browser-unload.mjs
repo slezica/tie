@@ -1,6 +1,6 @@
 // Browser beforeunload (BROWSER.md "Leaving a page"): a page holding its unload (after a real click:
 // sticky activation) makes Tie ask Leave / Stay before closing the tile (⌘W), reloading, the page's
-// own navigation and quitting. Stay keeps the page; Leave proceeds.
+// own navigation and quitting. Stay keeps the page; Leave proceeds. Shift+click on the ×: no question.
 import { existsSync } from 'node:fs'
 import { infoPath } from '../lib.mjs'
 
@@ -89,6 +89,13 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, leave, 'dialog')
     await ctx.page.keyboard.press('Enter')
     await h.eventually(ctx, async () => h.assert(!(await h.tileOf(ctx, c)), 'Leave closes the tile'))
+
+    // Shift+click on the ×: closes without asking.
+    const f = await open()
+    await h.clickButton(ctx, f, 'close', ['Shift'])
+    await h.waitGone(ctx, f)
+    await ctx.sleep(300) // absence: no dialog follows the forced close
+    h.assert(!(await leave()), 'shift+click ×: no Leave page? dialog')
 
     // Quit: after the quit question, the page asks; Stay aborts the quit, Leave quits.
     const d = await open()

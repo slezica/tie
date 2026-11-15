@@ -1,7 +1,7 @@
 // Closing on the user's request (⌘W, title-bar ×, tab ×, ⌘⇧W): immediate unless something would be
 // lost. A busy terminal (Surface.busy: TERMINALS.md "Busy") asks first; a browser page's
 // beforeunload asks (Surface.unload: BROWSER.md). Scripted closes (`tie close`, shell exit) call
-// closeTile directly. docs/INPUT.md, docs/TABS.md.
+// closeTile directly. Shift+click on a × (`force`): no questions. docs/INPUT.md, docs/TABS.md.
 import type { TileId } from '@core/layout'
 import { S, spaceOf, type Space } from './state'
 import { closeTile } from './ops'
@@ -63,10 +63,15 @@ async function once(fn: () => Promise<void>) {
   }
 }
 
-export function requestCloseTile(id: TileId): Promise<void> {
+export interface CloseOpts {
+  force?: boolean // shift+click on a ×: no busy question, no beforeunload question
+}
+
+export function requestCloseTile(id: TileId, { force = false }: CloseOpts = {}): Promise<void> {
   return once(async () => {
     const t = S.tiles.get(id)
     if (!t) return
+    if (force) return closeTile(id)
     const [busy] = await runningIn([id])
     if (busy) {
       const ok = await confirmDialog({
@@ -84,10 +89,11 @@ export function requestCloseTile(id: TileId): Promise<void> {
 }
 
 // Tab with all its tiles. Busy ones listed first; empty or idle: at once.
-export function requestCloseTab(id = S.visible): Promise<void> {
+export function requestCloseTab(id = S.visible, { force = false }: CloseOpts = {}): Promise<void> {
   return once(async () => {
     const sp = S.spaces.find((x) => x.id === id)
     if (!sp) return
+    if (force) return closeTab(id)
     const running = await runningIn(tilesOf(sp))
     if (running.length) {
       const ok = await confirmDialog({

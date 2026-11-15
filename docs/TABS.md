@@ -46,7 +46,7 @@ Title (`tabTitle`), first match:
 
 - New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (`{empty: true}`: none, for drops) (root slot, app cwd `S.cwd`: no context tile). Boot: same, first space gets a terminal (`main.ts`).
 - Emptied tab: closing its last tile by any path (close button, cmd+W, exit of a `--cmd` tile closed by the user, `tie close`, from another tab) closes the tab (`closeTile` empty hook → `dropSpace`, registered by `initTabs`). Visible: back to the tab before; hidden: gone, the visible tab stays. The only tab stays: board empty (notice), title `empty`; cmd+W there (nothing active) does nothing.
-- Close (tab ×, cmd+shift+W → `requestCloseTab`, `close.ts`): the tab with every tile (board, floats, shelf). Busy terminals listed first (confirm); idle or empty: at once (`INPUT.md` "Closing").
+- Close (tab ×, cmd+shift+W → `requestCloseTab`, `close.ts`): the tab with every tile (board, floats, shelf). Busy terminals listed first (confirm); idle or empty: at once; shift+click on the ×: no questions (`INPUT.md` "Closing").
 - `closeTab(id)`: closes its tiles (no questions), then `dropSpace`: visible → switch to the tab before; hidden → removed, visible tab kept, `S.current` back to visible.
 - Never zero tabs: the only tab closed → fresh space + terminal.
 

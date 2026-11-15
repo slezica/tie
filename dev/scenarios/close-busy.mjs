@@ -1,6 +1,6 @@
 // Closing busy terminals asks (TERMINALS.md "Busy"): idle shell at once; foreground command,
 // background job, live --cmd ask (Esc keeps, Enter closes); exited --cmd and `tie close` don't;
-// tab close lists busy tiles.
+// tab close lists busy tiles. Shift+click on a × (tile, tab): no question.
 export default async (ctx, h) => {
   const L = () => h.list(ctx)
   const has = async (id) => (await L()).tiles.some((t) => t.id === id)
@@ -62,6 +62,14 @@ export default async (ctx, h) => {
   await k('Meta+w')
   await h.eventually(ctx, async () => h.assert(!(await dialog()) && !(await has(d)), 'job ended: closes at once'))
 
+  // Shift+click on the ×: busy, closes without asking.
+  const d2 = await split()
+  await run(d2, 'sleep 30\n', /sleep/)
+  await h.clickButton(ctx, d2, 'close', ['Shift'])
+  await h.waitGone(ctx, d2)
+  await ctx.sleep(300) // absence: no dialog follows the forced close
+  h.assert(!(await dialog()), 'shift+click ×: no dialog')
+
   // --cmd tile: busy while the command lives, not after it exited (the tile stays to show it).
   const e = (await ctx.tie('add', 'terminal', '--cmd', 'sleep 2', '--focus')).id
   await h.waitTile(ctx, e, (t) => t.term?.pid, 'cmd tile spawned')
@@ -99,7 +107,9 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert(!(await dialog()) && (await L()).tabs.length === 2, 'Esc keeps the tab'))
   await k('Meta+Shift+w')
   await h.eventually(ctx, async () => h.assert(await dialog(), 'cmd+shift+W: dialog'))
-  await key('Enter')
+  await key('Escape')
+  await h.eventually(ctx, async () => h.assert(!(await dialog()), 'Esc again'))
+  await ctx.page.click('.tab.current .tab-close', { modifiers: ['Shift'] }) // shift+click on the tab ×: no question
   await h.eventually(ctx, async () => {
     const l = await L()
     h.assert(l.tabs.length === 1 && !l.tiles.some((t) => t.id === g || t.id === s) && l.tiles.some((t) => t.id === a), 'tab closed with all its tiles')
