@@ -1,6 +1,6 @@
 # Configurable bindings and terminal color schemes
 
-Status: open. Phase 1 (understanding).
+Status: open. Phases 1-2 done; Phase 3 next.
 
 # Topic
 
@@ -71,7 +71,7 @@ New panel page "Bindings", vertical.
 
 Bindings.
 
-1. Alt chords. Expected (to verify with real key presses, Phase 2): macOS reports `Alt+D` as `key: '∂'`, `code: 'KeyD'`. Electron's `before-input-event` gives both; nothing rawer. Proposal: with Alt held, name the key from `code` (`KeyD` → `D`, `Digit1` → `1`), else from `key`.
+1. Alt chords. Implemented as proposed (Phase 2), unit-tested with assumed input. Still to verify with real key presses in a capture field (Phase 3 page; `TIE_DEBUG=keys` logs raw `key` / `code` there). Expected: macOS reports `Alt+D` as `key: '∂'`, `code: 'KeyD'`. Electron's `before-input-event` gives both; nothing rawer. Proposal: with Alt held, name the key from `code` (`KeyD` → `D`, `Digit1` → `1`), else from `key`.
 
 Color schemes: discussed after bindings are done.
 
@@ -109,6 +109,12 @@ Done. Notes: default chords exempt from the reserved rule (`Ctrl+Tab`); `space` 
 4. Preload `Settings` type. Docs: `SETTINGS.md`, `INPUT.md` (table = defaults).
 
 ## Phase 2: capture
+
+Done. Notes:
+
+- Raw key log only in capture mode (never a log of what is typed elsewhere).
+- Capture leaves with the field's focus; the UI → main report is asynchronous (same lag as text fields).
+- `browser` scenario times out (180 s) since before this work (fails on `1425498` too): not investigated here.
 
 1. Harness: `TIE_DEBUG=keys` logs raw `key` / `code` per input. Author presses Alt chords; settle Pending 1.
 2. Suspend levels: off / fields (quit passes) / capture (nothing passes). Main sends chords to the UI while capturing. `// SECURITY:` note, `sec-*` scenario: capture ends on blur, panel close, tile focus.
