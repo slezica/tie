@@ -94,7 +94,10 @@ export default async (ctx, h) => {
     await h.guestKey(ctx, b, 'Meta+l')
     await h.waitFor(ctx, () => ctx.page.evaluate(() => document.activeElement?.classList.contains('location')), 'cmd+L focuses the location')
     await ctx.page.keyboard.type(s.url + '/three')
-    await ctx.page.keyboard.press('Enter')
+    // Enter that navigates the guest: through main (h.press). Playwright's keyboard.press waits for
+    // a CDP answer that never came for the Enter after cmd+0 below (focus moves to the navigating
+    // guest): the scenario hung until its timeout. Cause unconfirmed.
+    await h.press(ctx, 'Enter')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Three', 'typed URL loads')
     h.assert((await ctx.page.evaluate(() => document.activeElement?.tagName)) === 'WEBVIEW', 'Enter: keys back to the page')
     await h.press(ctx, 'Meta+l')
@@ -117,7 +120,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1.25) < 0.01, 'guest zoomed')
     await h.press(ctx, 'Meta+l')
     await ctx.page.keyboard.type(s.url + '/one')
-    await ctx.page.keyboard.press('Enter')
+    await h.press(ctx, 'Enter')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page One', 'navigated')
     g = await h.guestPage(ctx, b)
     await h.waitFor(ctx, async () => Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1.25) < 0.01, 'zoom kept across the navigation')
@@ -125,7 +128,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.zoom === 1 && Math.abs((await g.evaluate(() => devicePixelRatio)) / dpr0 - 1) < 0.01, 'cmd+0: 100%')
     await h.press(ctx, 'Meta+l')
     await ctx.page.keyboard.type(s.url + '/three')
-    await ctx.page.keyboard.press('Enter')
+    await h.press(ctx, 'Enter')
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Three', 'back on /three')
     g = await h.guestPage(ctx, b)
 

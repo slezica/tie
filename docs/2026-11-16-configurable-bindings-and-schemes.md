@@ -107,7 +107,7 @@ Look:
 
 Not ours, seen on the way:
 
-17. `browser` scenario times out (180 s) since before this work.
+17. `browser` scenario timed out (180 s) since before this work. Worked around 2026-11-16: the location field's Enter after `cmd+0` (zoom reset), sent by Playwright (`keyboard.press`, CDP), navigated the guest but never got its CDP answer; the scenario hung there. Now sent through main (`h.press`). Root cause unconfirmed (only that Enter, only after the zoom reset). By hand: `cmd+=`, `cmd+0`, `cmd+L`, URL, Enter in a browser tile: page loads, keys keep working after?
 
 Color schemes: discussed after bindings are done.
 
@@ -151,7 +151,7 @@ Done. Notes:
 
 - Raw key log only in capture mode (never a log of what is typed elsewhere).
 - Capture leaves with the field's focus; the UI → main report is asynchronous (same lag as text fields).
-- `browser` scenario times out (180 s) since before this work (fails on `1425498` too): not investigated here.
+- `browser` scenario timed out (180 s) since before this work (fails on `1425498` too): "Manual checks" 17.
 
 1. Harness: `TIE_DEBUG=keys` logs raw `key` / `code` per input. Author presses Alt chords; settle Pending 1.
 2. Suspend levels: off / fields (quit passes) / capture (nothing passes). Main sends chords to the UI while capturing. `// SECURITY:` note, `sec-*` scenario: capture ends on blur, panel close, tile focus.
