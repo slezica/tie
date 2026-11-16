@@ -38,10 +38,28 @@
 ## Panel (`src/renderer/settings.ts`)
 
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
-- Pages `Appearance` | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) (last one remembered).
+- Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
-- Enter (not in a select) or Save saves. Errors: status line (else file path), field `.invalid`, jump to its page.
+- Enter (not in a select, not on a button) or Save saves. Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
+
+## Bindings page (`src/renderer/bindings.ts`)
+
+- `bindingsPage(section, settings.bindings, {message})` → `{value, focus}`. Edits its own draft; Save sends `bindings: value()` whole; Cancel drops it.
+- Filter row (live):
+    - `#bind-name`: case-insensitive substring of the action label.
+    - `#bind-key`: capture field (`INPUT.md` "Capture fields"). Exact match on a complete chord, any chord the action answers to (hidden aliases included: `Cmd++` finds Zoom in). Empty = no filter.
+    - Typing in one search clears the other.
+    - Sliders (`.bind-custom`, `aria-pressed`): only customized rows. X (`.bind-clear`): clears both searches and the toggle.
+- Table (`.bind-row[data-action]`, `ACTIONS` order): Action | Binding | pencil, X.
+    - Binding: the override, else the default chord (aliases hidden); unbound = dim `—`.
+    - Binding column width `--bind-w`: widest text over all rows (defaults + current, bold) + margin. Measured at open and after each change, never by filtering.
+    - Customized (present in the draft): bold, X enabled. X = back to default.
+- Edit (pencil): the cell becomes a focused capture field holding the current chord. Each chord replaces it; Backspace empties; Enter / blur accept; Escape cancels. Focus then returns to the row's pencil.
+    - Same as now: nothing. Default chord: override dropped (not customized, aliases back). Empty: `null` (unbound).
+    - Invalid (`validBinding`): unchanged; message on the status line.
+    - Owned by another action (`conflicts` on the candidate draft, aliases included; also on X): dialog `.binding-conflict` naming both, Cancel / Replace. Replace: the other becomes `null` (customized). Focus back to the row after the dialog.
+- Errors from main (`field: 'bindings'`): status line, `.bind-table.invalid`, jump to the page.
 
 ## Themes (`themes.ts`)
 

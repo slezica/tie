@@ -90,7 +90,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker (`pickPath(startDir)`: path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
-  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Terminal, Security): UI parts.
+  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Bindings, Terminal, Files, Security), `bindings.ts` (Bindings page: filters, table, edit via capture field, conflict dialog; `bindingsPage`): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting (`'capture'` level), split, focus-direction. `capture.ts`: capture field (`captureField`: input taking key presses as a chord name; `INPUT.md` "Keyboard"). `quit.ts`: quit question (`askQuit`).
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.

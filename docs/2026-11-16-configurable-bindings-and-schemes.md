@@ -1,6 +1,6 @@
 # Configurable bindings and terminal color schemes
 
-Status: open. Phases 1-2 done; Phase 3 next.
+Status: open. Phases 1-3 done; Phase 4 (color schemes) next.
 
 # Topic
 
@@ -122,6 +122,15 @@ Done. Notes:
 3. Capture field component (`renderer/`): live modifiers, complete chord replaces value, Escape / Backspace / Enter rules.
 
 ## Phase 3: Bindings page
+
+Done. Notes:
+
+- `renderer/bindings.ts`; panel page after Appearance. `SETTINGS.md` "Bindings page".
+- Key search: exact complete chord, aliases included (`Cmd++` finds Zoom in).
+- Conflict check runs on the candidate draft (`conflicts`), so row X (back to default) asks too when the default was given away.
+- Errors from main: status line + table frame, not per row (the page prevents them; main messages only name labels).
+- Enter on a focused panel button presses it instead of saving (rows' pencil / X).
+- Scenario `settings-bindings`.
 
 1. Page + filter row (name, key, sliders toggle, X).
 2. Table: fixed column widths from all rows, bold customized, pencil / X (disabled when default).
