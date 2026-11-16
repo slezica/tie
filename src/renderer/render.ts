@@ -1,6 +1,6 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
 import { compute, parentDir, type Rect, type TileId } from '@core/layout'
-import { S, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
+import { S, squashed, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
 import { renderTabs } from './tabs'
 import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
@@ -56,7 +56,7 @@ function renderVisible() {
   hideOtherSpaces()
   renderTabs()
   const b = boardRect()
-  const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed })
+  const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed, zoomed: S.zoomed })
   S.rects.clear()
 
   const place = (id: TileId, r: Rect, z: number, cls: Record<string, boolean>) => {
@@ -68,17 +68,16 @@ function renderVisible() {
     S.rects.set(id, r)
   }
 
-  // Slotted.
+  // Slotted. Zoomed: the layout gives it the board, the others squashed to bars; floats stay above.
   for (const [id, r] of layout.tiles) {
-    const zoomed = S.zoomed === id
-    place(id, zoomed ? b : r, zoomed ? Z.zoomed : Z.slotted, {
+    place(id, r, Z.slotted, {
       slotted: true,
-      zoomed,
+      zoomed: S.zoomed === id,
       active: S.active === id,
-      'collapsed-h': !zoomed && r.collapsed === 'horizontal',
-      'collapsed-v': !zoomed && r.collapsed === 'vertical',
+      'collapsed-h': r.collapsed === 'horizontal',
+      'collapsed-v': r.collapsed === 'vertical',
     })
-    setButtons(S.tiles.get(id)!, { collapse: canCollapse(id) || S.collapsed.has(id), zoom: true })
+    setButtons(S.tiles.get(id)!, { collapse: !squashed(id) && (canCollapse(id) || S.collapsed.has(id)), zoom: true })
   }
 
   // Floating, clamped into the board (it may have shrunk).

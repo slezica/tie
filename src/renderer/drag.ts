@@ -118,13 +118,13 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   }
 
   // Slotted tile under the cursor (floating tiles are not drop targets).
-  const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed })
+  const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed, zoomed: S.zoomed })
   for (const [id, r] of layout.tiles) {
     if (!inside(r, x, y)) continue
     if (id === srcId) return null
     // Center zone (a collapsed tile: all of it, it is all title bar): a tile swaps places with it;
     // a new one (template, OS file) takes its leaf, it goes to the shelf. Else: the nearest edge.
-    const zone = srcId && S.collapsed.has(id) ? 'center' : dropZone(r, x, y)
+    const zone = srcId && r.collapsed !== 'none' ? 'center' : dropZone(r, x, y)
     if (zone === 'center' && srcId) {
       const own = location(srcId) !== 'shelved' ? S.rects.get(srcId) : undefined
       return { drop: { type: 'swap', with: id }, preview: r, also: own }

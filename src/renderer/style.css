@@ -499,7 +499,7 @@ body.tile-drag #tab-add.drop {
 .tile.floating {
   box-shadow: 0 12px 40px var(--shadow), 0 0 0 1px var(--fg-a);
 }
-.tile.zoomed {
+.tile.floating.zoomed {
   box-shadow: 0 0 0 9999px color-mix(in srgb, var(--bg) 60%, transparent);
 }
 

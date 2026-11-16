@@ -17,6 +17,13 @@ export let TOP = 40 // --top-h: top strip: the toolbar, or the system title bar 
 export let BOTTOM = 0 // --bottom-h: the toolbar, when at the bottom
 export let PAD = 6 // --pad: board edge padding
 export let GAP = 6 // --gap: between tiles
+// Zoom squashes the other slotted tiles to bars (LAYOUT.md "Zoom"): true for those. A zoomed float
+// covers the board instead: nothing is squashed.
+export function squashed(id: TileId): boolean {
+  const z = S.zoomed
+  return !!z && z !== id && contains(S.tree, z) && contains(S.tree, id)
+}
+
 export let TITLE = 30 // --title-h: title bar height; also collapsed bar thickness
 export let PEAK = 8 // --peak: reveal arrow size
 export let SLOT = 28 // --slot: shelf item / template square

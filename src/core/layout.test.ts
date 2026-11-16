@@ -326,6 +326,32 @@ describe('compute', () => {
     expect(l.tiles.get('b')).toMatchObject({ x: 10, w: 90 })
   })
 
+  it('zoom: siblings squashed to bars along the path, subtree leaves share one bar', () => {
+    // row[a, col[b, row[c, d]]], zoomed c
+    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
+    t = insert(t, 'b', 'b', 'c')
+    t = insert(t, 'c', 'r', 'd')
+    const l = compute(t, area, { ...opts, zoomed: 'c', collapsed: new Set(['c', 'd']) })
+    expect(l.tiles.get('a')).toMatchObject({ x: 0, y: 0, w: 10, h: 100, collapsed: 'vertical' })
+    expect(l.tiles.get('b')).toMatchObject({ x: 10, y: 0, w: 90, h: 10, collapsed: 'horizontal' })
+    expect(l.tiles.get('c')).toMatchObject({ x: 10, y: 10, w: 80, h: 90, collapsed: 'none' })
+    expect(l.tiles.get('d')).toMatchObject({ x: 90, y: 10, w: 10, h: 90, collapsed: 'vertical' })
+    expect(l.borders).toHaveLength(0)
+    // zoomed a: the col[b, row[c, d]] subtree is one strip, its three leaves stacked equally
+    const m = compute(t, area, { ...opts, zoomed: 'a' })
+    expect(m.tiles.get('a')).toMatchObject({ x: 0, w: 90, h: 100, collapsed: 'none' })
+    for (const [i, id] of ['b', 'c', 'd'].entries()) {
+      expect(m.tiles.get(id)).toMatchObject({ x: 90, w: 10, collapsed: 'vertical' })
+      expect(m.tiles.get(id)!.y).toBeCloseTo((i * 100) / 3)
+      expect(m.tiles.get(id)!.h).toBeCloseTo(100 / 3)
+    }
+  })
+
+  it('zoom: a tile not in the tree (floating) leaves the layout alone', () => {
+    const t = insert(leaf('a'), 'a', 'r', 'b')
+    expect(compute(t, area, { ...opts, zoomed: 'f' })).toEqual(compute(t, area, opts))
+  })
+
   it('keeps last child expanded if all are collapsed', () => {
     const t = insert(leaf('a'), 'a', 'r', 'b')
     const l = compute(t, area, { ...opts, collapsed: new Set(['a', 'b']) })

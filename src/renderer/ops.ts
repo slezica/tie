@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, remove, swapLeaves, replaceLeaf, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
+import { S, squashed, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
 import { render } from './render'
@@ -250,8 +250,9 @@ export function activate(id: TileId, o: { focus?: boolean } = {}): void {
   const sp = spaceOf(id)
   if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id, o))
   getTile(id)
-  // A zoomed tile covers the board: unzoom rather than activate a tile hidden under it.
-  if (S.zoomed && S.zoomed !== id && location(id) !== 'shelved') S.zoomed = null
+  // Zoom ends when a tile it squashed (slotted zoom) or covers (floating zoom: the board) becomes
+  // active. Floats stay above a slotted zoom: activating one keeps it.
+  if (S.zoomed && S.zoomed !== id && (squashed(id) || (location(S.zoomed) === 'floating' && location(id) !== 'shelved'))) S.zoomed = null
   S.active = id
   getTile(id).pinged = false
   S.mru = [id, ...S.mru.filter((m) => m !== id)]

@@ -1,5 +1,5 @@
 import '@xterm/xterm/css/xterm.css'
-import { S, tie, location } from './state'
+import { S, tie, location, squashed } from './state'
 import { render } from './render'
 import { openTile, activate, toggleCollapse, toggleZoom, pin } from './ops'
 import { requestCloseTile } from './close'
@@ -53,7 +53,9 @@ tiles.addEventListener('pointerdown', (e) => {
   const id = tileId(target)
   if (!id || !S.tiles.has(id)) return
   if (location(id) !== 'shelved' || S.pinned === id) {
-    if (S.active !== id) activate(id, { focus: !target.closest('.navbar .location') })
+    // A button on a tile squashed by a zoom: no activation (it would unzoom and move the button
+    // from under the pointer before the click); the button's action decides.
+    if (S.active !== id && !(squashed(id) && target.closest('.btn'))) activate(id, { focus: !target.closest('.navbar .location') })
   } else if (S.revealed === id && !target.closest('.btn.pin')) pin(id) // a click into a hover reveal pins it (SHELF.md); Pin acts on click
   if (target.closest('.rz')) return startFloatResize(e, id)
   if (e.button !== 0 || target.closest('.btn') || !target.closest('.titlebar')) return

@@ -211,6 +211,7 @@ export interface LayoutOptions {
   gap: number // px between siblings
   bar: number // px thickness of a collapsed tile
   collapsed: Set<TileId>
+  zoomed?: TileId | null // a leaf of the tree: it takes the board, the rest squashed to bars (LAYOUT.md "Zoom")
 }
 
 export interface TileRect extends Rect {
@@ -235,6 +236,7 @@ const isCollapsedLeaf = (n: Node, o: LayoutOptions) => n.type === 'leaf' && o.co
 export function compute(root: Node | null, area: Rect, o: LayoutOptions): Layout {
   const out: Layout = { tiles: new Map(), borders: [] }
   if (!root) return out
+  if (o.zoomed && contains(root, o.zoomed)) return zoomLayout(root, area, o, o.zoomed)
 
   const walk = (node: Node, r: Rect, path: number[], collapse: TileRect['collapsed']) => {
     if (node.type === 'leaf') {
@@ -266,6 +268,37 @@ export function compute(root: Node | null, area: Rect, o: LayoutOptions): Layout
     })
   }
   walk(root, area, [], 'none')
+  return out
+}
+
+// Zoom: at each split on the way down to the zoomed leaf, every other child shrinks to one bar; a
+// squashed subtree shows its leaves as collapsed bars sharing that bar's length equally (document
+// order). No borders. The user's own collapse set doesn't matter here (and isn't touched).
+function zoomLayout(root: Node, area: Rect, o: LayoutOptions, zoomed: TileId): Layout {
+  const out: Layout = { tiles: new Map(), borders: [] }
+  const squash = (node: Node, r: Rect, dir: Dir) => {
+    const ids = leaves(node)
+    const len = Math.max(0, ((dir === 'row' ? r.h : r.w) - o.gap * (ids.length - 1)) / ids.length)
+    ids.forEach((id, i) => {
+      const at = i * (len + o.gap)
+      out.tiles.set(id, dir === 'row' ? { x: r.x, y: r.y + at, w: r.w, h: len, collapsed: 'vertical' } : { x: r.x + at, y: r.y, w: len, h: r.h, collapsed: 'horizontal' })
+    })
+  }
+  const walk = (node: Node, r: Rect) => {
+    if (node.type === 'leaf') return void out.tiles.set(node.id, { ...r, collapsed: 'none' })
+    const n = node.children.length
+    const rest = Math.max(0, (node.dir === 'row' ? r.w : r.h) - (o.gap + o.bar) * (n - 1))
+    let pos = node.dir === 'row' ? r.x : r.y
+    for (const child of node.children) {
+      const on = contains(child, zoomed)
+      const len = on ? rest : o.bar
+      const cr: Rect = node.dir === 'row' ? { x: pos, y: r.y, w: len, h: r.h } : { x: r.x, y: pos, w: r.w, h: len }
+      if (on) walk(child, cr)
+      else squash(child, cr, node.dir)
+      pos += len + o.gap
+    }
+  }
+  walk(root, area)
   return out
 }
 

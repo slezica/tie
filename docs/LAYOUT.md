@@ -35,7 +35,8 @@
 `compute()`:
 
 - Collapsed leaf: `--title-h` thick; others share the rest by size. All collapsed: last stays expanded.
-- Borders only between two non-collapsed siblings; hidden while zoomed.
+- Borders only between two non-collapsed siblings; none while zoomed.
+- `zoomed` (a leaf of the tree): at each split down to it, every other child shrinks to one bar; a squashed subtree shows its leaves as collapsed bars sharing that bar equally (document order). `collapsed` ignored.
 
 ## Floats
 
@@ -54,8 +55,11 @@
 
 ## Zoom
 
-- Slotted or floating only. Covers the board. Clears collapse. Toggle: button, title double-click.
-- Activating another board tile unzooms (focus keys, `tie focus`). Pinning a shelved tile doesn't.
+- Slotted or floating only. Clears the tile's collapse. Toggle: button, title double-click.
+- Slotted: the tile takes the board; the other slotted tiles are squashed to bars (`compute` `zoomed`; `squashed(id)`, `state.ts`), a map of the tab. Derived at layout time: `S.collapsed` untouched, unzoom gives every tile its size and collapse back. Floats stay, above.
+- Squashed bar: no collapse button; zoom button moves the zoom there; close closes it (zoom kept); buttons don't activate on pointerdown (`main.ts`). A click elsewhere on it activates it: unzoom. Drop target as a collapsed tile (swap).
+- Floating: covers the board (z 1000, the rest dimmed), nothing squashed.
+- Unzoom on activation: a squashed tile (click, focus keys, `tie focus`, new tile); under a floating zoom, any board tile. A float over a slotted zoom: zoom kept. Pinning a shelved tile: kept.
 
 ## Focus
 
