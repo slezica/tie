@@ -117,12 +117,11 @@ export function conflicts(bindings: Bindings = {}): Conflict[] {
 const MODS = ['Cmd', 'Ctrl', 'Alt', 'Shift'] as const
 const NAMED = new Set(['Left', 'Right', 'Up', 'Down', 'Home', 'End', 'PageUp', 'PageDown', 'Delete', 'Insert', 'Space', 'Escape', 'Tab', 'Enter', 'Backspace'])
 const FN = /^F([1-9]|1[0-9]|2[0-4])$/
-// Capture fields' own keys (Escape cancels, Backspace empties, Tab moves on, Enter accepts).
-const RESERVED_KEYS = new Set(['Escape', 'Tab', 'Enter', 'Backspace'])
+// Capture fields' own keys (Escape cancels, Backspace empties, Enter accepts). Tab is a key like
+// any other there (Ctrl+Tab: next tab).
+const RESERVED_KEYS = new Set(['Escape', 'Enter', 'Backspace'])
 // Editing combos (content and text fields keep them) and the Settings menu item.
 const RESERVED_CHORDS = new Set(['Cmd+C', 'Cmd+V', 'Cmd+X', 'Cmd+A', 'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+,'])
-// Default chords stay bindable even where a rule above would refuse them (Ctrl+Tab: next tab).
-const DEFAULT_CHORDS = new Set(ACTIONS.map((a) => a.chord))
 
 // Chord → {mods, key}, or null if malformed (not as chord() would produce it).
 export function parseChord(c: string): { mods: (typeof MODS)[number][]; key: string } | null {
@@ -147,7 +146,6 @@ export function parseChord(c: string): { mods: (typeof MODS)[number][]; key: str
 export function validBinding(c: string): string | null {
   const p = parseChord(c)
   if (!p) return `Not a key combination: ${String(c)}`
-  if (DEFAULT_CHORDS.has(c)) return null
   if (RESERVED_KEYS.has(p.key)) return `Reserved key: ${p.key}`
   if (RESERVED_CHORDS.has(c)) return `Reserved combination: ${c}`
   if (!p.mods.includes('Cmd') && !p.mods.includes('Ctrl') && !FN.test(p.key)) return `Needs Cmd or Ctrl (or a function key): ${c}`
@@ -230,7 +228,7 @@ export function chord(k: KeyInput): string {
 }
 
 // Capture fields (settings: key search, binding edit; renderer/capture.ts). A key press there is
-// either the field's own (Escape, Tab, Enter, Backspace without Cmd / Ctrl / Alt: passes to it),
+// either the field's own (Escape, Enter, Backspace without Cmd / Ctrl / Alt: passes to it),
 // a modifier (held ones shown live: `Cmd+Shift+`, not a chord yet) or a complete chord.
 export interface Captured {
   chord: string // complete: the chord; else the held modifiers with a trailing `+` ('' = none)

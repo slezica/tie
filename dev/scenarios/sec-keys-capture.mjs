@@ -27,8 +27,8 @@ export default async (ctx, h) => {
 
   // Shortcuts: captured as names, not run, unseen by the page. Quit too.
   const n = await count()
-  for (const c of ['Meta+d', 'Meta+q', 'Control+Tab', 'Meta+Shift+w', 'Meta+,']) await h.press(ctx, c)
-  await h.eventually(ctx, async () => h.assert(JSON.stringify(await chords()) === JSON.stringify(['Cmd+D', 'Cmd+Q', 'Ctrl+Tab', 'Cmd+Shift+W', 'Cmd+,']), `captured ${JSON.stringify(await cap())}`))
+  for (const c of ['Meta+d', 'Meta+q', 'Control+Tab', 'Tab', 'Meta+Shift+w', 'Meta+,']) await h.press(ctx, c)
+  await h.eventually(ctx, async () => h.assert(JSON.stringify(await chords()) === JSON.stringify(['Cmd+D', 'Cmd+Q', 'Ctrl+Tab', 'Tab', 'Cmd+Shift+W', 'Cmd+,']), `captured ${JSON.stringify(await cap())}`))
   h.assert((await count()) === n, 'no shortcut ran while capturing')
   h.assert(!(await page.isVisible('.dialog.quit')), 'no quit question while capturing')
   h.assert(!(await page.isVisible('.settings')), 'no settings panel (menu accelerator) while capturing')

@@ -1,8 +1,8 @@
 // Capture field: an input that takes key presses as a chord name (`Cmd+Shift+D`) instead of text.
 // Settings: key search, binding edit. While it has focus main sends every key here (keys.ts sync →
 // main/keys.ts capture mode): shortcuts don't run, and the names are the ones main will match.
-// Its own keys: Escape cancels (value as at focus), Backspace empties, Enter accepts, Tab moves on;
-// blur accepts. docs/INPUT.md "Capture fields".
+// Its own keys: Escape cancels (value as at focus), Backspace empties, Enter accepts; blur
+// accepts. Tab is captured like any key. docs/INPUT.md "Capture fields".
 import { tie } from './state'
 
 export interface CaptureOpts {

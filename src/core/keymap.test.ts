@@ -103,10 +103,12 @@ describe('validBinding', () => {
     for (const c of ['K', 'Shift+K', 'Alt+K', 'Alt+Shift+Left', 'Space', 'Delete']) expect(validBinding(c), c).toMatch(/Needs Cmd or Ctrl/)
   })
   it('refuses reserved keys with any modifiers, editing combos, cmd+,', () => {
-    for (const c of ['Escape', 'Cmd+Escape', 'Cmd+Tab', 'Alt+Tab', 'Cmd+Enter', 'Cmd+Shift+Backspace', 'Ctrl+Alt+Tab']) expect(validBinding(c), c).toMatch(/Reserved key/)
+    for (const c of ['Escape', 'Cmd+Escape', 'Cmd+Enter', 'Cmd+Shift+Backspace']) expect(validBinding(c), c).toMatch(/Reserved key/)
     for (const c of ['Cmd+C', 'Cmd+V', 'Cmd+X', 'Cmd+A', 'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+,']) expect(validBinding(c), c).toMatch(/Reserved combination/)
   })
-  it('keeps default chords bindable (Ctrl+Tab)', () => {
+  it('Tab is bindable with Cmd / Ctrl', () => {
+    expect(validBinding('Cmd+Shift+Tab')).toBe(null)
+    expect(validBinding('Tab')).toMatch(/Needs Cmd or Ctrl/)
     expect(validBinding('Ctrl+Tab')).toBe(null)
     expect(validBinding('Ctrl+Shift+Tab')).toBe(null)
   })
@@ -217,9 +219,10 @@ describe('alt chords and capture', () => {
     expect(captured(k('Meta'))).toEqual({ chord: '', complete: false })
   })
   it("passes the field's own keys, unless with Cmd / Ctrl / Alt", () => {
-    for (const key of ['Escape', 'Tab', 'Enter', 'Backspace']) expect(capturePasses(k(key))).toBe(true)
-    expect(capturePasses(k('Tab', { shift: true }))).toBe(true)
-    expect(capturePasses(k('Tab', { control: true }))).toBe(false)
+    for (const key of ['Escape', 'Enter', 'Backspace']) expect(capturePasses(k(key))).toBe(true)
+    expect(capturePasses(k('Enter', { shift: true }))).toBe(true)
+    expect(capturePasses(k('Enter', { control: true }))).toBe(false)
+    expect(capturePasses(k('Tab'))).toBe(false)
     expect(capturePasses(k('d'))).toBe(false)
   })
 })

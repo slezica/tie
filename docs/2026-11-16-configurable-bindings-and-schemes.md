@@ -57,7 +57,7 @@ New panel page "Bindings", vertical.
 
 - Unknown action: refused.
 - Malformed chord: refused.
-- Reserved: Escape, Tab, Enter, Backspace, editing combos (`cmd+C/V/X/A/Z`, `cmd+shift+Z`), `cmd+,`.
+- Reserved: Escape, Enter, Backspace, editing combos (`cmd+C/V/X/A/Z`, `cmd+shift+Z`), `cmd+,`.
 - Needs Cmd or Ctrl, or a function key. A bare letter would eat typing in terminals.
 - Same chord on two actions: refused at Save; the panel resolves it first (conflict dialog).
 
@@ -84,7 +84,8 @@ Color schemes: discussed after bindings are done.
 
 - One chord per binding. No multi-step sequences.
 - One chord per action in the table. `zoom-in`'s `Cmd+Shift++` stays a hidden alias of the default only; a custom `zoom-in` drops it.
-- Capture fields (key search, binding edit): Escape cancels, Backspace empties, Tab moves on, Enter accepts (unfocus, value kept). These four are unbindable.
+- Capture fields (key search, binding edit): Escape cancels, Backspace empties, Enter accepts (unfocus, value kept). These three are unbindable. Tab is not reserved: captured and bindable like any key ("move on" dropped as unnecessary here).
+- Ctrl+letter bindings allowed, even ones terminals use (`Ctrl+C`): left to the user.
 - Binding edit: each complete chord replaces the field's value; Enter commits.
 - Row X: back to default. Disabled when the row is not customized.
 - Top X: clears both filters.
@@ -101,7 +102,7 @@ Color schemes: discussed after bindings are done.
 
 ## Phase 1: keymap model (core + main)
 
-Done. Notes: default chords exempt from the reserved rule (`Ctrl+Tab`); `space` named `Space` in `chord()`; e2e `keys-bindings`.
+Done. Notes: `space` named `Space` in `chord()`; e2e `keys-bindings`.
 
 1. `core/keymap.ts`: `ACTIONS` (id, label, default chord, hidden aliases), `resolveKeymap(overrides)`, `validBinding(chord)` (shape, reserved, modifier rule), `conflicts(overrides)`. Unit tests.
 2. Settings: `bindings` key; `sanitize` drops unknown actions / bad chords; `validateSettings` refuses reserved, bare keys, duplicates.
@@ -118,7 +119,7 @@ Done. Notes:
 
 1. Harness: `TIE_DEBUG=keys` logs raw `key` / `code` per input. Author presses Alt chords; settle Pending 1.
 2. Suspend levels: off / fields (quit passes) / capture (nothing passes). Main sends chords to the UI while capturing. `// SECURITY:` note, `sec-*` scenario: capture ends on blur, panel close, tile focus.
-3. Capture field component (`renderer/`): live modifiers, complete chord replaces value, Escape / Backspace / Tab / Enter rules.
+3. Capture field component (`renderer/`): live modifiers, complete chord replaces value, Escape / Backspace / Enter rules.
 
 ## Phase 3: Bindings page
 
