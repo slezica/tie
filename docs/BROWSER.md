@@ -68,6 +68,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 ## Limitations
 
-- No favicon, no search, no find-in-page, no zoom, no devtools for guests, no `mailto:` (refused).
+- No favicon, no search, no find-in-page, no devtools for guests, no `mailto:` (refused).
+- No pinch zoom (tested 2026-11-15, Electron 44): `setVisualZoomLevelLimits(1, 5)` on a guest does nothing (CDP `Input.synthesizePinchGesture` on the guest: `visualViewport.scale` stays 1; same call on the host window: the whole UI scales). Visual zoom belongs to the outermost page; a `<webview>` guest is an inner frame tree. No gesture events in the guest's `input-event` either (no emulation by page zoom). Would need the guest as a top-level `WebContentsView`.
 - Popups that need a window (OAuth flows) go to the system browser (`PENDING.md`).
 - One shared partition: no per-tile profiles, no private mode.
