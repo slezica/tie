@@ -22,9 +22,11 @@ const modalOpen = () => !!document.querySelector('.settings, .dialog-backdrop')
 // Shortcuts are matched and blocked in main (src/main/keys.ts); this side runs the actions. Main
 // skips the keymap (not ⌘Q) while a text field or modal has focus: told on every change.
 export function initKeys() {
-  let suspended = false
+  // A focused capture field (capture.ts) takes every key, quit included: main sends it chords.
+  let suspended: boolean | 'capture' = false
   const sync = () => {
-    const on = editingText(document.activeElement) || modalOpen()
+    const el = document.activeElement
+    const on = el?.classList.contains('capture-field') ? 'capture' : editingText(el) || modalOpen()
     if (on !== suspended) tie.keys.suspend((suspended = on))
   }
   document.addEventListener('focusin', sync, true)

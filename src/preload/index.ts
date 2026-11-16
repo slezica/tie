@@ -115,12 +115,16 @@ const api = {
     },
   },
   // Shortcuts are matched in main (before-input-event); actions arrive here. `suspend`: a text field
-  // or modal has focus, its keys stay its own.
+  // or modal has focus, its keys stay its own (`'capture'`: a capture field, main/keys.ts).
   keys: {
     onAction: (cb: (action: string) => void) => {
       ipcRenderer.on('keys:action', (_e, action) => cb(action))
     },
-    suspend: (on: boolean) => ipcRenderer.send('keys:suspend', on),
+    suspend: (on: boolean | 'capture') => ipcRenderer.send('keys:suspend', on),
+    // Capture mode (a capture field focused): every key press arrives here as a chord name instead.
+    onCapture: (cb: (c: { chord: string; complete: boolean }) => void) => {
+      ipcRenderer.on('keys:capture', (_e, c) => cb(c))
+    },
   },
   log: (tag: string, ...args: unknown[]) => ipcRenderer.send('log', tag, ...args),
   pty: {

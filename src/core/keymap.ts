@@ -201,6 +201,7 @@ export const DEFAULT_KEYMAP: Keymap = resolveKeymap()
 // A key as main sees it (Electron Input) or as the DOM does (mapped by the caller).
 export interface KeyInput {
   key: string
+  code?: string // physical key (DOM `code`): names the key while Alt is held
   meta: boolean
   control: boolean
   alt: boolean
@@ -209,9 +210,38 @@ export interface KeyInput {
 
 const KEY_NAMES: Record<string, string> = { ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', ' ': 'Space' }
 
+// Alt on macOS composes: Alt+D reports key `∂` (or `Dead`). With Alt held the key is named from
+// its physical position instead (US names: KeyD → D), so Alt chords are typeable and readable.
+const CODE_KEYS: Record<string, string> = {
+  Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+  Backslash: '\\', Backquote: '`',
+}
+function altKey(code: string | undefined): string | undefined {
+  if (!code) return undefined
+  const m = /^(?:Key([A-Z])|Digit([0-9]))$/.exec(code)
+  return m ? (m[1] ?? m[2]) : CODE_KEYS[code]
+}
+
+const held = (k: KeyInput) => [k.meta && 'Cmd', k.control && 'Ctrl', k.alt && 'Alt', k.shift && 'Shift'].filter(Boolean) as string[]
+
 export function chord(k: KeyInput): string {
-  const key = KEY_NAMES[k.key] ?? (k.key.length === 1 ? k.key.toUpperCase() : k.key)
-  return [k.meta && 'Cmd', k.control && 'Ctrl', k.alt && 'Alt', k.shift && 'Shift', key].filter(Boolean).join('+')
+  const key = (k.alt && altKey(k.code)) || (KEY_NAMES[k.key] ?? (k.key.length === 1 ? k.key.toUpperCase() : k.key))
+  return [...held(k), key].join('+')
+}
+
+// Capture fields (settings: key search, binding edit; renderer/capture.ts). A key press there is
+// either the field's own (Escape, Tab, Enter, Backspace without Cmd / Ctrl / Alt: passes to it),
+// a modifier (held ones shown live: `Cmd+Shift+`, not a chord yet) or a complete chord.
+export interface Captured {
+  chord: string // complete: the chord; else the held modifiers with a trailing `+` ('' = none)
+  complete: boolean
+}
+const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Alt', 'Shift', 'AltGraph', 'CapsLock', 'Fn'])
+export const capturePasses = (k: KeyInput): boolean => RESERVED_KEYS.has(k.key) && !k.meta && !k.control && !k.alt
+export function captured(k: KeyInput): Captured {
+  if (!MODIFIER_KEYS.has(k.key)) return { chord: chord(k), complete: true }
+  const mods = held(k)
+  return { chord: mods.length ? mods.join('+') + '+' : '', complete: false }
 }
 
 export function actionFor(k: KeyInput, keymap: Keymap = DEFAULT_KEYMAP): Action | undefined {

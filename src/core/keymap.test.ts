@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chord, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, type Bindings } from './keymap'
+import { chord, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, captured, capturePasses, type Bindings, type KeyInput } from './keymap'
 
 const k = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean }> = {}) => ({ key, meta: false, control: false, alt: false, shift: false, ...mods })
 
@@ -195,5 +195,31 @@ describe('accelerator', () => {
     expect(accelerator(undefined)).toBe(null)
     expect(accelerator('Cmd+q')).toBe(null)
     expect(accelerator('Cmd+Alt+∂')).toBe(null)
+  })
+})
+
+describe('alt chords and capture', () => {
+  const k = (key: string, o: Partial<KeyInput> = {}): KeyInput => ({ key, meta: false, control: false, alt: false, shift: false, ...o })
+  it('names the key from its code while Alt is held', () => {
+    expect(chord(k('∂', { alt: true, code: 'KeyD' }))).toBe('Alt+D')
+    expect(chord(k('Dead', { alt: true, meta: true, code: 'KeyE' }))).toBe('Cmd+Alt+E')
+    expect(chord(k('¡', { alt: true, code: 'Digit1' }))).toBe('Alt+1')
+    expect(chord(k('“', { alt: true, control: true, code: 'BracketLeft' }))).toBe('Ctrl+Alt+[')
+    expect(chord(k('ArrowLeft', { alt: true, code: 'ArrowLeft' }))).toBe('Alt+Left')
+    expect(validBinding('Cmd+Alt+E')).toBeNull()
+  })
+  it('ignores the code without Alt', () => {
+    expect(chord(k('d', { meta: true, code: 'KeyE' }))).toBe('Cmd+D')
+  })
+  it('captures chords, shows held modifiers', () => {
+    expect(captured(k('d', { meta: true, shift: true }))).toEqual({ chord: 'Cmd+Shift+D', complete: true })
+    expect(captured(k('Shift', { meta: true, shift: true }))).toEqual({ chord: 'Cmd+Shift+', complete: false })
+    expect(captured(k('Meta'))).toEqual({ chord: '', complete: false })
+  })
+  it("passes the field's own keys, unless with Cmd / Ctrl / Alt", () => {
+    for (const key of ['Escape', 'Tab', 'Enter', 'Backspace']) expect(capturePasses(k(key))).toBe(true)
+    expect(capturePasses(k('Tab', { shift: true }))).toBe(true)
+    expect(capturePasses(k('Tab', { control: true }))).toBe(false)
+    expect(capturePasses(k('d'))).toBe(false)
   })
 })

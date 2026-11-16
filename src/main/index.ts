@@ -180,7 +180,7 @@ function createWindow(ses: Electron.Session) {
     }
   })
   noWebRtcUdp(win.webContents)
-  initKeys(win, (action) => win?.webContents.send('keys:action', action))
+  initKeys(win, (action) => win?.webContents.send('keys:action', action), (c) => win?.webContents.send('keys:capture', c))
   initContent(win.webContents, (channel, ...args) => win?.webContents.send(channel, ...args))
   applyWindowSettings()
   win.once('ready-to-show', () => !background && win?.show())
