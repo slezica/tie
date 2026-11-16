@@ -232,9 +232,8 @@ export async function toggleSettings() {
   panel.addEventListener('pointerdown', (e) => e.target === panel && cancel())
   panel.addEventListener('keydown', (e) => {
     e.stopPropagation()
+    // Enter never saves: only the Save button does (Enter on a focused button presses that button).
     if (e.key === 'Escape') cancel()
-    // Enter on a button presses it (Bindings rows: edit, reset), it doesn't save.
-    else if (e.key === 'Enter' && !(e.target instanceof HTMLSelectElement) && !(e.target instanceof HTMLButtonElement)) save()
   })
   show(page)
   if (error) showErrors([{ field: 'file', message: error }])

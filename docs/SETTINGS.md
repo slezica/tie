@@ -40,7 +40,7 @@
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
 - Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
-- Enter (not in a select, not on a button) or Save saves. Errors: status line (else file path), field `.invalid`, jump to its page.
+- Only the Save button saves (Enter in a field does nothing; on a focused button it presses that button). Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
 
 ## Bindings page (`src/renderer/bindings.ts`)

@@ -62,7 +62,10 @@ export default async (ctx, h) => {
   await ctx.shot('terminal-page')
   await ctx.page.fill('#set-shell', 'bash --norc')
   await ctx.page.keyboard.press('Enter')
-  await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'closed on Enter'))
+  await ctx.sleep(300) // absence: Enter in a field never saves or closes
+  h.assert(await ctx.page.isVisible('.settings'), 'Enter in a field keeps the panel open')
+  await ctx.page.click('.settings button.save')
+  await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'closed on Save'))
   const t = await ctx.tie('add', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
   await h.waitText(ctx, t.id, 'argv0=')
   const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
