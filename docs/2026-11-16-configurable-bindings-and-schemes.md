@@ -71,7 +71,43 @@ New panel page "Bindings", vertical.
 
 Bindings.
 
-1. Alt chords. Implemented as proposed (Phase 2), unit-tested with assumed input. Still to verify with real key presses in a capture field (Phase 3 page; `TIE_DEBUG=keys` logs raw `key` / `code` there). Expected: macOS reports `Alt+D` as `key: '∂'`, `code: 'KeyD'`. Electron's `before-input-event` gives both; nothing rawer. Proposal: with Alt held, name the key from `code` (`KeyD` → `D`, `Digit1` → `1`), else from `key`.
+1. Alt chords. Implemented as proposed (Phase 2), unit-tested with assumed input. Real presses: "Manual checks" 1-2. Expected: macOS reports `Alt+D` as `key: '∂'`, `code: 'KeyD'`. Electron's `before-input-event` gives both; nothing rawer. Proposal: with Alt held, name the key from `code` (`KeyD` → `D`, `Digit1` → `1`), else from `key`.
+
+# Manual checks (human)
+
+What the harness can't do: real hardware keys, native menu, visual judgement. Dev instance: `bin/tie-dev run`, `cmd+,` → Bindings.
+
+Keys (real presses, in a row's edit field):
+
+1. Alt chords: `Alt+D`, `Cmd+Alt+E`, `Alt+1`, `Ctrl+Alt+[` show as written, not `∂` / `Dead` / `¡`. Raw values: `TIE_DEBUG=keys` (`tie-dev logs`).
+2. A saved Alt chord runs its action (terminal focused, and with a markdown tile focused).
+3. Shifted symbols: `Cmd+Shift+=` shows `Cmd+Shift++`; `Cmd+Shift+/` shows `Cmd+Shift+?`. Acceptable names?
+4. Non-US layout (if at hand): letters, `+` as its own key (`Cmd++` zooms in), dead keys.
+5. System-owned chords are not capturable (`Cmd+Tab`, `Cmd+Space`, `Cmd+H`?, `Cmd+M`?): note which reach the field and which macOS keeps.
+6. Menu accelerators while capturing: `Cmd+,`, `Cmd+W`, `Cmd+H`, `Cmd+M` do nothing but fill the field.
+7. `Cmd+Q` in a capture field: captured, no quit question. Outside it (name search, other pages): asks as before.
+8. Held modifiers show live (`Cmd+Shift+`) and disappear on release.
+9. Leaving capture: click a tile right after editing, type a shortcut at once: it runs, no stray capture.
+
+Native menu:
+
+10. Rebind Quit, Save: "Quit Tie" in the app menu shows the new chord. Unbound: no chord shown. Menu item still asks.
+
+Behaviour:
+
+11. Enter in any panel field never saves or closes; only Save / Cancel (and Escape) do.
+12. Conflict dialog wording is clear (both actions named); Replace leaves the other row bold with `—`.
+13. Bindings survive a restart; `settings.json` holds only the overrides.
+14. Rebinding to a chord a terminal program uses (`Ctrl+C`, `Ctrl+R`): allowed, Tie takes it. Acceptable without a warning?
+
+Look:
+
+15. Disabled row X contrast (faint), bold customized rows, `—` for unbound, column widths, table scroll, filter row. All themes worth a glance (one light).
+16. Sliders icon reads as "only customized"; its on state is visible.
+
+Not ours, seen on the way:
+
+17. `browser` scenario times out (180 s) since before this work.
 
 Color schemes: discussed after bindings are done.
 
