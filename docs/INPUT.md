@@ -39,7 +39,9 @@
 - During drags: `body.dragging` → tile content and reveals `pointer-events: none`. From pointerdown (`body.tracking`): content frames and browser guests too.
 - Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).
 
-## Keyboard (`DEFAULT_KEYMAP` in `core/keymap.ts`; `main/keys.ts`, `renderer/keys.ts`)
+## Keyboard (`ACTIONS` in `core/keymap.ts`; `main/keys.ts`, `renderer/keys.ts`)
+
+Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 
 | Chord | Action |
 |---|---|
@@ -55,7 +57,7 @@
 | `cmd+[` / `cmd+]` | Back / forward in the active tile (kinds with navigation; no-op elsewhere) |
 | `cmd+R` | Reload the active tile (kinds with navigation: file views re-read their file; html reloads the page, scroll kept) |
 | `cmd+L` | Focus the active tile's location field (only if editable: browser; no-op otherwise) |
-| `cmd+=` (`cmd+shift+=`) / `cmd+-` / `cmd+0` | Page zoom of the active tile, in / out / back to 100% (html, markdown, text: CSS zoom on the page root via the bootstrap / viewer runtime; browser: `setZoomFactor`); Chrome's presets (`@core/zoom`); kept across pages and reloads of the tile; a `125%` pill (click: reset). Other kinds: no-op |
+| `cmd+=` (`cmd+shift+=`, `cmd++`) / `cmd+-` / `cmd+0` | Page zoom of the active tile, in / out / back to 100% (html, markdown, text: CSS zoom on the page root via the bootstrap / viewer runtime; browser: `setZoomFactor`); Chrome's presets (`@core/zoom`); kept across pages and reloads of the tile; a `125%` pill (click: reset). Other kinds: no-op |
 | `ctrl+tab` / `ctrl+shift+tab` | Next / previous tab |
 | `cmd+Q` | Quit (asks first: `quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |
@@ -64,12 +66,13 @@
 - Suspended while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open: the renderer reports changes (`keys:suspend`, on focus changes and body children changes). Actions arriving while a modal is open are dropped (except `quit`: never suspended, `quit.ts` ignores it while a dialog is open).
 - Never in the keymap: Esc, editing combos (cmd+C/V/X/A/Z). Synthetic `KeyboardEvent`s trigger nothing (they never reach main).
 - Blocked keydowns lose their keyup (Chromium suppresses it).
-- Chord format: `Cmd+Ctrl+Alt+Shift+Key`, arrows `Left/Right/Up/Down`. Not configurable yet.
+- Chord format: `Cmd+Ctrl+Alt+Shift+Key` (modifiers in that order), key from Electron `input.key`: single characters upper-cased (`+` as `Cmd++`), arrows `Left/Right/Up/Down`, space `Space`, named keys (`Home`, `PageUp`, `Delete`, `F1`..`F24`, ...).
+- Configurable (setting `bindings`, sparse overrides): keymap = `resolveKeymap(bindings)`, rebuilt in main at startup and on each save (live). One chord per action; `zoom-in`'s aliases are default-only. `cmd+,` (Settings) is a fixed menu accelerator; the Quit menu label follows the `quit` binding (none when unbound). Validation: `SETTINGS.md`.
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal (the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Other kinds (file, html, browser) → a terminal in the tile's cwd (`DIRECTORIES.md`).
 - Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Picker starts in the active tile's cwd, every kind (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
 - Inside the file picker: its own keys (below); shortcuts suspended (a `.dialog-backdrop` modal).
-- Quit (`quit` action, cmd+Q): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
+- Quit (`quit` action, cmd+Q by default; matched by action, whatever its chord): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
 ## File picker (`renderer/picker.ts`)

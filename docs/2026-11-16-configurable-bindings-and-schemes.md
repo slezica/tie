@@ -101,6 +101,8 @@ Color schemes: discussed after bindings are done.
 
 ## Phase 1: keymap model (core + main)
 
+Done. Notes: default chords exempt from the reserved rule (`Ctrl+Tab`); `space` named `Space` in `chord()`; e2e `keys-bindings`.
+
 1. `core/keymap.ts`: `ACTIONS` (id, label, default chord, hidden aliases), `resolveKeymap(overrides)`, `validBinding(chord)` (shape, reserved, modifier rule), `conflicts(overrides)`. Unit tests.
 2. Settings: `bindings` key; `sanitize` drops unknown actions / bad chords; `validateSettings` refuses reserved, bare keys, duplicates.
 3. `main/keys.ts`: keymap from settings, rebuilt on save. `Quit` menu label follows.

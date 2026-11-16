@@ -6,7 +6,7 @@
 - Loaded once at main startup; missing → defaults. Hand edits while running are not picked up.
 - `sanitize()` at load and save: numbers clamped, wrong types → defaults. Theme alias `elegant-dark` → `tie-dark`.
 - Unreadable / unparseable → defaults; Save blocked (file never overwritten), panel status shows why. Re-read on each `settings:get`/`set`, so fixing the file unblocks Save.
-- `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
+- `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
 
 | Key | Default | Scope | Values |
 |---|---|---|---|
@@ -24,7 +24,12 @@
 | `confirmExternal` | true | all tiles | confirm before a link opens in the system browser (`TILES.md` "Links out") |
 | `gitignore` | true | file picker | walks skip what git ignores (`.gitignore` chain, `.git/info/exclude`, global excludes; inside repos only) |
 | `allowExternalControl` | false | app | socket callers outside Tie terminals (scripts, other apps) may run commands (`CLI.md` "Callers"); only a real `true` counts |
+| `bindings` | `{}` | app | key binding overrides, sparse: `{<action>: <chord> \| null}` (`INPUT.md` "Keyboard") |
 
+- `bindings`: action ids and chord format in `core/keymap.ts` (`ACTIONS`, `chord()`). Present = customized (a customized `zoom-in` drops its hidden aliases); `null` = unbound.
+    - `sanitize`: unknown actions, malformed / reserved chords dropped (those actions keep their defaults). Conflicts left: `resolveKeymap` is deterministic (overrides first, `ACTIONS` order).
+    - `validateSettings` (`bindingErrors`): unknown action, malformed chord, reserved (Escape / Tab / Enter / Backspace with any modifiers, cmd+C/V/X/A/Z, cmd+shift+Z, cmd+,), no Cmd / Ctrl (function keys excepted), two actions on one chord (default aliases included). Default chords always pass (`Ctrl+Tab`). `field: 'bindings'`, message names the action(s).
+    - A save replaces the whole object (no per-action merge). Applied live: main rebuilds the keymap (`keys.ts` `setBindings`) and the menu (Quit label).
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
 - `shell` applies to new terminals only. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).
 - Adding a setting: `Settings` + `DEFAULTS` + `sanitize` (main), `Settings` type (preload), `Appearance` + `applyAppearance` (if visual), `Prefs` + `applyPrefs` (if read synchronously), panel field + `draft()`.
