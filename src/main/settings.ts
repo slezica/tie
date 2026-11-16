@@ -4,6 +4,7 @@ import { userInfo, homedir } from 'node:os'
 import { join, delimiter } from 'node:path'
 import { stateDir, instance, log, PRIVATE } from './env'
 import { untrusted } from '../core/log'
+import { bindingErrors, cleanBindings, type Bindings } from '../core/keymap'
 
 // Terminal tile title: program's own (OSC) else command | foreground command | working directory.
 export const TERMINAL_TITLES = ['auto', 'command', 'directory'] as const
@@ -24,9 +25,10 @@ export interface Settings {
   confirmExternal: boolean // all tiles: confirm before a link opens in the system browser
   allowExternalControl: boolean // app-wide: socket callers outside Tie terminals may run commands
   gitignore: boolean // file picker: the walk skips what git ignores
+  bindings: Bindings // app-wide: key binding overrides, sparse (action → chord, null = unbound; core/keymap.ts)
 }
 
-const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false, gitignore: true }
+const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false, gitignore: true, bindings: {} }
 // `default` (installed app): settings.json; other instances: settings.<instance>.json.
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
@@ -85,6 +87,8 @@ function sanitize(s: Settings): Settings {
     // SECURITY: only a real true opens the socket to external callers.
     allowExternalControl: s.allowExternalControl === true,
     gitignore: typeof s.gitignore === 'boolean' ? s.gitignore : DEFAULTS.gitignore,
+    // Unknown actions, malformed / reserved chords dropped (those actions keep their defaults).
+    bindings: cleanBindings(s.bindings),
   }
 }
 
@@ -157,5 +161,7 @@ export function validateSettings(s: Partial<Settings>): SettingsError[] {
     errors.push({ field: 'terminalTitle', message: `Unknown terminal title mode: ${String(s.terminalTitle)}` })
   if (s.gitignore !== undefined && typeof s.gitignore !== 'boolean')
     errors.push({ field: 'gitignore', message: `Not a boolean: gitignore = ${String(s.gitignore)}` })
+  // Replaced whole by a save (setSettings merges top-level keys), so conflicts are checked within it.
+  if (s.bindings !== undefined) for (const message of bindingErrors(s.bindings)) errors.push({ field: 'bindings', message })
   return errors
 }

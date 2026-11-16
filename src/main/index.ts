@@ -5,7 +5,8 @@ import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRI
 import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION, noNetwork, noWebRtcUdp } from './security'
-import { initKeys, setKeysSuspended } from './keys'
+import { initKeys, setKeysSuspended, setBindings, quitChord } from './keys'
+import { accelerator } from '../core/keymap'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startWalk, stopWalk, stopWalks, type DocPush } from './docs'
 import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
@@ -112,6 +113,7 @@ ipc.handle('settings:set', (_e, patch) => {
   if (errors.length) return { ok: false, errors }
   const settings = setSettings(patch)
   applyWindowSettings()
+  applyBindings()
   return { ok: true, settings }
 })
 ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
@@ -228,7 +230,14 @@ function frameTree() {
 }
 const depth = (f: Electron.WebFrameMain): number => (f.parent ? 1 + depth(f.parent) : 0)
 
+// Keymap (keys.ts) + the Quit menu label, from the settings' bindings: startup and every save.
+function applyBindings() {
+  setBindings(getSettings().bindings)
+  setMenu()
+}
+
 function setMenu() {
+  const quit = accelerator(quitChord())
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
@@ -242,8 +251,8 @@ function setMenu() {
           { role: 'hideOthers' },
           { role: 'unhide' },
           { type: 'separator' },
-          // ⌘Q shown but not registered: main's keys.ts matches it (in guests too). Both ask.
-          { label: 'Quit Tie', accelerator: 'CmdOrCtrl+Q', registerAccelerator: false, click: () => askQuit() },
+          // The `quit` binding shown but not registered: main's keys.ts matches it (in guests too). Both ask.
+          { label: 'Quit Tie', ...(quit && { accelerator: quit }), registerAccelerator: false, click: () => askQuit() },
         ],
       },
       { role: 'editMenu' },
@@ -261,7 +270,7 @@ harden()
 app.whenReady().then(async () => {
   if (updating) return
   if (background && process.platform === 'darwin') app.setActivationPolicy('accessory')
-  setMenu()
+  applyBindings()
   const ses = session.fromPartition(UI_PARTITION)
   serveShell(ses, join(import.meta.dirname, '../renderer'))
   serveContent(ses)

@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { WalkChunk } from '../main/walk'
+import type { Bindings } from '../core/keymap'
 export type { WalkChunk }
 
 export interface Settings {
@@ -17,6 +18,7 @@ export interface Settings {
   confirmExternal: boolean
   allowExternalControl: boolean
   gitignore: boolean
+  bindings: Bindings
 }
 
 type DataCb = (id: number, data: string) => void
