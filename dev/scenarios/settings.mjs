@@ -162,7 +162,7 @@ async function securityPage(ctx, h, open) {
 async function filesPage(ctx, h, open) {
   await open()
   const pages = await ctx.page.$$eval('.settings nav button', (bs) => bs.map((b) => b.dataset.page))
-  h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'terminal', 'files', 'security']), `pages: ${pages}`)
+  h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'bindings', 'terminal', 'files', 'security']), `pages: ${pages}`)
   await ctx.page.locator('nav button[data-page="files"]').click()
   h.assert(await ctx.page.isChecked('#set-gitignore'), 'gitignore on by default')
   await ctx.shot('files-page')

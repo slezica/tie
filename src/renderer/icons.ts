@@ -20,6 +20,9 @@ export const ICON = {
   // Push pin (shelf reveal: pin it open); crossed = release.
   pin: svg('<path d="M5.5 2h5M6.5 2v4.5L4 9.5h8L9.5 6.5V2M8 9.5V14"/>'),
   unpin: svg('<path d="M5.5 2h5M6.5 2v4.5L4 9.5h8L9.5 6.5V2M8 9.5V14M2.5 2.5l11 11"/>'),
+  // Settings Bindings page: edit a binding (pencil); show only customized rows (sliders).
+  edit: svg('<path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/>'),
+  sliders: svg('<path d="M2.5 4.5h11M2.5 11.5h11"/><circle cx="5.5" cy="4.5" r="1.5" fill="currentColor"/><circle cx="10.5" cy="11.5" r="1.5" fill="currentColor"/>'),
 }
 
 // Built-in icons of tiles (Surface.icon()) and templates.

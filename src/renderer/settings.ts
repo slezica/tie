@@ -1,5 +1,5 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
-// Pages: Appearance (app-wide look) | Terminal | Files (picker) | Security (socket callers, links out).
+// Pages: Appearance (app-wide look) | Bindings (keys: bindings.ts) | Terminal | Files (picker) | Security (socket callers, links out).
 import { S, tie } from './state'
 import { refreshTitle } from './tile'
 import type { Settings } from '../preload'
@@ -7,6 +7,7 @@ import { refocus } from './ops'
 import { THEMES, theme } from './themes'
 import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
 import { applyPrefs } from './prefs'
+import { bindingsPage } from './bindings'
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
@@ -33,6 +34,7 @@ export async function toggleSettings() {
     <div class="settings" role="dialog" aria-label="Settings">
       <nav>
         <button data-page="appearance">Appearance</button>
+        <button data-page="bindings">Bindings</button>
         <hr />
         <button data-page="terminal">Terminal</button>
         <button data-page="files">Files</button>
@@ -71,6 +73,7 @@ export async function toggleSettings() {
             </div>
           </div>
         </section>
+        <section data-page="bindings"></section>
         <section data-page="terminal">
           <h2>Terminal</h2>
           <label for="set-shell">Shell command</label>
@@ -123,6 +126,9 @@ export async function toggleSettings() {
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
   const allowExternal = $<HTMLInputElement>('#set-allow-external')
   const gitignore = $<HTMLInputElement>('#set-gitignore')
+  const bindings = bindingsPage($('section[data-page="bindings"]'), settings.bindings, {
+    message: (text) => (text ? showErrors([{ field: 'bindings', message: text }]) : clearErrors()),
+  })
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
   lineHeight.value = String(settings.lineHeight)
   // Font list arrives async (system font query can be slow); fields never wait on it.
@@ -182,6 +188,7 @@ export async function toggleSettings() {
   const show = (p: string) => {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
+    if (p === 'bindings') return bindings.focus()
     ;(p === 'terminal' ? shell : p === 'files' ? gitignore : p === 'security' ? allowExternal : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))
@@ -194,8 +201,8 @@ export async function toggleSettings() {
 
   // Bottom status line: settings file path, or problems blocking save.
   const status = $('.status')
-  const fields: Record<string, HTMLElement> = { shell, terminalTitle }
-  const pageOf: Record<string, string> = { shell: 'terminal', terminalTitle: 'terminal' }
+  const fields: Record<string, HTMLElement> = { shell, terminalTitle, bindings: $('.bind-table') }
+  const pageOf: Record<string, string> = { shell: 'terminal', terminalTitle: 'terminal', bindings: 'bindings' }
   const clearErrors = () => {
     status.textContent = path
     status.classList.remove('error')
@@ -212,7 +219,7 @@ export async function toggleSettings() {
     if (first && pageOf[first]) show(pageOf[first])
   }
   const save = async () => {
-    const res = await tie.settings.set({ ...draft(), shell: shell.value.trim() })
+    const res = await tie.settings.set({ ...draft(), shell: shell.value.trim(), bindings: bindings.value() })
     if (res.ok) {
       applyPrefs(res.settings)
       for (const t of S.tiles.values()) refreshTitle(t) // titles may depend on settings (terminalTitle)
@@ -226,7 +233,8 @@ export async function toggleSettings() {
   panel.addEventListener('keydown', (e) => {
     e.stopPropagation()
     if (e.key === 'Escape') cancel()
-    else if (e.key === 'Enter' && !(e.target instanceof HTMLSelectElement)) save()
+    // Enter on a button presses it (Bindings rows: edit, reset), it doesn't save.
+    else if (e.key === 'Enter' && !(e.target instanceof HTMLSelectElement) && !(e.target instanceof HTMLButtonElement)) save()
   })
   show(page)
   if (error) showErrors([{ field: 'file', message: error }])

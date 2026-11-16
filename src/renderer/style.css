@@ -1264,6 +1264,150 @@ body.empty #empty-hint {
   color: var(--bg);
 }
 
+/* Bindings page (bindings.ts): filters fixed, the table scrolls. Binding column width: --bind-w
+   (measured from all rows, never the filtered ones). */
+.settings section.current[data-page='bindings'] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings .bind-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.settings .bind-filters input {
+  flex: 1;
+  min-width: 0;
+}
+.settings .bind-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.settings .bind-filters .bind-btn {
+  width: 32px;
+  height: auto;
+  border-color: var(--border);
+}
+.settings .bind-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--fg-b);
+}
+.settings .bind-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.settings .bind-btn:disabled {
+  color: var(--faint);
+  opacity: 0.5;
+  cursor: default;
+}
+.settings .bind-custom[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.settings .bind-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.settings .bind-table.invalid {
+  border-color: var(--red);
+}
+.settings .bind-head,
+.settings .bind-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--bind-w, 120px) 60px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 10px;
+}
+.settings .bind-head {
+  height: 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--fg-a);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings .bind-head span:nth-child(2) {
+  padding-left: 7px; /* lines up with .chord text (padding + border) */
+}
+.settings .bind-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.settings .bind-row {
+  min-height: 30px;
+  font-size: 12.5px;
+}
+.settings .bind-row[hidden] {
+  display: none;
+}
+.settings .bind-row + .bind-row {
+  border-top: 1px solid var(--fg-a);
+}
+.settings .bind-row:hover {
+  background: var(--fg-a);
+}
+.settings .bind-row .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings .bind-row.custom .label,
+.settings .bind-row.custom .chord {
+  font-weight: 700;
+}
+/* Same box for the text and its edit field: nothing moves when editing starts. */
+.settings .chord {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: 12.5px var(--ui-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.settings input.chord {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+.settings .chord.unbound {
+  color: var(--faint);
+}
+.settings .bind-measure {
+  position: absolute;
+  visibility: hidden;
+  width: auto;
+  font-weight: 700;
+}
+.settings .bind-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
 :root.light {
   --shadow: rgba(0, 0, 0, 0.18);
 }
