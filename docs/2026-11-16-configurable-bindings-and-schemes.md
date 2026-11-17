@@ -107,7 +107,7 @@ Look:
 
 Not ours, seen on the way:
 
-17. `browser` scenario timed out (180 s) since before this work. Worked around 2026-11-16: the location field's Enter after `cmd+0` (zoom reset), sent by Playwright (`keyboard.press`, CDP), navigated the guest but never got its CDP answer; the scenario hung there. Now sent through main (`h.press`). Root cause unconfirmed (only that Enter, only after the zoom reset). By hand: `cmd+=`, `cmd+0`, `cmd+L`, URL, Enter in a browser tile: page loads, keys keep working after?
+17. `browser` scenario timed out (180 s) since before this work. Worked around 2026-11-16: the location field's Enter after `cmd+0` (zoom reset), sent by Playwright (`keyboard.press`, CDP), navigated the guest but never got its CDP answer; the scenario hung there. Now sent through main (`h.press`). Root cause unconfirmed (only that Enter, only after the zoom reset). By hand: `cmd+=`, `cmd+0`, `cmd+L`, URL, Enter in a browser tile: page loads, keys keep working after? Left for now (author, 2026-11-17): bisect the recent zoom commits only if this misbehaves by hand.
 
 Color schemes: discussed after bindings are done.
 
