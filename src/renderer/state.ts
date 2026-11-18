@@ -177,6 +177,9 @@ export function boardRect(): Rect {
 }
 
 // The shelf strip in the toolbar (its DOM box): drop target, and what reveals open next to.
+// Layout options the board renders with (render.ts); drop previews and group insertion use the same.
+export const layoutOpts = () => ({ gap: GAP, bar: TITLE, collapsed: S.collapsed, zoomed: S.zoomed })
+
 export function shelfRect(): Rect {
   const r = document.getElementById('shelf')!.getBoundingClientRect()
   return { x: r.x, y: r.y, w: r.width, h: r.height }

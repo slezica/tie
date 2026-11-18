@@ -1,6 +1,6 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
 import { compute, parentDir, type Rect, type TileId } from '@core/layout'
-import { S, squashed, GAP, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
+import { S, squashed, layoutOpts, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
 import { renderTabs } from './tabs'
 import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
@@ -56,7 +56,7 @@ function renderVisible() {
   hideOtherSpaces()
   renderTabs()
   const b = boardRect()
-  const layout = compute(S.tree, b, { gap: GAP, bar: TITLE, collapsed: S.collapsed, zoomed: S.zoomed })
+  const layout = compute(S.tree, b, layoutOpts())
   S.rects.clear()
 
   const place = (id: TileId, r: Rect, z: number, cls: Record<string, boolean>) => {

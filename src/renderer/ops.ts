@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
-import { insert, remove, swapLeaves, replaceLeaf, parentDir, contains, spreadEven, type Rect, type Side, type TileId } from '@core/layout'
-import { S, squashed, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
+import { insert, insertGroup, remove, swapLeaves, replaceLeaf, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
+import { S, squashed, location, boardRect, layoutOpts, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
 import { render } from './render'
@@ -355,16 +355,42 @@ export function clearSelection(o: { restore?: boolean } = {}) {
 // The selection in shelf order (every group action's order).
 export const selection = (): TileId[] => S.shelf.filter((id) => S.selected.has(id))
 
-// Tiles onto the board as a group: the first at `first`, each next beside the previous on the same
-// side (adjacent, in order); they share the area evenly (spreadEven). The first ends active.
-function placeGroup(ids: TileId[], first: SlotPlacement) {
-  let prev: TileId | null = null
-  for (const id of ids) {
-    place(id, prev ? { type: 'slot', at: prev, side: first.side } : first)
-    prev = id
-  }
-  S.tree = spreadEven(S.tree, ids)
-  if (ids[0]) activate(ids[0])
+// Tiles onto the board as a group (`insertGroup`, LAYOUT.md "Group insertion"): the area one tile
+// would take at `p`, split evenly along its longer side, in order. The first ends active. Every
+// group landing goes through here (cmd+S, Move to tab, drag), so a group lands the same way.
+export function placeGroup(ids: TileId[], p: SlotPlacement) {
+  ids = ids.filter((id) => S.tiles.has(id) && id !== p.at)
+  if (!ids.length) return render()
+  if (p.at && !contains(S.tree, p.at)) return debug('layout', 'place group refused', p.at)
+  debug('layout', 'place group', ids, p)
+  for (const id of ids) detach(id)
+  S.tree = insertGroup(S.tree, p.at, p.side, ids, boardRect(), layoutOpts())
+  activate(ids[0])
+}
+
+// Tiles float as a group at `rects` (board-relative, one each, in order); the first ends on top,
+// active.
+export function floatGroup(ids: TileId[], rects: Rect[]) {
+  ids = ids.filter((id) => S.tiles.has(id))
+  if (!ids.length) return render()
+  debug('layout', 'float group', ids)
+  for (const id of ids) detach(id)
+  for (let i = ids.length - 1; i >= 0; i--) S.floats.push({ id: ids[i], ...clampFloat(rects[i] ?? defaultFloatRect()) })
+  activate(ids[0])
+}
+
+// Shelved tiles reordered as a block: at `index` among the other shelved tiles, in order. Keys back
+// to the recent board tile (a shelved tile is not shown by a reorder).
+export function shelveGroup(ids: TileId[], index: number) {
+  ids = ids.filter((id) => location(id) === 'shelved' && spaceOf(id)?.id === S.current)
+  S.selected.clear()
+  if (!ids.length) return render()
+  debug('layout', 'shelve group', ids, index)
+  const rest = S.shelf.filter((id) => !ids.includes(id))
+  rest.splice(Math.max(0, Math.min(index, rest.length)), 0, ...ids)
+  S.shelf = rest
+  if (!S.active) focusNext()
+  else render()
 }
 
 // cmd+S / group menu: shelved tiles of the current space back to the board, beside the recent board

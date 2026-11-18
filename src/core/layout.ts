@@ -175,11 +175,20 @@ export function parentDir(root: Node | null, id: TileId): Dir | null {
 export const CENTER_ZONE = 0.25
 
 export function dropZone(rect: Rect, px: number, py: number): Side | 'center' {
+  const side = nearestEdge(rect, px, py)
+  return edgeDistance(rect, px, py)[side] > (1 - CENTER_ZONE) / 2 ? 'center' : side
+}
+
+// The nearest edge of a tile (normalized, as dropZone's bands), with no center zone: group drops.
+export function nearestEdge(rect: Rect, px: number, py: number): Side {
+  const d = edgeDistance(rect, px, py)
+  return (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
+}
+
+function edgeDistance(rect: Rect, px: number, py: number): Record<Side, number> {
   const nx = (px - rect.x) / rect.w
   const ny = (py - rect.y) / rect.h
-  const d = { l: nx, r: 1 - nx, t: ny, b: 1 - ny }
-  const side = (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a))
-  return d[side] > (1 - CENTER_ZONE) / 2 ? 'center' : side
+  return { l: nx, r: 1 - nx, t: ny, b: 1 - ny }
 }
 
 // Shelf hover reveal: kept open while the pointer is over its item, the reveal, or the band
@@ -334,21 +343,37 @@ export function equalize(root: Node, path: number[]): Node {
   return clone
 }
 
-// Even shares for leaves `ids` that are siblings in one split: they split their combined share
-// equally, the other children keep theirs (a group unshelved / moved tile by tile, each beside the
-// previous: SHELF.md "Selection"). Not all siblings of one split: unchanged.
-export function spreadEven(root: Node | null, ids: TileId[]): Node | null {
-  if (!root || ids.length < 2) return root
-  const clone: Node = structuredClone(root)
-  const visit = (node: Node): boolean => {
-    if (node.type === 'leaf') return false
-    const at = ids.map((id) => node.children.findIndex((c) => c.type === 'leaf' && c.id === id))
-    if (at.every((i) => i >= 0)) {
-      const share = at.reduce((s, i) => s + node.sizes[i], 0) / ids.length
-      for (const i of at) node.sizes[i] = share
-      return true
-    }
-    return node.children.some(visit)
+// Insert leaves `ids` as a group (LAYOUT.md "Group insertion"): they take the area a single insert
+// of one tile at (`at`, `side`) would take (`insert`), split evenly along that area's longer side
+// (wide: side by side, in order left to right; tall: stacked, top to bottom). The area depends on
+// the layout, so it is measured: the single insert laid out in `board` with `o` (pass the options
+// the board renders with). Empty tree: the group fills `board`. Every leaf's donor is the target
+// (`at`): closing the whole group, in any order, gives the target its space back; one of a nested
+// group shares its space with the rest of the group (remove: donor not a sibling). `ids` already
+// in the tree are moved. N = 1: exactly `insert`.
+export function insertGroup(root: Node | null, at: TileId | null, side: Side, ids: TileId[], board: Rect, o: LayoutOptions): Node | null {
+  if (!ids.length) return root
+  for (const id of ids) root = remove(root, id)
+  const one = insert(root, at, side, ids[0])
+  if (ids.length === 1) return one
+  const area = compute(one, board, { ...o, zoomed: null, collapsed: new Set([...o.collapsed].filter((c) => c !== ids[0])) }).tiles.get(ids[0])!
+  const dir: Dir = area.w >= area.h ? 'row' : 'col'
+  const first = leafOf(one, ids[0])!
+  const group: Split = {
+    type: 'split',
+    dir,
+    children: ids.map((id): Leaf => (first.donor === undefined ? leaf(id) : { type: 'leaf', id, donor: first.donor })),
+    sizes: ids.map(() => 1 / ids.length),
   }
-  return visit(clone) ? clone : root
+  const visit = (node: Node): Node => (node.type === 'leaf' ? (node.id === ids[0] ? group : node) : { ...node, children: node.children.map(visit) })
+  return normalize(visit(one))
+}
+
+function leafOf(node: Node, id: TileId): Leaf | null {
+  if (node.type === 'leaf') return node.id === id ? node : null
+  for (const c of node.children) {
+    const l = leafOf(c, id)
+    if (l) return l
+  }
+  return null
 }

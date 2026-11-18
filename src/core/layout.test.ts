@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CENTER_ZONE, compute, dropZone, equalize, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, spreadEven, swapLeaves, type Node } from './layout'
+import { CENTER_ZONE, compute, dropZone, equalize, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, insertGroup, nearestEdge, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -379,28 +379,97 @@ describe('equalize', () => {
   })
 })
 
-describe('spreadEven', () => {
-  it('evens a group inserted one beside the other', () => {
-    let t: Node = leaf('a')
-    t = insert(t, 'a', 'r', 'g1')
-    t = insert(t, 'g1', 'r', 'g2')
-    t = insert(t, 'g2', 'r', 'g3')
-    const s = spreadEven(t, ['g1', 'g2', 'g3']) as any
-    expect(s.sizes[0]).toBeCloseTo(0.5)
-    for (const x of s.sizes.slice(1)) expect(x).toBeCloseTo(1 / 6)
+describe('nearestEdge', () => {
+  const r = { x: 0, y: 0, w: 400, h: 100 }
+  it('center: still the nearest edge (normalized)', () => {
+    expect(nearestEdge(r, 199, 50)).toBe('l')
+    expect(nearestEdge(r, 201, 50)).toBe('r')
+    expect(nearestEdge(r, 200, 40)).toBe('t')
+    expect(nearestEdge(r, 200, 60)).toBe('b')
+  })
+  it('agrees with dropZone outside the center', () => {
+    for (const [x, y] of [[20, 50], [380, 50], [200, 5], [200, 95]]) expect(nearestEdge(r, x, y)).toBe(dropZone(r, x, y))
+  })
+})
+
+describe('insertGroup', () => {
+  const board = { x: 0, y: 0, w: 1000, h: 600 }
+  const o = { gap: 0, bar: 10, collapsed: new Set<string>() }
+  const rects = (t: Node | null, gap = 0) => compute(t, board, { ...o, gap }).tiles
+
+  it('N = 1 equals a single insert', () => {
+    const t = insert(leaf('a'), 'a', 'r', 'b')
+    expect(insertGroup(t, 'b', 'b', ['g'], board, o)).toEqual(insert(t, 'b', 'b', 'g'))
+    expect(insertGroup(null, null, 'r', ['g'], board, o)).toEqual(leaf('g'))
   })
 
-  it('finds the split in a nested tree', () => {
-    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
-    t = insert(t, 'b', 'b', 'g1')
-    t = insert(t, 'g1', 'b', 'g2')
-    const s = spreadEven(t, ['g1', 'g2']) as any
-    expect(s.children[1].sizes.slice(1)).toEqual([0.25, 0.25])
+  it('wide area: side by side, in order, even', () => {
+    // a over b; g1..g3 below b: b's lower half is 1000 x 150, wide.
+    const t = insert(leaf('a'), 'a', 'b', 'b')
+    const g = insertGroup(t, 'b', 'b', ['g1', 'g2', 'g3'], board, o)!
+    const r = rects(g)
+    expect(['g1', 'g2', 'g3'].map((id) => r.get(id)!.x)).toEqual([0, 1000 / 3, 2000 / 3])
+    for (const id of ['g1', 'g2', 'g3']) expect(r.get(id)).toMatchObject({ y: 450, h: 150, w: 1000 / 3 })
   })
 
-  it('leaves non-siblings unchanged', () => {
-    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
-    t = insert(t, 'b', 'b', 'c')
-    expect(spreadEven(t, ['a', 'c'])).toBe(t)
+  it('tall area: stacked, in order, even', () => {
+    // right of a lone tile: 500 x 600, tall.
+    const g = insertGroup(leaf('a'), 'a', 'r', ['g1', 'g2'], board, o)!
+    const r = rects(g)
+    expect(r.get('g1')).toMatchObject({ x: 500, y: 0, w: 500, h: 300 })
+    expect(r.get('g2')).toMatchObject({ x: 500, y: 300, w: 500, h: 300 })
+  })
+
+  it('empty board: fills it, along the longer side', () => {
+    const g = insertGroup(null, null, 'r', ['g1', 'g2'], board, o)!
+    expect(g).toMatchObject({ dir: 'row', sizes: [0.5, 0.5] })
+    expect(leaves(g)).toEqual(['g1', 'g2'])
+    const tall = insertGroup(null, null, 'r', ['g1', 'g2'], { x: 0, y: 0, w: 300, h: 600 }, o)!
+    expect(tall).toMatchObject({ dir: 'col' })
+  })
+
+  it('same direction as the parent: merged (normalized), the others keep their shares', () => {
+    // a | b, group right of b in a wide board: area b's right half (250 x 600, tall) → stacked, nested.
+    const t = insert(leaf('a'), 'a', 'r', 'b')
+    const tall = insertGroup(t, 'b', 'r', ['g1', 'g2'], board, o) as any
+    expect(tall.sizes).toEqual([0.5, 0.25, 0.25])
+    expect(tall.children[2]).toMatchObject({ dir: 'col', sizes: [0.5, 0.5] })
+    // Wide board for it: 4000 x 600 → b's half 1000 x 600, wide → side by side, merged into the row.
+    const wide = insertGroup(t, 'b', 'r', ['g1', 'g2'], { x: 0, y: 0, w: 4000, h: 600 }, o) as any
+    expect(wide).toMatchObject({ dir: 'row', sizes: [0.5, 0.25, 0.125, 0.125] })
+    expect(leaves(wide)).toEqual(['a', 'b', 'g1', 'g2'])
+    // Shares outside the group: as a single insert.
+    const single = insert(t, 'b', 'r', 'g') as any
+    expect(wide.sizes.slice(0, 2)).toEqual(single.sizes.slice(0, 2))
+  })
+
+  it('before the target on l / t', () => {
+    const g = insertGroup(insert(leaf('a'), 'a', 'b', 'b'), 'a', 't', ['g1', 'g2'], board, o)!
+    expect(leaves(g)).toEqual(['g1', 'g2', 'a', 'b'])
+  })
+
+  it('donors: closing one shares its space within the group; closing all restores the target', () => {
+    const t = insert(leaf('a'), 'a', 'b', 'b')
+    const g = insertGroup(t, 'b', 'b', ['g1', 'g2', 'g3'], board, o)!
+    const r = rects(remove(g, 'g2'))
+    expect(r.get('g1')!.w).toBeCloseTo(500)
+    expect(r.get('g3')!.w).toBeCloseTo(500)
+    for (const order of [['g1', 'g2', 'g3'], ['g3', 'g1', 'g2']]) expect(order.reduce<Node | null>((n, id) => remove(n, id), g)).toEqual(t)
+    // Merged into the parent (wide area beside b): closing all gives b its space back too.
+    const w = insertGroup(insert(leaf('a'), 'a', 'r', 'b'), 'b', 'r', ['g1', 'g2'], { x: 0, y: 0, w: 4000, h: 600 }, o)!
+    expect(remove(remove(w, 'g2'), 'g1')).toEqual(insert(leaf('a'), 'a', 'r', 'b'))
+  })
+
+  it('gaps: the group shares the measured area evenly', () => {
+    const g = insertGroup(insert(leaf('a'), 'a', 'b', 'b'), 'b', 'b', ['g1', 'g2'], board, { ...o, gap: 10 })!
+    const r = rects(g, 10)
+    expect(r.get('g1')!.w).toBeCloseTo(r.get('g2')!.w)
+    expect(r.get('g1')!.w + r.get('g2')!.w + 10).toBeCloseTo(1000)
+  })
+
+  it('ids already in the tree are moved', () => {
+    const t = insert(insert(leaf('a'), 'a', 'r', 'g1'), 'a', 'b', 'b')
+    const g = insertGroup(t, 'b', 'b', ['g1', 'g2'], board, o)!
+    expect(leaves(g).filter((x) => x === 'g1')).toHaveLength(1)
   })
 })

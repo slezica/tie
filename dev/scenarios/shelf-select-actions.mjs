@@ -1,8 +1,8 @@
 // Group actions on the shelf selection (SHELF.md "Selection"), always in shelf order, selection
 // cleared after: cmd+W closes all (one question per busy tile, a declined one stays shelved, the
-// rest close; then the recent board tile is active); cmd+S unshelves beside the recent board tile,
-// adjacent, in order, even shares, the first active; group menu: Unshelve / Move to tab (new, and
-// an existing tab) / Close.
+// rest close; then the recent board tile is active); cmd+S unshelves beside the recent board tile
+// (the area one tile would take, split along its longer side), in order, even shares, the first
+// active; group menu: Unshelve / Move to tab (new, and an existing tab) / Close.
 export default async (ctx, h) => {
   const page = ctx.page
   const L = () => h.list(ctx)
@@ -61,7 +61,8 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+w')
   await h.waitGone(ctx, one)
 
-  // cmd+S: unshelve beside the recent board tile, in shelf order, adjacent, even.
+  // cmd+S: unshelve beside the recent board tile, in shelf order, even: the area one tile would take
+  // (a's right half: tall), split along its longer side (stacked; LAYOUT.md "Group insertion").
   const f = await add()
   const g = await add()
   const x = await add()
@@ -75,9 +76,10 @@ export default async (ctx, h) => {
     h.assert(l.tiles.find((t) => t.id === x).state === 'shelved', 'unselected x stays')
     h.assert(l.active === f && !l.tiles.some((t) => t.selected), `f active, selection cleared (${l.active})`)
     const ra = l.tiles.find((t) => t.id === a).rect
-    h.assert(ra.x < rf.rect.x && rf.rect.x < rg.rect.x, 'a, f, g left to right')
-    h.assert(Math.abs(rf.rect.x + rf.rect.w - rg.rect.x) < 12 && rf.rect.y === rg.rect.y, 'f and g adjacent')
-    h.assert(Math.abs(rf.rect.w - rg.rect.w) <= 2, `even shares: ${rf.rect.w} / ${rg.rect.w}`)
+    h.assert(ra.w < l.board.h, `the area a single tile would take is tall (a: ${ra.w} wide, board ${l.board.h} high)`)
+    h.assert(ra.x < rf.rect.x && rf.rect.x === rg.rect.x && rf.rect.y < rg.rect.y, 'a left; f over g')
+    h.assert(Math.abs(rf.rect.y + rf.rect.h - rg.rect.y) < 12 && rf.rect.w === rg.rect.w, 'f and g adjacent')
+    h.assert(Math.abs(rf.rect.w - ra.w) <= 2 && Math.abs(rf.rect.h - rg.rect.h) <= 2, `even shares: ${rf.rect.h} / ${rg.rect.h}`)
   })
   await ctx.shot('group-unshelve')
   await ctx.tie('close', '--tile', f)
