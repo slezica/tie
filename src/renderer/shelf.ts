@@ -13,9 +13,10 @@ import { TEMPLATES } from './kinds'
 
 const items = new Map<TileId, HTMLElement>()
 
-// Ghost slot: where a dragged tile or template would land (wysiwyg), in the strip at that slot.
-const ghost = document.createElement('div')
-ghost.className = 'item ghost'
+// Ghost slots: where a dragged tile, template or group would land (wysiwyg), in the strip from that
+// slot on: one per tile (a group: its icons, in order).
+const ghosts: HTMLElement[] = []
+const isGhost = (e: Element) => e.classList.contains('ghost')
 
 export function initShelf() {
   const tpl = document.getElementById('templates')!
@@ -57,25 +58,33 @@ export function shelfItemEl(id: TileId): HTMLElement | undefined {
   return items.get(id)
 }
 
-// Show the ghost at visual slot `slot` (among the items shown: the dragged one is hidden) with the
-// dragged thing's icon; the "+" hint slot gives way to it (CSS: #shelf.landing).
-export function setShelfGhost(slot: number, icon: string) {
+// Show ghosts from visual slot `slot` (among the items shown: dragged ones are hidden), one per
+// icon; the "+" hint slot gives way to them (CSS: #shelf.landing).
+export function setShelfGhost(slot: number, icons: string[]) {
   const list = document.getElementById('shelf')!
-  if (ghost.dataset.icon !== icon) (ghost.innerHTML = icon), (ghost.dataset.icon = icon)
-  const kids = [...list.children].filter((e) => e !== ghost && !e.classList.contains('drag-source'))
-  const before = kids[slot] ?? null
-  if (ghost.parentElement !== list || ghost.nextSibling !== before) list.insertBefore(ghost, before)
+  while (ghosts.length < icons.length) ghosts.push(Object.assign(document.createElement('div'), { className: 'item ghost' }))
+  for (const g of ghosts.splice(icons.length)) g.remove()
+  ghosts.forEach((g, i) => {
+    if (g.dataset.icon !== icons[i]) (g.innerHTML = icons[i]), (g.dataset.icon = icons[i])
+  })
+  const kids = [...list.children].filter((e) => !isGhost(e) && !e.classList.contains('drag-source'))
+  let before: Element | null = kids[slot] ?? null
+  for (let i = ghosts.length - 1; i >= 0; i--) {
+    const g = ghosts[i]
+    if (g.parentElement !== list || g.nextElementSibling !== before) list.insertBefore(g, before)
+    before = g
+  }
   list.classList.add('landing')
 }
 
 export function clearShelfGhost() {
-  ghost.remove()
+  for (const g of ghosts) g.remove()
   document.getElementById('shelf')!.classList.remove('landing')
 }
 
-// A shelf item being dragged is hidden: the ghost stands for it.
-export function hideShelfItem(id: TileId | null) {
-  for (const el of items.values()) el.classList.toggle('drag-source', el.dataset.id === id)
+// Shelf items being dragged are hidden: the ghosts (or the "+" hint, as wide) stand for them.
+export function hideShelfItems(ids: TileId[]) {
+  for (const el of items.values()) el.classList.toggle('drag-source', ids.includes(el.dataset.id!))
 }
 
 function keepReveal(x: number, y: number) {
@@ -104,8 +113,9 @@ function initSelection() {
     (e) => {
       const t = e.target as HTMLElement
       if (!S.selected.size || e.button !== 0 || t.closest('.menu, .dialog-backdrop, .settings')) return // right button: contextmenu below
-      const item = t.closest('#shelf .item')
+      const item = t.closest('#shelf .item') as HTMLElement | null
       if (item && (e.metaKey || e.ctrlKey)) return // cmd+click toggles (createItem); ctrl+click is a right-click
+      if (item && S.selected.has(item.dataset.id!)) return // a press on a selected item: drag = the group, click = de-select (createItem)
       clearSelection()
     },
     true,
@@ -178,8 +188,9 @@ function createItem(id: TileId): HTMLElement {
     const meta = e.metaKey
     startDrag(e, { type: 'tile', id }, () => {
       debug('shelf', 'click', id, 'meta:', meta, 'pinned:', S.pinned)
-      if (meta) toggleSelected(id)
-      else pin(S.pinned === id ? null : id)
+      if (meta) return toggleSelected(id)
+      clearSelection() // a plain click on a selected item (initSelection left it to here)
+      pin(S.pinned === id ? null : id)
     })
   })
   el.addEventListener('contextmenu', (e) => {
@@ -221,7 +232,7 @@ export function syncShelf() {
   S.shelf.forEach((id, i) => {
     let el = items.get(id)
     if (!el) items.set(id, (el = createItem(id)))
-    const kids = [...list.children].filter((e) => e !== ghost) // the ghost keeps its slot
+    const kids = [...list.children].filter((e) => !isGhost(e)) // the ghosts keep their slots
     if (kids[i] !== el) list.insertBefore(el, kids[i] ?? null)
     updateItem(id)
   })

@@ -873,9 +873,11 @@ body.dragging {
 body.resizing-row { cursor: col-resize; }
 body.resizing-col { cursor: row-resize; }
 
-/* Drop preview; #preview2: a swap's second rect (the dragged tile's own place). */
+/* Drop previews, one per rect (drag.ts pool): #preview; #preview2: a swap's second rect (the dragged
+   tile's own place); .drop-preview: more, made on demand (a group: one per tile). */
 #preview,
-#preview2 {
+#preview2,
+.drop-preview {
   position: absolute;
   display: none;
   z-index: 5000;
@@ -885,7 +887,9 @@ body.resizing-col { cursor: row-resize; }
   pointer-events: none;
   transition: left 80ms, top 80ms, width 80ms, height 80ms;
 }
-#preview.float {
+#preview.float,
+#preview2.float,
+.drop-preview.float {
   border-style: dashed;
   transition: none;
 }
@@ -904,6 +908,16 @@ body.resizing-col { cursor: row-resize; }
   pointer-events: none;
   white-space: nowrap;
 }
+/* A group: the first tile's icon, then the count badge. */
+#ghost .count {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg);
+  text-align: center;
+  font-size: 11px;
+}
 
 /* Shelf strip and template list: square icon slots in the toolbar. The shelf is where shelved tiles
    live (S.shelf), shown here; it yields to nothing but the tab list's minimum, then scrolls. */
@@ -921,7 +935,8 @@ body.resizing-col { cursor: row-resize; }
   content: '+';
   display: none;
   flex: none;
-  width: var(--slot);
+  /* --drag-slots (drag.ts): the items a drag hides (a group: all of them), so the strip keeps its width. */
+  width: calc(var(--slot) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
   height: var(--slot);
   place-items: center;
   border: 1px dashed var(--accent);

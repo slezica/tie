@@ -1,7 +1,8 @@
 // Shelf selection (SHELF.md "Selection"): cmd+click toggles; cmd held over an item: no reveal; a
 // reveal is dismissed by the cmd+click; selecting leaves nothing active, a pinned tile stays pinned
 // and out of it; look (.selected accent, .pinned plain); `tie list` `selected`. De-select: plain
-// click (item, board tile, tab), Escape, other shortcuts, tab switch, drags, context menu elsewhere;
+// click (item, board tile, tab), Escape, other shortcuts, tab switch, drags (a selected item: the group
+// moves), context menu elsewhere;
 // hover and scroll keep it; a tile closing or leaving the shelf (CLI) leaves it.
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -152,7 +153,7 @@ export default async (ctx, h) => {
   const shelf = await h.boxOf(ctx, '#shelf')
   await h.drag(ctx, await h.shelfItem(ctx, e), { x: shelf.box.x + 2, y: shelf.y })
   await expectSel([], 'drag of another item')
-  // Drag of a selected item (cmd held from the press): de-selects, moves alone (group drag: later).
+  // Drag of a selected item (cmd held from the press): the group moves (shelf-select-drag), de-selected.
   await away()
   await h.selectShelf(ctx, c, d)
   await page.keyboard.down('Meta')
@@ -160,7 +161,8 @@ export default async (ctx, h) => {
   await page.keyboard.up('Meta')
   await expectSel([], 'drag of a selected item')
   l = await L()
-  h.assert(l.tiles.find((t) => t.id === c).state === 'slotted' && l.tiles.find((t) => t.id === d).state === 'shelved', 'only the dragged one moved')
+  h.assert([c, d].every((id) => l.tiles.find((t) => t.id === id).state === 'slotted'), 'the group moved')
+  await ctx.tie('move', '--tile', d, '--shelve') // back: d is used below
   await away()
 
   // A tile that closes or leaves the shelf (CLI) leaves the selection.
