@@ -312,7 +312,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     document.getElementById('shelf')!.style.setProperty('--drag-slots', String(Math.max(1, hidden.length)))
     const n = src.type === 'group' ? src.ids.length : 0
     const label = src.type === 'group' ? `${n} tile${n === 1 ? '' : 's'}` : src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
-    ghost.innerHTML = `${icons()[0] ?? ''}${n > 1 ? `<span class="count">${n}</span>` : ''}<span>${label.replace(/</g, '&lt;')}</span>`
+    ghost.innerHTML = `${icons()[0] ?? ''}<span>${label.replace(/</g, '&lt;')}</span>` // a group: the first's icon, "N tiles"
     ghost.style.display = 'flex'
     // Near the tab list's ends it scrolls; each step moves tabs under the pointer: target again.
     edge = edgeScroll({ past: false, step: update })

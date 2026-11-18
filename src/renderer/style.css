@@ -908,16 +908,6 @@ body.resizing-col { cursor: row-resize; }
   pointer-events: none;
   white-space: nowrap;
 }
-/* A group: the first tile's icon, then the count badge. */
-#ghost .count {
-  min-width: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--bg);
-  text-align: center;
-  font-size: 11px;
-}
 
 /* Shelf strip and template list: square icon slots in the toolbar. The shelf is where shelved tiles
    live (S.shelf), shown here; it yields to nothing but the tab list's minimum, then scrolls. */
@@ -937,6 +927,7 @@ body.resizing-col { cursor: row-resize; }
   flex: none;
   /* --drag-slots (drag.ts): the items a drag hides (a group: all of them), so the strip keeps its width. */
   width: calc(var(--slot) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
+  box-sizing: border-box; /* the border inside: exactly the slots it stands for */
   height: var(--slot);
   place-items: center;
   border: 1px dashed var(--accent);
