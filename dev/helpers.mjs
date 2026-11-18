@@ -97,6 +97,16 @@ export async function pin(ctx, id) {
   await settle(ctx)
 }
 
+// cmd+click shelf items (selection toggle, SHELF.md "Selection"), each confirmed in `state`.
+export async function selectShelf(ctx, ...ids) {
+  for (const id of ids) {
+    const was = (await state(ctx)).selected.includes(id)
+    await ctx.page.click(`.item[data-id="${id}"]`, { modifiers: ['Meta'] })
+    await waitFor(ctx, async () => (await state(ctx)).selected.includes(id) !== was, `${id} selection toggled`)
+  }
+}
+export const selected = async (ctx) => (await state(ctx)).selected
+
 export async function clickButton(ctx, id, name, modifiers = []) {
   await ctx.page.locator(`.tile[data-id="${id}"] .btn.${name}`).click({ modifiers })
   await settle(ctx)
