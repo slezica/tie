@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CENTER_ZONE, compute, dropZone, equalize, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, swapLeaves, type Node } from './layout'
+import { CENTER_ZONE, compute, dropZone, equalize, inRevealZone, insert, leaf, leaves, move, normalize, parentDir, remove, replaceLeaf, resize, spreadEven, swapLeaves, type Node } from './layout'
 
 const opts = { gap: 0, bar: 10, collapsed: new Set<string>() }
 const area = { x: 0, y: 0, w: 100, h: 100 }
@@ -376,5 +376,31 @@ describe('equalize', () => {
     const e = equalize(t, []) as any
     expect(e.sizes).toEqual([1 / 3, 1 / 3, 1 / 3])
     expect(equalize(t, [0])).toBe(t) // not a split: unchanged
+  })
+})
+
+describe('spreadEven', () => {
+  it('evens a group inserted one beside the other', () => {
+    let t: Node = leaf('a')
+    t = insert(t, 'a', 'r', 'g1')
+    t = insert(t, 'g1', 'r', 'g2')
+    t = insert(t, 'g2', 'r', 'g3')
+    const s = spreadEven(t, ['g1', 'g2', 'g3']) as any
+    expect(s.sizes[0]).toBeCloseTo(0.5)
+    for (const x of s.sizes.slice(1)) expect(x).toBeCloseTo(1 / 6)
+  })
+
+  it('finds the split in a nested tree', () => {
+    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
+    t = insert(t, 'b', 'b', 'g1')
+    t = insert(t, 'g1', 'b', 'g2')
+    const s = spreadEven(t, ['g1', 'g2']) as any
+    expect(s.children[1].sizes.slice(1)).toEqual([0.25, 0.25])
+  })
+
+  it('leaves non-siblings unchanged', () => {
+    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
+    t = insert(t, 'b', 'b', 'c')
+    expect(spreadEven(t, ['a', 'c'])).toBe(t)
   })
 })

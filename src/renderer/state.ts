@@ -83,6 +83,7 @@ export interface Space {
   mru: TileId[]
   pinned: TileId | null // shelf item with reveal pinned open
   revealed: TileId | null // shelf item hovered
+  selected: Set<TileId> // shelf selection (cmd+click), shelved tiles only; non-empty: nothing active (SHELF.md "Selection")
   customTitle?: string
   customIcon?: string
 }
@@ -100,6 +101,7 @@ export const newSpace = (): Space => ({
   mru: [],
   pinned: null,
   revealed: null,
+  selected: new Set(),
 })
 
 const first = newSpace()
@@ -133,6 +135,7 @@ export const S = {
   set pinned(v: TileId | null) { this.sp.pinned = v },
   get revealed() { return this.sp.revealed },
   set revealed(v: TileId | null) { this.sp.revealed = v },
+  get selected() { return this.sp.selected },
 }
 spacesReady = true
 

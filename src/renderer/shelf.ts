@@ -3,10 +3,12 @@ import { inRevealZone, type TileId } from '@core/layout'
 import { S, location, debug } from './state'
 import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
-import { pin } from './ops'
+import { pin, toggleSelected, clearSelection, selection, unshelveGroup } from './ops'
 import { render } from './render'
 import { startDrag, isDragging } from './drag'
-import { showTileMenu } from './menu'
+import { showTileMenu, showListMenu, menuOpen, type MenuEntry } from './menu'
+import { requestCloseGroup } from './close'
+import { moveGroupToTab, tabTitle } from './tabs'
 import { TEMPLATES } from './kinds'
 
 const items = new Map<TileId, HTMLElement>()
@@ -42,6 +44,8 @@ export function initShelf() {
   // board is such a region, so the pointer "leaves" on its way into the reveal (SHELF.md).
   document.addEventListener('pointermove', (e) => keepReveal(e.clientX, e.clientY), true)
   document.documentElement.addEventListener('pointerleave', (e) => keepReveal(e.clientX, e.clientY))
+
+  initSelection()
 
   document.addEventListener('tile-meta', (e) => {
     const id = (e as CustomEvent).detail as TileId
@@ -89,13 +93,79 @@ function dismissReveal() {
   render()
 }
 
+// Selection (SHELF.md "Selection"): cmd+click on items (createItem); the rest de-selects. Capture
+// phase: before the thing clicked acts. A click on a tile reaches here too; one inside a frame or
+// guest doesn't, but it activates the tile (frame.ts), and activating clears the selection (ops).
+function initSelection() {
+  const editing = (el: Element | null) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el as HTMLElement).isContentEditable)
+  const modal = () => !!document.querySelector('.settings, .dialog-backdrop') // dialogs, the picker, settings
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      const t = e.target as HTMLElement
+      if (!S.selected.size || e.button !== 0 || t.closest('.menu, .dialog-backdrop, .settings')) return // right button: contextmenu below
+      const item = t.closest('#shelf .item')
+      if (item && (e.metaKey || e.ctrlKey)) return // cmd+click toggles (createItem); ctrl+click is a right-click
+      clearSelection()
+    },
+    true,
+  )
+  // Context menu on anything but a selected item: de-select (that thing's own menu follows).
+  document.addEventListener(
+    'contextmenu',
+    (e) => {
+      const id = ((e.target as HTMLElement).closest('#shelf .item') as HTMLElement | null)?.dataset.id
+      if (S.selected.size && !(id && S.selected.has(id))) clearSelection()
+    },
+    true,
+  )
+  // Escape, unless a menu, a modal, a drag or a text field uses it. With a selection nothing is
+  // active, so no terminal or frame is waiting for it.
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Escape' || !S.selected.size || menuOpen() || modal() || isDragging() || editing(document.activeElement)) return
+      e.stopPropagation()
+      clearSelection({ restore: true })
+    },
+    true,
+  )
+}
+
+// Right-click on a selected item: the selection's actions, in shelf order (read when chosen: a tile
+// may have left meanwhile). The selection stays while the menu is open.
+function showGroupMenu(x: number, y: number) {
+  const n = selection().length
+  const tiles = n === 1 ? '1 tile' : `${n} tiles`
+  const tabs = (): MenuEntry[] => [
+    ...S.spaces.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.id !== S.visible).map(({ sp, i }) => ({ label: `${i + 1} · ${tabTitle(sp)}`, run: () => moveGroupToTab(selection(), sp.id) })),
+    { label: 'New tab', run: () => moveGroupToTab(selection(), null) },
+  ]
+  showListMenu(
+    [
+      { label: `Unshelve ${tiles}`, run: () => unshelveGroup(selection()) },
+      { label: `Move ${n} to tab ▸`, sub: tabs },
+      {
+        label: `Close ${tiles}`,
+        run: () => {
+          const group = selection()
+          clearSelection()
+          void requestCloseGroup(group)
+        },
+      },
+    ],
+    x,
+    y,
+  )
+}
+
 function createItem(id: TileId): HTMLElement {
   const el = document.createElement('div')
   el.className = 'item'
   el.dataset.id = id
   el.innerHTML = `<div class="ico"></div><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
-  el.addEventListener('pointerenter', () => {
-    if (isDragging()) return
+  el.addEventListener('pointerenter', (e) => {
+    if (isDragging() || e.metaKey) return // cmd held: selecting, not looking
     S.revealed = id
     const t = S.tiles.get(id)
     if (t) t.activity = false
@@ -104,14 +174,18 @@ function createItem(id: TileId): HTMLElement {
   el.addEventListener('pointerleave', (e) => S.revealed === id && keepReveal(e.clientX, e.clientY))
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return
+    // The click arrives on release (startDrag): modifiers as at the press.
+    const meta = e.metaKey
     startDrag(e, { type: 'tile', id }, () => {
-      debug('shelf', 'click', id, 'pinned:', S.pinned)
-      pin(S.pinned === id ? null : id)
+      debug('shelf', 'click', id, 'meta:', meta, 'pinned:', S.pinned)
+      if (meta) toggleSelected(id)
+      else pin(S.pinned === id ? null : id)
     })
   })
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault()
-    showTileMenu(id, e.clientX, e.clientY)
+    if (S.selected.has(id)) showGroupMenu(e.clientX, e.clientY)
+    else showTileMenu(id, e.clientX, e.clientY) // de-selected already (initSelection)
   })
   return el
 }
@@ -129,6 +203,7 @@ function updateItem(id: TileId) {
   el.classList.toggle('pinged', t.pinged)
   el.classList.toggle('pinned', S.pinned === id)
   el.classList.toggle('revealed', S.revealed === id)
+  el.classList.toggle('selected', S.selected.has(id))
   const exit = el.querySelector('.exit') as HTMLElement
   exit.textContent = t.exit === null ? '' : t.exit === 0 ? '✓' : '✗'
   exit.className = `exit ${t.exit === null ? '' : t.exit === 0 ? 'ok' : 'fail'}`

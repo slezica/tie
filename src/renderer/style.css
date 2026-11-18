@@ -970,13 +970,16 @@ body.os-drag #shelf:not(.landing)::before {
   color: var(--muted);
   cursor: grab;
 }
+/* Pinned: shown like hover; the pinned tile's accent border + #peak say "pinned" (SHELF.md). */
 .template:hover,
 .item:hover,
-.item.revealed {
+.item.revealed,
+.item.pinned {
   background: var(--fg-b);
   color: var(--text);
 }
-.item.pinned {
+/* Selected (cmd+click, SHELF.md "Selection"): accent fill + icon, also when hovered or pinned. */
+.item.selected {
   background: var(--accent-soft);
   color: var(--accent);
 }

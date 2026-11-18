@@ -1,9 +1,9 @@
 // Keyboard shortcuts: actions from main (keymap: @core/keymap, matched in src/main/keys.ts).
 import type { Rect, Side, TileId } from '@core/layout'
 import { S, tie, location, getTile, spaceOf, withSpace } from './state'
-import { openTile, activate, cwdOf, contextOf, swap, place, besidePlacement } from './ops'
+import { openTile, activate, cwdOf, contextOf, swap, place, besidePlacement, selection, clearSelection, unshelveGroup } from './ops'
 import { newTab, cycleTab, switchTabIndex } from './tabs'
-import { requestCloseTile, requestCloseTab } from './close'
+import { requestCloseTile, requestCloseTab, requestCloseGroup } from './close'
 import { askQuit } from './quit'
 import type { Action } from '@core/keymap'
 import { kindSpec } from './kinds'
@@ -42,7 +42,17 @@ export function initKeys() {
 
 const active = () => (S.active ? S.tiles.get(S.active) : undefined)
 
+// A shelf selection (SHELF.md "Selection"): close-tile and toggle-shelf act on it, in shelf order;
+// any other action clears it first (keys back to the most recent board tile), then runs.
 export function run(action: Action) {
+  if (S.selected.size) {
+    const group = selection()
+    if (action === 'close-tile' || action === 'toggle-shelf') {
+      clearSelection()
+      return action === 'close-tile' ? void requestCloseGroup(group) : unshelveGroup(group)
+    }
+    clearSelection({ restore: true })
+  }
   switch (action) {
     case 'split-right':
       return splitActive('r')

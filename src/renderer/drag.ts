@@ -1,7 +1,7 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropZone, equalize, insert, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
 import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, location, spaceOf, debug, withSpace, type Kind } from './state'
-import { place, swap, activate, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, contextOf, besidePlacement, type Placement } from './ops'
+import { place, swap, activate, clearSelection, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, contextOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, switchTab, edgeScroll } from './tabs'
 import { render } from './render'
@@ -241,6 +241,9 @@ export function startDrag(e: PointerEvent, src: DragSource, onClick?: () => void
     started = dragging = true
     document.body.classList.add('dragging', 'tile-drag') // tile-drag: the shelf shows its "+" hint slot
     if (S.revealed) (S.revealed = null), render()
+    // Any drag de-selects. A selected item (cmd+drag) moves alone for now; Phase 3 of
+    // docs/2026-11-17-shelf-multi-select.md makes that a group drag.
+    clearSelection()
     if (src.type === 'tile' && location(src.id) === 'shelved') hideShelfItem(src.id)
     const label = src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
     ghost.innerHTML = `${iconHtml(icon())}<span>${label.replace(/</g, '&lt;')}</span>`

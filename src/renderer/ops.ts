@@ -1,5 +1,5 @@
 // Space operations. Every mutation of S goes through here, then render().
-import { insert, remove, swapLeaves, replaceLeaf, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
+import { insert, remove, swapLeaves, replaceLeaf, parentDir, contains, spreadEven, type Rect, type Side, type TileId } from '@core/layout'
 import { S, squashed, location, boardRect, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
@@ -10,6 +10,8 @@ export type Placement =
   | { type: 'slot'; at: TileId | null; side: Side }
   | { type: 'float'; rect?: Partial<Rect> } // board-relative
   | { type: 'shelf'; index?: number }
+
+export type SlotPlacement = Extract<Placement, { type: 'slot' }>
 
 const MIN_FLOAT = { w: 200, h: 120 }
 
@@ -37,6 +39,7 @@ function detach(id: TileId) {
     if (sp.zoomed === id) sp.zoomed = null
     if (sp.pinned === id) sp.pinned = null
     if (sp.revealed === id) sp.revealed = null
+    sp.selected.delete(id) // leaving the shelf (or closing) leaves the selection
     // A slotted tile left without siblings can't stay collapsed.
     for (const c of sp.collapsed) if (!sp.floats.some((f) => f.id === c) && parentDir(sp.tree, c) === null) sp.collapsed.delete(c)
   }
@@ -49,7 +52,7 @@ function inTileSpace<T>(id: TileId, fn: () => T): T {
 }
 
 // `activate: false` (CLI without --focus): the user's input stays where it is, unless nothing
-// has it (empty board).
+// has it (empty board). A shelf selection counts as having it (it ends on activation).
 export function place(id: TileId, p: Placement, o: { activate?: boolean } = {}) {
   const t = getTile(id)
   const from = location(id)
@@ -75,7 +78,7 @@ export function place(id: TileId, p: Placement, o: { activate?: boolean } = {}) 
   if (p.type === 'shelf') {
     if (S.active === id) focusNext()
     else render()
-  } else if (o.activate === false && S.active !== null) {
+  } else if (o.activate === false && (S.active !== null || S.selected.size)) {
     render()
   } else {
     activate(id)
@@ -103,6 +106,7 @@ export function swap(a: TileId, b: TileId) {
         if (S.collapsed.has(id) && !canCollapse(id)) S.collapsed.delete(id)
         if (S.pinned === id) S.pinned = null
         if (S.revealed === id) S.revealed = null
+        S.selected.delete(id)
       }
     }
     if ((S.active === a || S.active === b) && location(S.active) === 'shelved') focusNext()
@@ -174,7 +178,7 @@ export function displaceTile(old: TileId, kind: Kind, opts: OpenOpts = {}): Tile
 
 // A new tile split from `id` (or, if it isn't slotted, from the active / most recent slotted tile),
 // along the longer side: like `tie add` from that tile.
-export function besidePlacement(id: TileId | null): Placement {
+export function besidePlacement(id: TileId | null): SlotPlacement {
   const at = [id, S.active, ...S.mru].find((x): x is TileId => !!x && contains(S.tree, x)) ?? null
   const r = at ? S.rects.get(at) : null
   return { type: 'slot', at, side: r && r.h > r.w ? 'b' : 'r' }
@@ -250,6 +254,7 @@ export function activate(id: TileId, o: { focus?: boolean } = {}): void {
   const sp = spaceOf(id)
   if (sp && sp.id !== S.current) return withSpace(sp.id, () => activate(id, o))
   getTile(id)
+  S.selected.clear() // a selection means nothing active (SHELF.md "Selection")
   // Zoom ends when a tile it squashed (slotted zoom) or covers (floating zoom: the board) becomes
   // active. Floats stay above a slotted zoom: activating one keeps it.
   if (S.zoomed && S.zoomed !== id && (squashed(id) || (location(S.zoomed) === 'floating' && location(id) !== 'shelved'))) S.zoomed = null
@@ -321,6 +326,80 @@ export function pin(id: TileId | null) {
     activate(id)
   } else if (S.active && location(S.active) === 'shelved') focusNext()
   else render()
+}
+
+// Shelf selection (SHELF.md "Selection"), current space. Selecting: nothing active (keys go
+// nowhere), a hover reveal goes; the pin stays (unfocused). The clicked tile is never shown.
+export function toggleSelected(id: TileId) {
+  if (location(id) !== 'shelved' || spaceOf(id)?.id !== S.current) return
+  if (S.selected.has(id)) S.selected.delete(id)
+  else S.selected.add(id)
+  debug('shelf', 'selection', [...S.selected])
+  if (!S.selected.size) return focusNext() // toggled out the last one: back to work, as Escape
+  S.revealed = null
+  S.active = null
+  render()
+  if (S.current === S.visible) refocus() // nothing active: blur
+}
+
+// `restore`: nothing active afterwards → the most recent board tile (Escape, shortcuts); a click
+// leaves it to what was clicked.
+export function clearSelection(o: { restore?: boolean } = {}) {
+  if (!S.selected.size) return
+  debug('shelf', 'selection cleared')
+  S.selected.clear()
+  if (o.restore && !S.active) focusNext()
+  else render()
+}
+
+// The selection in shelf order (every group action's order).
+export const selection = (): TileId[] => S.shelf.filter((id) => S.selected.has(id))
+
+// Tiles onto the board as a group: the first at `first`, each next beside the previous on the same
+// side (adjacent, in order); they share the area evenly (spreadEven). The first ends active.
+function placeGroup(ids: TileId[], first: SlotPlacement) {
+  let prev: TileId | null = null
+  for (const id of ids) {
+    place(id, prev ? { type: 'slot', at: prev, side: first.side } : first)
+    prev = id
+  }
+  S.tree = spreadEven(S.tree, ids)
+  if (ids[0]) activate(ids[0])
+}
+
+// cmd+S / group menu: shelved tiles of the current space back to the board, beside the recent board
+// tile (besidePlacement), in order.
+export function unshelveGroup(ids: TileId[]) {
+  ids = ids.filter((id) => location(id) === 'shelved' && spaceOf(id)?.id === S.current)
+  S.selected.clear()
+  debug('layout', 'unshelve group', ids)
+  if (!ids.length) return render()
+  placeGroup(ids, besidePlacement(null))
+}
+
+// Group menu "Move N to tab": as moveToSpace for each, placed as a group (placeGroup) in that space.
+export function moveGroupToSpace(ids: TileId[], spaceId: string) {
+  const to = S.spaces.find((x) => x.id === spaceId)
+  if (!to) return debug('layout', 'move group refused', spaceId)
+  ids = ids.filter((id) => S.tiles.has(id))
+  const froms = new Set<Space>()
+  for (const id of ids) {
+    const from = spaceOf(id)
+    if (from) from.selected.clear(), froms.add(from)
+  }
+  debug('layout', 'move group to space', ids, '->', to.id)
+  for (const id of ids) {
+    const from = spaceOf(id)
+    if (from === to) continue // already here (shelved): placeGroup brings it to the board
+    detach(id)
+    getTile(id).activity = false
+    if (from) withSpace(from.id, () => {
+      S.mru = S.mru.filter((m) => m !== id)
+      if (S.active === id) focusNext()
+    })
+  }
+  withSpace(to.id, () => placeGroup(ids, besidePlacement(null)))
+  for (const from of froms) if (from !== to) dropIfEmpty(from)
 }
 
 export function setFloatRect(id: TileId, r: Rect) {

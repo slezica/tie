@@ -333,3 +333,22 @@ export function equalize(root: Node, path: number[]): Node {
   split.sizes = split.children.map(() => 1 / split.children.length)
   return clone
 }
+
+// Even shares for leaves `ids` that are siblings in one split: they split their combined share
+// equally, the other children keep theirs (a group unshelved / moved tile by tile, each beside the
+// previous: SHELF.md "Selection"). Not all siblings of one split: unchanged.
+export function spreadEven(root: Node | null, ids: TileId[]): Node | null {
+  if (!root || ids.length < 2) return root
+  const clone: Node = structuredClone(root)
+  const visit = (node: Node): boolean => {
+    if (node.type === 'leaf') return false
+    const at = ids.map((id) => node.children.findIndex((c) => c.type === 'leaf' && c.id === id))
+    if (at.every((i) => i >= 0)) {
+      const share = at.reduce((s, i) => s + node.sizes[i], 0) / ids.length
+      for (const i of at) node.sizes[i] = share
+      return true
+    }
+    return node.children.some(visit)
+  }
+  return visit(clone) ? clone : root
+}

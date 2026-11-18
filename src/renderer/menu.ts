@@ -47,13 +47,55 @@ export function showTileMenu(id: TileId, x: number, y: number) {
   menuTile = id
 }
 
-export function showMetaMenu(t: MetaTarget, x: number, y: number) {
+// A menu of plain entries; `sub`: its entries replace the menu's, under the entry's label.
+export interface MenuEntry {
+  label: string
+  run?: () => void
+  sub?: () => MenuEntry[]
+}
+
+export function showListMenu(entries: MenuEntry[], x: number, y: number) {
+  openMenu(x, y)
+  const fill = (list: MenuEntry[], heading?: string) => {
+    menu!.replaceChildren()
+    if (heading) menu!.appendChild(Object.assign(document.createElement('div'), { className: 'menu-label', textContent: heading }))
+    for (const e of list) {
+      const el = document.createElement('div')
+      el.className = 'menu-item'
+      el.textContent = e.label
+      el.addEventListener('click', () => {
+        if (e.sub) return fill(e.sub(), e.label.replace(/ ▸$/, '')), keepInside()
+        closeMenu()
+        e.run?.()
+      })
+      menu!.appendChild(el)
+    }
+  }
+  fill(entries)
+  keepInside()
+}
+
+function openMenu(x: number, y: number) {
   closeMenu()
   menu = document.createElement('div')
   menu.className = 'menu'
   menu.style.left = `${x}px`
   menu.style.top = `${y}px`
   document.body.appendChild(menu)
+}
+
+// Keep inside window.
+function keepInside() {
+  if (!menu) return
+  const r = menu.getBoundingClientRect()
+  if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 4}px`
+  if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 4}px`
+}
+
+export const menuOpen = () => !!menu
+
+export function showMetaMenu(t: MetaTarget, x: number, y: number) {
+  openMenu(x, y)
 
   const item = (label: string, fn: () => void) => {
     const el = document.createElement('div')
@@ -92,10 +134,7 @@ export function showMetaMenu(t: MetaTarget, x: number, y: number) {
     item('Close', () => (closeMenu(), close()))
   }
 
-  // Keep inside window.
-  const r = menu.getBoundingClientRect()
-  if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 4}px`
-  if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 4}px`
+  keepInside()
 }
 
 export function initMenu() {

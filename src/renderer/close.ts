@@ -3,8 +3,8 @@
 // beforeunload asks (Surface.unload: BROWSER.md). Scripted closes (`tie close`, shell exit) call
 // closeTile directly. Shift+click on a × (`force`): no questions. docs/INPUT.md, docs/TABS.md.
 import type { TileId } from '@core/layout'
-import { S, spaceOf, type Space } from './state'
-import { closeTile } from './ops'
+import { S, spaceOf, withSpace, type Space } from './state'
+import { closeTile, focusNext } from './ops'
 import { closeTab, tabTitle } from './tabs'
 import { confirmDialog } from './dialog'
 import { displayTitle } from './tile'
@@ -68,24 +68,37 @@ export interface CloseOpts {
 }
 
 export function requestCloseTile(id: TileId, { force = false }: CloseOpts = {}): Promise<void> {
+  return once(() => closeOne(id, force))
+}
+
+// The shelf selection (cmd+W, group menu: SHELF.md "Selection"), in the order given (shelf order):
+// each asks as a single close does, one question at a time; a tile the user keeps stays (shelved),
+// the rest still close. Then, nothing active in their space: the most recent board tile.
+export function requestCloseGroup(ids: TileId[]): Promise<void> {
+  const space = ids.length ? spaceOf(ids[0])?.id : undefined
   return once(async () => {
-    const t = S.tiles.get(id)
-    if (!t) return
-    if (force) return closeTile(id)
-    const [busy] = await runningIn([id])
-    if (busy) {
-      const ok = await confirmDialog({
-        cls: 'close-busy',
-        title: `Close ${displayTitle(t)}?`,
-        body: [para(busy.what === 'running' ? 'A process is running.' : `${busy.what} is running.`)],
-        confirm: 'Close',
-        focus: 'confirm',
-      })
-      if (!ok) return
-    }
-    if (!S.tiles.has(id) || !(await unloadAll([id]))) return
-    if (S.tiles.has(id)) closeTile(id)
+    for (const id of ids) await closeOne(id, false)
+    if (space && S.spaces.some((x) => x.id === space)) withSpace(space, () => !S.active && focusNext())
   })
+}
+
+async function closeOne(id: TileId, force: boolean) {
+  const t = S.tiles.get(id)
+  if (!t) return
+  if (force) return closeTile(id)
+  const [busy] = await runningIn([id])
+  if (busy) {
+    const ok = await confirmDialog({
+      cls: 'close-busy',
+      title: `Close ${displayTitle(t)}?`,
+      body: [para(busy.what === 'running' ? 'A process is running.' : `${busy.what} is running.`)],
+      confirm: 'Close',
+      focus: 'confirm',
+    })
+    if (!ok) return
+  }
+  if (!S.tiles.has(id) || !(await unloadAll([id]))) return
+  if (S.tiles.has(id)) closeTile(id)
 }
 
 // Tab with all its tiles. Busy ones listed first; empty or idle: at once.

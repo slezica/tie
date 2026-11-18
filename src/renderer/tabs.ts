@@ -1,7 +1,7 @@
 // Tabs: one per space, the tab list in the toolbar (scrolls when they don't fit).
 import { S, newSpace, spaceOf, debug, type Space } from './state'
 import { render } from './render'
-import { activate, openTile, closeTile, moveToSpace, setEmptySpaceHandler } from './ops'
+import { activate, openTile, closeTile, moveToSpace, moveGroupToSpace, setEmptySpaceHandler } from './ops'
 import { showMetaMenu } from './menu'
 import { requestCloseTab } from './close'
 import { iconHtml } from './icons'
@@ -53,6 +53,16 @@ export function moveToTab(id: string, spaceId: string) {
   moveToSpace(id, spaceId)
 }
 
+// The shelf selection's "Move N to tab" (SHELF.md "Selection"): as moveToTab, as a group;
+// `spaceId` null: a new tab.
+export function moveGroupToTab(ids: string[], spaceId: string | null) {
+  if (!ids.length) return
+  if (spaceId === null) spaceId = newTab({ empty: true })
+  else if (!space(spaceId)) return
+  else switchTab(spaceId)
+  moveGroupToSpace(ids, spaceId)
+}
+
 const openTerminal = () => openTile('terminal', { type: 'slot', at: null, side: 'r' })
 
 // Remove a space. The visible one hands over to the tab before it; never zero tabs (a fresh one,
@@ -77,6 +87,7 @@ export function switchTab(id: string) {
   if (!space(id)) return
   const left = space(S.visible)
   if (left) left.revealed = null // its shelf items go away without a pointerleave
+  if (left) left.selected.clear() // leaving a tab de-selects (SHELF.md "Selection")
   S.visible = S.current = id
   const sp = space(id)!
   if (sp.active) activate(sp.active)

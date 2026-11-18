@@ -268,7 +268,7 @@ async function main() {
       const tabIndex = Object.fromEntries(r.tabs.map((t, i) => [t.id, i + 1]))
       console.log(`${pad('ID', 8)} ${pad('TAB', 4)} ${pad('STATE', 9)} ${pad('FLAGS', 10)} TITLE`)
       for (const t of r.tiles) {
-        const f = [t.active && 'active', t.pinged && 'pinged', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.exit !== null && `exit=${t.exit}`]
+        const f = [t.active && 'active', t.pinged && 'pinged', t.collapsed && 'collapsed', t.zoomed && 'zoomed', t.pinned && 'pinned', t.selected && 'selected', t.exit !== null && `exit=${t.exit}`]
           .filter(Boolean)
           .join(',')
         console.log(`${pad(t.id, 8)} ${pad(tabIndex[t.tab] ?? '-', 4)} ${pad(t.state, 9)} ${pad(f || '-', 10)} ${t.icon ? t.icon + ' ' : ''}${t.title}`)

@@ -52,6 +52,7 @@ function tileInfo(id: TileId) {
     zoomed: sp?.zoomed === id,
     active: sp?.active === id,
     pinned: sp?.pinned === id,
+    selected: !!sp?.selected.has(id),
     pinged: t.pinged,
     exit: t.exit,
     error: t.error ?? null,
@@ -233,6 +234,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     mru: S.mru,
     pinned: S.pinned,
     revealed: S.revealed,
+    selected: [...S.selected],
   }),
 }
 
