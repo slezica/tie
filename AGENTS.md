@@ -57,7 +57,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`); `spreadEven` (a group's even shares). Tests: `layout.test.ts`.
+- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`); `insertGroup` (N leaves as a group: the area one would take, split along its longer side), `nearestEdge` (group drops: no center). Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`tie replace`: direct child, idle shell) (main). Tests: `callers.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
@@ -78,7 +78,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations (incl. shelf selection: `toggleSelected`, `clearSelection`, `selection`, `unshelveGroup`, `moveGroupToSpace`; `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
+  - `ops.ts`: all mutations (incl. shelf selection: `toggleSelected`, `clearSelection`, `selection`, `unshelveGroup`, `moveGroupToSpace`, `placeGroup` (every group board landing), `floatGroup`, `shelveGroup`; `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
   - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind; root `--root`, else its cwd).
@@ -88,7 +88,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
   - `guest.ts`: browser kind (`browserKind`: `<webview>`, title, nav bar with editable location, focus, crash/hang → error, beforeunload Leave / Stay; `initGuests`).
   - `files.ts`: OS file drops → viewer tiles.
-  - `drag.ts`: `track()`, drag/drop, border + float resize.
+  - `drag.ts`: `track()`, drag/drop (shelf group drag: `groupTarget`, `dropGroup`; preview pool `showPreviews`), border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker (`pickPath(startDir)`: path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
   - `shelf.ts` (shelf strip + template list, selection de-select paths + group menu), `tabs.ts` (tab list, overflow), `menu.ts` (context menu; `showListMenu` with sub-entries), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Bindings, Terminal, Files, Security), `bindings.ts` (Bindings page: filters, table, edit via capture field, conflict dialog; `bindingsPage`): UI parts.
@@ -141,7 +141,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Keyed DOM reconcile where an element may hold pointer capture or hover (borders, shelf items, tabs).
 - Drags use `track()`. Pointer capture retargets native `click`/`dblclick`: title clicks come via `startDrag`'s `onClick`.
 - Tile metadata changes fire DOM event `tile-meta`; shelf and tabs listen.
-- Spacing: CSS vars, `readGeometry()` (`LAYOUT.md`). Colors: `color-mix` of base tokens, never hardcoded (`SETTINGS.md`).
+- Spacing: CSS vars, `readGeometry()` (`LAYOUT.md`); board layout options `layoutOpts()` (`state.ts`: render, drop previews, group insertion). Colors: `color-mix` of base tokens, never hardcoded (`SETTINGS.md`).
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save.
 - Never throw inside node-pty callbacks (aborts the process).

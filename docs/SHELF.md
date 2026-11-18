@@ -25,6 +25,7 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 
 - The drop zone is the strip itself (`shelfRect()`), plus the empty toolbar left of it up to the toolbar's midpoint (or `+`), over the toolbar's height: slot 0 there (`TABS.md` "Drops onto tabs"). An empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
 - While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`, accent dashed border). Over the strip (or its gap half): the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
+- A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon, in order) from the slot under the pointer; elsewhere the "+" hint is as wide as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The width holds either way.
 - Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
 - Shelving the active tile → `focusNext()`. Shelving clears activity.
 - Items grow leftward: a new item lands where the previous last one was. Under the pointer, it is revealed at once (hover rule below).
@@ -64,14 +65,31 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - `cmd+click` (`toggleSelected`, `ops.ts`; the press's `metaKey`, the click arrives via `startDrag`): in, or out. Selecting: nothing active (keys go nowhere, `refocus` blurs), a hover reveal is dismissed; the clicked tile is never shown. A pinned tile stays pinned (shown, unfocused) and isn't pulled in; it can be `cmd+click`ed in like any item. Toggling the last one out: `focusNext`.
 - Cmd held over an item (`pointerenter` `metaKey`): no reveal.
 - Invariant: a selection means nothing active. `activate()` clears its space's selection (so every path that hands a tile the keys de-selects: clicks in frames, `tie focus`, pins). CLI placements without `--focus` count a selection as the user's input: they don't activate (`place`).
-- De-select (`clearSelection`): pointerdown anywhere but a `cmd+click` on an item / a menu / a modal (capture, `shelf.ts` `initSelection`; the click then acts as usual, e.g. pins); Escape (not when a menu, modal, drag or text field takes it); any shortcut but the group ones; tab switch (the tab left); any drag (`drag.ts` begin); context menu on anything but a selected item. Hover and scroll keep it. Escape, shortcuts: keys back to the most recent board tile.
+- De-select (`clearSelection`): pointerdown anywhere but a `cmd+click` on an item / a selected item / a menu / a modal (capture, `shelf.ts` `initSelection`; the click then acts as usual, e.g. pins); Escape (not when a menu, modal, drag or text field takes it); any shortcut but the group ones; tab switch (the tab left); any drag but one from a selected item (`drag.ts` begin); context menu on anything but a selected item. Hover and scroll keep it. Escape, shortcuts: keys back to the most recent board tile.
 - A tile that closes or leaves the shelf by any path (drag, swap, CLI `move`) leaves the selection (`detach`, `swap`).
 - Group actions; afterwards the selection is cleared and the group's first tile active:
   - `cmd+W` (`close-tile`), menu `Close N tiles`: `requestCloseGroup` (`close.ts`): each asks as a single close does (busy, beforeunload), one at a time; a declined tile stays shelved, the rest close. Then nothing active: `focusNext`.
-  - `cmd+S` (`toggle-shelf`), menu `Unshelve N tiles`: `unshelveGroup`: the first beside the recent board tile (`besidePlacement`), each next beside the previous on the same side; they share that area evenly (`spreadEven`, `core/layout.ts`).
+  - `cmd+S` (`toggle-shelf`), menu `Unshelve N tiles`: `unshelveGroup`: beside the recent board tile (`besidePlacement`) as a group (`placeGroup` → `insertGroup`, `LAYOUT.md` "Group insertion": the area one tile would take there, split evenly along its longer side).
   - Menu `Move N to tab ▸`: the other tabs (`N · title`) + `New tab`; that tab is shown, the tiles join its board as with `cmd+S` there (`moveGroupToTab` → `moveGroupToSpace`). Same targets as a single tile dropped on a tab.
-- Drag of a selected item (cmd held): de-selects, moves alone. Group drag: record Phase 3.
+- Drag of a selected item (cmd held or not): the group ("Group drag"). A plain click on a selected item (no movement): de-selects, then its normal click (pin / unpin); `initSelection` leaves that press to the item.
 - `tie list`: `selected` (`CLI.md`).
+
+## Group drag
+
+A drag starting on a selected item drags the selection (`drag.ts`: `DragSource` `group`, `selection()` at drag start, shelf order). Targets (`groupTarget`, `dropGroup`):
+
+| Over | Result |
+|---|---|
+| Slotted tile, anywhere | Its nearest edge (`nearestEdge`; no center zone: no swap, no displace): the area one tile dropped there would take, split evenly along its longer side, in order (`placeGroup`, `LAYOUT.md` "Group insertion") |
+| Empty board | Fills it, split along its longer side |
+| Shift, board | Each floats (`floatGroup`): the first where a single tile would, each next `TITLE` px up and left of the previous, clamped to the board (`clampFloat`); the first in front |
+| Strip | Block reorder at the slot under the pointer, among the other items, order kept (`shelveGroup`) |
+| Tab / `+` | All join that tab (or a new one) as "Move N to tab" (`moveGroupToTab`) |
+
+- Preview: one rect per tile, from the same insertion the drop applies (preview = result). Pool: `#preview`, `#preview2`, then `.drop-preview` made on demand (`drag.ts` `showPreviews`). Floats: dashed.
+- Pointer ghost (`#ghost`): the first tile's icon + "N tiles".
+- After a drop: selection cleared, the first tile active. Strip reorder: nothing shown, keys back to the recent board tile (`focusNext`).
+- Escape (or a pointer cancel): nothing moves, the selection stays.
 
 ## Activity
 

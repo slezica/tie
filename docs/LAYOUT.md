@@ -29,8 +29,20 @@
 | `replaceLeaf(root, a, b)` | `b` takes `a`'s leaf (size, place, donor; leaves with donor `a` now point at `b`). `b` already in the tree: removed first. `a` absent / same: unchanged |
 | `resize(root, path, index, dpx, len, min)` | One border; only the two neighbors change. Min `MIN` = 80 px |
 | `equalize(root, path)` | Every child of the split at `path` gets `1/n` (border double-click) |
+| `insertGroup(root, at, side, ids, board, opts)` | Leaves `ids` as a group: "Group insertion" below |
 | `dropZone(rect, x, y)` | `'center'` inside the centered `CENTER_ZONE` (25%) rectangle, else the nearest edge (rect split by diagonals) |
+| `nearestEdge(rect, x, y)` | The nearest edge, no center (group drops) |
 | `compute(root, area, opts)` | Tile rects + border hit areas |
+
+### Group insertion
+
+`insertGroup(root, at, side, ids, board, opts)`: how several tiles land on the board together (shelf group: `cmd+S`, "Move N to tab", drag; `ops.ts` `placeGroup`).
+
+- Area: what `insert(root, at, side, ids[0])` gives that tile, measured with `compute` in `board` with `opts` (the board's `layoutOpts()`, zoom ignored). Empty tree: the whole board.
+- Split evenly along the area's longer side (`w >= h`: `row`, side by side; else `col`, stacked), in order.
+- Normalized: a group in the parent's direction merges into it (shares multiply); the other children's shares are those of a single insert.
+- Donors: every group leaf has the target's donor link (`at`): closing all, in any order, gives the target its space back.
+- N = 1: exactly `insert`. `ids` already in the tree: moved.
 
 `compute()`:
 

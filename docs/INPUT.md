@@ -32,10 +32,12 @@
 - Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`); cwd: the tile next to / under the drop, else the active one (`DIRECTORIES.md`). OS file drops (`files.ts`, `placementAt`) too, one tile per file, each against the board as it is then (several files on a center: the last one slotted, the others shelved). A tile with its own drop (terminal: pastes the path) keeps it.
 - Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
+- A selected shelf item drags the whole selection: no center zone (nearest edge), group landings, one preview per tile (`SHELF.md` "Group drag"). Escape keeps the selection.
 
 ## Drag mechanics (`drag.ts`)
 
-- `startDrag()`: drag after 4 px (`THRESHOLD`), else `onClick`.
+- `startDrag()`: drag after 4 px (`THRESHOLD`), else `onClick`. At drag start: a selected shelf item becomes a group source (`selection()`), anything else de-selects.
+- `Target.previews`: window rects, one per landing tile (a swap: target + own rect); `showPreviews` fills the pool (`#preview`, `#preview2`, `.drop-preview`).
 - `track()`: window capture listeners + pointer capture. Release seen even if capture lost; a move with no button held = missed release.
 - During drags: `body.dragging` → tile content and reveals `pointer-events: none`. From pointerdown (`body.tracking`): content frames and browser guests too.
 - Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).

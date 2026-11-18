@@ -1,6 +1,6 @@
 # Shelf multi-select
 
-Status: open. Spec settled 2026-11-17; Phases 1-2 done 2026-11-17; Phase 3 next.
+Status: open. Spec settled 2026-11-17; Phases 1-3 done 2026-11-17; Phase 4 (board tiles) not now.
 
 # Topic
 
@@ -98,18 +98,31 @@ Nothing open.
 - Escape, non-group shortcuts, toggling the last item out: keys back to the most recent board tile (`focusNext`); a shortcut then runs (cmd+D splits from it). Plain clicks: the clicked thing decides; a plain item click still pins.
 - Plain click on a pinned item clears the selection and unpins (its normal click).
 - A pinned item can be `cmd+click`ed in (it is shelved); it stays pinned.
-- Unshelve / move as a group: each beside the previous on the first's side, then `spreadEven` (`core/layout.ts`): the group shares the area one tile would take. Phase 3's `insertGroup` may replace this.
+- Unshelve / move as a group: each beside the previous on the first's side, then `spreadEven`. Replaced in Phase 3 by `insertGroup` (longer-side rule).
 - The single-tile menu has no "move to tab"; the group submenu lists the other tabs (`N · title`) + `New tab` (same targets as a tab drop). Own tab omitted (= Unshelve).
 - Group close: after the questions, nothing active → `focusNext`.
 - Clicks on the toolbar's empty area (`-webkit-app-region: drag`) never reach the page: they don't de-select. Items, tabs, `+` do.
-- Drag of a selected item: de-selects, single drag (`drag.ts` comment points here).
+- Drag of a selected item: de-selects, single drag. Replaced in Phase 3 (group drag).
 
-## Phase 3: group drag
+## Phase 3: group drag (done)
 
 1. `core/layout.ts`: `insertGroup(tree, ids, at, side, rect)` (split along the longer side) + unit tests.
 2. `drag.ts`: `DragSource` group, targets (edge, empty board, strip block, tab, float cascade), no center zone, `Target.previews: Rect[]`.
 3. Preview elements: one per tile (pool); ghost shows the group (count).
 4. Scenario `shelf-select-drag` (preview rects = landing rects, Escape cancels, each target).
+
+## Notes (Phase 3)
+
+- `insertGroup(root, at, side, ids, board, opts)`: rect-dependence explicit: measures the single insert's area with `compute` in `board` / `opts` (the board's `layoutOpts()`). Pure, unit-tested.
+- One landing for all paths: `placeGroup` (`cmd+S`, Move to tab, drag) → `insertGroup`. `spreadEven` removed. Changes Phase 2's arrangement: `cmd+S` beside a lone wide tile lands in its right half (tall) → stacked, not side by side (`shelf-select-actions` updated).
+- Donors: every group leaf has the target as donor (not a chain): closing the whole group in any order restores the target; one of a nested group shares within the group.
+- Selected-item press: no longer de-selects at pointerdown; drag = group, click (no movement) = de-select + pin / unpin.
+- Strip: group items hidden, one ghost per tile (its icon) from the slot under the pointer: what you see is where it lands. Elsewhere the "+" hint is as wide as the hidden items (`--drag-slots`): width stable. Fixed: the hint's border was outside its width (+2 px during any drag over the board).
+- Strip drop: block among the other items; nothing activated (a reorder shows nothing), keys to the recent board tile. Deviates from "first tile active" on purpose: activating a shelved tile without a pin would hide it again.
+- Floats cascade: the first where a single float would land (grab at the pointer), each next `TITLE` px up-left, behind it: the title bars stay visible; clamped per tile (near the top-left edge they can stack up).
+- Ghost: first icon + "N tiles".
+- Escape: selection kept.
+- Group of 1 (one selected item dragged): a group like any (no center zone: no swap).
 
 ## Phase 4: board tiles
 
