@@ -1,6 +1,6 @@
 # Shelf multi-select
 
-Status: open. Spec settled 2026-11-17; implementation by phase.
+Status: open. Spec settled 2026-11-17; Phases 1-2 done 2026-11-17; Phase 3 next.
 
 # Topic
 
@@ -75,7 +75,7 @@ Nothing open.
 
 # Plan
 
-## Phase 1: selection
+## Phase 1: selection (done)
 
 1. State: `selected: Set<id>` per space (`state.ts`), ops `toggleSelected`, `clearSelection` (`ops.ts`); a tile leaving the shelf or closing leaves the selection.
 2. `shelf.ts`: `cmd+click` toggles; cmd held: no hover reveal; reveal dismissed on `cmd+click`; first selection blurs the active tile.
@@ -84,12 +84,25 @@ Nothing open.
 5. `tie list --json` `selected`; docs (`SHELF.md`, `INPUT.md`, `CLI.md`, `AGENTS.md` model).
 6. Scenario `shelf-select`.
 
-## Phase 2: group actions
+## Phase 2: group actions (done)
 
 1. `cmd+W` closes the selection (one question per busy tile, `close.ts`); `cmd+S` unshelves it.
 2. Group menu on a selected item: unshelve, move to tab, close.
 3. Order: shelf order; after: selection cleared, first tile active.
 4. Scenario `shelf-select-actions`.
+
+## Notes (Phases 1-2)
+
+- Invariant: selection ⇒ nothing active. `activate()` clears the space's selection: every path handing a tile the keys de-selects (frame / guest clicks included, which never reach the UI's pointerdown).
+- CLI placements without `--focus` (`place`, "nothing has input → activate") treat a selection as the user's input: no activation, the selection survives a `tie move` of another tile.
+- Escape, non-group shortcuts, toggling the last item out: keys back to the most recent board tile (`focusNext`); a shortcut then runs (cmd+D splits from it). Plain clicks: the clicked thing decides; a plain item click still pins.
+- Plain click on a pinned item clears the selection and unpins (its normal click).
+- A pinned item can be `cmd+click`ed in (it is shelved); it stays pinned.
+- Unshelve / move as a group: each beside the previous on the first's side, then `spreadEven` (`core/layout.ts`): the group shares the area one tile would take. Phase 3's `insertGroup` may replace this.
+- The single-tile menu has no "move to tab"; the group submenu lists the other tabs (`N · title`) + `New tab` (same targets as a tab drop). Own tab omitted (= Unshelve).
+- Group close: after the questions, nothing active → `focusNext`.
+- Clicks on the toolbar's empty area (`-webkit-app-region: drag`) never reach the page: they don't de-select. Items, tabs, `+` do.
+- Drag of a selected item: de-selects, single drag (`drag.ts` comment points here).
 
 ## Phase 3: group drag
 

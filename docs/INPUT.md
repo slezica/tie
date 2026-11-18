@@ -8,7 +8,8 @@
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; click into it selects all, type to replace, cmd+C copies, drag selects a range; Enter loads, Escape restores; refused input → dialog). A click there activates the tile without handing the keys to its content.
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
-- Shelf: `SHELF.md`. Tabs: `TABS.md`.
+- Shelf: `SHELF.md` (`cmd+click` on an item: selection, "Selection"). Tabs: `TABS.md`.
+- With a shelf selection: a pointerdown anywhere de-selects (capture, `shelf.ts` `initSelection`), except `cmd+click` on an item, menus and modals; the thing clicked then acts as usual. Right-click: on a selected item the group menu, elsewhere de-select + its own menu.
 
 ## Drop targets
 
@@ -49,8 +50,8 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 | `cmd+O` / `cmd+shift+O` | Open a file right / down of the active tile: the file picker ("File picker" below) from its cwd; the `file` template's drop, by key |
 | `cmd+←/→/↑/↓` | Focus neighbor |
 | `cmd+shift+←/→/↑/↓` | Swap the active tile with the neighbor `cmd+arrows` would focus (`swap`, `LAYOUT.md`); stays active. No neighbor: no-op |
-| `cmd+S` | Shelve the active tile; a shown (pinned / revealed) shelved active tile: back on the board beside the active / recent slotted tile (`besidePlacement`). Nothing active: no-op |
-| `cmd+W` | Close active tile (busy: asks); its tab, if that emptied it and it isn't the only one (`TABS.md`); nothing active: no-op |
+| `cmd+S` | Shelve the active tile; a shown (pinned / revealed) shelved active tile: back on the board beside the active / recent slotted tile (`besidePlacement`). Nothing active: no-op. Shelf selection: unshelves it (`SHELF.md` "Selection") |
+| `cmd+W` | Close active tile (busy: asks); its tab, if that emptied it and it isn't the only one (`TABS.md`); nothing active: no-op. Shelf selection: closes it, one question per busy tile |
 | `cmd+T` | New tab |
 | `cmd+shift+W` | Close tab with its tiles (busy ones: asks) |
 | `cmd+1..8` / `cmd+9` | Tab by position / last |
@@ -77,6 +78,8 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 - Quit (`quit` action, cmd+Q by default; matched by action, whatever its chord): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, `neighbor()` in `renderer/keys.ts`, shared by focus and swap): candidates = visible slotted + floating tiles with center beyond the active one; ranked by perpendicular overlap (yes first), gap along axis, perpendicular offset, MRU.
 
+- Shelf selection (`SHELF.md` "Selection"): `close-tile` and `toggle-shelf` act on it (`keys.ts` `run`); any other action clears it first (keys back to the most recent board tile, `focusNext`), then runs. Escape clears it (window keydown, capture) unless a menu, modal, drag or text field takes it; with a selection nothing is active, so no terminal or frame misses it. Without one, Escape is untouched.
+
 ## File picker (`renderer/picker.ts`)
 
 `pickPath(startDir)`: the `file` template's dialog (drops, tabs, shelf, cmd+O; `templateOpts`). Record: `2026-10-30-file-picker.md`.
@@ -100,7 +103,7 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 
 ## Context menu (`menu.ts`) and dialog (`dialog.ts`)
 
-- Menu targets: tile title bar, shelf item, tab. Items: `Rename…`, `Set icon…`, `Reset title & icon` (if custom), `Close` (tiles: `requestCloseTile`).
+- Menu targets: tile title bar, shelf item, tab; a selected shelf item: group menu (`Unshelve N tiles`, `Move N to tab ▸`, `Close N tiles`; `showListMenu`: an entry with `sub` swaps the menu for its entries, here the other tabs as `N · title` + `New tab`). Items: `Rename…`, `Set icon…`, `Reset title & icon` (if custom), `Close` (tiles: `requestCloseTile`).
 - Rename / icon swap the menu for an input: Enter applies (empty = automatic), Escape closes.
 - Menu closes on outside pointerdown, Escape, or its tile closing. Clamped into the window. `refocus()` on close if it held focus.
 - `infoDialog(title, message)`: modal OK; Enter / Escape / backdrop close, then `refocus()`.

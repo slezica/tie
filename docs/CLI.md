@@ -96,13 +96,14 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 ## `tie list`
 
-- Columns: `ID TAB STATE FLAGS TITLE`. TAB: 1-based position. FLAGS: `active`, `pinged`, `collapsed`, `zoomed`, `pinned`, `exit=N`.
+- Columns: `ID TAB STATE FLAGS TITLE`. TAB: 1-based position. FLAGS: `active`, `pinged`, `collapsed`, `zoomed`, `pinned`, `selected`, `exit=N`.
 - `--json`: `{board, tab (visible space id), tabs: [{id, title, current, active}], active, shelf (visible space), tiles: [TileInfo] (all spaces)}`.
 
 `TileInfo` (also returned by `add`, `replace`, `move`, `focus`, `ping`, `set`):
 
 - `id`, `kind`, `title`, `cwd` (the tile's: `DIRECTORIES.md`), `icon` (custom icon; `""` = automatic), `glyph` (built-in icon name, `icons.ts` `GLYPH`), `state` (`slotted|floating|shelved`), `tab` (space id).
-- `collapsed`, `zoomed`, `active`, `pinned`, `pinged`: from the tile's own space.
+- `collapsed`, `zoomed`, `active`, `pinned`, `selected` (shelf selection, `SHELF.md` "Selection"), `pinged`: from the tile's own space.
+- Dev `tie state`: also `selected` (ids, current space).
 - `exit`, `error`: or null.
 - `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
 - `doc: {path, root, rev, zoom, missing, history: {index, length}}` (file view kinds; null until open).

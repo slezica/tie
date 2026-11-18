@@ -57,7 +57,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`). Tests: `layout.test.ts`.
+- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`); `spreadEven` (a group's even shares). Tests: `layout.test.ts`.
 - `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
 - `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`tie replace`: direct child, idle shell) (main). Tests: `callers.test.ts`.
 - `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
@@ -78,7 +78,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
   - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations (incl. `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
+  - `ops.ts`: all mutations (incl. shelf selection: `toggleSelected`, `clearSelection`, `selection`, `unshelveGroup`, `moveGroupToSpace`; `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
   - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
   - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 width-cache fix), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind; root `--root`, else its cwd).
@@ -91,15 +91,15 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `drag.ts`: `track()`, drag/drop, border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker (`pickPath(startDir)`: path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
-  - `shelf.ts` (shelf strip + template list), `tabs.ts` (tab list, overflow), `menu.ts` (context menu), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Bindings, Terminal, Files, Security), `bindings.ts` (Bindings page: filters, table, edit via capture field, conflict dialog; `bindingsPage`): UI parts.
+  - `shelf.ts` (shelf strip + template list, selection de-select paths + group menu), `tabs.ts` (tab list, overflow), `menu.ts` (context menu; `showListMenu` with sub-entries), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Bindings, Terminal, Files, Security), `bindings.ts` (Bindings page: filters, table, edit via capture field, conflict dialog; `bindingsPage`): UI parts.
   - `keys.ts`: runs actions from main, key suspend reporting (`'capture'` level), split, focus-direction. `capture.ts`: capture field (`captureField`: input taking key presses as a chord name; `INPUT.md` "Keyboard"). `quit.ts`: quit question (`askQuit`).
-  - `close.ts`: user closes (`requestCloseTile`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
+  - `close.ts`: user closes (`requestCloseTile`, `requestCloseGroup`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: socket methods → ops.
   - `themes.ts` (`Theme {label, dark, accent, palette, code?}`: `code` = per-token colors for viewer code blocks, else ANSI fallback), `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*`; `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pixels` / `fraction` (PNG paint checks), `pick` / `pickCancel` (file picker), `nativePickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `install-check.sh` (`tie-dev check-install`: install while running in a `/tmp` sandbox), `electron-check.mjs`, `drive.mjs` (runner), `e2e.mjs` (`test --e2e`: parallel, selection), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `mdpage.mjs` (`tie-dev mdpage`: standalone markdown page), `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
+- `dev/`: `lib.mjs` (launch, CDP, tie wrapper, `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*`; `probe`, `probeFrame`, `contentFrame`, `mdState`, `clickIn`, `osDrop`, `pixels` / `fraction` (PNG paint checks), `pick` / `pickCancel` (file picker), `selectShelf` / `selected` (shelf selection), `nativePickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `install-check.sh` (`tie-dev check-install`: install while running in a `/tmp` sandbox), `electron-check.mjs`, `drive.mjs` (runner), `e2e.mjs` (`test --e2e`: parallel, selection), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `mdpage.mjs` (`tie-dev mdpage`: standalone markdown page), `layout.mjs`, `scenarios/*.mjs` (e2e), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
 - `patches/`: `patch-package` patches applied at install (`node-pty`: disclaimed spawn).
 
@@ -109,7 +109,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Per-space fields, accessed on `S` (accessors onto `S.current`):
   - `tree`: `Leaf {id}` | `Split {dir: 'row'|'col', children, sizes}` (fractions). Normalized. Null when empty.
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
-  - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered).
+  - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered), `selected: Set` (shelf selection, cmd+click; non-empty: nothing active; `SHELF.md` "Selection").
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
 - Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).

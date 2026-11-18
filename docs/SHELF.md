@@ -8,7 +8,8 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 - `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker": fuzzy over the start dir's tree, any file; starts in the context tile's cwd: `DIRECTORIES.md`); cancel → no tile. By key: `cmd+O` / `cmd+shift+O` (`INPUT.md`). Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
 - Item: icon only (`displayIcon`, `TERMINALS.md`: built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
-- Right-click item: tile menu (`INPUT.md`).
+- Right-click item: tile menu (`INPUT.md`); a selected item: the group menu ("Selection").
+- Look: hover, revealed and pinned items: `--fg-b` fill, text-colored icon. Selected: accent fill + accent icon (`.item.selected`). Pinned has no look of its own: the pinned tile's accent border + `#peak` say it.
 
 ## In and out
 
@@ -53,7 +54,24 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
 - z-order: reveal 2000 (hovered +1), above zoomed (1000) and floating tiles, browser guests included (`<webview>` composites in the DOM).
-- `#peak`: arrow from the reveal toward the item (down, or up with `.up` when the toolbar is on top). Accent when pinned.
+- `#peak`: arrow from the reveal toward the item (down, or up with `.up` when the toolbar is on top). Accent when pinned (with the tile's accent border: the pin's only indicator).
+
+## Selection
+
+`cmd+click` items to act on several shelved tiles at once. Record: `docs/2026-11-17-shelf-multi-select.md`.
+
+- Model: `Space.selected: Set<id>` (`S.selected`), shelved tiles of that space only. `selection()`: in shelf order (every group action's order).
+- `cmd+click` (`toggleSelected`, `ops.ts`; the press's `metaKey`, the click arrives via `startDrag`): in, or out. Selecting: nothing active (keys go nowhere, `refocus` blurs), a hover reveal is dismissed; the clicked tile is never shown. A pinned tile stays pinned (shown, unfocused) and isn't pulled in; it can be `cmd+click`ed in like any item. Toggling the last one out: `focusNext`.
+- Cmd held over an item (`pointerenter` `metaKey`): no reveal.
+- Invariant: a selection means nothing active. `activate()` clears its space's selection (so every path that hands a tile the keys de-selects: clicks in frames, `tie focus`, pins). CLI placements without `--focus` count a selection as the user's input: they don't activate (`place`).
+- De-select (`clearSelection`): pointerdown anywhere but a `cmd+click` on an item / a menu / a modal (capture, `shelf.ts` `initSelection`; the click then acts as usual, e.g. pins); Escape (not when a menu, modal, drag or text field takes it); any shortcut but the group ones; tab switch (the tab left); any drag (`drag.ts` begin); context menu on anything but a selected item. Hover and scroll keep it. Escape, shortcuts: keys back to the most recent board tile.
+- A tile that closes or leaves the shelf by any path (drag, swap, CLI `move`) leaves the selection (`detach`, `swap`).
+- Group actions; afterwards the selection is cleared and the group's first tile active:
+  - `cmd+W` (`close-tile`), menu `Close N tiles`: `requestCloseGroup` (`close.ts`): each asks as a single close does (busy, beforeunload), one at a time; a declined tile stays shelved, the rest close. Then nothing active: `focusNext`.
+  - `cmd+S` (`toggle-shelf`), menu `Unshelve N tiles`: `unshelveGroup`: the first beside the recent board tile (`besidePlacement`), each next beside the previous on the same side; they share that area evenly (`spreadEven`, `core/layout.ts`).
+  - Menu `Move N to tab ▸`: the other tabs (`N · title`) + `New tab`; that tab is shown, the tiles join its board as with `cmd+S` there (`moveGroupToTab` → `moveGroupToSpace`). Same targets as a single tile dropped on a tab.
+- Drag of a selected item (cmd held): de-selects, moves alone. Group drag: record Phase 3.
+- `tie list`: `selected` (`CLI.md`).
 
 ## Activity
 
