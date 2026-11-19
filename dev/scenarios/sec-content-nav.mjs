@@ -44,29 +44,43 @@ export default async (ctx, h) => {
 
     // From inside: no navigation away (location, meta refresh, link), not even to its own files.
     // UI CSP (frame-src) or the nav lock refuses; the frame may end on an error page (it only
-    // breaks itself), never on another URL. Fresh frame per attempt.
-    const tryIn = async (what, fn, arg) => {
+    // breaks itself), never on another URL. Fresh frame per attempt. `by(u, token)`: the layer that
+    // refuses it and its own signal: `csp` = a frame-src violation reported to the UI page (web
+    // targets: the CSP comes first), `lock` = main's `blocked navigation subframe` line.
+    await page.evaluate(() => {
+      window.__frameSrc = []
+      document.addEventListener('securitypolicyviolation', (e) => e.effectiveDirective === 'frame-src' && window.__frameSrc.push(e.blockedURI))
+    })
+    const tryIn = async (what, fn, by) => {
       const { token, url } = await page.evaluate((root) => window.tie.content.open(root, 'probe'), root)
       await frame(url)
       const f = await h.waitFor(ctx, async () => {
         const f = page.frames().find((f) => f.url() === url)
         return f && (await f.evaluate(() => typeof window.probe === 'object')) && f
       }, `${what}: viewer loaded`, 8000)
+      const [layer, target] = by(p.url, token)
+      const csp0 = await page.evaluate((t) => window.__frameSrc.filter((x) => x === t).length, target)
       await f.evaluate(fn, { u: p.url, token }).catch(() => {})
       await ctx.sleep(500) // absence: the attempt must not take the frame anywhere
       const now = f.isDetached() ? '(detached)' : f.url()
       h.assert(now === url || now.startsWith('chrome-error:'), `${what}: frame reached ${now}`)
+      if (layer === 'csp') await h.waitFor(ctx, async () => (await page.evaluate((t) => window.__frameSrc.filter((x) => x === t).length, target)) > csp0, `${what}: UI CSP frame-src refused ${target}`)
+      else await h.eventually(ctx, async () => h.assert(blocked(target), `${what}: nav lock refused ${target}`))
     }
-    await tryIn('location', ({ u }) => (location.href = u + '/frame-location'))
-    await tryIn('meta refresh', ({ u }) => document.head.insertAdjacentHTML('beforeend', `<meta http-equiv="refresh" content="0;url=${u}/frame-meta">`))
-    await tryIn('link', ({ u }) => Object.assign(document.body.appendChild(document.createElement('a')), { href: u + '/frame-link' }).click())
-    await tryIn('own root file', ({ token }) => (location.href = `tie-content://${token}/note.txt`))
-    await tryIn('other token', () => (location.href = `tie-content://${'e'.repeat(32)}/_tie/probe.html`))
+    // (A frame-src report names only the origin of a navigation another origin started: the probe's.)
+    await tryIn('location', ({ u }) => (location.href = u + '/frame-location'), (u) => ['csp', u])
+    await tryIn('meta refresh', ({ u }) => document.head.insertAdjacentHTML('beforeend', `<meta http-equiv="refresh" content="0;url=${u}/frame-meta">`), (u) => ['csp', u])
+    await tryIn('link', ({ u }) => Object.assign(document.body.appendChild(document.createElement('a')), { href: u + '/frame-link' }).click(), (u) => ['csp', u])
+    await tryIn('own root file', ({ token }) => (location.href = `tie-content://${token}/note.txt`), (_u, token) => ['lock', `tie-content://${token}/note.txt`])
+    await tryIn('other token', () => (location.href = `tie-content://${'e'.repeat(32)}/_tie/probe.html`), () => ['lock', `tie-content://${'e'.repeat(32)}/_tie/probe.html`])
     await p.assertUntouched('frame navigation')
 
-    // UI CSP still refuses frames from anywhere else.
+    // UI CSP still refuses frames from anywhere else (its frame-src violations, reported to the UI).
+    const n0 = await page.evaluate(() => window.__frameSrc.length)
     await frame(p.url + '/shell-frame')
     await frame('tie://app/index.html')
+    // (blocked URI as reported: the probe's origin; for tie: only the scheme)
+    await h.waitFor(ctx, () => page.evaluate(([n0, u]) => { const v = window.__frameSrc.slice(n0); return v.includes(u) && v.includes('tie') }, [n0, p.url]), 'UI CSP frame-src refused both')
     await p.assertUntouched('UI frame-src')
     h.assert(!page.frames().some((f) => f.url().startsWith('tie://app/index.html') && f !== page.mainFrame()), 'no tie://app frame')
   } finally {
