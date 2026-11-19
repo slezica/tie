@@ -1,5 +1,9 @@
 // Tabs: new (with a terminal), switch, per-tab board + shelf, cwd-derived titles, rename, close with
-// tiles (idle: no question), an emptied tab closes itself (the only tab stays, empty).
+// tiles (idle: no question), an emptied tab closes itself (the only tab stays, empty); cmd+T inserts
+// after the current tab; × on a hidden tab; closing the only tab opens a fresh one.
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 export default async (ctx, h) => {
   // Keys go through main, then to the UI: their effect is checked with h.eventually.
   const k = (chord) => h.press(ctx, chord)
@@ -52,7 +56,7 @@ export default async (ctx, h) => {
   await k('Meta+9')
   await ev(async () => h.assert((await L()).tab === l.tabs[1].id, 'cmd+9: last tab'))
 
-  // CLI from a terminal in a background tab acts in that tab and doesn't switch.
+  // CLI naming a tile of a background tab (--tile, --at) acts in that tab and doesn't switch.
   await k('Meta+1')
   await ev(async () => h.assert((await L()).tab === l.tabs[0].id, 'cmd+1'))
   const c = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'sleep 30')).id
@@ -114,6 +118,20 @@ export default async (ctx, h) => {
   h.assert((await L()).tab === before[2], 'dragged tab is current')
   await ctx.shot('tabs')
 
+  // cmd+T from a tab that isn't the last: the new tab goes right after it, not at the end.
+  const o1 = await order()
+  const from = (await L()).tab
+  const at = o1.indexOf(from)
+  h.assert(at < o1.length - 1, `current tab not the last (${at} of ${o1.length})`)
+  const nt = (await newTab()).tab
+  h.assert((await order()).join() === [...o1.slice(0, at + 1), nt, ...o1.slice(at + 1)].join(), `cmd+T: new tab after the current one: ${o1} -> ${await order()}`)
+  await settle()
+  await k('Meta+w') // its idle terminal: the tab closes, back to the one before
+  await ev(async () => {
+    l = await L()
+    h.assert((await order()).join() === o1.join() && l.tab === from, `back to ${from}: ${await order()}, on ${l.tab}`)
+  })
+
   // Hover reveal doesn't stick across a tab switch (the item never sees pointerleave).
   const t3 = (await L()).active
   await k('Meta+d')
@@ -127,9 +145,16 @@ export default async (ctx, h) => {
   await h.waitFor(ctx, async () => { const l = await L(); return l.tab === l.tabs[0].id }, 'cmd+1: first tab')
   h.assert(!(await ctx.tie('state')).revealed, 'reveal cleared after tab switch')
 
-  // A tab holding only shelved tiles isn't titled "empty".
-  const cur = await ctx.page.$eval('.tab.current .tab-title', (e) => e.textContent)
-  h.assert(cur !== 'empty', `shelf-only tab title: ${cur}`)
+  // A tab holding only shelved tiles (nothing active) is titled after its first shelved tile's cwd,
+  // not "empty".
+  await ctx.tie('move', '--tile', t3, '--shelve')
+  await ev(async () => {
+    l = await L()
+    h.assert(!l.active && l.shelf.length === 2 && !l.tiles.some((t) => t.tab === l.tab && t.state !== 'shelved'), `shelf-only tab: ${JSON.stringify({ active: l.active, shelf: l.shelf })}`)
+    const want = l.tiles.find((t) => t.id === l.shelf[0]).cwd.split('/').filter(Boolean).pop()
+    const cur = await ctx.page.$eval('.tab.current .tab-title', (e) => e.textContent)
+    h.assert(want !== 'empty' && cur === want && l.tabs.find((t) => t.id === l.tab).title === want, `shelf-only tab title: ${cur} (want ${want})`)
+  })
 
   // Closing a tab's last tile closes the tab: visible → back to the tab before; hidden (over the
   // CLI) → gone, the visible tab stays. The only tab stays, empty; cmd+W there does nothing.
@@ -153,18 +178,40 @@ export default async (ctx, h) => {
     l = await L()
     h.assert(!l.tabs.some((t) => t.id === hidden) && l.tab === l.tabs[0].id, 'hidden tab emptied over the CLI: gone, visible tab kept')
   })
+  // × on a hidden tab (idle): that tab closes, not shown first; the visible tab and its active tile stay.
+  const xt = (await newTab()).tab
+  await settle()
+  await k('Meta+1')
+  await h.waitFor(ctx, async () => { const l = await L(); return l.tab === l.tabs[0].id }, 'cmd+1: first tab')
+  const keep = await L()
+  await ctx.page.click(`.tab[data-space="${xt}"] .tab-close`)
+  await ev(async () => {
+    l = await L()
+    h.assert(!l.tabs.some((t) => t.id === xt) && l.tab === keep.tab && l.active === keep.active && l.tabs.length === keep.tabs.length - 1, `× on a hidden tab: it closed, visible kept (${l.tab})`)
+  })
   // A tab's own shell closing its tile (`tie close` from inside) while the tab is hidden: the
   // socket call runs in that space, which the close drops; ops then land on the visible space.
+  // The shell waits for a file the scenario writes once the switch is done: the close can't land
+  // while the tab is still visible.
   const self = (await newTab()).tab
+  const selfTile = (await L()).active
   await settle()
-  await ctx.page.keyboard.type('sleep 1; tie close\n')
-  await h.waitChild(ctx, (await L()).active, /sleep/) // typed into it before the switch
+  const go = join(ctx.runDir, 'self-close.go')
+  await ctx.page.keyboard.type(`until [ -e '${go}' ]; do sleep 0.1; done; tie close\n`)
+  await h.waitText(ctx, selfTile, 'tie close') // typed into it before the switch
   await k('Meta+1')
-  await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === self), 'hidden tab closed by its own shell')
+  await h.waitFor(ctx, async () => { const l = await L(); return l.tab === l.tabs[0].id }, 'cmd+1: first tab')
+  h.assert((await L()).tabs.some((t) => t.id === self), 'self-closing tab still there, hidden')
+  writeFileSync(go, '')
+  await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === self), 'hidden tab closed by its own shell', 8000)
   l = await L()
   h.assert(l.tab === l.tabs[0].id, 'visible tab kept')
-  await ctx.tie('add', 'terminal') // ops still work on the visible space afterwards
-  h.assert((await L()).tiles.length > 0, 'open after the drop lands on the visible tab')
+  const after1 = (await ctx.tie('add', 'terminal')).id // ops still work on the visible space afterwards
+  await h.eventually(ctx, async () => {
+    l = await L()
+    const t = l.tiles.find((t) => t.id === after1)
+    h.assert(t && t.tab === l.tab && t.state === 'slotted' && t.rect, `open after the drop lands on the visible tab: ${JSON.stringify(t && { tab: t.tab, state: t.state, rect: t.rect })} (visible ${l.tab})`)
+  })
   for (const t of (await L()).tiles) await ctx.tie('close', '--tile', t.id)
   await ev(async () => {
     l = await L()
@@ -175,4 +222,17 @@ export default async (ctx, h) => {
   await k('Meta+w')
   await ctx.sleep(300) // absence: cmd+W does nothing here
   h.assert((await L()).tabs.length === 1, 'cmd+W on the only (empty) tab: no-op')
+
+  // Closing the only tab (×): a fresh tab with a terminal takes its place (never zero tabs), from
+  // the empty tab and from one holding an idle terminal.
+  const fresh0 = async (old, oldTile) => {
+    await ctx.page.click('.tab.current .tab-close')
+    const l = await h.waitFor(ctx, async () => { const l = await L(); return l.tabs.length === 1 && l.tab !== old && l.active && l }, 'only tab closed: a fresh one')
+    h.assert(l.tiles.length === 1 && l.tiles[0].id === l.active && l.tiles[0].kind === 'terminal' && l.tiles[0].tab === l.tab && l.tiles[0].id !== oldTile, `fresh tab holds one new terminal: ${JSON.stringify(l.tiles.map((t) => [t.id, t.kind, t.tab]))}`)
+    await h.waitShell(ctx, l.active)
+    return l
+  }
+  l = await fresh0((await L()).tab, null)
+  await settle() // idle: closes at once
+  await fresh0(l.tab, l.active)
 }
