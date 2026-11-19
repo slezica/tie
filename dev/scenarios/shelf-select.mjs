@@ -79,6 +79,25 @@ export default async (ctx, h) => {
   // Toggle out.
   await h.selectShelf(ctx, d)
   await expectSel([c], 'cmd+click again: out')
+  // The last one toggled out: back to work (focusNext: the recent board tile takes the keys; the pin stays).
+  await h.selectShelf(ctx, c)
+  await expectSel([], 'last one toggled out')
+  await h.waitActive(ctx, a)
+  await h.eventually(ctx, async () => h.assert((await focusedTile()) === a && (await h.state(ctx)).pinned === b, 'keys back to a, b still pinned'))
+  await h.selectShelf(ctx, c)
+
+  // `tie add` without --focus keeps the selection (a selection counts as having the input), on the
+  // board and on the shelf.
+  const n0 = (await L()).tiles.length
+  const added = [(await ctx.tie('add', 'terminal', '--at', a, '--side', 'b')).id, await add()]
+  await h.eventually(ctx, async () => {
+    const l = await L()
+    h.assert(l.tiles.length === n0 + 2 && l.active === null, `tie add: nothing active (${l.active})`)
+  })
+  await expectSel([c], 'tie add keeps the selection')
+  for (const id of added) await ctx.tie('close', '--tile', id)
+  await expectSel([c], 'tie close of other tiles keeps it')
+  await away()
 
   // Hover and scroll keep it.
   await h.hoverShelf(ctx, e)
@@ -114,9 +133,15 @@ export default async (ctx, h) => {
   await expectSel([], 'Escape')
   await h.waitActive(ctx, a)
   await h.eventually(ctx, async () => h.assert((await focusedTile()) === a, 'keys back to a'))
-  // No selection: Escape reaches the terminal (it shows nothing, but stays focused and active).
+  // No selection: Escape reaches the terminal (`cat -v` echoes it as ^[), which keeps focus.
+  await page.keyboard.type('cat -v\n')
+  await h.waitChild(ctx, a, /cat/)
   await page.keyboard.press('Escape')
+  await page.keyboard.press('Enter')
+  await h.waitText(ctx, a, /cat -v.*\^\[/)
   h.assert((await focusedTile()) === a && (await L()).active === a, 'Escape without a selection: terminal keeps focus')
+  await page.keyboard.press('Control+d') // cat ends
+  await h.waitNoChild(ctx, a)
 
   // Another shortcut: de-selects, then runs (split from the restored tile).
   await h.selectShelf(ctx, c)
@@ -174,11 +199,14 @@ export default async (ctx, h) => {
   await ctx.tie('move', '--tile', b, '--float')
   await expectSel([e], 'tile moved off the shelf left it')
 
-  // Tab switch: de-selects the tab left.
+  // Tab switch: de-selects the tab left. Checked from the other tab (`tie list` flags each tile in
+  // its own tab): coming back would activate a tile there, which clears it anyway.
   const other = (await ctx.tie('add', 'terminal', '--tab', 'new')).id
+  await expectSel([e], 'tie add --tab new (not shown) keeps it')
   await ctx.tie('focus', '--tile', other)
   await h.waitActive(ctx, other)
-  await ctx.tie('focus', '--tile', a)
-  await h.waitActive(ctx, a)
-  await expectSel([], 'tab switch')
+  await h.eventually(ctx, async () => {
+    const l = await L()
+    h.assert(l.tab === l.tiles.find((t) => t.id === other).tab && !l.tiles.some((t) => t.selected), `tab left: de-selected (${l.tiles.filter((t) => t.selected).map((t) => t.id)})`)
+  })
 }
