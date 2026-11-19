@@ -83,6 +83,14 @@ Each has my pick first. Uncertain ones are marked.
 - P13. Over Tabs = new tab / move to tab; over Shelf = shelve; empty bar space = nothing (pick). Today: left of the bar midpoint = new tab, right = shelf.
 - P14. Over Templates = nothing (pick).
 
+## From the survey
+
+- P17. Default tab glyph for vertical tabs (B6): a generic tab icon when none is set (pick), or title only.
+- P18. Tabs in a narrow vertical bar (icons only): tabs without a custom icon all look the same. Accept, or show the first letter of the title (pick: first letter).
+- P19. Shelf overflow in a vertical bar: native wheel scroll only, as today (pick), or add fades and drag auto-scroll like tabs.
+- P20. Traffic lights with a resized top bar: re-centre them to the bar (pick), or leave fixed.
+- P21. OS file drops on Tabs: still never (pick).
+
 ## Persistence
 
 - P15. Settings shape (pick):
@@ -99,23 +107,75 @@ Each has my pick first. Uncertain ones are marked.
 
 # Research
 
-Survey only; the detailed read is step 0 of the plan.
+Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 
-- Flexbox covers the layout. Code that does not follow automatically:
-  - About 30 reads of `x` / `width` / `scrollLeft` in `tabs.ts`, `shelf.ts` (overflow fades `more-left` / `more-right`, tab reorder, drop positions).
-  - `render.ts`: reveal placement uses a `below` flag (top / bottom only).
-  - `drag.ts`: tile drop on the bar uses the bar midpoint rule (P13).
-  - `state.ts`: geometry has `TOP` / `BOTTOM` only; needs left / right insets for the board.
-  - `appearance.ts`: moves `#toolbar` between `#top` and `#bottom`; class `toolbar-bottom`.
-- Already direction-neutral: `inRevealZone` / `gapBetween` (`core/layout.ts`) handle side-by-side rects.
-- Toolbar is a window drag region (`-webkit-app-region`); see the note in `shelf.ts`. To check for side bars.
-- Scenarios touching the toolbar: `tabs*`, `shelf*`, `templates`, `settings` (toolbar select), `layout-*` (geometry). To list in step 0.
+## Single bar / top-bottom only
+
+- `index.html:17-25`: static `#top`, `#bottom`; one `#toolbar` with fixed order.
+- `appearance.ts:105-109`: moves `#toolbar` between the two; class `toolbar-bottom`.
+- `core/settings.ts:17,27,43`, `preload/index.ts:13`, `settings.ts` (`#set-toolbar` select): the `toolbar` setting. Unit test asserts `'left'` → `'bottom'`.
+- `state.ts:16-17,40-41,172-177`: only `TOP` / `BOTTOM`; `boardRect` ignores left / right.
+- `style.css:27-34,62-92`: `--top-h` / `--bottom-h`; `#top` has the 84 px traffic-light padding.
+- `render.ts:98-131`: reveal direction from geometry (`below = sr.y < b.y`); peak has up / down shapes only (`style.css:831-840`).
+- `main/index.ts:182-184`: `trafficLightPosition {x:12, y:10}`, centred for a 40 px bar. A resized top bar misaligns them (Electron can move them: `setWindowButtonPosition`).
+
+## Horizontal only
+
+- `tabs.ts`:
+  - `dragTab` (131-172): start threshold and reorder on `clientX`.
+  - `edgeScroll` (181-225): `scrollLeft` / `clientWidth`.
+  - `showTab`, `syncOverflow` (289-307): `offsetLeft`, classes `more-left` / `more-right`.
+  - `tabDropAt` (312-325): nearest tab by x.
+  - Wheel handler (343-348): vertical delta → `scrollLeft`, with `preventDefault`.
+- `drag.ts:89-104`: shelf hit area built from `#toolbar` midpoint and `#tab-add.right`; slot index from x and `scrollLeft`.
+- `style.css`: `#tabs`, `#tab-list` (mask `to right`), `.tab` (`max-width`), `#tab-add`, `#shelf` (`overflow-x`), `#shelf::before` hint width, `#templates` left divider.
+
+## Already direction-neutral
+
+- `core/layout.ts:194-217` `inRevealZone` / `gapBetween` (tests cover only the stacked case).
+- `revealSize`, float clamps, board `compute`, shelf item reconcile and ghosts, `renderTabs`, `applyDrop` / `dropGroup` / `dropOnTab`, menus (open at the pointer).
+
+## Overflow today
+
+- Tabs: `overflow-x: auto`, hidden scrollbar, fades, keep-current-in-view, wheel, drag auto-scroll.
+- Shelf: scrolls only. No fades, no wheel mapping, no drag auto-scroll.
+- Contest: tabs `flex: 1` with floor `--tabs-min` (140 px); shelf shrinks after the tabs reach it; templates never shrink.
+
+## Tile drops today (`drag.ts` `computeTarget`)
+
+1. Shelf: strip plus the gap right of the bar midpoint → shelve at slot.
+2. Tabs: on a tab → move there; `+` or empty space after it → new tab.
+3. Brand, templates: no drop.
+4. OS file drops: shelf yes, tabs never.
+
+## Window drag region
+
+- `#top` / `#bottom` are `-webkit-app-region: drag`; components are `no-drag`.
+- Over a drag region macOS owns the pointer; the page gets `pointerleave` (`shelf.ts:39-47`). The reveal keeps open through the zone check.
+- For side bars: same mechanism works (`inRevealZone` handles side-by-side). Needs a manual check: the offscreen harness cannot exercise drag regions.
+- For edit mode: bar indicators and previews must be `no-drag`, or they get no pointer events.
+
+## Found by the survey: breaks silently if not handled
+
+- B1. Reveal with a left / right shelf is treated as "bottom": lands far from the item.
+- B2. Vertical tab list: every drop goes to the first tab (x distance 0 for all).
+- B3. Vertical tab list: the wheel handler blocks native scrolling.
+- B4. Vertical tab list: tab reorder drag never starts (x-only threshold).
+- B5. Tabs and shelf in different bars: shelf hit area computed from `#tab-add` goes wrong.
+- B6. Tabs have an icon only when the user set one. S9 ("icon plus title") needs a default tab glyph.
+
+## Scenarios affected
+
+- Rewritten: `layout-geometry` (entirely top / bottom), `tabs-overflow` (entirely horizontal), `tabs-drops` (midpoint rule).
+- Adjusted (x-based points): `tabs`, `content-input`, `shelf`, `shelf-reveal`, `shelf-select*`, `cwd-templates`, `sec-drop`, `viewer-open`; helper `h.shelve`.
+- Fixed "away" points such as (60, 300) would hit a left bar: take them from `list.board`.
+- `boardRect` change reaches every `layout-*` scenario.
 
 # Plan
 
 ## Phase 0: read and close questions
 
-1. Read `tabs.ts`, `shelf.ts`, `drag.ts`, `render.ts`, `state.ts` geometry, toolbar CSS. List every horizontal assumption.
+1. Done: code survey (Research).
 2. Close Pending items with the user.
 3. Update this record: Settled, final plan.
 
