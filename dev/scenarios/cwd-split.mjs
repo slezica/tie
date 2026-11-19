@@ -1,5 +1,5 @@
-// Tile cwd (DIRECTORIES.md) per kind: `tie add` stores the caller's cwd on every kind (root stays the
-// file's folder); titles (file / html: path, browser: host + path, tab: cwd basename); cmd+D from a
+// Tile cwd (DIRECTORIES.md) per kind: `tie add` stores the caller's cwd on every kind (the frame root
+// follows DIRECTORIES.md rule 5: the cwd when it holds the file); titles (file / html: path, browser: host + path, tab: cwd basename); cmd+D from a
 // file / html / browser tile → a terminal in that tile's cwd; cmd+O from a browser → picker there; cmd+D
 // from a terminal → its shell's cwd, read fresh (not the 2 s poll).
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'

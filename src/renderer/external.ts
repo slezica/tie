@@ -35,7 +35,7 @@ export async function confirmFile(path: string, from: string): Promise<boolean> 
 }
 
 // `from`: who asks, for the dialog's first line ("report.html wants to open:"). `note`: an extra
-// line shown for long links (html: the folder the page can read).
+// line shown for long links (no caller passes one today).
 export async function openExternal(url: string, from: string, note?: string) {
   if (!prefs.confirmExternal) {
     debug('external', 'open (no confirm)', untrusted(from), untrusted(url))

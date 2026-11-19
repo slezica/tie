@@ -10,7 +10,8 @@ export type ContentKind = 'markdown' | 'text' | 'image' | 'hex' | 'html' | 'prob
 
 export interface ContentPolicy {
   // Who makes the page: a Tie viewer (out/viewers/<kind>.html|js, our code, nonce'd), or the file
-  // itself ('document': html; its scripts run, on its own token origin, with documentCsp).
+  // itself ('document': html, static: its own scripts never run (documentCsp allows only the bootstrap's
+  // nonce); on its own token origin).
   page: 'viewer' | 'document'
   // iframe sandbox tokens. Viewers: 'allow-scripts' only (opaque origin). Documents: plus
   // 'allow-same-origin' (origin = their own token, never the UI's).
@@ -39,7 +40,7 @@ const MB = 1024 * 1024
 
 // SECURITY: the reviewable table. Viewer rows: scripts by nonce only, opaque origin (no
 // allow-same-origin: the frame can't reach the UI, its storage, or another tile). The document
-// row (html): the file's own scripts, on its own token origin (cross-origin to the UI and every
+// row (html): the file itself, static (only the nonce'd bootstrap runs), on its own token origin (cross-origin to the UI and every
 // other tile: allow-same-origin can't lift its sandbox), no network (documentCsp). Every row: no
 // popups, top navigation, forms, modals, downloads. Changing a row changes what content can do.
 export const POLICY: { readonly [K in ContentKind]: ContentPolicy } = {
@@ -53,7 +54,7 @@ export const POLICY: { readonly [K in ContentKind]: ContentPolicy } = {
   image: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'none', maxBytes: 50 * MB, bootstrap: false, dev: false },
   // Hex: any file, bytes transferred over the port (no copy into strings).
   hex: { page: 'viewer', sandbox: ['allow-scripts'], styles: 'nonce', nav: 'viewer-exact', assets: [], payload: 'bytes', maxBytes: 16 * MB, bootstrap: false, dev: false },
-  // Html: the file is the page (scripts on, local only). Served by the protocol with documentCsp and
+  // Html: the file is the page (static: page scripts blocked, local only). Served by the protocol with documentCsp and
   // the bootstrap; navigates within its folder; storage in memory (UI session). docs/VIEWERS.md "Html".
   html: { page: 'document', sandbox: ['allow-scripts', 'allow-same-origin'], styles: 'inline', nav: 'within-root', assets: [], payload: 'none', maxBytes: 10 * MB, bootstrap: true, dev: false },
   // Probe: harness kind (escape tests, sec-content-escape). Dev builds only.

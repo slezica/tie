@@ -1,5 +1,5 @@
 // Security: markdown tiles. Raw HTML shown as text, never run (body, footnotes, front matter); DOMPurify on the final HTML; remote
-// images never requested; images outside the file's folder refused; read-only (task boxes inert,
+// images never requested; images outside the root refused; read-only (task boxes inert,
 // write-shaped requests dropped, no doc write API); link requests need the frame focused; middle
 // clicks on links refused.
 // Hidden window: real clicks focus the frame.

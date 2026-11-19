@@ -8,7 +8,7 @@ import { CONTENT_SCHEME } from '../core/content'
 import { contentFrameAllowed } from './content'
 import { attachGuest, guardGuest, noDeviceChoosers } from './guest'
 
-// The UI's own URL (file://.../index.html, or the dev server). Set before the window loads.
+// The UI's own URL (tie://app/index.html, or the dev server). Set before the window loads.
 let uiUrl = ''
 export function setUiUrl(url: string) {
   uiUrl = url

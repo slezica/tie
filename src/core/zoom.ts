@@ -1,4 +1,4 @@
-// Page zoom for html and browser tiles (cmd+= / cmd+- / cmd+0): Chrome's preset factors. Pure,
+// Page zoom for html, browser, markdown and text tiles (cmd+= / cmd+- / cmd+0): Chrome's preset factors. Pure,
 // unit-tested. docs/INPUT.md.
 
 export const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5]

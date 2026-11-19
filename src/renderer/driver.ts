@@ -223,7 +223,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     setMeta(id, { ...(p.title !== undefined && { title: String(p.title) }), ...(p.icon !== undefined && { icon: String(p.icon) }) })
     return tileInfo(id)
   },
-  // Dev: full internal state.
+  // Full internal state (harness; answered in every build, not listed in `tie --help`).
   state: () => ({
     tree: S.tree,
     floats: S.floats,
