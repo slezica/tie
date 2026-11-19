@@ -1,6 +1,6 @@
-// Quit asks, always (⌘Q, window close): busy terminals listed (one tab: a plain list; several:
-// grouped by tab); Esc / Cancel keep Tie; ⌘Q while a dialog is open: no second one; Quit quits, every
-// shell and its commands killed.
+// Quit asks, always (⌘Q, window close; no tiles at all included): busy terminals listed (one tab: a plain
+// list; several: grouped by tab); Esc / Cancel keep Tie; ⌘Q while a dialog is open: no second one; Enter
+// (Quit has the focus) quits, every shell and its commands killed.
 import { existsSync } from 'node:fs'
 import { infoPath, rpc } from '../lib.mjs'
 
@@ -9,8 +9,21 @@ export default async (ctx, h) => {
   const k = (chord) => h.press(ctx, chord)
   const dialogs = () => ctx.page.$$eval('.dialog-backdrop', (els) => els.length)
 
-  // Idle: asks, nothing listed. Esc keeps Tie, keys back to the terminal.
-  const a = (await h.list(ctx)).active
+  // No tiles anywhere: still asks, nothing listed. Esc keeps Tie.
+  for (const t of (await h.list(ctx)).tiles) await ctx.tie('close', '--tile', t.id)
+  await h.waitFor(ctx, async () => !(await h.list(ctx)).tiles.length, 'all tiles closed')
+  await k('Meta+q')
+  await h.eventually(ctx, async () => {
+    h.assert(await ctx.page.isVisible('.dialog.quit'), 'no tiles: asks')
+    h.assert((await ctx.page.$$('.dialog ul.running')).length === 0, 'no tiles: nothing listed')
+  })
+  await ctx.page.keyboard.press('Escape')
+  await h.eventually(ctx, async () => h.assert(alive() && (await dialogs()) === 0, 'no tiles, Esc: still running, dialog gone'))
+
+  // Idle terminal: asks, nothing listed. Esc keeps Tie, keys back to the terminal.
+  const a = (await ctx.tie('add', 'terminal', '--focus')).id
+  await h.waitShell(ctx, a)
+  await h.waitActive(ctx, a)
   await k('Meta+q')
   await h.eventually(ctx, async () => {
     h.assert((await ctx.page.isVisible('.dialog.quit')) && (await ctx.page.textContent('.dialog h2')) === 'Quit Tie?', 'cmd+Q asks')
@@ -82,8 +95,8 @@ export default async (ctx, h) => {
     for (const c of await h.children(ctx, t.id)) pids.push(c.pid)
   }
   h.assert(pids.length >= 5, `shells + commands found: ${pids}`) // a, b, sh; sleep 30, sleep 32 &
-  await ctx.page.click('.dialog .confirm')
-  await h.eventually(ctx, async () => h.assert(!alive(), 'Quit quits'))
+  await ctx.page.keyboard.press('Enter').catch(() => {}) // Quit has the focus; the page may be gone before the keyup
+  await h.eventually(ctx, async () => h.assert(!alive(), 'Enter quits'))
   const living = () => pids.filter(h.alive)
   await h.eventually(ctx, async () => h.assert(!living().length, `quit killed every shell and command (alive: ${living()})`))
 }

@@ -82,7 +82,7 @@ try {
   const conn = await connectPage(instance)
   browser = conn.browser
   const page = conn.page
-  await page.waitForSelector('.tab') // booted (first render; the boot terminal may already be gone: quit-empty)
+  await page.waitForSelector('.tab') // booted (first render; the boot terminal may already be gone)
   // Boot terminal up: every terminal tile shows text (its prompt) or an error. DOM only: the socket
   // may be closed to the harness (sec-socket-external). Capped: a shell without a prompt only waits.
   await page
