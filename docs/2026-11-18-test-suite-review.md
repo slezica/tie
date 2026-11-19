@@ -216,7 +216,7 @@ Selection: renames recommended; tags not worth the upkeep; optional `test --e2e 
 
 Left open on purpose (not fixed here).
 
-1. Settings Save over a hand-fixed file (`settings-malformed`): the panel opened on defaults, Save writes them over the fixed file. Author to choose: leave / panel reloads when the file becomes readable / Save blocked until reopened.
+1. Settings Save over a hand-fixed file: settled (2026-11-18): never auto-reload; startup dialog, changed-on-disk banner with Ignore / Reload, main refuses a Save over an unseen edit (`SETTINGS.md` "File").
 2. `browser` "navigated" timeout under load: failed twice in loaded full runs today, passes alone. Same area as the hang in `2026-11-16-configurable-bindings-and-schemes.md` manual check 17.
 3. `sec-html` under load (`Execution context was destroyed`: a late `n.md` write live-reloaded the page under a held frame handle): fixed, `n.md` is written before any tile opens; 4/4 alone after. Not re-run in a loaded full run.
 4. X-T2 UI-session download test is a log check only (a real download would open a native Save dialog).

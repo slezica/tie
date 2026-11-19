@@ -37,7 +37,7 @@
 | `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere. `hidden` (scenario `hiddenWindow`): real window, never shown |
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
-| `TIE_SETTINGS` | `tmp/<instance>.settings.json`, deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell, e.g. `terminal`); a raw string is written as-is |
+| `TIE_SETTINGS` | `tmp/<instance>.settings.json` (and its `.bak`), deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell, e.g. `terminal`); a raw string is written as-is |
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |

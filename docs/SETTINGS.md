@@ -2,12 +2,21 @@
 
 ## File (`src/main/settings.ts`)
 
-- Where: shape and pure rules in `src/core/settings.ts` (`Settings`, `DEFAULTS`, `sanitize`, `validateSettings(s, executable)`, `parseCommand`; unit tests `settings.test.ts`). Main (`src/main/settings.ts`): the file (load, save, errors), shell argv, `resolveExecutable` (passed to `validateSettings`).
+- Where: shape and pure rules in `src/core/settings.ts` (`Settings`, `DEFAULTS`, `sanitize`, `parseSettings` (text → settings: the one parse for startup and Reload), `fileChanged` (disk vs baseline), `validateSettings(s, executable)`, `parseCommand`; unit tests `settings.test.ts`). Main (`src/main/settings.ts`): the file (load, baseline, watch, save, Reload / Ignore / Recreate), shell argv, `resolveExecutable` (passed to `validateSettings`).
 - Path per instance (`ARCHITECTURE.md`). First `dev` run copies `settings.json` to `settings.dev.json`.
-- Loaded once at main startup; missing → defaults. Hand edits while running are not picked up.
-- `sanitize()` at load and save: numbers clamped, not a number (or 0) → default, numeric strings count; wrong types → defaults; `allowExternalControl` only on a real `true`. Theme alias `elegant-dark` → `tie-dark`.
-- Unreadable / unparseable → defaults; Save blocked (file never overwritten), panel status shows why. Re-read on each `settings:get`/`set`, so fixing the file unblocks Save.
-- `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
+- Loaded once, at startup; missing → defaults. Never auto-reloaded: a hand edit while running is only reported (banner, below).
+- Written only by an explicit user action: the panel's Save, and "Recreate with defaults" in the startup dialog (+ its `.bak`). Never by startup, load / sanitize (adjusted values stay in memory: a file saying `fontSize: 200` keeps saying it), opening / cancelling the panel, previews, Ignore, Reload or the watcher. (Exception pending the author: the first `dev` run's seed copy above.)
+- `sanitize()` at load, Reload and save: numbers clamped, not a number (or 0) → default, numeric strings count; wrong types → defaults; `allowExternalControl` only on a real `true`. Theme alias `elegant-dark` → `tie-dark`. Not a JSON object → a syntax error.
+- Baseline: the file's content as last loaded or written by Tie (missing and unreadable are baselines too). Changed = the disk's content differs (content, not mtime: a touch or an identical rewrite is no change). Tie's own writes set the baseline in the same tick: they never count as a change.
+- Watch: main watches the file for the whole run (`watch.ts`: directory watch, survives rename saves; stable reads), recomputes "changed" fresh on each event and pushes `settings:file {changed, path}`, also when it flips back (the edit undone). Nothing applied. Latency ≈ 150 ms (`settings-file`).
+- Panel banner (`.settings-banner`, top strip over every page): `Settings changed in <path>`, `Ignore` / `Reload`; Save disabled while it shows. `settings:get` returns `changed` read fresh, so it shows at first paint; the panel follows the push while open. Closed panel: nothing shows.
+    - Ignore (`settings:ignore`): baseline := the disk content, nothing loaded; banner gone, Save enabled (a Save then overwrites the file). A further change raises it again.
+    - Reload (`settings:reload`): the file parsed as at startup (same trust: `sanitize`, no `validateSettings`), applied live as after a Save (main: window, bindings + menu; UI `applySettings`: appearance, prefs, titles), baseline := it, panel rebuilt from it (unsaved panel edits dropped). Fails (syntax, unreadable): a second banner line with the reason, banner and disabled Save stay; Ignore still works.
+    - Main's guard: `settings:set` refuses `{field: 'file', message: 'Settings changed in <path>'}` while the disk differs from the baseline (closes the race between an edit and the click).
+- Startup with a file that doesn't load: Tie runs on defaults (memory), the file untouched; once the UI is up, a dialog (`.dialog.settings-load`): `Syntax errors in your settings file, at <path>.` + the parser's message; `Close` (focused: Enter keeps the file) / `Recreate with defaults`. Unreadable (permissions): `Can't read your settings file, at <path>.`, `Close` only.
+    - Close: nothing written. Save stays blocked (status line says why) until the file is fixed on disk (banner → Reload) or the user picks Ignore.
+    - Recreate: the file's bytes copied to `<name>.bak` beside it (0600, replaces an older one; named in the button's tooltip), then defaults written, baseline set, Save unblocked.
+- `settings:set(patch)`: refused while the file is broken or changed (above); else `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
 
 | Key | Default | Scope | Values |
 |---|---|---|---|
