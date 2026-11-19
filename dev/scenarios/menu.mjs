@@ -2,7 +2,6 @@
 // close it; keyboard focus returns to the terminal.
 export default async (ctx, h) => {
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
-  const auto = (await h.list(ctx)).tiles[0].title // automatic title
   const p = await h.titlePoint(ctx, a)
   const meta = async (id) => { const t = await h.tileOf(ctx, id); return { title: t.title, icon: t.icon } }
   const menuOpen = () => ctx.page.isVisible('.menu')
@@ -48,7 +47,11 @@ export default async (ctx, h) => {
   await choose('Rename')
   await ctx.page.keyboard.press('Backspace') // the field starts selected
   await ctx.page.keyboard.press('Enter')
-  await h.eventually(ctx, async () => h.assert(JSON.stringify(await meta(a)) === JSON.stringify({ title: auto, icon: '🚀' }), `empty rename: automatic title (${JSON.stringify(await meta(a))})`))
+  // (The automatic title itself may change meanwhile: the folder, then the shell's name.)
+  await h.eventually(ctx, async () => {
+    const m = await meta(a)
+    h.assert(m.title && m.title !== 'my server' && m.icon === '🚀', `empty rename: automatic title (${JSON.stringify(m)})`)
+  })
 
   // On a shelf item: the same menu. Rename, then reset title & icon.
   await ctx.tie('move', '--tile', a, '--shelve')
@@ -64,7 +67,10 @@ export default async (ctx, h) => {
   })
   await openOn(item)
   await choose('Reset title & icon')
-  await h.eventually(ctx, async () => h.assert(JSON.stringify(await meta(a)) === JSON.stringify({ title: auto, icon: '' }), `reset: automatic title and icon (${JSON.stringify(await meta(a))})`))
+  await h.eventually(ctx, async () => {
+    const m = await meta(a)
+    h.assert(m.title && m.title !== 'parked' && m.icon === '', `reset: automatic title and icon (${JSON.stringify(m)})`)
+  })
   await openOn(item)
   h.assert(!(await ctx.page.isVisible('.menu-item:has-text("Reset")')), 'nothing custom: no Reset entry')
   await ctx.page.keyboard.press('Escape')
