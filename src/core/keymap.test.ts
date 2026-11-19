@@ -26,6 +26,20 @@ describe('chordsOf', () => {
     expect(chordsOf('quit', { quit: null })).toEqual([])
     expect(chordsOf('split-right', { quit: null, 'zoom-in': 'Cmd+K' })).toEqual(['Cmd+D'])
   })
+  it('malformed / reserved override: the default, as resolveKeymap binds it', () => {
+    const cases: Bindings[] = [{ quit: 'Q' }, { quit: 'Cmd+Escape' }, { quit: 'Cmd+C' }, { quit: 'nonsense' }, { quit: 5 as unknown as string }]
+    for (const b of cases) {
+      expect(chordsOf('quit', b)).toEqual(['Cmd+Q'])
+      expect(resolveKeymap(b)['Cmd+Q']).toBe('quit')
+    }
+    expect(chordsOf('zoom-in', { 'zoom-in': 'Cmd+Enter' })).toEqual(['Cmd+=', 'Cmd+Shift++', 'Cmd++'])
+  })
+  it('agrees with resolveKeymap for every action', () => {
+    const b: Bindings = { quit: 'Cmd+Escape', 'split-right': 'Cmd+K', 'close-tile': null, 'zoom-in': 'bad' }
+    const map = resolveKeymap(b)
+    for (const a of ACTIONS) for (const c of chordsOf(a.id, b)) expect(map[c]).toBe(a.id)
+    expect(Object.values(map)).not.toContain('close-tile')
+  })
 })
 
 describe('actionFor', () => {

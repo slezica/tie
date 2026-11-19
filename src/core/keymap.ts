@@ -64,21 +64,28 @@ export type Keymap = Record<string, Action>
 // User overrides (settings `bindings`), sparse: an action present is customized; null = unbound.
 export type Bindings = Partial<Record<Action, string | null>>
 
-// Chords an action answers to: its override (none if null), else its default + aliases.
+// An override that counts: null (unbound) or a chord validBinding() accepts. Malformed or reserved
+// ones count as absent: the action keeps its default (as sanitize()).
+const overrides = (bindings: Bindings, a: Action): boolean => {
+  if (!Object.hasOwn(bindings, a)) return false
+  const c = bindings[a]
+  return c === null || (typeof c === 'string' && !validBinding(c))
+}
+
+// Chords an action answers to: its usable override (none if null), else its default + aliases.
+// Same rule as resolveKeymap (the Quit menu label and cmd+Q agree).
 export function chordsOf(action: Action, bindings: Bindings = {}): string[] {
-  if (Object.hasOwn(bindings, action)) {
+  if (overrides(bindings, action)) {
     const c = bindings[action]
-    return typeof c === 'string' && !validBinding(c) ? [c] : []
+    return typeof c === 'string' ? [c] : []
   }
   const s = SPECS.get(action)
   return s ? [s.chord, ...(s.aliases ?? [])] : []
 }
 
-// Malformed overrides (bad chord) count as absent: the action keeps its default (as sanitize()).
 const usable = (bindings: Bindings): Bindings => {
   const out: Bindings = {}
-  for (const a of ACTIONS)
-    if (Object.hasOwn(bindings, a.id) && (bindings[a.id] === null || (typeof bindings[a.id] === 'string' && !validBinding(bindings[a.id] as string)))) out[a.id] = bindings[a.id]
+  for (const a of ACTIONS) if (overrides(bindings, a.id)) out[a.id] = bindings[a.id]
   return out
 }
 
