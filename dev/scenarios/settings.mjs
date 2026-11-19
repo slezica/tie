@@ -20,41 +20,53 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   h.assert((await cssVar('--bg')) === '#22252c', 'cancel reverts (Tie Dark default)')
 
-  // Save Elegant Dark + line height.
+  // Save Nord + line height + font (Monaco: ships with macOS, not in the default stack) + size.
   await open()
   await ctx.page.selectOption('#set-theme', 'nord')
+  // Line height previews in the terminal rows (xterm renders on the next frame).
+  const rowH = () => ctx.page.evaluate(() => document.querySelector('.xterm-rows > div').getBoundingClientRect().height)
+  const h115 = await rowH()
   await ctx.page.fill('#set-line-height', '1.3')
+  await h.waitFor(ctx, async () => (await rowH()) > h115 * 1.08, `line height 1.3 previewed: rows taller than ${h115}`)
   await ctx.page.waitForFunction(() => document.querySelectorAll('#set-font option').length > 1)
   const fonts = await ctx.page.$$eval('#set-font option', (os) => os.map((o) => o.value))
   ctx.log(`${fonts.length - 1} monospace fonts listed`)
-  h.assert(fonts.includes('Menlo'), 'system fonts listed')
+  h.assert(fonts.includes('Menlo') && fonts.includes('Monaco'), 'system fonts listed')
   h.assert(!fonts.includes('Helvetica'), 'proportional fonts filtered out')
-  await ctx.page.selectOption('#set-font', 'MesloLGS Nerd Font Mono')
+  await ctx.page.selectOption('#set-font', 'Monaco')
   await ctx.page.fill('#set-font-size', '14')
+  // Cell width previews: a row's text narrows. Width measured once the font + size preview drew.
   const cw = () => ctx.page.evaluate(() => document.querySelector('.xterm-rows > div > span')?.getBoundingClientRect().width)
+  await h.settle(ctx)
   const w100 = await cw()
   await ctx.page.fill('#set-cell-width', '90')
-  const w90 = await cw()
-  h.assert(w90 < w100 * 0.95, `char width shrinks rows (${w100} -> ${w90})`)
+  await h.waitFor(ctx, async () => (await cw()) < w100 * 0.95, `char width shrinks rows (${w100} -> ${await cw()})`)
   await ctx.shot('fonts')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => h.assert((await cssVar('--bg')) === '#2e3440', 'nord saved'))
+  const saved = (await ctx.page.evaluate(() => window.tie.settings.get())).settings
+  h.assert(saved.lineHeight === 1.3 && saved.fontFamily === 'Monaco' && saved.fontSize === 14 && saved.cellWidth === 90, `saved: ${JSON.stringify(saved)}`)
+  h.assert((await cssVar('--tile-line-height')) === '1.3', `line height applied: ${await cssVar('--tile-line-height')}`)
   const lh = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).lineHeight)
   h.assert(lh === 'normal', `chrome line height untouched (${lh})`)
   const tf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-rows')).fontFamily)
-  h.assert(tf.includes('MesloLGS'), `terminal font applied (${tf})`)
+  h.assert(tf.includes('Monaco'), `terminal font applied (${tf})`)
   const cf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).fontFamily)
-  h.assert(!cf.includes('MesloLGS'), 'chrome font untouched')
+  h.assert(!cf.includes('Monaco'), 'chrome font untouched')
+  // New cell size: every pty resized to its new grid.
+  await h.assertPtySizes(ctx)
   await ctx.shot('nord')
   await h.hoverShelf(ctx, b)
   await ctx.shot('nord-reveal')
   await ctx.page.mouse.move(400, 400)
 
-  // Light theme screenshot for review.
+  // Light theme: previews over a saved theme, Escape back to it (screenshot for review).
   await open()
   await ctx.page.selectOption('#set-theme', 'solarized-light')
+  h.assert((await cssVar('--bg')) === '#fdf6e3' && (await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'light preview')
   await ctx.shot('solarized-light-panel')
   await ctx.page.keyboard.press('Escape')
+  h.assert((await cssVar('--bg')) === '#2e3440' && !(await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'cancel: back to saved nord')
 
   // Terminal page: shell command.
   await open()
