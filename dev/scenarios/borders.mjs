@@ -34,19 +34,19 @@ export default async (ctx, h) => {
   const leaves = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leaves))
 
   await midDrag(() => ctx.tie('close', '--tile', c))
-  let s = await ctx.tie('state')
+  let s = await h.state(ctx)
   h.assert(!leaves(s.tree).includes(c), `closed tile gone from tree: ${leaves(s.tree)}`)
   await ctx.tie('focus', '--tile', a) // throws if render is wedged
 
   let d
   await midDrag(async () => (d = (await ctx.tie('add', 'terminal', '--at', b, '--side', 'b')).id))
-  s = await ctx.tie('state')
+  s = await h.state(ctx)
   h.assert(leaves(s.tree).includes(d), `opened tile kept in tree: ${leaves(s.tree)}`)
 
   await midDrag(() => h.press(ctx, 'Meta+t'), async () => (await h.list(ctx)).tabs.length === 2)
   const l = await h.list(ctx)
   const fresh = l.tiles.filter((t) => t.tab === l.tabs[1].id)
   h.assert(l.tabs.length === 2 && fresh.length === 1 && fresh[0].kind === 'terminal', 'tiles stay in tab 1; new tab has only its terminal')
-  const tree = (await ctx.tie('state')).tree
+  const tree = (await h.state(ctx)).tree
   h.assert(tree?.type === 'leaf' && tree.id === fresh[0].id, `new tab board: just its terminal: ${JSON.stringify(tree)}`)
 }

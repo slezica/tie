@@ -1,8 +1,8 @@
 // Drop on a tile's center zone (25% rectangle) = swap: slot ↔ slot (sizes kept), shelf item ↔ slot, float ↔ slot, onto a collapsed tile
-// (anywhere); own tile: nothing. Title bar: no swap, the top band (split above).
+// (anywhere), onto a bar squashed by a zoom (anywhere); own tile: nothing. Title bar: no swap, the top band (split above).
 export default async (ctx, h) => {
   const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
-  const state = () => ctx.tie('state')
+  const state = () => h.state(ctx)
   const shown = (sel) => ctx.page.evaluate((sel) => {
     const el = document.querySelector(sel)
     if (getComputedStyle(el).display === 'none') return null
@@ -109,4 +109,22 @@ export default async (ctx, h) => {
   })
   const [rF, rD] = [await h.rectOf(ctx, f), await h.rectOf(ctx, d)]
   h.assert(rF.x < rD.x && Math.abs(rF.y - rD.y) < 2, `outside center: f split left of d (${JSON.stringify([rF, rD])})`)
+
+  // Onto a bar squashed by a zoom: a swap, anywhere on it (as a collapsed tile). Shelf item b takes
+  // the bar's leaf; activated there, it ends the zoom (LAYOUT.md "Zoom").
+  const ids = leafIds((await state()).tree)
+  const [t, z] = [ids[0], ids.at(-1)]
+  const sq = async (id) => { const r = await h.rectOf(ctx, id); return Math.min(r.w, r.h) }
+  await h.clickButton(ctx, z, 'zoom')
+  await h.eventually(ctx, async () => h.assert((await state()).zoomed === z && (await sq(t)) <= 32, `${t} squashed to a bar`))
+  const rt = await h.rectOf(ctx, t)
+  const bIdx = (await state()).shelf.indexOf(b)
+  await ctx.page.mouse.move(400, 400)
+  await h.drag(ctx, await h.shelfItem(ctx, b), { x: rt.x + rt.w * 0.9, y: rt.y + rt.h * 0.9 }, {
+    during: async () => h.assert(near(await shown('#preview'), rt), 'squashed target: swap preview'),
+  })
+  s = await state()
+  h.assert(leafIds(s.tree).join() === ids.map((x) => (x === t ? b : x)).join(), `squashed target: b in its leaf (got ${leafIds(s.tree)})`)
+  h.assert(s.shelf.indexOf(t) === bIdx && s.active === b && s.zoomed === null, `${t} shelved at b's index, b active, zoom ended (${s.shelf}, ${s.active}, ${s.zoomed})`)
+  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 }

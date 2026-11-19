@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 export default async (ctx, h) => {
   const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
-  const state = () => ctx.tie('state')
+  const state = () => h.state(ctx)
   const near = (p, r) => p && Math.abs(p.x - r.x) < 2 && Math.abs(p.y - r.y) < 2 && Math.abs(p.w - r.w) < 2 && Math.abs(p.h - r.h) < 2
   const shown = (sel) => ctx.page.evaluate((sel) => {
     const el = document.querySelector(sel)
