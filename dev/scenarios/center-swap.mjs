@@ -1,5 +1,5 @@
-// Drop on a tile's center zone (25% rectangle) = swap: slot ↔ slot (sizes kept), shelf item ↔ slot, float ↔ slot, onto a collapsed tile
-// (anywhere), onto a bar squashed by a zoom (anywhere); own tile: nothing. Title bar: no swap, the top band (split above).
+// Drops on the board: edge bands (nearest edge) split; center zone (25% rectangle) = swap: slot ↔ slot (sizes kept), shelf item ↔ slot,
+// float ↔ slot, onto a collapsed tile (anywhere), onto a bar squashed by a zoom (anywhere); own tile: nothing. Title bar: no swap, the top band.
 export default async (ctx, h) => {
   const state = () => h.state(ctx)
   const shown = (sel) => ctx.page.evaluate((sel) => {
@@ -10,7 +10,21 @@ export default async (ctx, h) => {
   }, sel)
   const near = (p, r) => p && Math.abs(p.x - r.x) < 2 && Math.abs(p.y - r.y) < 2 && Math.abs(p.w - r.w) < 2 && Math.abs(p.h - r.h) < 2
 
-  const [a, b, c] = await h.threeWaySplit(ctx) // a | b over c
+  // Edge drops (nearest edge band), preview mid-drag.
+  {
+    const [a, b, c] = await h.threeWaySplit(ctx) // a | b over c
+    await ctx.shot('initial')
+    await h.dragTitle(ctx, c, a, 'l', { during: () => ctx.shot('preview-left') })
+    const s = await state()
+    h.assert(s.tree.dir === 'row' && s.tree.children.map((n) => n.id).join() === [c, a, b].join(), 'c left of a, row of 3')
+    await h.dragTitle(ctx, b, a, 'b', { during: () => ctx.shot('preview-bottom') })
+    const t = await state()
+    const col = t.tree.children[1]
+    h.assert(t.tree.children.length === 2 && col.dir === 'col' && col.children.map((n) => n.id).join() === [a, b].join(), `a over b, right of c (got ${JSON.stringify(t.tree)})`)
+    await ctx.shot('edges')
+  }
+  // Now c | a over b: renamed to the center cases' a | b over c.
+  const [a, b, c] = h.leafIds((await state()).tree)
   let s = await state()
   const sizes = JSON.stringify(s.tree.sizes)
   const ra = await h.rectOf(ctx, a)
