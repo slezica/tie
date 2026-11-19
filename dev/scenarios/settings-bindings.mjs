@@ -37,6 +37,23 @@ export default async (ctx, h) => {
   h.assert(w0 > 60, `binding column measured: ${w0}`)
   await ctx.shot('bindings')
 
+  // Scrollbar: always there, its own space; the rows' X buttons never under it. Checked scrolled
+  // to the end (35 rows overflow the panel).
+  const bar = await page.$eval('.bind-rows', (e) => {
+    e.scrollTop = e.scrollHeight
+    const r = e.getBoundingClientRect()
+    const last = [...e.querySelectorAll('.bind-row .reset')].at(-1).getBoundingClientRect()
+    const head = document.querySelector('.bind-head span:nth-child(2)').getBoundingClientRect()
+    const cell = e.querySelector('.bind-row .cell').getBoundingClientRect()
+    return { scrolls: e.scrollHeight > e.clientHeight, gutter: e.offsetWidth - e.clientWidth, contentRight: r.left + e.clientLeft + e.clientWidth, button: last.right, head: [head.left, head.width], cell: [cell.left, cell.width] }
+  })
+  h.assert(bar.scrolls, `table scrolls: ${JSON.stringify(bar)}`)
+  h.assert(bar.gutter >= 8, `scrollbar takes its own space: ${JSON.stringify(bar)}`)
+  h.assert(bar.button <= bar.contentRight, `X button clear of the scrollbar: ${JSON.stringify(bar)}`)
+  h.assert(Math.abs(bar.head[0] - bar.cell[0]) < 1 && Math.abs(bar.head[1] - bar.cell[1]) < 1, `head lines up with rows: ${JSON.stringify(bar)}`)
+  await ctx.shot('bindings-scrolled')
+  await page.$eval('.bind-rows', (e) => (e.scrollTop = 0))
+
   // Name search: case-insensitive substring.
   await page.fill('#bind-name', 'TAB')
   await h.eventually(ctx, async () => {

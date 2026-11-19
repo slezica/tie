@@ -62,6 +62,7 @@
     - Typing in one search clears the other.
     - Pencil toggle (`.bind-custom`, `aria-pressed`, tooltip "Only customized"; the rows' edit icon: customized = edited): only customized rows. Pressed: accent icon, border, soft accent fill. X (`.bind-clear`): clears both searches and the toggle.
 - Table (`.bind-row[data-action]`, `ACTIONS` order): Action | Binding | pencil, X.
+    - Rows scroll under a fixed head. Scrollbar always shown, its own room (`--bind-sb`; styled, not macOS overlay: an overlay one covered the X buttons); the head leaves the same room.
     - Binding: the override, else the default chord (aliases hidden); unbound = dim `—`.
     - Binding column width `--bind-w`: widest text over all rows (defaults + current, bold) + margin. Measured at open and after each change, never by filtering.
     - Customized (present in the draft): bold, X enabled. X = back to default.

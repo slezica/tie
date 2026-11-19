@@ -1389,6 +1389,7 @@ body.empty #empty-hint {
   border-color: var(--accent);
 }
 .settings .bind-table {
+  --bind-sb: 10px; /* rows' scrollbar width; the head leaves the same room */
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1409,6 +1410,7 @@ body.empty #empty-hint {
   padding: 0 4px 0 10px;
 }
 .settings .bind-head {
+  padding-right: calc(4px + var(--bind-sb)); /* columns line up with the rows beside their scrollbar */
   height: 28px;
   border-bottom: 1px solid var(--border);
   background: var(--fg-a);
@@ -1424,7 +1426,25 @@ body.empty #empty-hint {
 .settings .bind-rows {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+/* Styled scrollbar: classic, not macOS overlay (which ignores the gutter and covers the rows' X
+   buttons). Always shown, its own space beside the rows. */
+.settings .bind-rows::-webkit-scrollbar {
+  width: var(--bind-sb);
+}
+.settings .bind-rows::-webkit-scrollbar-track {
+  background: var(--fg-a);
+}
+.settings .bind-rows::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background: var(--fg-d);
+  background-clip: padding-box;
+}
+.settings .bind-rows::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
 }
 .settings .bind-row {
   min-height: 30px;
