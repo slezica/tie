@@ -71,8 +71,9 @@ export function confirmDialog(o: { cls?: string; title: string; body: Node[]; co
 }
 
 // Modal question with several answers: resolves the chosen value; Escape / backdrop = the first
-// choice (the safe one: it has the focus, Enter picks it). `secondary`: styled as a lesser action.
-export function choiceDialog<V extends string>(o: { cls?: string; title: string; body: Node[]; choices: { label: string; value: V; secondary?: boolean }[] }): Promise<V> {
+// choice (the safe one: it has the focus, Enter picks it). `secondary`: styled as a lesser action;
+// `title`: the button's tooltip.
+export function choiceDialog<V extends string>(o: { cls?: string; title: string; body: Node[]; choices: { label: string; value: V; secondary?: boolean; title?: string }[] }): Promise<V> {
   return new Promise((resolve) => {
     const back = document.createElement('div')
     back.className = 'dialog-backdrop'
@@ -92,6 +93,7 @@ export function choiceDialog<V extends string>(o: { cls?: string; title: string;
       b.className = `choice${c.secondary ? ' secondary' : ''}`
       b.dataset.value = c.value
       b.textContent = c.label
+      if (c.title) b.title = c.title
       b.addEventListener('click', () => done(c.value))
       actions.append(b)
     }

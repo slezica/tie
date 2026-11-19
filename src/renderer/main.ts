@@ -14,7 +14,7 @@ import { initShelf } from './shelf'
 import { initMenu, showTileMenu } from './menu'
 import { startDrag, startFloatResize } from './drag'
 import { initDriver } from './driver'
-import { initSettings } from './settings'
+import { initSettings, settingsLoadDialog } from './settings'
 import { applyAppearance } from './appearance'
 import { applyPrefs } from './prefs'
 import { initKeys } from './keys'
@@ -95,7 +95,8 @@ window.addEventListener('resize', () => render())
 
 async function boot() {
   const info = await tie.info()
-  const { settings } = await tie.settings.get()
+  const settingsInfo = await tie.settings.get()
+  const { settings } = settingsInfo
   applyAppearance(settings)
   applyPrefs(settings)
   S.cwd = info.cwd
@@ -116,6 +117,7 @@ async function boot() {
   initTabs()
   openTile('terminal', { type: 'slot', at: null, side: 'r' })
   tie.ready()
+  void settingsLoadDialog(settingsInfo) // the file didn't load: say so once the UI is up
 }
 
 boot()

@@ -358,6 +358,14 @@ body.tile-drag #tab-add.drop {
   color: var(--text);
   font-weight: 600;
 }
+.dialog.settings-load .dialog-body p {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.dialog.settings-load .dialog-body p.reason {
+  color: var(--faint);
+  font-size: 12px;
+}
 .dialog .dialog-body p.warn {
   color: var(--text);
 }
@@ -1091,6 +1099,7 @@ body.empty #empty-hint {
 }
 .settings {
   display: flex;
+  flex-direction: column; /* banner (file changed on disk), then nav + pages */
   width: min(680px, calc(100vw - 32px));
   height: min(560px, calc(100vh - 32px)); /* constant across pages */
   background: var(--panel);
@@ -1098,6 +1107,53 @@ body.empty #empty-hint {
   border-radius: 10px;
   box-shadow: 0 20px 60px var(--shadow);
   overflow: hidden;
+}
+.settings-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+/* Settings file changed on disk (SETTINGS.md "File"): warning strip over every page. */
+.settings-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 16px;
+  background: color-mix(in srgb, var(--yellow) 16%, var(--panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--border));
+  color: var(--text);
+  font-size: 12.5px;
+}
+.settings-banner[hidden] {
+  display: none;
+}
+.settings-banner .text {
+  flex: 1;
+  min-width: 0;
+}
+.settings-banner p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.settings-banner .msg {
+  font-weight: 600;
+}
+.settings-banner .reason {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.settings-banner button {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--border));
+  background: transparent;
+  color: var(--text);
+  font: 600 12px var(--ui-font);
+  cursor: pointer;
+}
+.settings-banner button:hover {
+  background: color-mix(in srgb, var(--yellow) 18%, transparent);
 }
 .settings nav {
   flex: 0 0 160px;
@@ -1271,6 +1327,10 @@ body.empty #empty-hint {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--bg);
+}
+.settings .actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* Bindings page (bindings.ts): filters fixed, the table scrolls. Binding column width: --bind-w

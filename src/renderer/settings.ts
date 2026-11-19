@@ -2,19 +2,59 @@
 // Pages: Appearance (app-wide look) | Bindings (keys: bindings.ts) | Terminal | Files (picker) | Security (socket callers, links out).
 import { S, tie } from './state'
 import { refreshTitle } from './tile'
-import type { Settings } from '../preload'
+import type { Settings, SettingsInfo } from '../preload'
 import { refocus } from './ops'
 import { THEMES, theme } from './themes'
 import { applyAppearance, appearance, fontInstalled, monospaceFonts } from './appearance'
 import { applyPrefs } from './prefs'
 import { bindingsPage } from './bindings'
+import { tildePath } from './tabs'
+import { choiceDialog, infoDialog } from './dialog'
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
+let banner: ((changed: boolean) => void) | null = null // the open panel's
 
 export function initSettings() {
   tie.settings.onOpen(toggleSettings)
   document.addEventListener('tie:settings', toggleSettings) // harness hook (menu accelerators can't be driven)
+  // The file changed on disk (main's watcher): only the open panel shows it; nothing is applied.
+  tie.settings.onFile(({ changed }) => banner?.(changed))
+}
+
+// The UI's side of applying settings: after a Save, a Reload, a Recreate (main applies its own).
+export function applySettings(s: Settings) {
+  applyAppearance(s)
+  applyPrefs(s)
+  for (const t of S.tiles.values()) refreshTitle(t) // titles may depend on settings (terminalTitle)
+}
+
+// Startup: the file didn't load (Tie runs on defaults, the file untouched). Close (focused: Enter
+// must not destroy a file) keeps it; Recreate backs it up to `.bak`, then writes defaults.
+export async function settingsLoadDialog(info: SettingsInfo) {
+  const e = info.loadError
+  if (!e) return
+  const para = (text: string, cls?: string) => {
+    const p = document.createElement('p')
+    p.textContent = text // path and parser message: file content, never markup
+    if (cls) p.className = cls
+    return p
+  }
+  const where = tildePath(info.path)
+  const syntax = e.kind === 'syntax'
+  const choice = await choiceDialog({
+    cls: 'settings-load',
+    title: 'Settings file',
+    body: [para(syntax ? `Syntax errors in your settings file, at ${where}.` : `Can't read your settings file, at ${where}.`), para(e.message, 'reason')],
+    choices: [
+      { label: 'Close', value: 'close' as const },
+      ...(syntax ? [{ label: 'Recreate with defaults', value: 'recreate' as const, secondary: true, title: `The file is first copied to ${tildePath(info.backup)}` }] : []),
+    ],
+  })
+  if (choice !== 'recreate') return
+  const r = await tie.settings.recreate()
+  if (r.ok) applySettings(r.settings)
+  else await infoDialog("Couldn't recreate the settings file", r.message)
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
@@ -25,13 +65,24 @@ export async function toggleSettings() {
   if (panel) return cancel()
   if (opening) return // a second request while the first awaits settings
   opening = true
-  const { settings, defaults, path, error } = await tie.settings.get().finally(() => (opening = false))
+  const info = await tie.settings.get().finally(() => (opening = false))
+  if (!panel) build(info)
+}
+
+function build(info: SettingsInfo) {
+  const { settings, defaults, path, error } = info
   const saved = appearance()
 
   panel = document.createElement('div')
   panel.className = 'settings-backdrop'
   panel.innerHTML = `
     <div class="settings" role="dialog" aria-label="Settings">
+      <div class="settings-banner" role="alert" hidden>
+        <div class="text"><p class="msg"></p><p class="reason" hidden></p></div>
+        <button class="ignore">Ignore</button>
+        <button class="reload">Reload</button>
+      </div>
+      <div class="settings-main">
       <nav>
         <button data-page="appearance">Appearance</button>
         <button data-page="bindings">Bindings</button>
@@ -107,6 +158,7 @@ export async function toggleSettings() {
           <button class="cancel">Cancel</button>
           <button class="save">Save</button>
         </div>
+      </div>
       </div>
     </div>`
   document.body.appendChild(panel)
@@ -221,13 +273,47 @@ export async function toggleSettings() {
   const save = async () => {
     const res = await tie.settings.set({ ...draft(), shell: shell.value.trim(), bindings: bindings.value() })
     if (res.ok) {
-      applyPrefs(res.settings)
-      for (const t of S.tiles.values()) refreshTitle(t) // titles may depend on settings (terminalTitle)
+      applySettings(res.settings)
       return close()
     }
     showErrors(res.errors)
   }
   $('.save').addEventListener('click', save)
+
+  // Changed on disk since loaded (SETTINGS.md "File"): banner on every page, Save disabled until
+  // Ignore (keep the panel's values; a Save overwrites the file) or Reload (adopt the file).
+  const saveBtn = $<HTMLButtonElement>('.save')
+  const bar = $('.settings-banner')
+  const reason = $('.settings-banner .reason')
+  $('.settings-banner .msg').textContent = `Settings changed in ${tildePath(path)}` // path: textContent
+  banner = (changed) => {
+    if (!changed && bar.contains(document.activeElement)) show(page) // focus stays in the panel
+    bar.hidden = !changed
+    saveBtn.disabled = changed
+    if (!changed) reason.hidden = true
+  }
+  banner(info.changed)
+  $('.settings-banner .ignore').addEventListener('click', async () => {
+    const now = await tie.settings.ignore()
+    if (!panel) return
+    banner?.(false)
+    if (!now.error) clearErrors() // a load error (unparseable at startup) is lifted too
+  })
+  $('.settings-banner .reload').addEventListener('click', async () => {
+    const r = await tie.settings.reload()
+    if (!panel) return
+    if (!r.ok) {
+      reason.textContent = r.message // parser message: textContent
+      reason.hidden = false
+      return
+    }
+    // Applied as after a Save; the panel shows the file's values (unsaved edits dropped).
+    applySettings(r.settings)
+    const info = await tie.settings.get()
+    if (!panel) return
+    remove()
+    build(info)
+  })
   $('.cancel').addEventListener('click', cancel)
   panel.addEventListener('pointerdown', (e) => e.target === panel && cancel())
   panel.addEventListener('keydown', (e) => {
@@ -244,8 +330,13 @@ function cancel() {
   close()
 }
 
-function close() {
+function remove() {
   panel?.remove()
   panel = null
+  banner = null
+}
+
+function close() {
+  remove()
   refocus()
 }

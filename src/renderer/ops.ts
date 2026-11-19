@@ -1,6 +1,6 @@
 // Space operations. Every mutation of S goes through here, then render().
 import { insert, insertGroup, remove, swapLeaves, replaceLeaf, parentDir, contains, type Rect, type Side, type TileId } from '@core/layout'
-import { S, squashed, location, boardRect, layoutOpts, getTile, debug, spaceOf, withSpace, type Kind, type Space } from './state'
+import { S, squashed, location, boardRect, layoutOpts, getTile, debug, spaceOf, withSpace, type Kind, type Space, type Tile } from './state'
 import { createTile, mountTile, disposeTile, refreshTitle } from './tile'
 import type { OpenOpts } from './kinds'
 import { render } from './render'
@@ -154,12 +154,16 @@ export function contextOf(p?: Placement | { type: 'displace'; with: TileId }): T
 // pass `opts.cwd` from `cwdOf`).
 const contextCwd = (ctx: TileId | null) => (ctx && S.tiles.get(ctx)?.cwd) || S.cwd
 
+// A tile done mounting takes the focus if still active, unless a modal (panel, dialog: e.g. the
+// startup settings dialog) holds it meanwhile: its close refocuses.
+const focusMounted = (t: Tile) => S.active === t.id && !document.querySelector('.settings, .dialog-backdrop') && t.surface.focus()
+
 // `opts.cwd`: the new tile's cwd; absent: its context tile's (contextOf).
 export function openTile(kind: Kind, p: Placement, opts: OpenOpts = {}, o: { activate?: boolean } = {}): TileId {
   const t = createTile(kind, { ...opts, cwd: opts.cwd || contextCwd(contextOf(p)) })
   place(t.id, p, o)
   render()
-  mountTile(t).then(() => S.active === t.id && t.surface.focus())
+  mountTile(t).then(() => focusMounted(t))
   return t.id
 }
 
@@ -172,7 +176,7 @@ export function displaceTile(old: TileId, kind: Kind, opts: OpenOpts = {}): Tile
   place(t.id, { type: 'shelf' })
   swap(t.id, old) // exchanges shelf ↔ slot: old takes the new tile's (last) shelf index
   activate(t.id)
-  mountTile(t).then(() => S.active === t.id && t.surface.focus())
+  mountTile(t).then(() => focusMounted(t))
   return t.id
 }
 
