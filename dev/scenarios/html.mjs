@@ -1,8 +1,9 @@
 // Html tiles: the file is the page, static (scripts never run: html-static). Renders with its
 // sibling CSS; links within the folder navigate the tile (history, cmd+[ / cmd+]); the page's own
 // navigations (meta refresh) are followed; subfolders stay on the token, other folders get a new
-// one; other kinds open beside; the web asks first (Cancel / Open); live reload on page and sibling
-// changes keeps the scroll; a reopened file starts with empty storage. Hidden window: real clicks.
+// one; other kinds open beside; live reload on page and sibling changes keeps the scroll; a crashed
+// page shows "Page crashed". Web links (confirm dialog) and storage per open: sec-html, sec-storage.
+// Hidden window: real clicks.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -123,19 +124,7 @@ export default async (ctx, h) => {
     for (const x of (await h.list(ctx)).tiles.filter((x) => x.id !== id && x.id !== t0)) await ctx.tie('close', '--tile', x.id)
     h.assert((await pg()).path.endsWith('/site/index.html'), 'still on index')
 
-    // The web: asks first, full URL shown, Cancel focused. Cancel: nothing. Open: system browser.
-    await h.clickIn(ctx, await fr(), '#web')
-    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'confirm dialog')
-    const dlg = await ctx.page.evaluate(() => ({ url: document.querySelector('.dialog.external-open .url')?.textContent, focus: document.activeElement?.className }))
-    h.assert(dlg.url === 'https://example.com/x?q=1' && dlg.focus.includes('cancel'), `dialog: ${JSON.stringify(dlg)}`)
-    await ctx.shot('confirm')
-    await ctx.page.click('.dialog .cancel')
-    await ctx.sleep(300) // absence: nothing opened
-    h.assert(!ctx.appLog().includes('external open https://example.com/x'), 'cancel: nothing opened')
-    await h.clickIn(ctx, await fr(), '#web')
-    await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'confirm dialog again')
-    await ctx.page.click('.dialog .confirm')
-    await h.waitFor(ctx, async () => ctx.appLog().includes('external open https://example.com/x?q=1'), 'open: system browser (harness: logged)')
+    // The web (confirm dialog: Cancel focused, Cancel / Open): sec-html.
 
     // In-page anchor: the page's own (scrolls, no navigation).
     await h.clickIn(ctx, await fr(), '#anchor')
@@ -161,13 +150,10 @@ export default async (ctx, h) => {
     await h.press(ctx, 'Meta+r')
     await h.waitFor(ctx, async () => (await (await fr()).evaluate(() => !window.__old && document.readyState === 'complete' && Math.abs(scrollY - 1200) <= 2)), 'cmd+R: reloaded, scroll kept')
 
-    // Storage: own origin per open (a reopened file gets a new token: empty storage). Not removed
-    // from disk on close (Chromium skips the custom scheme: plan Results, PENDING).
-    await (await fr()).evaluate(() => localStorage.setItem('k', 'v'))
+    // Reopened (storage per open: sec-storage), for the crash below.
     await ctx.tie('close', '--tile', id)
     const again = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r', '--cwd', dir)).id
     const fa = await h.htmlFrame(ctx, again)
-    h.assert((await fa.evaluate(() => localStorage.getItem('k'))) === null, 'reopened: fresh storage')
 
     // Crash: the page's renderer dies (CDP Page.crash on its frame's target) → "Page crashed" (after
     // the navigation grace: a document's port also closes when it navigates), frame gone; no reload.
