@@ -153,6 +153,18 @@ describe('watchFile', () => {
     expect(await until(() => texts().includes('three'))).toBe(true)
   })
 
+  it('grown past maxBytes: ignored (last content stays), back under: reported', async () => {
+    const f = join(dir, 'a.md')
+    writeFileSync(f, 'one')
+    await start(f, 'one', { maxBytes: 10 })
+    writeFileSync(f, 'x'.repeat(11))
+    await sleep(400) // absence: past the debounce, no event for the oversized file
+    expect(events).toEqual([])
+    writeFileSync(f, 'two')
+    expect(await until(() => texts().includes('two'))).toBe(true)
+    expect(texts()).toEqual(['two'])
+  })
+
   it('closed: silent', async () => {
     const f = join(dir, 'a.md')
     writeFileSync(f, 'one')

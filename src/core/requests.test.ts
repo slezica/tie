@@ -6,6 +6,8 @@ describe('parseRequest', () => {
     expect(parseRequest({ verb: 'ready' })).toEqual({ verb: 'ready' })
     expect(parseRequest({ verb: 'pong', n: 7 })).toEqual({ verb: 'pong', n: 7 })
     expect(parseRequest({ verb: 'scrolled', y: 120 })).toEqual({ verb: 'scrolled', y: 120 })
+    expect(parseRequest({ verb: 'scrolled', y: 0 })).toEqual({ verb: 'scrolled', y: 0 })
+    expect(parseRequest({ verb: 'scrolled', y: 100_000_000 })).toEqual({ verb: 'scrolled', y: 100_000_000 }) // the bound itself
     const m = { verb: 'openLink', url: 'https://example.com' }
     const r = parseRequest(m)
     expect(r).toEqual(m)
@@ -24,6 +26,10 @@ describe('parseRequest', () => {
       { verb: 'scrolled' },
       { verb: 'scrolled', y: -1 },
       { verb: 'scrolled', y: 1.5 },
+      { verb: 'scrolled', y: 100_000_001 },
+      { verb: 'scrolled', y: Infinity },
+      { verb: 'scrolled', y: NaN },
+      { verb: 'scrolled', y: '120' },
       { verb: 'openLink' },
       { verb: 'openLink', url: 42 },
       { verb: 'openLink', url: 'https://x', cmd: 'id' },
@@ -58,7 +64,9 @@ describe('link and page verbs (file views, html bootstrap)', () => {
       expect(parseRequest(m)).toBe(null)
   })
   it('gesture verbs: link opens', () => {
-    expect(['ready', 'pong', 'openLink', 'followLink', 'hover', 'blocked'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
+    // Every verb, by type: a verb added to requests.ts and missing here fails typecheck.
+    const gesture: Record<Verb, boolean> = { ready: false, pong: false, openLink: true, followLink: true, hover: false, blocked: false, scrolled: false }
+    for (const [v, g] of Object.entries(gesture)) expect([v, needsGesture(v as Verb)]).toEqual([v, g])
   })
   it('hover, blocked: bounded; no title verb (content never names its tile)', () => {
     expect(parseRequest({ verb: 'hover', href: 'x.md' })).toEqual({ verb: 'hover', href: 'x.md' })
