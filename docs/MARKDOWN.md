@@ -6,20 +6,20 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 | Part | Where | Does |
 |---|---|---|
-| Kind | `renderer/kinds/index.ts` | `fileKind('markdown', icon)`: file view + viewer name + icon (one line) |
+| Kind | `renderer/kinds/index.ts` | `fileKind('markdown', 'markdown', true)`: file view + viewer name + icon + zoom keys (one line) |
 | File view | `renderer/fileview.ts` | doc + frame per tile; links, history, nav, theme (`TILES.md`) |
 | Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | pipeline: markdown-it → highlight.js → DOMPurify → Mermaid (on demand); on `runtime.ts`, `live.ts`, `highlight.ts` |
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker walks, native dialog (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
 | Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind (`fileKind`); `classifyLink`; policy row (CSP, cap) |
-| Opening | `driver.ts` (`tie add`), `files.ts` (drops), `drag.ts` (file template) + `picker.ts` (file picker) | |
+| Opening | `driver.ts` (`tie add`), `files.ts` (drops), `drag.ts` (file template), `keys.ts` (`cmd+O`) + `picker.ts` (file picker) | |
 
 ## Flow
 
-1. Mount: `tie.doc.open(path, 'markdown')` → main checks (absolute, regular file, markdown extension), reads (≤ 8 MB, policy row), watches → `{id, kind, text, rev}`. Error → `showError`.
-2. Frame: root by `DIRECTORIES.md` 5 (the context cwd when it holds the file, else its folder; `tie.content.open`). On each handshake: theme (in `tie:init`, applied before `ready`), then the doc (`onReady`). Appearance changes: a theme message.
-3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'tie:zoom', factor}` (cmd+= / - / 0: CSS `zoom` on the root, `INPUT.md`; sent again on each `ready`), `{type: 'doc', key, text, rev, scroll: keep|top|restore, hash, y?}` (`y`: the host's remembered scroll for `restore` when the viewer's own memory is gone: viewer reloaded), `{type: 'scroll', hash}`.
-4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `pong` (watchdog).
+1. Mount: `tie.doc.open(path, 'markdown')` → main checks (absolute, regular file, markdown by extension), reads (≤ 8 MB, policy row), watches → `{id, kind, text, rev}`. Error → `showError`.
+2. Frame: root by `DIRECTORIES.md` 5 (the tile's cwd when it holds the file, else its folder; `tie.content.open`). On each handshake: theme (in `tie:init`, applied before `ready`), then the zoom and the doc (`onReady`). Appearance changes: a theme message.
+3. Host → viewer (port): `{type: 'theme', dark, vars}`, `{type: 'tie:zoom', factor}` (cmd+= / - / 0: CSS `zoom` on the root, `INPUT.md`; sent again on each `ready`), `{type: 'doc', key, src, text, rev, scroll: keep|top|restore, hash, y?}` (`src`: path within the root, images resolve against it; `y`: the host's remembered scroll for `restore` when the viewer's own memory is gone: viewer reloaded), `{type: 'scroll', hash}`.
+4. Viewer → host: `followLink {href, newTile}` (gesture verb, `TILES.md`); `hover {href}` (link strip); `scrolled {y}`; `ready`, `pong` (handshake, watchdog).
 5. Changes: main pushes `doc:changed(id, {text, rev} | {missing: true})` → kind → viewer: live update ("Live updates" below). Shelved tile: activity dot.
 6. Close: `tie.doc.close(id)` (watch stops), frame disposed (token forgotten).
 
@@ -39,13 +39,13 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 - Code: highlight.js core + common languages (bash, c, cpp, css, diff, dockerfile, go, ini, java, javascript, json, makefile, markdown, python, ruby, rust, shell, sql, swift, typescript, xml, yaml; their aliases). Fenced blocks with a known language only; no auto-detect.
 - Diagrams: ```` ```mermaid ```` fences → SVG ("Diagrams" below).
 - Images: relative paths inside the root, resolved from the document's place in it (`src` of the doc message) → `tie-content://<token>/<path>`. Remote, `data:`, absolute, or leaving the root (`../` past it) → placeholder (`🖼 alt`, URL as tooltip); no `<img>`, no request.
-- Style: `<style nonce>` in `src/viewers/markdown.html` (markdown typography); shared parts injected by their modules (base colors, selection, focus: `runtime.ts`; marks: `marks.ts`; code tokens: `highlight.ts`). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = UI's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → the theme's `code` colors when it has them (`--code-<token>` vars), else the ANSI palette. Typography after Pico CSS v2 (`2026-10-28`, showcase of 15 stylesheets): root font-size = `--size` × `--scale` (1.15), line-height 1.5; type sizes in em (h1 2em … h6 1em, code 0.875em), spacing in rem (`--space` = 1rem: blocks one unit below, headings 1.2–2.4 units above after a block, list items a quarter), so the root knob scales everything. Definition lists: half a unit between terms, a quarter between definitions. Every size and spacing is a `:root` variable at the top of the sheet (list and meanings: `2026-10-28-markdown-typography.md` "Variables"); tweak there, not in the rules.
-- Scroll: live updates never move the view ("Live updates"); top on a new page; on back/forward restored if the frame didn't reload (same directory).
-- Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `md`, `sanitize`, `sanitizeSvg`, `diagrams`, `marks()` → `{marked, unseen}`).
+- Style: `<style nonce>` in `src/viewers/markdown.html` (markdown typography); shared parts injected by their modules (base colors, selection, focus: `runtime.ts`; marks: `marks.ts`; code tokens: `highlight.ts`). Theme vars set via CSSOM (`--bg`, `--fg`, `--accent`, `--a0..--a15` ANSI, `--font` = UI's `--ui-font`, `--mono` = tile font stack, `--size` = tile font size). Derived colors: `color-mix`. Code tokens → the theme's `code` colors when it has them (`--code-<token>` vars), else the ANSI palette. Typography after Pico CSS v2 (record `2026-10-28-markdown-typography.md`): root font-size = `--size` × `--scale` (1.15), line-height 1.5; type sizes in em (h1 2em … h6 1em, code 0.875em), spacing in rem (`--space` = 1rem: blocks one unit below, headings 1.2–2.4 units above after a block, list items a quarter), so the root knob scales everything. Definition lists: half a unit between terms, a quarter between definitions. Every size and spacing is a `:root` variable at the top of the sheet (list and meanings: the record's "Variables"); tweak there, not in the rules.
+- Scroll: live updates never move the view ("Live updates"); top on a new page; `#hash` → its anchor; back / forward, reload: restored while the frame stays (same root; a dev viewer reload: the host's `y`).
+- Harness view: `window.markdown` (`port`, `rev`, `key`, `text`, `renders`, `removed` (DOMPurify removals), `scrolls`, `md`, `sanitize`, `sanitizeSvg`, `diagrams`, `marks()` → `{marked, unseen}`).
 
 ## Diagrams (`viewers/mermaid.ts`)
 
-- Fence ```` ```mermaid ```` → `<div class="diagram"><pre class="diagram-src">source</pre></div>` (escaped, sanitized with the page). After the page is in place, each block renders in this frame (no other frame).
+- Fence ```` ```mermaid ```` → `<div class="diagram"><pre class="diagram-src"><code>source</code></pre></div>` (escaped, sanitized with the page). After the page is in place, each block renders in this frame (no other frame).
 - Library: `@mermaid-js/tiny` 12.2.0 (exact pin, devDependency): flowchart, sequence, class, state, ER, gantt, pie, gitGraph and the rest, minus mindmap, architecture, KaTeX. Copied as-is to `out/viewers/markdown-mermaid.js` (2.8 MB, 0.75 MB gzip). Loaded lazily: only when a document has a diagram, as `<script nonce>` (page nonce, read from `document.currentScript`). Served from `/_tie/` to markdown tokens only (`viewerFile`).
 - Config: `startOnLoad: false`, `securityLevel: 'strict'`, `htmlLabels: false` (+ `flowchart.htmlLabels`), `suppressErrorRendering`, `deterministicIds`, `theme: 'base'` + `themeVariables` from the tile theme (hex mixed in JS: Mermaid computes shades; ANSI palette for pie / gitGraph / scales).
 - `secure` (no `%%{init}%%` override): `securityLevel`, `startOnLoad`, `maxTextSize`, `maxEdges`, `suppressErrorRendering`, `htmlLabels`, `flowchart`, `theme`, `themeVariables`, `themeCSS`, `fontFamily`, `altFontFamily`, `fontSize`, `darkMode`, `deterministicIds(Seed)`, `arrowMarkerAbsolute`.
@@ -69,7 +69,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 
 - Paths resolve against the current file, percent-decoded; query ignored, hash kept (scroll after load).
 - Missing target: modal "Can't open link".
-- Outside the root: frame reloads on a new token (`frameSurface.setRoot`; root by the rule again, `DIRECTORIES.md` 6).
+- Outside the root: asks first (`confirmFile`, `TILES.md` "Links out"); then the frame reloads on a new token (`frameSurface.setRoot`; root by the rule again, `DIRECTORIES.md` 6).
 
 ## Live updates (`viewers/markdown.ts` `show`, `live.ts` `place`, `marks.ts`)
 
@@ -77,7 +77,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 1. Build off-screen: sanitized HTML; each top-level block keyed `data-k` = hash of its HTML (diagram: of its source; `blockHash`) + occurrence. Diagrams from a cache (same source + theme → same SVG); new ones rendered off-screen first, so a block changes once.
 2. Diff in (`morphdom` 2.7.8, keyed): same key = same content, block left alone (same node); new keys inserted; gone keys removed.
-3. Anchor: the first block on screen that survives keeps its on-screen position (`scrollBy` by its shift). Manual, `overflow-anchor: none`: native scroll anchoring didn't hold (`markdown-live`: content moved ~80 px on insert above, morphdom moves nodes) and never applies at scroll 0. Text inserted inside the view pushes what's below it; the top stays.
+3. Anchor: the first block on screen that survives keeps its on-screen position (`scrollBy` by its shift). Manual, `overflow-anchor: none`: native scroll anchoring doesn't hold (morphdom moves nodes) and never applies at scroll 0. Text inserted inside the view pushes what's below it; the top stays.
 4. Marks: blocks with new keys get a bar in the left margin (`--change`, from `--accent`). It fades 3 s after the block was seen (half of it on screen, or a third of the view for tall blocks; page visible), not after the render: off-screen changes stay marked. Deleted blocks: no mark.
 5. Edge markers: "▲ changed above" / "▼ changed below" while unseen changes exist that way. Click: jump to the nearest one.
 6. `n` (frame focused, no modifiers): newest unseen change to a third from the top (page ends clamp). Each jump marks it seen: repeated `n` walks unseen changes, newest update first, document order within one. None unseen: the newest still-marked one.
@@ -94,13 +94,13 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 ## Read-only
 
-- Decision 2026-10-16: tiles never write the file. Task-box write-back (`toggleTask`) removed: request verb, validator, handler, `doc:toggle` IPC, bridge method, main write path.
+- Tiles never write the file (decision 2026-10-16): no write verb, IPC, bridge method or main write path.
 - A write-shaped message from the frame is an unknown verb: dropped, logged (`sec-markdown`).
 
 ## Watching (`main/watch.ts`)
 
 - Watch the file's directory and the real file's directory (`fs.watch`, FSEvents). Event for its name (or unnamed) → debounce 100 ms, max 500 ms.
-- Read: stat-read-stat; changed in between → retry (≤5, then accept).
+- Read: stat-read-stat; changed in between → retry (≤ 5, then skipped: the next event or poll reads again). Opening: same, ≤ 5 retries, then error.
 - Missing: re-check at +100, +300 ms (backup-rename writers), then report missing once; keep watching. Last render stays (frozen). Back → reported even if unchanged.
 - Report only on hash change. Backstop poll 2.5 s (stat; full read if moved); re-arms watchers when a directory was replaced or removed.
 - FSEvents misses changes in the first moments after a watch starts: the poll catches those.
@@ -114,13 +114,13 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 | Finder drop on board or shelf (not on a terminal) | like a template drop at that point; folder / too large → modal |
 | Template `file` (toolbar) | dropped → Tie's file picker (`INPUT.md` "File picker"; any file; markdown by extension; `…` = the native dialog); cancel → nothing |
 | `cmd+O` / `cmd+shift+O` | the same picker, the file right / below the active tile (`INPUT.md`) |
-| `cmd+D` on a markdown tile | terminal in the file's directory |
+| `cmd+D` on a markdown tile | terminal in the tile's cwd (`DIRECTORIES.md`) |
 
 - Harness: `h.pick(path)` drives the picker (types the path, Enter); `h.pickCancel`. The native dialog (`…`) is answered by the dev socket method `pick {path|null}` (`h.nativePickNext`), never shown (`TIE_BACKGROUND`).
 
 ## Logs
 
-- `docs` (main): open, change, missing, close, native dialog. `walk` (main): picker walks (start, done, stop). `picker` (renderer): closed (picked / cancel). `markdown` (renderer): navigation, links opened beside, drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
+- `docs` (main): open, change, missing, close, harness picks. `walk` (main): picker walks (start, done, stop). `picker` (renderer): closed (picked / cancel). `markdown` (renderer): navigation (`go`), links opened beside. `files` (renderer): drops. `security`: dropped requests (unknown verbs, e.g. write-shaped), refused links, requests without focus.
 
 ## Limitations
 
