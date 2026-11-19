@@ -149,7 +149,7 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await ctx.page.evaluate(() => document.querySelectorAll('webview.bad').forEach((w) => w.remove()))
     // A content frame can't create guests (no <webview> outside the UI's main frame).
     const probe = (await ctx.tie('add', 'probe')).id
-    const pf = await h.probeFrame(ctx, probe)
+    const pf = await h.contentFrame(ctx, probe)
     const tag = await pf.evaluate((src) => {
       const w = document.createElement('webview')
       w.setAttribute('src', src)

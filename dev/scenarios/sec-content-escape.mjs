@@ -13,8 +13,8 @@ export default async (ctx, h) => {
     const home = await h.uiUrl(ctx)
     const a = (await ctx.tie('add', 'probe', '--root', root)).id
     const b = (await ctx.tie('add', 'probe', '--root', root)).id
-    const fa = await h.probeFrame(ctx, a)
-    const fb = await h.probeFrame(ctx, b)
+    const fa = await h.contentFrame(ctx, a)
+    const fb = await h.contentFrame(ctx, b)
     const tokenOf = (f) => new URL(f.url()).host
 
     // Own process, opaque origin.

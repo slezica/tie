@@ -6,7 +6,7 @@ export const env = { TIE_DEBUG: '' }
 
 export default async (ctx, h) => {
   const id = (await ctx.tie('add', 'probe')).id
-  const f = await h.probeFrame(ctx, id)
+  const f = await h.contentFrame(ctx, id)
   const token = new URL(f.url()).host
   await f.evaluate(async (t) => {
     await Notification.requestPermission().catch(() => {})

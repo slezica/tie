@@ -283,18 +283,8 @@ export const pasteWarning = (ctx) =>
     return d && { warnings: [...d.querySelectorAll('[data-warning]')].map((w) => w.dataset.warning), preview: d.querySelector('.preview').textContent }
   })
 
-// Content frames (probe kind): window frame tree from main (`tie frames`), and a probe tile's
-// Playwright frame (runs code inside the content frame: the untrusted side).
+// Window frame tree from main (`tie frames`): url, origin, pid, out-of-process.
 export const frames = (ctx) => ctx.tie('frames')
-export async function probeFrame(ctx, id) {
-  for (let i = 0; i < 30; i++) {
-    const src = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`)?.src, id)
-    const f = src && ctx.page.frames().find((f) => f.url() === src)
-    if (f && (await f.evaluate(() => window.probe?.inits).catch(() => 0))) return f
-    await ctx.sleep(100)
-  }
-  throw new Error(`no probe frame for ${id}`)
-}
 
 // Keys through main (webContents.sendInputEvent): they pass before-input-event, where shortcuts
 // live. CDP keys (ctx.page.keyboard) skip it: fine for typing text, not for shortcuts.
@@ -325,31 +315,24 @@ export async function press(ctx, chord) {
   await send(ctx, 'keyUp', key, mods)
 }
 
-// Content frame of a tile (any content kind), once its viewer has answered the handshake. Looked
-// up by the tile's iframe src each time: a markdown tile reloads its frame when it navigates to
-// another directory (new token).
-export async function contentFrame(ctx, id, ms = 5000) {
-  for (let t = 0; t < ms; t += 100) {
+// Content frame of a tile (any content kind: a viewer, or the probe: the untrusted side), once it
+// has answered the handshake. Looked up by the tile's iframe src each time: a markdown tile reloads
+// its frame when it navigates to another directory (new token).
+export const contentFrame = (ctx, id, ms = 8000) =>
+  waitFor(ctx, async () => {
     const src = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`)?.src, id)
     const f = src && ctx.page.frames().find((f) => f.url() === src)
-    if (f && (await f.evaluate(() => !!(window.probe?.inits || window.viewer?.port)).catch(() => false))) return f
-    await ctx.sleep(100)
-  }
-  throw new Error(`no content frame for ${id}`)
-}
+    return f && (await f.evaluate(() => !!(window.probe?.inits || window.viewer?.port)).catch(() => false)) ? f : null
+  }, `content frame for ${id}`, ms)
 
 // Html tile's frame (the page's realm: what page scripts can do), once its bootstrap answered the
 // handshake. Found by the page URL main reports (`tie list --json` page.url); re-found after
 // navigations.
-export async function htmlFrame(ctx, id, ms = 5000) {
-  for (let t = 0; t < ms; t += 100) {
+export const htmlFrame = (ctx, id, ms = 8000) =>
+  waitFor(ctx, async () => {
     const p = (await tileOf(ctx, id))?.page
-    const f = p?.ready && ctx.page.frames().find((f) => f.url().split('#')[0] === p.url)
-    if (f) return f
-    await ctx.sleep(100)
-  }
-  throw new Error(`no html frame for ${id}`)
-}
+    return (p?.ready && ctx.page.frames().find((f) => f.url().split('#')[0] === p.url)) || null
+  }, `html frame for ${id}`, ms)
 
 // Markdown tile as its viewer shows it: rendered text, revision, scroll, renders, source key.
 export async function mdState(ctx, id) {
@@ -504,15 +487,12 @@ export async function site(ctx, route) {
 
 // Browser tile's guest as a Playwright page (CDP target type webview), found by the tile's URL
 // (`tie list --json` web.url), once its page has loaded.
-export async function guestPage(ctx, id, ms = 5000) {
-  for (let t = 0; t < ms; t += 100) {
+export const guestPage = (ctx, id, ms = 8000) =>
+  waitFor(ctx, async () => {
     const w = (await tileOf(ctx, id))?.web
     const p = w?.ready && ctx.page.context().browser().contexts().flatMap((c) => c.pages()).find((p) => p.url() === w.url)
-    if (p && (await p.evaluate(() => document.readyState === 'complete').catch(() => false))) return p
-    await ctx.sleep(100)
-  }
-  throw new Error(`no guest page for ${id}`)
-}
+    return p && (await p.evaluate(() => document.readyState === 'complete').catch(() => false)) ? p : null
+  }, `guest page for ${id}`, ms)
 
 // Input sent to a browser tile's guest by main (sendInputEvent): passes the guest's own
 // before-input-event (shortcuts) and input-event (popup gesture), like real input. Chord: 'Meta+d'.

@@ -5,8 +5,8 @@ export default async (ctx, h) => {
   const [t] = (await h.list(ctx)).tiles.map((t) => t.id)
   const a = (await ctx.tie('add', 'probe', '--at', t, '--side', 'r')).id
   const b = (await ctx.tie('add', 'probe', '--at', a, '--side', 'b')).id
-  const fa = await h.probeFrame(ctx, a)
-  const fb = await h.probeFrame(ctx, b)
+  const fa = await h.contentFrame(ctx, a)
+  const fb = await h.contentFrame(ctx, b)
   const pidOf = async (f) => (await h.frames(ctx)).find((x) => x.url === f.url())?.pid
   const pa = await pidOf(fa)
   const pb = await pidOf(fb)

@@ -209,7 +209,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `marks.ts` | change marks, edge markers, `n` walk (own CSS) |
 | `highlight.ts` | highlight.js core + common languages; `highlight(code, lang)`; token colors (own CSS) |
 
-- `probe`: own minimal handshake (no runtime: the attacker's seat). `window.probe = {port, received, inits}`. Scenarios run code in it (`h.probeFrame`).
+- `probe`: own minimal handshake (no runtime: the attacker's seat). `window.probe = {port, received, inits}`. Scenarios run code in it (`h.contentFrame`).
 - `markdown`: pipeline only: markdown-it + DOMPurify; Mermaid on demand (`mermaid.ts` + asset `markdown-mermaid.js`, copied from `@mermaid-js/tiny`); `window.markdown` for the harness (`MARKDOWN.md`).
 - `text` (runtime + live + highlight), `image` (runtime), `hex` (runtime): `VIEWERS.md`; `window.text|image|hex`.
 - Styles: `<style nonce="%NONCE%">` in the page (kind typography) + shared modules' `style()`; values from the host via CSSOM (style attributes are blocked by the CSP).

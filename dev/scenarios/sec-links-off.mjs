@@ -53,7 +53,7 @@ export default async (ctx, h) => {
 
     // Content frame: the gesture rule holds without the confirm (no focus → refused).
     const pr = (await ctx.tie('add', 'probe', '--at', t0, '--side', 'r')).id
-    const f = await h.probeFrame(ctx, pr)
+    const f = await h.contentFrame(ctx, pr)
     await h.waitFor(ctx, () => ctx.page.evaluate(() => document.activeElement?.tagName !== 'IFRAME'), 'frame not focused')
     await f.evaluate((u) => window.probe.port.postMessage({ verb: 'openLink', url: u + '/nofocus' }), p.url)
     await h.waitLog(ctx, /refused request without focus t[a-z2-9]+ openLink/)

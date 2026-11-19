@@ -9,7 +9,7 @@ export default async (ctx, h) => {
   const count = async () => (await h.list(ctx)).tiles.length
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
   const p = (await ctx.tie('add', 'probe', '--at', a, '--side', 'r')).id
-  await h.probeFrame(ctx, p)
+  await h.contentFrame(ctx, p)
   const s = await h.site(ctx, () => '<!doctype html><title>G</title><p>guest</p>')
   try {
     const b = (await ctx.tie('add', s.url + '/', '--at', a, '--side', 'b')).id

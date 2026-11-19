@@ -16,7 +16,7 @@ export default async (ctx, h) => {
   symlinkSync(join(root, 'ok.svg'), join(root, 'inner-link.svg'))
   try {
     const id = (await ctx.tie('add', 'probe', '--root', root)).id
-    const f = await h.probeFrame(ctx, id)
+    const f = await h.contentFrame(ctx, id)
     const token = new URL(f.url()).host
     const img = (path) => f.evaluate((src) => new Promise((r) => Object.assign(new Image(), { onload: () => r('load'), onerror: () => r('error'), src })), `tie-content://${token}${path}`)
 

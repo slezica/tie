@@ -8,7 +8,7 @@ export default async (ctx, h) => {
   const count = async () => (await h.list(ctx)).tiles.length
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
   const p = (await ctx.tie('add', 'probe', '--at', a, '--side', 'r')).id
-  const f = await h.probeFrame(ctx, p)
+  const f = await h.contentFrame(ctx, p)
   const listen = `window.__keys = []; addEventListener('keydown', (e) => window.__keys.push((e.metaKey ? 'Cmd+' : '') + e.key), true)`
   await page.evaluate(listen)
   await f.evaluate(listen)

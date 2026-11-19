@@ -6,7 +6,7 @@ export default async (ctx, h) => {
   const page = ctx.page
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
   const p = (await ctx.tie('add', 'probe', '--at', a, '--side', 'r')).id
-  const pf = await h.probeFrame(ctx, p)
+  const pf = await h.contentFrame(ctx, p)
   h.assert(pf && (await pf.evaluate(() => window.probe.inits)) === 1, 'probe frame up, one handshake')
 
   // Click inside the frame: the UI sees no pointerdown, yet the tile activates.
