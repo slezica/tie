@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyLink } from './links'
+import { classifyLink, externalParts } from './links'
 
 describe('classifyLink', () => {
   const from = '/docs/my notes/plan.md'
@@ -29,5 +29,25 @@ describe('classifyLink', () => {
     for (const href of ['file:///etc/hosts.md', 'javascript:alert(1)', 'JavaScript:x', 'mailto:a@b.c', 'smb://h/s.md', 'x-app://run', 'data:text/html,x', '//evil.com/x.md', '', '   ', 'a%00.md', 'bad%zz.md', 'https://', 'tie-content://abc/x.md'])
       expect(classifyLink(href, from).type).toBe('refused')
     for (const href of [42, null, undefined, {}]) expect(classifyLink(href, from).type).toBe('refused')
+  })
+})
+
+describe('externalParts', () => {
+  it('splits the site address from the rest', () => {
+    expect(externalParts('https://example.com/a/b?q=1#h')).toEqual({ origin: 'https://example.com', tail: '/a/b?q=1#h', user: '' })
+    expect(externalParts('http://example.com:8080')).toEqual({ origin: 'http://example.com:8080', tail: '/', user: '' })
+  })
+  it('names the real site when text sits before an @', () => {
+    expect(externalParts('https://google.com@evil.com/')).toEqual({ origin: 'https://evil.com', tail: '/', user: 'google.com' })
+    expect(externalParts('https://a:b@evil.com/x')).toEqual({ origin: 'https://evil.com', tail: '/x', user: 'a:b' })
+  })
+  it('follows the parser, not the string', () => {
+    expect(externalParts('https:example.com/x')).toEqual({ origin: 'https://example.com', tail: '/x', user: '' })
+    expect(externalParts('HTTPS://EXAMPLE.com/X')).toEqual({ origin: 'https://example.com', tail: '/X', user: '' })
+  })
+  it('refuses what externalUrl refuses', () => {
+    expect(externalParts('file:///etc/passwd')).toBeNull()
+    expect(externalParts('nope')).toBeNull()
+    expect(externalParts(5)).toBeNull()
   })
 })

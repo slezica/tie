@@ -6,6 +6,7 @@
 // a time, app-wide: requests while one is open are dropped. Off: opened directly, logged.
 import { tie, debug } from './state'
 import { untrusted } from '@core/log'
+import { externalParts } from '@core/links'
 import { confirmDialog } from './dialog'
 import { prefs } from './prefs'
 
@@ -44,14 +45,13 @@ export async function openExternal(url: string, from: string, note?: string) {
   asking = true
   try {
     const p = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
-    let origin = ''
-    try {
-      origin = new URL(url).origin
-    } catch {}
+    // SECURITY: site address and tail from the parsed URL (what main opens), not by slicing the string.
+    const parts = externalParts(url) ?? { origin: '', tail: url, user: '' }
     const shown = p('', 'url')
-    shown.append(Object.assign(document.createElement('b'), { className: 'host', textContent: origin }), url.slice(origin.length))
+    shown.append(Object.assign(document.createElement('b'), { className: 'host', textContent: parts.origin }), parts.tail)
     const body = [p(`${from} wants to open:`), shown]
-    const tail = url.length - origin.length
+    if (parts.user) body.push(p(`The link puts "${parts.user}" before the site address. The site is the part in bold.`, 'warn'))
+    const tail = parts.tail.length
     if (tail > LONG_LINK) body.push(p(`Long link: ${tail} characters after the site address.${note ? ' ' + note : ''}`, 'warn'))
     const ok = await confirmDialog({ cls: 'external-open', title: 'Open in browser?', body, confirm: 'Open', arm: CONFIRM_ARM_MS })
     debug('external', ok ? 'confirmed' : 'cancelled', untrusted(from), untrusted(url))

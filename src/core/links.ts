@@ -42,3 +42,25 @@ export function classifyLink(href: unknown, from: string): Link {
   if (path.includes('\0')) return { type: 'refused', why: 'nul' }
   return { type: 'file', path, hash, kind: fileKind(path) }
 }
+
+// SECURITY: how the "Open in browser?" dialog shows a link: the site address (bold) apart from the
+// rest, both taken from the parsed URL main will open, never by slicing the raw string
+// ("https://good.com@evil.com/" would show evil.com followed by a tail naming good.com). `user`:
+// text before an "@" in the address, a common disguise; shown with a warning.
+export interface ExternalParts {
+  origin: string
+  tail: string
+  user: string
+}
+export function externalParts(url: unknown): ExternalParts | null {
+  // Same rule as main's `externalUrl` (core/security.ts, not loadable in the renderer): http(s) only.
+  if (typeof url !== 'string') return null
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return null
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+  return { origin: u.origin, tail: u.pathname + u.search + u.hash, user: u.username + (u.password ? ':' + u.password : '') }
+}
