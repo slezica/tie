@@ -40,8 +40,9 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
 - `docs/2026-11-13-content-roots.md`: frame root = the context cwd when it holds the file; `--root`; `/` asks.
 - `docs/2026-11-14-plannotator-research.md`: Plannotator (plan/doc annotation for agents): features, hook protocol, annotation model, agent-facing text format, lessons for Tie.
-- `docs/2026-11-16-configurable-bindings-and-schemes.md`: configurable key bindings (model, capture, Bindings page; phased plan), custom terminal color schemes (pending).
+- `docs/2026-11-16-configurable-bindings.md`: configurable key bindings (model, capture, Bindings page; phased plan; manual check results).
 - `docs/2026-11-17-shelf-multi-select.md`: shelf multi-select (cmd+click), group actions (close, unshelve, move, group drag).
+- `docs/2026-11-18-terminal-color-schemes.md`: custom terminal color schemes: open questions, not started.
 - `docs/2026-11-18-test-suite-review.md`: test suite review (5 areas): findings, waves (checks made real, harness helpers, merges / renames by feature glob), final scenario list.
 - `docs/PENDING.md`: backlog, open questions.
 

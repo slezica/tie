@@ -1,21 +1,19 @@
-# Configurable bindings and terminal color schemes
+# Configurable bindings
 
-Status: open. Phases 1-3 done; Phase 4 (color schemes) next.
+Status: open. Phases 1-3 done; manual check results applied 2026-11-18. Left: two human checks ("Pending"). Color schemes: own record, `2026-11-18-terminal-color-schemes.md`.
 
 # Topic
 
-1. Keyboard bindings: editable from the settings panel (`PENDING.md` 3).
-2. Custom color schemes for terminals.
+Keyboard bindings: editable from the settings panel (`PENDING.md` 3).
 
 # Current state
 
 - Keymap: `DEFAULT_KEYMAP` in `core/keymap.ts`, chord string → action. 36 chords, 35 actions (`zoom-in` has two).
 - Matching: main only, `before-input-event` (`main/keys.ts`). `actionFor(k)` takes a keymap argument, never passed.
 - Suspend: UI text field or modal focused → keymap off, except `quit`.
-- Chord: `Cmd+Ctrl+Alt+Shift+<key>`, from Electron `input.key` (layout-dependent, shift-dependent: `Cmd+Shift++`).
+- Chord: `Cmd+Ctrl+Alt+Shift+<key>`, from Electron `input.key` (layout-dependent, shift-dependent: `Cmd+Shift++`; 2026-11-18, real keys with Cmd held: unshifted, `Cmd+Shift+=`).
 - Menu: `Settings…` (`cmd+,`) and `Quit Tie` (`cmd+Q`, label only) are menu accelerators, outside the keymap.
 - Settings: flat JSON, `sanitize` + `validateSettings` in main, panel with draft, Save / Cancel.
-- Themes: `THEMES` in `renderer/themes.ts`, built in. One theme drives terminal palette, UI tokens, viewer colors.
 
 # Bindings: spec (from the author)
 
@@ -58,7 +56,7 @@ New panel page "Bindings", vertical.
 - Unknown action: refused.
 - Malformed chord: refused.
 - Reserved: Escape, Enter, Backspace, editing combos (`cmd+C/V/X/A/Z`, `cmd+shift+Z`), `cmd+,`.
-- Needs Cmd or Ctrl, or a function key. A bare letter would eat typing in terminals.
+- Needs Cmd or Ctrl, or a function key. A bare letter would eat typing in terminals. (2026-11-18: Alt too; "Settled".)
 - Same chord on two actions: refused at Save; the panel resolves it first (conflict dialog).
 
 ## Panel
@@ -69,68 +67,56 @@ New panel page "Bindings", vertical.
 
 # Pending
 
-Bindings.
-
-1. Alt chords. Implemented as proposed (Phase 2), unit-tested with assumed input. Real presses: "Manual checks" 1-2. Expected: macOS reports `Alt+D` as `key: '∂'`, `code: 'KeyD'`. Electron's `before-input-event` gives both; nothing rawer. Proposal: with Alt held, name the key from `code` (`KeyD` → `D`, `Digit1` → `1`), else from `key`.
+1. Shifted symbols vs `zoom-in` (from manual check 3). Real `Cmd+Shift+=` is named `Cmd+Shift+=` (key as Electron reports it with Cmd: the unshifted one). `zoom-in` answers to `Cmd+=`, `Cmd+Shift++`, `Cmd++`: so a real `Cmd+Shift+=` likely zooms nothing. Inferred from the code + the observation; the harness can't tell (its synthetic keys report `+`). Human: see "Manual checks" 3.
+2. Manual check 2 again (Alt chords now bindable): a saved Alt chord runs its action, terminal focused and markdown tile focused.
 
 # Manual checks (human)
 
-What the harness can't do: real hardware keys, native menu, visual judgement. Dev instance: `bin/tie-dev run`, `cmd+,` → Bindings.
+Results 2026-11-18, by the author (real keys, dev instance).
 
-Keys (real presses, in a row's edit field):
+Keys:
 
-1. Alt chords: `Alt+D`, `Cmd+Alt+E`, `Alt+1`, `Ctrl+Alt+[` show as written, not `∂` / `Dead` / `¡`. Raw values: `TIE_DEBUG=keys` (`tie-dev logs`).
-2. A saved Alt chord runs its action (terminal focused, and with a markdown tile focused).
-3. Shifted symbols: `Cmd+Shift+=` shows `Cmd+Shift++`; `Cmd+Shift+/` shows `Cmd+Shift+?`. Acceptable names?
-4. Non-US layout (if at hand): letters, `+` as its own key (`Cmd++` zooms in), dead keys.
-5. System-owned chords are not capturable (`Cmd+Tab`, `Cmd+Space`, `Cmd+H`?, `Cmd+M`?): note which reach the field and which macOS keeps.
-6. Menu accelerators while capturing: `Cmd+,`, `Cmd+W`, `Cmd+H`, `Cmd+M` do nothing but fill the field.
-7. `Cmd+Q` in a capture field: captured, no quit question. Outside it (name search, other pages): asks as before.
-8. Held modifiers show live (`Cmd+Shift+`) and disappear on release.
-9. Leaving capture: click a tile right after editing, type a shortcut at once: it runs, no stray capture.
-
-Native menu:
-
-10. Rebind Quit, Save: "Quit Tie" in the app menu shows the new chord. Unbound: no chord shown. Menu item still asks.
-
-Behaviour:
-
-11. Enter in any panel field never saves or closes; only Save / Cancel (and Escape) do.
-12. Conflict dialog wording is clear (both actions named); Replace leaves the other row bold with `—`.
-13. Bindings survive a restart; `settings.json` holds only the overrides.
-14. Rebinding to a chord a terminal program uses (`Ctrl+C`, `Ctrl+R`): allowed, Tie takes it. Acceptable without a warning?
-
-Look:
-
-15. Disabled row X contrast (faint), bold customized rows, `—` for unbound, column widths, table scroll, filter row. All themes worth a glance (one light).
-16. Sliders icon reads as "only customized"; its on state is visible.
-
-Not ours, seen on the way:
-
-17. `browser` scenario timed out (180 s) since before this work. Worked around 2026-11-16: the location field's Enter after `cmd+0` (zoom reset), sent by Playwright (`keyboard.press`, CDP), navigated the guest but never got its CDP answer; the scenario hung there. Now sent through main (`h.press`). Root cause unconfirmed (only that Enter, only after the zoom reset). By hand: `cmd+=`, `cmd+0`, `cmd+L`, URL, Enter in a browser tile: page loads, keys keep working after? Left for now (author, 2026-11-17): bisect the recent zoom commits only if this misbehaves by hand.
-
-Color schemes: discussed after bindings are done.
-
-7. Scope: terminals only, or a full custom theme (UI derived from it)?
-8. Source: panel editor, files in `~/.config/tie/themes/`, or import (kitty `.conf`, iTerm, base16)?
-9. Storage: inside `settings.json` or one file per scheme?
-10. Start from a built-in ("duplicate and edit")?
+1. Alt chords (`Alt+D`, `Cmd+Alt+E`, `Alt+1`, `Ctrl+Alt+[`): shown as written. Binding an Alt-only chord was blocked → now allowed ("Settled").
+2. Saved Alt chord runs: not testable then (Alt-only refused). Open again ("Pending" 2).
+3. Shifted symbols: bottom-of-key character (`Cmd+Shift+=`, `Cmd+Shift+[`), not `+` / `{`. Accepted as is, preferred. To confirm ("Pending" 1):
+    - Bindings page, key search, press `Cmd+Shift+=`: no rows = `zoom-in` doesn't answer to it.
+    - Markdown tile focused: `Cmd+Shift+=` (expected: no zoom) vs `Cmd+=` (110% pill).
+    - Numpad, if at hand: `Cmd+numpad +` and `Cmd+Shift+numpad +` (expected: both zoom: `Cmd++`, `Cmd+Shift++`).
+4. Non-US layout: not tested. Moved to `PENDING.md` 40.
+5. System-owned chords: correct.
+6. Menu accelerators while capturing: correct.
+7. `Cmd+Q` in a capture field: correct.
+8. Held modifiers: bug, the field kept released modifiers (`Cmd+Shift+` after both released). Fixed: Chromium dropped the key-ups after a blocked modifier key-down; modifiers now pass, and a modifier's own key decides its flag.
+9. Leaving capture: passes.
+10. Quit menu label: correct.
+11. Enter never saves / closes: correct. Added: Enter in a text / number field or select unfocuses it.
+12. Conflict dialog: clear but verbose → one line (`Cmd+T is bound to “New tab”.`).
+13. Bindings survive a restart, file holds only overrides: success.
+14. `Ctrl+C` / `Ctrl+R` bindable: allowed without a warning.
+15. Look: good.
+16. Sliders read as "configure filters" → pencil (the rows' edit icon). Also: table scrollbar overlapped the rows' X buttons → always shown, its own room.
+17. `browser` scenario hang: unchanged. Worked around 2026-11-16 (location Enter after `cmd+0` sent through main, `h.press`); root cause unconfirmed. Left for now (author, 2026-11-17): bisect the recent zoom commits only if this misbehaves by hand.
 
 # Settled
 
 - One chord per binding. No multi-step sequences.
 - One chord per action in the table. `zoom-in`'s `Cmd+Shift++` stays a hidden alias of the default only; a custom `zoom-in` drops it.
 - Capture fields (key search, binding edit): Escape cancels, Backspace empties, Enter accepts (unfocus, value kept). These three are unbindable. Tab is not reserved: captured and bindable like any key ("move on" dropped as unnecessary here).
-- Ctrl+letter bindings allowed, even ones terminals use (`Ctrl+C`): left to the user.
+- Ctrl+letter bindings allowed, even ones terminals use (`Ctrl+C`): left to the user. No warning.
+- Alt-only chords allowed (`Alt+A`; 2026-11-18): left to the user, as `Ctrl+C` (on macOS Alt+letter types a character; a binding takes it). Rule: Cmd, Ctrl or Alt, or a function key. Shift alone, bare keys: refused.
+- Alt chords named from the physical key (`code`: `KeyD` → `D`): confirmed by real presses (check 1).
+- Shifted symbols named by the unshifted key, as Electron reports them with Cmd held (`Cmd+Shift+=`, `Cmd+Shift+[`): accepted, preferred (check 3).
 - Binding edit: each complete chord replaces the field's value; Enter commits.
 - Row X: back to default. Disabled when the row is not customized.
 - Top X: clears both filters.
-- Pencil = edit only; the "only customized" filter uses a sliders icon.
+- Pencil = edit; the "only customized" filter toggle is a pencil too (2026-11-18: sliders read as "configure filters").
 - Unbind: in edit, Backspace empties, Enter accepts empty = unbound (`null`).
 - Edit field blur accepts, as Enter.
 - `tab-1` … `tab-9`: nine rows.
 - `zoom-in` default gets a second hidden alias `Cmd++` (layouts where `+` is its own key).
-- Conflict (chord owned by another action): dialog naming both actions, Cancel / Replace. Replace: the other action becomes unbound (customized, bold).
+- Conflict (chord owned by another action): dialog, one line naming the chord and the other action, Cancel / Replace. Replace: the other action becomes unbound (customized, bold).
+- Enter in a panel text / number field or select: unfocuses it (done); never saves.
+- Bindings table scrollbar: always shown, its own room.
 - Bindings follow the panel draft: applied at Save, dropped at Cancel.
 - `cmd+,` and menu items: fixed, not in the table. `Quit` is in the table; its menu label follows.
 
@@ -152,6 +138,7 @@ Done. Notes:
 - Raw key log only in capture mode (never a log of what is typed elsewhere).
 - Capture leaves with the field's focus; the UI → main report is asynchronous (same lag as text fields).
 - `browser` scenario timed out (180 s) since before this work (fails on `1425498` too): "Manual checks" 17.
+- Held modifiers: key-ups after a blocked key-down never reach `before-input-event` (Chromium suppresses them): modifiers pass in capture mode (fix 2026-11-18, check 8).
 
 1. Harness: `TIE_DEBUG=keys` logs raw `key` / `code` per input. Author presses Alt chords; settle Pending 1.
 2. Suspend levels: off / fields (quit passes) / capture (nothing passes). Main sends chords to the UI while capturing. `// SECURITY:` note, `sec-*` scenario: capture ends on blur, panel close, tile focus.
@@ -168,12 +155,8 @@ Done. Notes:
 - Enter on a focused panel button presses it instead of saving (rows' pencil / X).
 - Scenario `settings-bindings`.
 
-1. Page + filter row (name, key, sliders toggle, X).
+1. Page + filter row (name, key, only-customized toggle, X).
 2. Table: fixed column widths from all rows, bold customized, pencil / X (disabled when default).
 3. Edit flow: capture field in the cell, accept on Enter / blur, conflict dialog (Cancel / Replace), unbind by empty.
 4. Draft integration: Save / Cancel, errors from main shown on the row.
 5. Scenarios: `settings-bindings` (filter, edit, conflict, unbind, reset, save applies live, cancel reverts).
-
-## Phase 4: color schemes
-
-Own discussion, after Phase 3.
