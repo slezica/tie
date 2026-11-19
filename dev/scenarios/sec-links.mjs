@@ -58,6 +58,35 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => opened().length === 1, 'Open: external open')
     await p.assertUntouched('cmd-click (handed to the OS, never loaded in-app)', 500)
     h.assert(opened()[0].includes(p.url + '/osc') && !(await ctx.page.isVisible('.dialog-backdrop')), `only the http link went out: ${opened()}`)
+
+    // Text before an @ (userinfo) dressed as the site: the dialog's bold site is the real origin
+    // (parsed URL), the tail doesn't repeat the decoy, a warning names it. Cancel: nothing opens.
+    const spoof = p.url.replace('://', '://good.example@') + '/x'
+    await ctx.page.keyboard.type(`clear; ${link(spoof, 'spoof-link')}`)
+    await ctx.page.keyboard.press('Enter')
+    const sp = await h.waitFor(ctx, async () => !(await h.screen(ctx, t1)).includes('printf') && (await pointOf('spoof-link')), 'spoof link printed')
+    // Pointer off and back: xterm keeps the link it last hovered (web-link, same cells) until the
+    // pointer moves.
+    await ctx.page.mouse.move(sp.x, sp.y + 200)
+    await ctx.page.mouse.move(sp.x, sp.y)
+    await h.eventually(ctx, async () => h.assert((await strip())?.includes(spoof), `hover shows the spoof link (got ${await strip()})`))
+    await ctx.page.keyboard.down('Meta')
+    await ctx.page.mouse.click(sp.x, sp.y)
+    await ctx.page.keyboard.up('Meta')
+    await h.waitDialog(ctx, '.dialog.external-open')
+    const dlg = await ctx.page.evaluate(() => {
+      const url = document.querySelector('.dialog.external-open .url')
+      const host = url.querySelector('.host')
+      return { host: host?.textContent, tail: url.textContent.slice(host?.textContent.length ?? 0), bold: host && getComputedStyle(host).fontWeight, warn: [...document.querySelectorAll('.dialog.external-open .warn')].map((w) => w.textContent) }
+    })
+    await ctx.shot('userinfo')
+    h.assert(dlg.host === p.url && Number(dlg.bold) >= 600, `bold site = the real origin ${p.url}: ${JSON.stringify(dlg)}`)
+    h.assert(dlg.tail === '/x' && !dlg.tail.includes('good.example'), `tail without the decoy: ${JSON.stringify(dlg)}`)
+    h.assert(dlg.warn.some((w) => w.includes('"good.example"')), `warning names the text before @: ${JSON.stringify(dlg)}`)
+    await ctx.page.click('.dialog .cancel')
+    await h.waitNoDialog(ctx)
+    await p.assertUntouched('userinfo link cancelled', 500)
+    h.assert(opened().length === 1, `cancel: nothing more opened: ${opened()}`)
   } finally {
     await p.close()
   }
