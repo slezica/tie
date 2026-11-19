@@ -20,6 +20,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/HARNESS.md`: `tie-dev`, fresh instances, scenarios, helpers, mdpage, TCC prompts, traces.
 - `docs/PACKAGING.md`: Tie.app, release, install while running, bundle, CLI launcher, signing.
 - `docs/SECURITY.md`: threat model, rules, guards + their tests, fuses.
+- `docs/ENGINE.md`: assumptions about Chromium, Electron, libraries, macOS (evidence per row); upgrade checklist.
 - `docs/EXECUTION-AND-SECURITY.html`: onboarding explainer: processes, realms, per-tile doors matrix, layers, threats, attack stories, change checklist (`tie add docs/EXECUTION-AND-SECURITY.html`).
 
 ## Records and backlog
