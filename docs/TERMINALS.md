@@ -38,6 +38,7 @@ The tile's cwd at open (`DIRECTORIES.md` "Pathways"). Opened from a terminal: it
 ## Links
 
 - OSC 8 hyperlinks only (no plain-URL detection). Hover: the tile's link strip (`Host.hint`, bottom-left, UI realm) shows the real URL, or "Blocked link: …" for non-http(s) schemes.
+- xterm 6.0 link cache: the linkifier reuses the links of the line last hovered even after its text changed (stale link on hover / cmd-click). `fixLinkCache()` forgets that line on every write while no link is under the pointer (with one, xterm re-reads the line itself) (private API; no-op if it changes; `sec-links` stale link case).
 - cmd-click on http(s) → confirm dialog (`external.ts`, setting `confirmExternal`) → `tie.openExternal` → main, http(s) only. Plain click, other schemes: nothing. `SECURITY.md`.
 
 ## Size

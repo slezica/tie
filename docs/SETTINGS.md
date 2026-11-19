@@ -2,9 +2,10 @@
 
 ## File (`src/main/settings.ts`)
 
+- Where: shape and pure rules in `src/core/settings.ts` (`Settings`, `DEFAULTS`, `sanitize`, `validateSettings(s, executable)`, `parseCommand`; unit tests `settings.test.ts`). Main (`src/main/settings.ts`): the file (load, save, errors), shell argv, `resolveExecutable` (passed to `validateSettings`).
 - Path per instance (`ARCHITECTURE.md`). First `dev` run copies `settings.json` to `settings.dev.json`.
 - Loaded once at main startup; missing → defaults. Hand edits while running are not picked up.
-- `sanitize()` at load and save: numbers clamped, wrong types → defaults. Theme alias `elegant-dark` → `tie-dark`.
+- `sanitize()` at load and save: numbers clamped, not a number (or 0) → default, numeric strings count; wrong types → defaults; `allowExternalControl` only on a real `true`. Theme alias `elegant-dark` → `tie-dark`.
 - Unreadable / unparseable → defaults; Save blocked (file never overwritten), panel status shows why. Re-read on each `settings:get`/`set`, so fixing the file unblocks Save.
 - `settings:set(patch)`: `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
 
@@ -32,7 +33,7 @@
     - A save replaces the whole object (no per-action merge). Applied live: main rebuilds the keymap (`keys.ts` `setBindings`) and the menu (Quit label).
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
 - `shell` applies to new terminals only. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).
-- Adding a setting: `Settings` + `DEFAULTS` + `sanitize` (main), `Settings` type (preload), `Appearance` + `applyAppearance` (if visual), `Prefs` + `applyPrefs` (if read synchronously), panel field + `draft()`.
+- Adding a setting: `Settings` + `DEFAULTS` + `sanitize` (`core/settings.ts`, + a unit case), `Settings` type (preload), `Appearance` + `applyAppearance` (if visual), `Prefs` + `applyPrefs` (if read synchronously), panel field + `draft()`.
 - `terminalTitle` live: `prefs` updated, then every tile's `refreshTitle` (panel save).
 
 ## Panel (`src/renderer/settings.ts`)
