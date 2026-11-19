@@ -6,20 +6,20 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 | Piece | Does |
 |---|---|
-| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupUrl`, `downloadVerdict` (+ `DOWNLOAD_INPUT_MS`), `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
+| `core/guest.ts` | pure rules: `BROWSER_PARTITION`, `guestNavAllowed`, `guestSrc`, `locationUrl`, `popupUrl`, `downloadName`, `uniqueName`, `pageTitle`. Unit: `guest.test.ts` |
 | `main/guest.ts` | `attachGuest` (attach guard), `guardGuest` (per guest: navigation, redirects, UI-started loads, popups, keys, crash / hang, held unloads), `unloadGuest`, `leaveGuest` (beforeunload), `initBrowserSession` (downloads, user agent), `noDownloads` (UI session), `noDeviceChoosers` (Bluetooth chooser cancelled), dev socket `guest` |
-| `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state); `initGuests` (hang reports) |
+| `renderer/guest.ts` | `browserKind`: the surface (element, events, title, nav bar, focus, error state, Leave / Stay); `initGuests` (hang reports, popup and download dialogs) |
 | `main/security.ts` | `guard()`: webview contents → `guardGuest`; `will-attach-webview` → `attachGuest` (UI page only) |
 | `main/keys.ts` | `watchKeys(wc)`: the shortcut matcher on each guest's own `before-input-event` |
 
 ## Guest (`main/guest.ts`)
 
-- Attach (`will-attach-webview` on the embedder): only the UI window's page (`isUiContents`: window/offscreen contents showing the UI URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (`sec-browser-nav`).
+- Attach (`will-attach-webview` on the embedder): only the UI window's page (`isUiContents`: window/offscreen contents showing the UI URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (Electron's layer: Tie's embedder check is never reached, `SECURITY.md`).
 - Prefs rebuilt from nothing: `sandbox`, `contextIsolation`, no Node (`nodeIntegration*` off), `webviewTag` off, `webSecurity` on, no insecure content, no experimental features, no navigate-on-drop, safe dialogs, partition `persist:browser`. Every attribute but `src` dropped (`preload`, `nodeintegration`, `webpreferences`, `partition`, `allowpopups`, `disablewebsecurity`, `useragent`, `httpreferrer`, blink features; Electron's internal `instanceId` kept). `src`: http(s) or `about:blank` (`guestSrc`), else refused.
-- Navigation (`will-frame-navigate`): main frame http(s) (+ `about:blank`); subframes also `about:`, `data:`, `blob:`. Refused: `file:`, `tie:`, `tie-content:`, `chrome:`, `devtools:`, OS handlers (`mailto:`...: refused v1). Redirects: same rule (`will-redirect`; Chromium itself refuses http → `file:`).
+- Navigation (`will-frame-navigate`): main frame http(s) (+ `about:blank`); subframes also `about:`, `data:`, `blob:`. Refused: `file:`, `tie:`, `tie-content:`, `chrome:`, `devtools:`, OS handlers (`mailto:`...). Redirects: same rule (`will-redirect`; Chromium refuses redirects to local schemes first).
 - UI-started loads (`src`, `loadURL`, back/forward: no `will-frame-navigate`): `did-start-navigation` → refused URL → `stop()` (deferred: stopping inside the event crashes Electron; skipped when `will-frame-navigate` already refused it).
-- Popups (`setWindowOpenHandler`): always denied in Tie. http(s) (`popupUrl`) → `guest:popup` → the UI's link-out confirm (`external.ts`, setting `confirmExternal`) → `openExternal`; else blocked + logged. No timing heuristics (decision 2026-10-21: predictability). Electron has no popup blocker: a script's gesture-less `window.open` reaches the handler and gets the same dialog (one at a time, Open armed 600 ms).
-- Keys: `watchKeys(guest)`: same keymap and blocking as the window (`INPUT.md`).
+- Popups (`setWindowOpenHandler`): always denied in Tie. http(s) (`popupUrl`) → `guest:popup` → the UI's link-out confirm (`external.ts`, setting `confirmExternal`) → `openExternal`; else blocked + logged. No timing heuristics (decision 2026-10-21). Electron has no popup blocker: a script's gesture-less `window.open` reaches the handler and gets the same dialog (one at a time, Open armed 600 ms).
+- Keys: `watchKeys(guest)`: same keymap and blocking as the window (`INPUT.md`). While the UI captures (settings capture field): a guest's keys are never forwarded and run nothing; they stay the guest's.
 - Crash (`render-process-gone`): logged; the tile shows "Page crashed" (DOM event). Hang (`unresponsive`): UI told (`guest:unresponsive`, by guest id) → "Page stopped responding"; renderer killed (`forcefullyCrashRenderer`; same-site guests sharing the process crash too).
 
 ## Partition (`persist:browser`)
@@ -28,14 +28,14 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 - Network: direct. The UI session's dead proxy (`noNetwork`) is not applied here (`sec-browser-session`: `resolveProxy` ui `PROXY 127.0.0.1:1`, browser `DIRECT`).
 - Protocols: none of Tie's (`tie:`, `tie-content:` have no handler on this session: requests fail).
 - Permissions: denied (`harden`, every session, this one included: `sec-browser-session`).
-- User agent: Electron's own token removed (sites refuse or degrade "Electron").
+- User agent: `Electron/` and `Tie/` tokens removed (sites refuse or degrade "Electron").
 - Hovered links (`update-target-url`): shown in the tile's link strip (`Host.hint`, text only).
-- Downloads (`will-download`): every one asks (`guest:download` → UI dialog `.dialog.save-download`: sanitized name, size, site; Save disabled 600 ms; one at a time); Save → `guest:download-ok` → `allowDownload` allows that URL once (60 s) and calls `downloadURL` on the guest; then saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The UI session refuses downloads (`noDownloads`).
+- Downloads (`will-download`): every one asks (`guest:download` → UI dialog `.dialog.save-download`: sanitized name, size, site; Save disabled 600 ms; one at a time); Save → `guest:download-ok` → `allowDownload` allows that URL once (60 s) and calls `downloadURL` on the guest; then saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name; no controls, line separators, bidi controls, leading dots) unique (`uniqueName`: `a (1).txt`) name; no native dialog; never opened. The UI session refuses downloads (`noDownloads`).
 
 ## Surface (`renderer/guest.ts`)
 
 - `<webview class="guest">` appended once to the body (never re-parented, like every tile body). Background `--web-canvas` (the web's default white: pages without a background expect it). `setBackgroundColor` on the guest hangs the attach in a real window: not used.
-- Title: host + path of the current URL (no scheme, trailing `/` stripped; before any URL, the start URL's), else `browser` (`DIRECTORIES.md` "Titles"); never the page's title (`page-title-updated`, `pageTitle`: control characters out, 200 chars: `tie list --json` `web.title` only). Tab title: the tile's cwd. Icon: `browser` glyph (globe; no favicon: v1).
+- Title: host + path of the current URL (no scheme, trailing `/` stripped; before any URL, the start URL's), else `browser` (`DIRECTORIES.md` "Titles"); never the page's title (`page-title-updated`, `pageTitle`: controls, line separators, bidi embeddings / overrides / isolates out, 200 chars: `tie list --json` `web.title` only). Tab title: the tile's cwd. Icon: `browser` glyph (globe; no favicon: v1).
 - Nav bar: location = committed URL (`did-navigate`, `did-navigate-in-page`), editable. Enter → `locationUrl`: http(s) as typed, bare `host[:port][/path]` → `https://`, `about:blank`; else dialog "Not a web address" (no search). Back / forward / reload: webview API (no-ops before `dom-ready`).
 - Focus: `focus()` → the page; an empty tile (`about:blank`) → its location field (templates, `--focus`). A click in the guest activates the tile (`initFrames` blur handler: `activeElement` = `WEBVIEW`).
 - Pointer shield: `body.tracking` / `body.os-drag` / `body.dragging` → `webview` ignores the pointer (`style.css`).
@@ -58,7 +58,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 - `tie add <http(s) URL>`, `tie add browser [url]` (bare host → `https://`; refused: `Not a web address: <url> (http(s) only)`, exit 1). Driver: `resolveOpen` (`locationUrl`), kind `opens: 'url'`.
 - Template `browser` (toolbar): empty tile, location focused.
-- Links elsewhere (decision 2026-10-16, unchanged): markdown/text http(s) links → system browser; html → confirm → system browser. Nothing opens a browser tile by itself.
+- Links elsewhere (file views, html pages, terminals): the link-out confirm → system browser (`SECURITY.md` "Links out"). Nothing opens a browser tile by itself.
 
 ## Scenarios
 
@@ -69,6 +69,6 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 ## Limitations
 
 - No favicon, no search, no find-in-page, no devtools for guests, no `mailto:` (refused).
-- No pinch zoom (tested 2026-11-15, Electron 44): `setVisualZoomLevelLimits(1, 5)` on a guest does nothing (CDP `Input.synthesizePinchGesture` on the guest: `visualViewport.scale` stays 1; same call on the host window: the whole UI scales). Visual zoom belongs to the outermost page; a `<webview>` guest is an inner frame tree. No gesture events in the guest's `input-event` either (no emulation by page zoom). Would need the guest as a top-level `WebContentsView`.
+- No pinch zoom (Electron 44): `setVisualZoomLevelLimits` on a guest does nothing (visual zoom belongs to the outermost page; a `<webview>` guest is an inner frame tree), and the guest's `input-event` carries no gesture events. Would need the guest as a top-level `WebContentsView`.
 - Popups that need a window (OAuth flows) go to the system browser (`PENDING.md`).
 - One shared partition: no per-tile profiles, no private mode.
