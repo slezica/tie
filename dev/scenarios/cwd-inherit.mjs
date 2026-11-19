@@ -42,7 +42,7 @@ export default async (ctx, h) => {
   // before `open()`, and the new tile exists before the next poll could have run (1.7 s: 300 ms
   // margin for lsof). Too slow (loaded machine): close it, again with fresh directories.
   const openFresh = async (from, open, what) => {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       const old = fresh()
       const dir = fresh()
       await ctx.page.keyboard.type(`cd ${old.path}\n`)
@@ -76,7 +76,17 @@ export default async (ctx, h) => {
     await h.waitActive(ctx, b)
     await pwdIs(b, s1.dir)
 
-    const s2 = await openFresh(b, () => h.spawnFromTemplate(ctx, b, 'b'), 'template next to b')
+    // Template drop below b, points taken first; a bare drag (h.drag settles animations mid-drag:
+    // seconds under load, past the next poll).
+    const from = await h.template(ctx)
+    const to = await h.sidePoint(ctx, b, 'b')
+    const drop = async () => {
+      await ctx.page.mouse.move(from.x, from.y)
+      await ctx.page.mouse.down()
+      await ctx.page.mouse.move(to.x, to.y, { steps: 6 })
+      await ctx.page.mouse.up()
+    }
+    const s2 = await openFresh(b, drop, 'template next to b')
     const c = s2.t.id
     h.assert(s2.t.kind === 'terminal' && s2.t.cwd === s2.dir, `template: tile cwd ${s2.t.cwd} (want ${s2.dir})`)
     await h.waitActive(ctx, c)
