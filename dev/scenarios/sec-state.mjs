@@ -15,11 +15,10 @@ export default async (ctx, h) => {
   // A line over the cap: connection dropped, nothing executed; the next client is fine.
   const dropped = await new Promise((resolve) => {
     const c = connect(info.socket)
-    let closed = false
     c.on('error', () => {})
     c.on('close', () => resolve(true))
     c.on('connect', () => c.write('{"jsonrpc":"2.0","id":1,"method":"add","params":{"kind":"terminal","cmd":"' + 'A'.repeat(1100 * 1024) + '"}'))
-    setTimeout(() => !closed && resolve(false), 3000)
+    setTimeout(() => resolve(false), 3000) // no-op once closed
   })
   h.assert(dropped, 'oversized request line: connection dropped')
   h.assert((await h.list(ctx)).tiles.length === 1, 'nothing opened by it')

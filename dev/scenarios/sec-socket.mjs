@@ -1,17 +1,31 @@
 // Security: socket callers in a Tie terminal are identified by kernel lineage (peer pid → ancestors
 // → the tile's pty), never by TIE_TILE / params.caller. A spoofed TIE_TILE acts as the real tile and
 // is logged. (Uid mismatch → refused: not testable here, the harness runs as the same user.)
+import { writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { ROOT } from '../lib.mjs'
+
 export default async (ctx, h) => {
   const a = (await h.list(ctx)).tiles[0].id
   const b = (await ctx.tie('add', 'terminal')).id
   const c = (await ctx.tie('add', 'terminal')).id
   await h.waitShell(ctx, b)
   await h.waitShell(ctx, c)
-
-  // Typed in a (active); runs after focus moved to c (pinging the tile in front does nothing).
-  await ctx.page.keyboard.type(`sleep 1.5; TIE_TILE=${b} tie ping; echo pinged-$?\n`)
-  await ctx.tie('focus', '--tile', c)
-  await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('pinged-0'), 'tie ping ran in a', 6000)
+  const go = `tmp/go-${process.pid}` // relative to the terminal's cwd, the repo (TIE_CWD): short to type
+  const goPath = join(ROOT, go)
+  rmSync(goPath, { force: true })
+  try {
+    // Typed in a (active); runs once focus moved to c (pinging the tile in front does nothing): the
+    // command waits for a file this scenario writes after c is active (no race with `tie focus`).
+    await ctx.page.keyboard.type(`until [ -e ${go} ];do sleep .1;done;TIE_TILE=${b} tie ping;echo pinged-$?\n`)
+    await h.waitChild(ctx, a, /sleep/)
+    await ctx.tie('focus', '--tile', c)
+    await h.waitActive(ctx, c)
+    writeFileSync(goPath, '')
+    await h.waitFor(ctx, async () => (await h.screen(ctx, a)).includes('pinged-0'), 'tie ping ran in a', 6000)
+  } finally {
+    rmSync(goPath, { force: true })
+  }
   const tiles = (await h.list(ctx)).tiles
   const pinged = (id) => tiles.find((t) => t.id === id).pinged
   h.assert(pinged(a), 'ping landed on the real caller (a)')
