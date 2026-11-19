@@ -4,7 +4,8 @@
 
 1. Html dynamic pages: not supported (static only, decision 2026-10-21; option B of the security review). Revisit if real use needs sandboxed JS with no network; the alternative is a local server + browser tile.
 2. Settings panel review: four pages now (Appearance, Terminal, Files, Security); structure, naming and scopes deserve a pass before more settings land.
-3. Keymap settings: override default shortcuts (`DEFAULT_KEYMAP` in `src/core/keymap.ts`) from the settings panel.
+3. Done 2026-11-18: key bindings editable in the settings panel (`SETTINGS.md` "Bindings page", record `2026-11-16-configurable-bindings.md`).
+40. Bindings on non-US layouts: untested (key names come from Electron's `input.key`: letters, `+` as its own key, dead keys). Not pressing.
 4. Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
 5. Review feature, binding and menu discoverability.
 
@@ -23,6 +24,7 @@
 10. Markdown: scroll memory lost across a frame reload (back/forward to a file under another root → top; same root: kept). Partly done 2026-10-28: the viewer reports its scroll (`scrolled`), the host restores it after a viewer reload. Left: a per-path map in the host so back/forward across directories restores too.
 11. Markdown: outline, search (`MARKDOWN.md`: none by design so far). Link target on hover done 2026-10-20 (link strip, `Host.hint`).
 12. Terminal block/box chars show row gaps (QR codes): DOM renderer uses font glyphs. Undecided whether to fix now; options in `2026-10-24-terminal-block-glyphs.md`. Sixel (`@xterm/addon-image`) separate.
+39. Terminal images: sixel / iTerm inline images (`qr -render sixel`, `imgcat`) are not rendered today (no decoder). Needs `@xterm/addon-image` (0.9.0 stable, 0.10 beta); its worker + canvas need checking against the renderer choice (12) and `SECURITY.md` (payload caps). Independent of the glyph fix.
 
 ## Install
 
@@ -61,20 +63,22 @@
 
 31. Guards without a scenario (fact-check 2026-10-21): frame message flood cap (1000/s), content frames can't download (`noDownloads` + no `allow-downloads`), html new-tile throttle (1/s), `confirmExternal` off path, guest `window.focus()` not moving the UI's focus (probed by hand only), Bluetooth / client-cert / device denials (no device in the harness).
 
-32. Flake: `markdown-links` "b.md in the same tile" and `markdown-keys` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation 2026-10-21: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
+32. Flake: `markdown-links` "b.md in the same tile" and `markdown-nav` (was `markdown-keys`) "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation 2026-10-21: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
 33. Dropped 2026-11-13: the step before cmd+R changed 2026-10-21 (waits for both live reloads); not seen since.
 
 ## Directories
 
 34. Done 2026-11-01: `docs/DIRECTORIES.md`, record `2026-10-30-working-directories.md` (cwd on every tile, inherited from the context tile; titles from cwd / path / URL; roots unchanged).
-35. TCC prompts (2026-10-30): every `tie-dev install` changes Tie.app's cdhash, invalidating its TCC records; the next `sec-browser` (mic) and picker walks into protected folders prompt again, and prompts can hide behind windows. Options: a stable signing identity (Developer ID or a self-signed certificate in the keychain: same code requirement across builds), or the harness launching from a plain terminal so prompts land on the dev Electron.app. HARNESS.md "macOS permission prompts".
+35. TCC prompts (2026-10-30): every `tie-dev install` changes Tie.app's cdhash, invalidating its TCC records; the next `sec-browser-session` (mic) and picker walks into protected folders prompt again, and prompts can hide behind windows. Options: a stable signing identity (Developer ID or a self-signed certificate in the keychain: same code requirement across builds), or the harness launching from a plain terminal so prompts land on the dev Electron.app. HARNESS.md "macOS permission prompts".
 
 
 ## Layout
 
 38. Shelf reveal (hover preview of a shelved tile) resizable, like a float (edge / corner handles), size remembered per tile; today fixed at 30% × 50% of the board (`revealSize()`, `SHELF.md`).
 
-36. Zoom (tile expansion): evaluate collapsing all sibling tiles instead of hiding them (the collapsed strips stay visible as a map of the tab), and/or animating the expansion. Today: `zoomed` hides everything else (`LAYOUT.md` "Zoom").
+36. Zoom (tile expansion): animate the expansion. Evaluate: activating a squashed bar moves the zoom there (accordion) instead of unzooming. Done: siblings squashed to bars (`LAYOUT.md` "Zoom").
+
+41. Closing a tile: if all its siblings have the same size along the split, share the freed space equally among them (never resized = the user means equal sizes). Today the freed space goes to the donor / neighbour (`core/layout.ts` `remove`).
 
 ## Docs
 
