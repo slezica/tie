@@ -83,3 +83,31 @@ export function validateSettings(s: Partial<Settings>, executable: (cmd: string)
   if (s.bindings !== undefined) for (const message of bindingErrors(s.bindings)) errors.push({ field: 'bindings', message })
   return errors
 }
+
+// The settings file as read: its text, missing, or unreadable (permissions...). main/settings.ts
+// keeps the one last loaded or written by Tie (the baseline) and compares the disk against it.
+export type FileSnapshot = { text: string } | { missing: true } | { unreadable: string }
+
+// Changed on disk since the baseline: by content (a touch or an identical rewrite is no change);
+// missing vs present is; two unreadable reads are the same (the reason may vary).
+export function fileChanged(baseline: FileSnapshot, now: FileSnapshot): boolean {
+  if ('text' in baseline || 'text' in now) return !('text' in baseline && 'text' in now && baseline.text === now.text)
+  return 'missing' in baseline !== 'missing' in now
+}
+
+// File text → settings: JSON object, merged over the defaults, sanitized, theme aliases mapped.
+// The one parse for startup and the panel's Reload (same trust level: sanitize only, no
+// validateSettings). Never writes anything: what sanitize changed stays in memory.
+export function parseSettings(text: string): { ok: true; settings: Settings } | { ok: false; message: string } {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) }
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, message: 'Not a JSON object' }
+  // SECURITY: sanitize is the gate for hand-edited (or foreign) files: allowExternalControl only on a real true.
+  const s = sanitize({ ...DEFAULTS, ...(raw as Partial<Settings>) })
+  s.theme = THEME_ALIASES[s.theme] ?? s.theme
+  return { ok: true, settings: s }
+}

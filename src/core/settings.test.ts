@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEFAULTS, sanitize, parseCommand, validateSettings, type Settings } from './settings'
+import { DEFAULTS, sanitize, parseCommand, validateSettings, parseSettings, fileChanged, type Settings } from './settings'
 
 // A hand-edited file may hold anything: sanitize takes it as if typed.
 const clean = (patch: Record<string, unknown>) => sanitize({ ...DEFAULTS, ...patch } as Settings)
@@ -81,5 +81,41 @@ describe('validateSettings', () => {
   })
   it('absent keys are not checked', () => {
     expect(validateSettings({}, found)).toEqual([])
+  })
+})
+
+describe('fileChanged (disk vs baseline)', () => {
+  const t = (text: string) => ({ text })
+  const missing = { missing: true as const }
+  it('compares content, not identity', () => {
+    expect(fileChanged(t('{"a":1}'), t('{"a":1}'))).toBe(false) // touch, identical rewrite
+    expect(fileChanged(t('{"a":1}'), t('{"a":2}'))).toBe(true)
+    expect(fileChanged(t('{"a":1}'), t('{"a":1}\n'))).toBe(true) // any byte counts
+  })
+  it('missing vs present is a change; missing vs missing is not', () => {
+    expect(fileChanged(missing, missing)).toBe(false)
+    expect(fileChanged(missing, t(''))).toBe(true)
+    expect(fileChanged(t('{}'), missing)).toBe(true)
+  })
+  it('unreadable: same as another unreadable read, else a change', () => {
+    expect(fileChanged({ unreadable: 'EACCES' }, { unreadable: 'EPERM' })).toBe(false)
+    expect(fileChanged({ unreadable: 'EACCES' }, t('{}'))).toBe(true)
+    expect(fileChanged({ unreadable: 'EACCES' }, missing)).toBe(true)
+    expect(fileChanged(missing, { unreadable: 'EACCES' })).toBe(true)
+  })
+})
+
+describe('parseSettings (startup and Reload: one parse, one trust level)', () => {
+  it('syntax errors and non-objects are refused with a message', () => {
+    const r = parseSettings('{ "theme": "nord", }')
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.message).toBeTruthy()
+    for (const text of ['null', '[]', '"nord"', '5']) expect(parseSettings(text)).toEqual({ ok: false, message: 'Not a JSON object' })
+  })
+  it('sanitizes over the defaults: clamps, allowExternalControl only on a real true, theme aliases', () => {
+    const r = parseSettings('{ "fontSize": 200, "allowExternalControl": "true", "theme": "elegant-dark" }')
+    expect(r.ok && r.settings).toMatchObject({ fontSize: 32, allowExternalControl: false, theme: 'tie-dark', lineHeight: DEFAULTS.lineHeight })
+    const on = parseSettings('{ "allowExternalControl": true }')
+    expect(on.ok && on.settings.allowExternalControl).toBe(true)
   })
 })

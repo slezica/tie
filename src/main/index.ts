@@ -10,7 +10,7 @@ import { accelerator } from '../core/keymap'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startWalk, stopWalk, stopWalks, type DocPush } from './docs'
 import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
-import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, settingsFileError } from './settings'
+import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, saveRefusal, loadRefusal, fileChanged, loadError, ignoreSettingsFile, reloadSettings, recreateSettings, backupPath, watchSettings } from './settings'
 import { applyStaged } from './update'
 
 const dev = !app.isPackaged
@@ -106,15 +106,33 @@ ipc.handle('pty:busy', (_e, ids: unknown) => {
   return Object.fromEntries(list.map((id) => [id, pty.busy(id)]))
 })
 ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags, dev }))
-ipc.handle('settings:get', () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, error: settingsFileError() }))
+// Settings (SETTINGS.md "File"): `changed` read fresh from disk at each call; `error`: why Save is
+// blocked (unparseable file at startup); `loadError`: the startup failure (dialog).
+const settingsInfo = () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, backup: backupPath, error: loadRefusal(), changed: fileChanged(), loadError: loadError() })
+ipc.handle('settings:get', () => settingsInfo())
 ipc.handle('settings:set', (_e, patch) => {
-  const fileError = settingsFileError()
-  const errors = fileError ? [{ field: 'file', message: fileError }] : validateSettings(patch)
+  // SECURITY / data: refused while the file is unparseable (kept for the user to fix) or changed on
+  // disk since loaded (would overwrite an edit the user hasn't seen): main's guard, not the button.
+  const refusal = saveRefusal()
+  const errors = refusal ? [{ field: 'file', message: refusal }] : validateSettings(patch)
   if (errors.length) return { ok: false, errors }
   const settings = setSettings(patch)
-  applyWindowSettings()
-  applyBindings()
+  applySettings()
   return { ok: true, settings }
+})
+ipc.handle('settings:ignore', () => {
+  ignoreSettingsFile()
+  return settingsInfo()
+})
+ipc.handle('settings:reload', () => {
+  const r = reloadSettings()
+  if (r.ok) applySettings()
+  return r
+})
+ipc.handle('settings:recreate', () => {
+  const r = recreateSettings()
+  if (r.ok) applySettings()
+  return r
 })
 ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
@@ -232,7 +250,14 @@ function frameTree() {
 }
 const depth = (f: Electron.WebFrameMain): number => (f.parent ? 1 + depth(f.parent) : 0)
 
-// Keymap (keys.ts) + the Quit menu label, from the settings' bindings: startup and every save.
+// Main's side of applying settings (save, reload, recreate); the UI applies its own (renderer
+// settings.ts applySettings).
+function applySettings() {
+  applyWindowSettings()
+  applyBindings()
+}
+
+// Keymap (keys.ts) + the Quit menu label, from the settings' bindings: startup and every apply.
 function applyBindings() {
   setBindings(getSettings().bindings)
   setMenu()
@@ -283,6 +308,8 @@ app.whenReady().then(async () => {
   onPopup((p) => win?.webContents.send('guest:popup', p))
   onPreventUnload((g) => win?.webContents.send('guest:prevent-unload', g))
   createWindow(ses)
+  // Hand edits are reported, never applied (no auto-reload): the panel shows a banner.
+  watchSettings((changed) => win?.webContents.send('settings:file', { changed, path: settingsPath }))
   startSocket(socketPath, (method, params) => (dev && method in devMethods ? Promise.resolve(devMethods[method](params)) : callRenderer(method, params)), {
     tiles: pty.tiles,
     allowExternal: () => getSettings().allowExternalControl,

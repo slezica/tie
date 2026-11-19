@@ -21,6 +21,16 @@ export interface Settings {
   bindings: Bindings
 }
 
+export interface SettingsInfo {
+  settings: Settings
+  defaults: { shell: string }
+  path: string
+  backup: string // where "Recreate with defaults" copies an unparseable file
+  error: string | null
+  changed: boolean
+  loadError: { kind: 'syntax' | 'unreadable'; message: string } | null
+}
+
 type DataCb = (id: number, data: string) => void
 type ExitCb = (id: number, code: number) => void
 type ProcCb = (id: number, name: string) => void
@@ -41,9 +51,20 @@ const api = {
   // Absolute path of a dropped file ('' if not a real file).
   pathForFile: (f: File): string => webUtils.getPathForFile(f),
   settings: {
-    get: (): Promise<{ settings: Settings; defaults: { shell: string }; path: string; error: string | null }> => ipcRenderer.invoke('settings:get'),
+    // `changed`: the file differs on disk from what Tie loaded / wrote (fresh at each call). `error`:
+    // Save blocked by the startup load. `loadError`: that load's failure (startup dialog).
+    get: (): Promise<SettingsInfo> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<{ ok: true; settings: Settings } | { ok: false; errors: { field: keyof Settings | 'file'; message: string }[] }> =>
       ipcRenderer.invoke('settings:set', patch),
+    // Banner: Ignore (disk content becomes the baseline, nothing loaded), Reload (adopt the file).
+    ignore: (): Promise<SettingsInfo> => ipcRenderer.invoke('settings:ignore'),
+    reload: (): Promise<{ ok: true; settings: Settings } | { ok: false; message: string }> => ipcRenderer.invoke('settings:reload'),
+    // Startup dialog: back up the unparseable file to `backup`, write defaults.
+    recreate: (): Promise<{ ok: true; settings: Settings; backup: string } | { ok: false; message: string }> => ipcRenderer.invoke('settings:recreate'),
+    // The file changed (or changed back) on disk: main's watcher.
+    onFile: (cb: (s: { changed: boolean; path: string }) => void) => {
+      ipcRenderer.on('settings:file', (_e, s) => cb(s))
+    },
     previewBorderless: (on: boolean) => ipcRenderer.send('window:borderless-preview', on),
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())
