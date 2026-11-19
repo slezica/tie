@@ -78,7 +78,9 @@ export default async (ctx, h) => {
     h.assert(hits('/form') === n, 'Stay: no reload')
     await k('Meta+r')
     await h.waitFor(ctx, leave, 'reload again: dialog')
-    await h.press(ctx, 'Enter') // through main: a CDP press that makes the guest navigate can wait forever (as browser.mjs)
+    // Not a CDP key press: one that makes the guest navigate can wait forever for its answer (seen once:
+    // the run hung to its timeout; as browser.mjs). Enter on the focused Leave is covered by the ⌘W case below.
+    await ctx.page.evaluate(() => document.querySelector('.dialog .confirm').click())
     await h.eventually(ctx, async () => h.assert(hits('/form') === n + 1, `Leave: reloaded: ${JSON.stringify(s.hits)} n=${n}`))
     await touch(b)
 
