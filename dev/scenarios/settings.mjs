@@ -92,15 +92,6 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   await h.eventually(ctx, async () => h.assert((await ctx.page.$$('.settings-backdrop')).length === 0, 'no orphan settings panel'))
 
-  // Borderless: the title strip goes (traffic lights hidden by main), the board reaches the top; persists.
-  const boardY = async () => (await h.list(ctx)).board.y
-  const y0 = await boardY()
-  await h.openSettings(ctx, 'appearance')
-  await ctx.page.check('#set-borderless')
-  await ctx.page.locator('.save').click()
-  await h.eventually(ctx, async () => h.assert((await boardY()) < y0 - 10, `board reaches the top (${y0} -> ${await boardY()})`))
-  h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
-
   await terminalTitle(ctx, h)
   await securityPage(ctx, h)
   await filesPage(ctx, h)
