@@ -124,6 +124,16 @@ Nothing open.
 - Escape: selection kept.
 - Group of 1 (one selected item dragged): a group like any (no center zone: no swap).
 
+## Notes (test gaps)
+
+- Covered: group drop on a zoomed board (edge of the zoomed tile; a squashed bar), on a collapsed tile, on `+` (`shelf-select-drag`): previews = landing, shelf order, selection cleared, first active.
+- Covered: group close with a browser tile holding beforeunload, Stay (it stays shelved, the rest close, recent board tile active) and Leave (`shelf-select-close-browser`).
+- Already covered: single drop on `+` (`tab-drops`), menu "Move N to tab ▸ New tab" (`shelf-select-actions`).
+- Bugs: none found.
+- Zoomed board: as a single drop, targets are the zoomed rects, the landing unzoomed (the new tile is squashed: activating it ends the zoom); previews show the unzoomed landing, away from the pointer.
+- Squashed bar, collapsed tile: a single tile swaps (center zone); a group takes the nearest edge (no center zone), the collapse kept; beside a collapsed tile it splits that tile's share (as `insert`).
+- Open: the "Leave page?" question doesn't name the tile; in a group close the asking page is shelved (unseen).
+
 ## Phase 4: board tiles
 
 Not now.
