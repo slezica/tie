@@ -77,6 +77,7 @@ export const saveRefusal = (): string | null => loadRefusal() ?? (fileChanged() 
 // previews, Ignore, Reload or the watcher. One exception: the first dev run's seed copy above.
 function write(text: string) {
   writeFileSync(settingsPath, text, { mode: PRIVATE })
+  chmodSync(settingsPath, PRIVATE) // SECURITY: a file made by an editor keeps its own mode on overwrite
   baseline = { text } // same tick as the write: no watcher event can see it as a change
 }
 const json = (s: Settings) => JSON.stringify(s, null, 2) + '\n'
