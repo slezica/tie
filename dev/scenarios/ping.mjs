@@ -1,4 +1,4 @@
-// Ping: marks a tile (title-bar icon glow, shelf badge, tab dot) without focus or layout change; clears on activation.
+// Ping: marks a tile (title-bar icon glow, shelf badge, tab dot) without focus or layout change; clears on activation (incl. switching to its tab).
 export default async (ctx, h) => {
   const L = () => h.list(ctx)
   const info = async (id) => (await L()).tiles.find((t) => t.id === id)
@@ -29,8 +29,13 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+t')
   await h.eventually(ctx, async () => h.assert(await ctx.page.isVisible('.tab.pinged .tab-ping'), 'background tab shows ping'))
   await ctx.shot('tab-dot')
+  // c: the active tile of a tab not shown, so not in front of the user: pinged. Switching to its
+  // tab activates it: cleared.
+  await ctx.tie('ping', '--tile', c)
+  h.assert((await info(c)).pinged, 'active tile of a background tab: pinged')
   await h.press(ctx, 'Meta+1')
   await h.eventually(ctx, async () => h.assert((await L()).tab === l.tab && !(await ctx.page.isVisible('.tab.pinged')), 'current tab has no tab dot'))
+  h.assert(!(await info(c)).pinged, 'switching to its tab clears the active tile')
   h.assert((await info(b)).pinged, 'switching tabs does not clear non-active tiles')
 
   await h.press(ctx, 'Meta+ArrowUp') // c -> b
