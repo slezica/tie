@@ -56,19 +56,6 @@ export default async (ctx, h) => {
   await k('Meta+9')
   await ev(async () => h.assert((await L()).tab === l.tabs[1].id, 'cmd+9: last tab'))
 
-  // CLI naming a tile of a background tab (--tile, --at) acts in that tab and doesn't switch.
-  await k('Meta+1')
-  await ev(async () => h.assert((await L()).tab === l.tabs[0].id, 'cmd+1'))
-  const c = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', 'sleep 30')).id
-  const x = (await ctx.tie('move', '--tile', c, '--at', a, '--side', 'r')).id
-  l = await L()
-  h.assert(l.tiles.find((t) => t.id === x).tab === l.tabs[0].id, 'opened in tab 1')
-  await k('Meta+2')
-  await ev(async () => h.assert((await L()).tab === l.tabs[1].id, 'cmd+2'))
-  const d = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'b')).id
-  l = await L()
-  h.assert(l.tab === l.tabs[1].id && l.tiles.find((t) => t.id === d).tab === l.tabs[0].id, 'CLI targets background tab without switching')
-
   // Close: tab 2 holds only a shelved idle terminal: cmd+shift+W closes the tab with it, no question.
   await h.waitShell(ctx, b) // its shell settled (startup children would count as busy)
   await h.waitNoChild(ctx, b)
@@ -79,15 +66,6 @@ export default async (ctx, h) => {
     h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id && !l.tiles.some((t) => t.id === b), 'tab closed with its tile, back to tab 1')
   })
 
-  // Last tile closed: the tab closes with it, back to tab 1 (details below).
-  const e = (await newTab()).active
-  await settle()
-  await k('Meta+w')
-  await ev(async () => {
-    l = await L()
-    h.assert(l.tabs.length === 1 && l.tab === l.tabs[0].id && !l.tiles.some((t) => t.id === e), `emptied tab closed: ${JSON.stringify(l.tabs)}`)
-  })
-
   // Rename via right-click.
   const tab = await ctx.page.locator('.tab').first().boundingBox()
   await ctx.page.mouse.click(tab.x + 20, tab.y + tab.height / 2, { button: 'right' })
@@ -95,14 +73,6 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.type('work')
   await ctx.page.keyboard.press('Enter')
   h.assert((await tabTitles())[0] === 'work', 'renamed')
-  // cmd+W closes the active tile.
-  const n = (await L()).tiles.length
-  const act = (await L()).active
-  await k('Meta+w')
-  await ev(async () => {
-    l = await L()
-    h.assert(l.tiles.length === n - 1 && !l.tiles.some((t) => t.id === act), 'cmd+W closes active tile')
-  })
 
   // Reorder by drag: tab 3 moved before tab 1.
   await newTab()

@@ -1,7 +1,36 @@
-// tie move --tab / --swap, tie add --tab: target tab, visible tab and input kept, emptied tabs close.
+// CLI add / move never take the user's input unless --focus (an agent showing something must not
+// redirect typing); empty board: the new tile activates. tie move --tab / --swap, tie add --tab, --at a
+// tile of a hidden tab: target tab, visible tab and input kept, emptied tabs close.
 export default async (ctx, h) => {
   const list = () => h.list(ctx)
   const tabTiles = (l, tab) => l.tiles.filter((t) => t.tab === tab).map((t) => t.id)
+
+  // Focus: add / move keep the input unless --focus.
+  {
+    const active = async () => (await h.list(ctx)).active
+    const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
+    h.assert((await active()) === a, 'start: first tile active')
+
+    const b = (await ctx.tie('add', 'terminal')).id
+    await h.waitShell(ctx, b) // its start can't take the input either
+    h.assert((await active()) === a, `add: input stays on ${a} (active ${await active()})`)
+    await ctx.tie('move', '--tile', b, '--float')
+    await h.settle(ctx)
+    h.assert((await active()) === a, 'move: input stays')
+
+    const c = (await ctx.tie('add', 'terminal', '--focus')).id
+    await h.waitShell(ctx, c)
+    await h.eventually(ctx, async () => h.assert((await active()) === c, 'add --focus: new tile takes input'))
+    await ctx.tie('move', '--tile', b, '--at', a, '--side', 'r', '--focus')
+    await h.eventually(ctx, async () => h.assert((await active()) === b, 'move --focus: moved tile takes input'))
+
+    // Empty board: the opened tile activates (nothing to take input from).
+    for (const id of [a, b, c]) await ctx.tie('close', '--tile', id)
+    await h.waitFor(ctx, async () => !(await h.list(ctx)).tiles.length, 'board empty')
+    const d = (await ctx.tie('add', 'terminal')).id
+    await h.eventually(ctx, async () => h.assert((await active()) === d, 'empty board: new tile active'))
+    await h.waitShell(ctx, d)
+  }
 
   // s1: a | b (a has input); s2: x (hidden).
   let l = await list()
@@ -16,6 +45,20 @@ export default async (ctx, h) => {
   const b = (await ctx.tie('add', 'terminal')).id
   l = await list()
   h.assert(l.tab === s1 && l.active === a, 'start: tab 1, a has input')
+
+  // Naming a tile of the hidden tab (add --at, move --tile): acts in that tab; no switch, input stays on a.
+  {
+    const d = (await ctx.tie('add', 'terminal', '--at', x, '--side', 'b')).id
+    l = await list()
+    h.assert(l.tiles.find((t) => t.id === d).tab === s2, `add --at a hidden tab's tile: lands there (${l.tiles.find((t) => t.id === d).tab})`)
+    h.assert(l.tab === s1 && l.active === a, `add --at: visible tab and input kept (tab ${l.tab}, active ${l.active})`)
+    const r = await ctx.tie('move', '--tile', d, '--at', x, '--side', 'l')
+    l = await list()
+    h.assert(r.tab === s2 && r.state === 'slotted', `move --tile in a hidden tab: acts there (${JSON.stringify(r)})`)
+    h.assert(l.tab === s1 && l.active === a, `move --tile: visible tab and input kept (tab ${l.tab}, active ${l.active})`)
+    await ctx.tie('close', '--tile', d)
+    await h.waitFor(ctx, async () => tabTiles(await list(), s2).join() === x, 's2 back to x alone')
+  }
 
   // --tab <id>: into s2, active there; the user stays on s1, input on a.
   let r = await ctx.tie('move', '--tile', b, '--tab', s2)
