@@ -8,8 +8,7 @@
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; click into it selects all, type to replace, cmd+C copies, drag selects a range; Enter loads, Escape restores; refused input → dialog). A click there activates the tile without handing the keys to its content.
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
-- Shelf: `SHELF.md` (`cmd+click` on an item: selection, "Selection"). Tabs: `TABS.md`.
-- With a shelf selection: a pointerdown anywhere de-selects (capture, `shelf.ts` `initSelection`), except `cmd+click` on an item, menus and modals; the thing clicked then acts as usual. Right-click: on a selected item the group menu, elsewhere de-select + its own menu.
+- Shelf: `SHELF.md` (`cmd+click` on an item: selection; a pointerdown elsewhere de-selects, then acts as usual: "Selection"). Tabs: `TABS.md`.
 
 ## Drop targets
 
@@ -65,24 +64,28 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 | `cmd+Q` | Quit (asks first: `quit.ts`) |
 | `cmd+,` | Settings (app menu, main) |
 
-- Matched in main (`before-input-event` on the window's webContents, and on each browser guest's own: `watchKeys`): sees real keys before any page, content frames and guests included. Matching keydowns are blocked (no page sees them) and sent as `keys:action`; the renderer runs them (`run()`).
-- Decision rules: `decideKey(key, mode, fromUi, keymap)` (`@core/keymap`, unit-tested): pass, block, run an action, or capture. `main/keys.ts` `onInput` only applies it. Modes (`KeyMode`): `off` (every bound chord), `fields` (only `quit`), `capture` (below).
-- Suspended while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open: the renderer reports changes (`keys:suspend`, on focus changes and body children changes). Actions arriving while a modal is open are dropped (except `quit`: never suspended, `quit.ts` ignores it while a dialog is open).
-- Never in the keymap: Esc, editing combos (cmd+C/V/X/A/Z). Synthetic `KeyboardEvent`s trigger nothing (they never reach main).
+- Matched in main (`before-input-event` on the window's webContents, and on each browser guest's own: `watchKeys`): sees real keys before any page, content frames and guests included (synthetic `KeyboardEvent`s never reach main: they trigger nothing). Matching keydowns are blocked (no page sees them) and sent as `keys:action`; the renderer runs them (`run()`).
+- Decision rules: `decideKey(key, mode, fromUi, keymap)` (`@core/keymap`, unit-tested): pass, block, run an action, or capture. `main/keys.ts` `onInput` only applies it. Modes (`KeyMode`): `off` (every bound chord), `fields` (only `quit`), `capture` ("Capture fields").
+- Suspended while editing text (`input`, `textarea`, `select`, contenteditable; not xterm's textarea) or while settings/dialog open: the renderer reports changes (`keys:suspend`, on focus changes and body children changes). Actions arriving while a modal is open are dropped (except `quit`: `quit.ts` ignores it while a dialog is open).
 - Blocked keydowns lose their keyup (Chromium suppresses it).
 - Chord format: `Cmd+Ctrl+Alt+Shift+Key` (modifiers in that order), key from Electron `input.key`: single characters upper-cased (`+` as `Cmd++`), arrows `Left/Right/Up/Down`, space `Space`, named keys (`Home`, `PageUp`, `Delete`, `F1`..`F24`, ...).
 - Configurable (setting `bindings`, sparse overrides): keymap = `resolveKeymap(bindings)`, rebuilt in main at startup and on each save (live). One chord per action; `zoom-in`'s aliases are default-only. `cmd+,` (Settings) is a fixed menu accelerator; the Quit menu label follows the `quit` binding (none when unbound; a malformed override: the default, as the keymap: `chordsOf` and `resolveKeymap` share the rule). Validation: `SETTINGS.md`.
+- Alt chords: with Alt held the key is named from its physical position (`input.code`: `KeyD` → `D`, US names), since macOS composes (`Alt+D` → `∂`). Raw input is logged (`TIE_DEBUG=keys`) in capture mode only.
+- Bindable (`validBinding`): a chord with Cmd, Ctrl or Alt, or a function key (Shift alone, bare keys: would eat typing); Escape / Enter / Backspace, editing combos and cmd+, reserved (full rule: `SETTINGS.md` "File"). A bound `Alt+<letter>` takes the key: the composed character (`å`) no longer reaches the page; same for `Ctrl+C` in terminals (the user's choice).
 - `cmd+R` is blocked in main before menu accelerators: dev builds' View → Reload menu item still reloads the UI by mouse.
 - Split: empty board (no tree) → root terminal (the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Other kinds (file, html, browser) → a terminal in the tile's cwd (`DIRECTORIES.md`).
 - Open a file (`cmd+O` / `cmd+shift+O`, `file-right` / `file-down`): like split with the `file` template (`templateOpts`, `SHELF.md`). Empty board → root tile (picker from the active tile's cwd, if any, else `S.cwd`); active tile not slotted → no-op. Picker starts in the active tile's cwd, every kind (as split); cancel → nothing; not openable → modal. The tile must still be slotted after the picker, else nothing.
-- Capture fields (`renderer/capture.ts`, `captureField(input, {change, accept, cancel})`; settings key search, binding edit): an input (class `capture-field`, read-only) that takes key presses as a chord name. Focused: the renderer reports `keys:suspend 'capture'`; main then sends every key of the UI as `keys:capture {chord, complete}` (`captured()`, `@core/keymap`) and blocks it (page, shortcuts, menu accelerators, quit). Held modifiers alone: incomplete (`Cmd+Shift+`, shown live, following presses and releases; all released: the value again). Bare modifier keys pass to the page too: blocked, their key-ups would never reach main (line above). A modifier's own key decides its flag (held on its key-down, released on its key-up), whatever the event's flags say. The field's own keys pass (`capturePasses`: without Cmd / Ctrl / Alt): Escape cancels (value as at focus), Backspace empties, Enter accepts; blur accepts. Tab is captured like any key. `SECURITY.md`.
-- Alt chords: with Alt held the key is named from its physical position (`input.code`: `KeyD` → `D`, US names), since macOS composes (`Alt+D` → `∂`). Raw input is logged (`TIE_DEBUG=keys`) in capture mode only.
-- Bindable: a chord with Cmd, Ctrl or Alt, or a function key (`validBinding`). Shift alone and bare keys: refused (they would eat typing). A bound `Alt+<letter>` takes the key: the composed character (`å`) no longer reaches the page; same for `Ctrl+C` in terminals (the user's choice).
 - Inside the file picker: its own keys (below); shortcuts suspended (a `.dialog-backdrop` modal).
-- Quit (`quit` action, cmd+Q by default; matched by action, whatever its chord): blocked in main like the rest (repeats too), but never suspended (works from text fields and over modals). The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
+- Quit (`quit` action, cmd+Q by default; matched by action, whatever its chord): blocked in main like the rest (repeats too), but works from text fields and over modals (`fields` mode); a focused capture field takes it. The renderer asks (`quit.ts`, `ARCHITECTURE.md` "Quit"); while any dialog is open: nothing.
 - Focus direction (i3-like, shared by focus and swap): `renderer/keys.ts` `neighbor()` collects candidates (visible slotted + floating tiles); ranking in `@core/focus` `neighbor` (unit-tested): center more than 1 px beyond the active one's; perpendicular overlap (yes first), gap along axis (overlapping: 0), perpendicular offset (rounded), MRU.
+- Shelf selection (`SHELF.md` "Selection"): `close-tile` and `toggle-shelf` act on it (`keys.ts` `run`); any other action clears it first (keys back to the most recent board tile), then runs. Escape clears it (window keydown, capture) unless a menu, modal, drag or text field takes it. Without a selection, Escape is untouched.
 
-- Shelf selection (`SHELF.md` "Selection"): `close-tile` and `toggle-shelf` act on it (`keys.ts` `run`); any other action clears it first (keys back to the most recent board tile, `focusNext`), then runs. Escape clears it (window keydown, capture) unless a menu, modal, drag or text field takes it; with a selection nothing is active, so no terminal or frame misses it. Without one, Escape is untouched.
+### Capture fields (`renderer/capture.ts`)
+
+- `captureField(input, {change, accept, cancel})` (settings: key search, binding edit): an input (class `capture-field`, read-only) that takes key presses as a chord name.
+- Focused: the renderer reports `keys:suspend 'capture'`; main then sends every key of the UI as `keys:capture {chord, complete}` (`captured()`, `@core/keymap`) and blocks it (page, shortcuts, menu accelerators, quit). A guest's keys are never forwarded. `SECURITY.md`.
+- Held modifiers alone: incomplete (`Cmd+Shift+`, shown live, following presses and releases; all released: the value again). Bare modifier keys also pass to the page (blocked, their key-ups would never reach main). A modifier's own key decides its flag (held on its key-down, released on its key-up), whatever the event's flags say.
+- Own keys pass (`capturePasses`: without Cmd / Ctrl / Alt): Escape cancels (value as at focus), Backspace empties, Enter accepts; blur accepts. Tab is captured like any key.
 
 ## File picker (`renderer/picker.ts`)
 
@@ -112,6 +115,7 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 - Menu closes on outside pointerdown, Escape, or its tile closing. Clamped into the window. `refocus()` on close if it held focus.
 - `infoDialog(title, message)`: modal OK; Enter / Escape / backdrop close, then `refocus()`.
 - `confirmDialog({cls, title, body, confirm, cancel?, focus?, arm?})` → bool. Enter presses the focused button; Escape / backdrop = false. Default Cancel focused (Enter cancels: links out, downloads, pastes). `focus: 'confirm'` (close, quit, leave page): Enter confirms. `arm` ms: confirm disabled meanwhile (the dialog holds focus).
+- `choiceDialog({cls, title, body, choices})` → the chosen value. First choice focused (the safe one); Escape / backdrop = first.
 
 ## Closing (`close.ts`)
 
@@ -128,3 +132,7 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 - Files anywhere else on the board or shelf (incl. content tiles): opened in their kind (by extension or content, `VIEWERS.md`), placed like a template dropped there (`placementAt`); outside board and shelf: beside the active tile. Folder, missing, too large → modal with the reason (`files.ts`).
 - Text anywhere else: nothing. Never navigates (`SECURITY.md`).
 - While an OS drag is over the window (`body.os-drag`): content frames ignore the pointer, so drops over them land in the UI. A drag entering straight over a frame goes to the frame (viewers refuse drops).
+
+## Scenarios
+
+`layout-drop`, `templates`, `keys`, `keys-swap`, `keys-bindings`, `sec-keys`, `sec-keys-capture`, `settings-bindings`, `picker`, `picker-partial`, `menu`, `close-busy`, `quit`, `sec-drop`.
