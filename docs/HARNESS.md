@@ -62,7 +62,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 
 `ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
 
-- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`content-input`, `browser`, `sec-browser-*`).
+- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). Harness assumptions on Playwright / CDP: `ENGINE.md` "Harness". A hidden real window routes like a visible one. Use it for frame and guest input (`content-input`, `browser`, `sec-browser-*`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
 - Runs once booted: first `.tab`, and every terminal showing its prompt (or an error; at most 3 s). Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Check count (`h.checkCount()`): passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.

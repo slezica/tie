@@ -24,7 +24,7 @@ The tile's cwd at open (`DIRECTORIES.md` "Pathways"). Opened from a terminal: it
 - Shell resolved via `PATH` or path (`~/` expanded). Not executable → `{error}` (`Shell not found or not executable: <shell>` + `Fix it in Settings → Terminal.`).
 - cwd: the tile's, else home. Not a directory → `{error}` (`Directory not found: <cwd>`).
 - Env added: `TIE_TILE`, `TIE_SOCKET`, `TIE_INSTANCE`, `PATH` with `bin/` prepended (`tie` available; `PACKAGING.md`), `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=tie`.
-- Responsibility (macOS TCC): the shell is spawned disclaimed (`patches/node-pty+1.1.0.patch`: `responsibility_spawnattrs_setdisclaim` on node-pty's `posix_spawn`, applied by `patch-package` at install, before the rebuild). A program in the terminal asking for the microphone, camera, etc. prompts under its own name, and a grant to it is not a grant to Tie or to every other child; Tie only ever asks for its own permissions (it needs none: all web permissions are denied). As iTerm2, Ghostty, WezTerm. Test: `sec-disclaim`.
+- Responsibility (macOS TCC): the shell is spawned disclaimed (`patches/node-pty+1.1.0.patch`: `responsibility_spawnattrs_setdisclaim` on node-pty's `posix_spawn`, applied by `patch-package` at install, before the rebuild). A program in the terminal asking for the microphone, camera, etc. prompts under its own name, and a grant to it is not a grant to Tie or to every other child; Tie only ever asks for its own permissions (it needs none: all web permissions are denied). Same call as Chromium's launcher; other terminals: unverified (`ENGINE.md`). Test: `sec-disclaim`.
 
 ## Paste (`paste.ts`)
 
@@ -38,7 +38,7 @@ The tile's cwd at open (`DIRECTORIES.md` "Pathways"). Opened from a terminal: it
 ## Links
 
 - OSC 8 hyperlinks only (no plain-URL detection). Hover: the tile's link strip (`Host.hint`, bottom-left, UI realm) shows the real URL (`⌘-click to open <url>`), or `Blocked link: <uri>` for non-http(s) schemes.
-- xterm 6.0 link cache: the linkifier reuses the links of the line last hovered even after its text changed (stale link on hover / cmd-click). `fixLinkCache()` forgets that line on every write while no link is under the pointer (with one, xterm re-reads the line itself) (private API; no-op if it changes; `sec-links` stale link case).
+- xterm 6.0 link cache: the linkifier reuses the links of the line last hovered even after its text changed (stale link on hover / cmd-click). `fixLinkCache()` forgets that line on every write while no link is under the pointer (with one, xterm re-reads the line itself) (private API; no-op if it changes; `sec-links` stale link case). Upstream master still caches: keep on 6.1 (`ENGINE.md`).
 - cmd-click on http(s) → confirm dialog (`external.ts`, setting `confirmExternal`) → `tie.openExternal` → main, http(s) only. Plain click, other schemes: nothing. `SECURITY.md`.
 
 ## Size

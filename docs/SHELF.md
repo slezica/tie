@@ -28,7 +28,7 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 - A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon, in order) from the slot under the pointer; elsewhere the "+" hint is as wide as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The width holds either way.
 - Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
 - Shelving the active tile → `focusNext()`. Shelving clears activity.
-- Items grow leftward: a new item lands where the previous last one was. Under the pointer, it is revealed at once (hover rule below).
+- Items grow leftward: a new item lands where the previous last one was. Under the pointer, it is revealed at once (hover rule below; Blink re-hovers after layout while the window is active: `ENGINE.md`).
 
 ## Space
 

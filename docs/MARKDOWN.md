@@ -83,7 +83,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 6. `n` (frame focused, no modifiers): newest unseen change to a third from the top (page ends clamp). Each jump marks it seen: repeated `n` walks unseen changes, newest update first, document order within one. None unseen: the newest still-marked one.
 
 - Pages (open, links, back/forward) replace the document and clear marks; diagrams finishing later swap in by the same diff (anchored, unmarked). Theme change: same (diagrams re-render).
-- Limits: a shelved (hidden) tile's frame still reports visible: changes seen while shelved may fade unseen (activity dot still marks the tile). Identical blocks match by occurrence: duplicates may shift marks.
+- Limits: a shelved (hidden) tile's frame still reports visible (page visibility is per top-level page: `ENGINE.md`): changes seen while shelved may fade unseen (activity dot still marks the tile). Identical blocks match by occurrence: duplicates may shift marks.
 
 ## History and nav bar
 
@@ -126,7 +126,7 @@ The file changed on disk (same document, `scroll: keep`): the view never moves.
 
 - Images outside the root never load (a file opened from a cwd that doesn't hold it: root = its folder, `DIRECTORIES.md` 5).
 - Diagram SVG ids aren't prefixed (Mermaid's CSS and markers reference them): they could shadow undefined `window` names. The viewer reads no such globals (`window.mermaid` is set before any diagram exists).
-- Mermaid's "neo" drop shadows use its own gray, not the theme.
+- Mermaid's "neo" drop shadows use the base theme's default gray, not the theme: Tie doesn't set `themeVariables.dropShadow`, which would override it (`ENGINE.md`).
 - Missing file: last render frozen, "Missing" pill (`TILES.md`).
 - Scroll memory lost when the frame reloads (history across roots → top; same root: kept).
 - No search, no outline, no edit, by design (open an editor next to it: `cmd+D`).

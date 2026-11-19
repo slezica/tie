@@ -138,7 +138,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | Failure | Detected by | Tile shows |
 |---|---|---|
 | Hung (busy loop, runaway layout, OOM) | `{type: 'tie:ping', n}` every 1 s (one outstanding); no `pong {n}` within 5 s, and 10 s since the last `post` (render grace) | "Viewer stopped responding" |
-| Crashed (renderer process died) | port `close` event (the viewer's end went away); documents: and no frame `load` within 5 s (else it was a navigation: handshake again) | "Viewer crashed" / "Page crashed" |
+| Crashed (renderer process died) | port `close` event (the viewer's end went away; enabled by Electron, `ENGINE.md`); documents: and no frame `load` within 5 s (else it was a navigation: handshake again) | "Viewer crashed" / "Page crashed" |
 | No handshake | no `ready` within 5 s | "Content did not load" |
 
 - Every viewer answers `tie:ping` with `pong` (same `n`) from its message handler.
@@ -146,11 +146,11 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - No automatic reload: a document that hung or crashed the viewer would do it again. The user reopens the tile.
 - Sleep / throttling: a tick > 3 s late (machine slept, hidden window throttled) restarts the ping, no verdict.
 - Own process per frame (`sec-content-escape`): the UI and other tiles keep running while one spins (`content-watchdog`).
-- A viewer paused in DevTools (breakpoint) for > 5 s counts as hung.
+- A viewer paused in DevTools (breakpoint) for > 5 s counts as hung (no `pong` while paused; unverified: `ENGINE.md`).
 
 - No window `message` listener in the UI: requests arrive over the port only.
 - Gesture rule: verbs acting for the user (`gesture` in `VERBS`: `openLink`, `followLink`) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the UI's focus update), then is refused.
-- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the UI's `activeElement` (`sec-focus`).
+- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames (Blink, `ENGINE.md`). Guests (`<webview>`): a guest page's `window.focus()` never moves the UI's `activeElement` (`sec-focus`).
 - Focus: a click in a frame gives the UI no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
 - Message flood: a frame posting more than 1000 messages a second has the rest dropped unparsed (`FLOOD_MAX`).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.

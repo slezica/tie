@@ -81,4 +81,4 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 - Text: no wrapping, no search; 10 MB × one element per line is slow-ish to diff (≈200k lines).
 - Hex: no selection across the virtualized edge; no editing, no search, no jump-to-offset.
 - Image: no zoom steps beyond fit / 100%; animated formats animate (browser default).
-- Html: no per-file persistent storage; no network, no server features (POST, routing); media without range requests (seeking may fail); subfolder changes don't reload.
+- Html: no per-file persistent storage; no network, no server features (POST, routing); media without range requests (seeking may fail; unverified: `ENGINE.md`); subfolder changes don't reload.
