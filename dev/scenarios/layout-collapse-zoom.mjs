@@ -123,7 +123,11 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+ArrowRight')
   await h.eventually(ctx, async () => h.assert((await h.list(ctx)).active === x, 'collapsed tile active'))
   // refocus blurs (a collapsed tile takes no keys): nothing inside a tile keeps the focus.
-  await h.eventually(ctx, async () => h.assert((await h.focused(ctx)) === 'BODY', `keys go nowhere, not to a (focus: ${await h.focused(ctx)})`))
+  const who = (f) => (f === a ? `${f} (a, the previous tile)` : f === x ? `${f} (x, the collapsed tile)` : f)
+  await h.eventually(ctx, async () => {
+    const f = await h.focused(ctx)
+    h.assert(f === 'BODY', `keys go nowhere (focus: ${who(f)})`)
+  })
 
   // A collapsed tile left alone on the board drops its collapse (fresh tab: just its terminal).
   await h.press(ctx, 'Meta+t')
