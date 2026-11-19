@@ -16,10 +16,17 @@ export const UNTRUSTED_CLOSE = '</untrusted>'
 
 const text = (v: unknown): string => (typeof v === 'string' ? v : (JSON.stringify(v) ?? String(v)))
 
-// Printable and tag-safe: control characters (C0, DEL, C1), line/paragraph separators, `<`, `>`
-// and backslash-u escaped as \uXXXX (backslash-u so the escaping itself can't be forged).
+// SECURITY: characters that reorder the text around them when shown (bidi marks, embeddings, overrides,
+// isolates): a name or URL carrying them reads differently from what it is ("photo\u202egpj.exe").
+// Source text for a character class.
+export const BIDI = '\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069'
+
+// Printable and tag-safe: control characters (C0, DEL, C1), line/paragraph separators, bidi controls
+// (a value can't reorder its line in a terminal or editor), `<`, `>` and backslash-u escaped as \uXXXX
+// (backslash-u so the escaping itself can't be forged).
+const UNSAFE = new RegExp(`[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029${BIDI}<>]|\\\\u`, 'g')
 export function escapeUntrusted(v: unknown): string {
-  return text(v).replace(/[\x00-\x1f\x7f-\x9f\u2028\u2029<>]|\\u/g, (c) => (c === '\\u' ? '\\u005cu' : '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')))
+  return text(v).replace(UNSAFE, (c) => (c === '\\u' ? '\\u005cu' : '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')))
 }
 
 // One log argument → its text in the line.

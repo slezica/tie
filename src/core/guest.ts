@@ -1,6 +1,7 @@
 // Browser tile (<webview> guests): the pure rules. Which URLs a guest may load, the location bar's
 // input → URL, the popup gesture window, download file names. Renderer-safe, unit-tested; read by
 // main (src/main/guest.ts) and the browser surface (src/renderer/guest.ts). docs/BROWSER.md.
+import { BIDI } from './log'
 
 // SECURITY: every guest runs on this one persistent partition (logins survive restarts), never the
 // UI's session: it has the network (the UI's has none) and none of Tie's protocols (tie:,
@@ -73,11 +74,16 @@ export function popupUrl(url: string): string | null {
 }
 
 // SECURITY: a download's file name comes from the site. Base name only, no path separators, control
-// characters, leading dots (hidden files) or trailing dots/spaces; bounded; never empty.
+// characters (C0, DEL, C1), line separators or bidi controls (the Save dialog would show the name
+// reordered: "photo<RLO>gpj.exe" reads "photoexe.jpg"), leading dots (hidden files) or trailing
+// dots/spaces; bounded; never empty.
+const NAME_UNSAFE = new RegExp(`[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029${BIDI}:]`, 'g')
+// Titles keep bidi marks (plain right-to-left text uses them); embeddings, overrides and isolates go.
+const TITLE_UNSAFE = /[\x00-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g
 export function downloadName(suggested: unknown): string {
   let n = typeof suggested === 'string' ? suggested : ''
   n = n.slice(Math.max(n.lastIndexOf('/'), n.lastIndexOf('\\')) + 1)
-  n = n.replace(/[\x00-\x1f\x7f:]/g, '_').replace(/^[.\s]+/, '').replace(/[.\s]+$/, '')
+  n = n.replace(NAME_UNSAFE, '_').replace(/^[.\s]+/, '').replace(/[.\s]+$/, '')
   if (n.length > 200) {
     const dot = n.lastIndexOf('.')
     const ext = dot > 0 && n.length - dot <= 16 ? n.slice(dot) : ''
@@ -97,8 +103,9 @@ export function uniqueName(name: string, taken: (n: string) => boolean): string 
   }
 }
 
-// Page titles are the site's text: shown as text only (textContent), bounded.
+// SECURITY: page titles are the site's text: shown as text only (textContent), bounded, without
+// control characters or bidi overrides (they would reorder the chrome text beside the title).
 export const TITLE_MAX = 200
 export function pageTitle(title: unknown): string {
-  return typeof title === 'string' ? title.replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, TITLE_MAX) : ''
+  return typeof title === 'string' ? title.replace(TITLE_UNSAFE, ' ').trim().slice(0, TITLE_MAX) : ''
 }

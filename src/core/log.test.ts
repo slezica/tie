@@ -19,6 +19,9 @@ describe('untrusted log values', () => {
   it('escapes C0, DEL and C1 controls (CSI, NEL), not other text', () => {
     expect(escapeUntrusted('\x7f\x85\x9b31m\x9f')).toBe('\\u007f\\u0085\\u009b31m\\u009f')
     expect(escapeUntrusted('\u2029')).toBe('\\u2029')
+    // Bidi controls: an untrusted value can't reorder its log line.
+    expect(escapeUntrusted('a\u202eb\u2066c\u2069\u200e\u200f\u061c')).toBe('a\\u202eb\\u2066c\\u2069\\u200e\\u200f\\u061c')
+    expect(plainLog(escapeUntrusted('a\u202eb'))).toBe('a\u202eb')
     expect(escapeUntrusted('é ü 日本 \xa0')).toBe('é ü 日本 \xa0')
     expect(escapeUntrusted(undefined)).toBe('undefined')
   })

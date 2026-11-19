@@ -88,6 +88,11 @@ describe('downloads', () => {
     expect(downloadName('.bashrc')).toBe('bashrc')
     expect(downloadName('x\x00y\nz:w.txt')).toBe('x_y_z_w.txt')
     expect(downloadName('name. ')).toBe('name')
+    // Bidi controls and C1: the Save dialog must show the name as it is on disk.
+    expect(downloadName('photo\u202egpj.exe')).toBe('photo_gpj.exe')
+    expect(downloadName('a\u2066b\u2069\u200e\u200f\u061c.txt')).toBe('a_b____.txt')
+    expect(downloadName('x\x85y\x9bz\u2028w.txt')).toBe('x_y_z_w.txt')
+    expect(downloadName('سلام.txt')).toBe('سلام.txt')
     expect(downloadName('')).toBe('download')
     expect(downloadName('...')).toBe('download')
     expect(downloadName(undefined)).toBe('download')
@@ -108,6 +113,10 @@ describe('misc', () => {
     expect(pageTitle('  Hi\nthere  ')).toBe('Hi there')
     expect(pageTitle('x'.repeat(500)).length).toBe(200)
     expect(pageTitle(5)).toBe('')
+    // Overrides, embeddings, isolates and C1 go; plain right-to-left text and its marks stay.
+    expect(pageTitle('Bank\u202emoc.live\u202c')).toBe('Bank moc.live')
+    expect(pageTitle('a\u2066b\u2069c\x9bd')).toBe('a b c d')
+    expect(pageTitle('שלום\u200f!')).toBe('שלום\u200f!')
   })
   it('partition is persistent and not the default session', () => expect(BROWSER_PARTITION).toBe('persist:browser'))
 })
