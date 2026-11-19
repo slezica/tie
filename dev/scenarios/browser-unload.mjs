@@ -1,6 +1,8 @@
 // Browser beforeunload (BROWSER.md "Leaving a page"): a page holding its unload (after a real click:
 // sticky activation) makes Tie ask Leave / Stay before closing the tile (⌘W), reloading, the page's
-// own navigation and quitting. Stay keeps the page; Leave proceeds. Shift+click on the ×: no question.
+// own navigation, closing its tab and quitting. Stay keeps the page; Leave proceeds. Shift+click on
+// the ×: no question. One prompt at a time (a page's prompt while a dialog is open: dropped, Stay); a
+// hung handler (no answer in 3 s) doesn't keep the tile open.
 import { existsSync } from 'node:fs'
 import { infoPath } from '../lib.mjs'
 
@@ -8,24 +10,36 @@ export const hiddenWindow = true
 
 const page = (title, body) => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body style="margin:0;font:16px sans-serif">${body}</body></html>`
 const HOLD = `<script>addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = '' })</script>`
+// The page reports clicks to the site (touch(): the click landed, without an evaluate in the guest).
+const CLICKS = `<script>addEventListener('click', () => fetch('/clicked').catch(() => {}))</script>`
+// A beforeunload handler that never answers in time (busy 6 s; Tie gives up after 3 s).
+const HANG = `<script>addEventListener('beforeunload', () => { const t = Date.now(); while (Date.now() - t < 6000); })</script>`
 
 export default async (ctx, h) => {
   const s = await h.site(ctx, (path) => {
-    if (path === '/form') return page('Form', `<a id="b" href="/b" style="display:block;padding:20px">to b</a><div style="height:300px"></div>${HOLD}`)
+    if (path === '/form') return page('Form', `<a id="b" href="/b" style="display:block;padding:20px">to b</a><div style="height:300px"></div>${HOLD}${CLICKS}`)
+    if (path === '/hang') return page('Hang', `<div style="height:300px"></div>${HANG}${CLICKS}`)
+    if (path === '/clicked') return ''
     if (path === '/b') return page('B', '<h1>b</h1>')
     return null
   })
   const alive = () => existsSync(infoPath(ctx.instance))
   const leave = () => ctx.page.isVisible('.dialog.leave-page')
   const k = (chord) => h.press(ctx, chord)
+  const hits = (p) => s.hits.filter((x) => x === p).length
   const touch = async (id) => {
     await h.guestPage(ctx, id)
-    await h.guestClick(ctx, id, 200, 200) // sticky activation (no link there): Chromium ignores beforeunload without it
-    // The click lands: not observable from here (any evaluate in the guest grants activation itself,
-    // and one racing a reload hung under load).
-    await ctx.sleep(200)
+    // Sticky activation (a real click, no link there): Chromium ignores beforeunload without it. The
+    // click is confirmed by the page's own report (a fetch from its click handler), not by an
+    // evaluate in the guest (any evaluate grants activation itself, and one racing a reload hung
+    // under load). A click lost while the guest settles is repeated.
+    const n = hits('/clicked')
+    for (let i = 0; i < 3 && hits('/clicked') === n; i++) {
+      await h.guestClick(ctx, id, 200, 200)
+      await h.waitFor(ctx, () => hits('/clicked') > n, 'click landed in the guest', 1500).catch(() => {})
+    }
+    h.assert(hits('/clicked') > n, `click landed in the guest ${id}`)
   }
-  const hits = (p) => s.hits.filter((x) => x === p).length
   // Playwright attaches to guest pages over CDP and would answer their beforeunload dialogs itself
   // (and fail: Electron runs them); a listener that never answers leaves them to Tie.
   const browser = ctx.page.context().browser()
@@ -96,6 +110,50 @@ export default async (ctx, h) => {
     await h.waitGone(ctx, f)
     await ctx.sleep(300) // absence: no dialog follows the forced close
     h.assert(!(await leave()), 'shift+click ×: no Leave page? dialog')
+
+    // One prompt at a time: while the ⌘W question is open, another page's own navigation (held) gets
+    // no second dialog: dropped (logged), that page stays (Stay).
+    const e1 = await open()
+    const e2 = await open() // active
+    await k('Meta+w')
+    await h.waitFor(ctx, leave, '⌘W: dialog')
+    const r1 = await (await h.guestPage(ctx, e1)).evaluate(() => JSON.parse(JSON.stringify(document.getElementById('b').getBoundingClientRect())))
+    await h.guestClick(ctx, e1, r1.x + 10, r1.y + r1.height / 2)
+    await h.waitLog(ctx, new RegExp(`\\[guest\\] unload prompt dropped \\(dialog open\\) ${e1}`))
+    h.assert((await ctx.page.locator('.dialog').count()) === 1, 'one dialog at a time')
+    await ctx.page.click('.dialog .cancel') // Stay (the click into the other guest took the keyboard)
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(300) // absence: no second dialog follows
+    h.assert(!(await leave()) && (await h.tileOf(ctx, e1)).web.url === s.url + '/form' && (await h.tileOf(ctx, e2)), 'dropped prompt: page stays; Stay keeps the other')
+    for (const x of [e1, e2]) await ctx.tie('close', '--tile', x)
+
+    // Closing a tab holding such a page (⌘⇧W): asks; Stay keeps the tab and the page; Leave closes it.
+    await k('Meta+t')
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === 2, 'new tab')
+    const tb = (await ctx.tie('add', s.url + '/form', '--focus')).id // the visible (new) tab
+    await touch(tb)
+    await k('Meta+Shift+w')
+    await h.waitFor(ctx, leave, 'tab close: dialog')
+    await ctx.page.keyboard.press('Escape')
+    await h.waitNoDialog(ctx)
+    await ctx.sleep(300) // absence: the tab stays
+    h.assert((await h.list(ctx)).tabs.length === 2 && (await h.tileOf(ctx, tb)), 'Stay: tab and page kept')
+    await k('Meta+Shift+w')
+    await h.waitFor(ctx, leave, 'tab close again: dialog')
+    await ctx.page.keyboard.press('Enter')
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === 1 && !(await h.tileOf(ctx, tb)), 'Leave: tab closed')
+
+    // A handler that never answers: no question, the tile closes after Tie's 3 s (main gives up),
+    // before the page's handler would have finished (6 s).
+    const hg = (await ctx.tie('add', s.url + '/hang', '--at', t0, '--side', 'r', '--focus')).id
+    await touch(hg)
+    const gid = (await h.tileOf(ctx, hg)).web.guest
+    const t = Date.now()
+    await k('Meta+w')
+    await h.waitGone(ctx, hg, 8000)
+    const took = Date.now() - t
+    h.assert(took >= 2500 && took < 5500 && !(await leave()), `hung handler: closed after Tie's 3 s, no dialog (${took} ms)`)
+    h.assert(new RegExp(`\\[guest\\] unload ${gid} closed`).test(ctx.appLog()), 'unload gave up (closed)')
 
     // Quit: after the quit question, the page asks; Stay aborts the quit, Leave quits.
     const d = await open()
