@@ -188,13 +188,14 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save; a settings file that doesn't load raises a dialog at start (Tie on defaults, file untouched).
 - Settings file: read at start only, never auto-reloaded (edits: panel banner, Ignore / Reload); written only by explicit user actions (Save, Recreate) (`SETTINGS.md` "File").
-- Never throw inside node-pty callbacks (aborts the process).
+- Never throw inside node-pty callbacks (aborts the process). Calls into node-pty from IPC (`write`, `resize`, `kill`) are caught in `main/pty.ts`.
+- Uncaught exceptions / rejections in main: logged `[error]` (always on) with the stack; dialog except in background instances. The scenario runner fails any run whose `app.log` has an `[error]` line: read it there, never wait for a dialog.
 - Browser tiles: only via `browserKind` + main `attachGuest`/`guardGuest`; URL rules only in `core/guest.ts`.
 - Content kinds: only via `frameSurface` (`TILES.md`); what may differ per kind only in `core/policy.ts`; new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
 - New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, glyph, zoom?)` in `kinds/index.ts`.
 - Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the UI realm; socket callers by kernel lineage (`@core/callers`), never `TIE_TILE`; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
-- Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security` and `update` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.
+- Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security`, `update` and `error` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
 - Harness runs: after a change, only the scenarios of the feature worked on (`test --e2e <names|globs>`) + `test --unit` + `typecheck`. Full `test --e2e` only when specifically needed (shared harness / `lib.mjs`, layout core, handing back a large refactor) and for release prep (`tie-dev release` runs it).
 - Scenarios wait, never sleep for something observable: `h.eventually`, `h.wait*` (`HARNESS.md`); a `ctx.sleep` only for "nothing happens" / debounce, commented.

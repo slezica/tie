@@ -1,6 +1,7 @@
-import { app, BrowserWindow, Menu, screen, session, systemPreferences } from 'electron'
+import { app, BrowserWindow, Menu, screen, session, systemPreferences, dialog } from 'electron'
 import { join } from 'node:path'
 import { writeFileSync, rmSync } from 'node:fs'
+import { untrusted } from '../core/log'
 import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRIVATE } from './env'
 import { initPty } from './pty'
 import { startSocket } from './socket'
@@ -31,6 +32,18 @@ if (process.platform === 'darwin') {
 // TIE_BACKGROUND=hidden: a real (not offscreen) window that is never shown. Input routes like a
 // visible window (into content frames), which offscreen rendering doesn't do.
 const background = !!process.env.TIE_BACKGROUND
+
+// Uncaught exceptions and rejections in main: always logged (`[error]`, with the stack), so a run
+// nobody watches leaves a record (the harness fails a scenario that logs one, HARNESS.md).
+// Electron's default only shows a dialog. Still shown to the user, except in background instances
+// (a dialog nobody dismisses would hold the run).
+function uncaught(kind: string, e: unknown) {
+  const text = e instanceof Error ? (e.stack ?? e.message) : String(e)
+  log('error', kind, untrusted(text)) // the message may carry values that aren't Tie's
+  if (!background) dialog.showErrorBox(`Tie: ${kind}`, text)
+}
+process.on('uncaughtException', (e) => uncaught('uncaught exception', e))
+process.on('unhandledRejection', (e) => uncaught('unhandled rejection', e))
 const offscreen = background && process.env.TIE_BACKGROUND !== 'hidden'
 
 // Per-instance user data, so instances don't share the single-instance lock.

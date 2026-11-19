@@ -66,6 +66,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
 - Runs once booted: first `.tab`, and every terminal showing its prompt (or an error; at most 3 s). Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Check count (`h.checkCount()`): passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
+- Uncaught errors in main: main logs every uncaught exception / unhandled rejection as `[error]` with its stack (always on; no dialog in background instances). A run whose `app.log` has an `[error]` line fails (`uncaught in main`), whatever its checks said.
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
 
 ```sh

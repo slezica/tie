@@ -116,6 +116,9 @@ try {
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
   // A scenario file that checked nothing (no assert, waitFor or eventually passed) proves nothing:
   // fails. Ad hoc runs (stdin) only report the count.
+  // An uncaught exception in main (logged `[error]`, main/index.ts) fails the run, whatever the checks said.
+  const crashes = (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : '').split('\n').filter((l) => / \[error\] /.test(l))
+  if (crashes.length) throw new Error(`uncaught in main (${crashes.length}):\n${crashes.slice(0, 3).join('\n')}`)
   if (helpers.checkCount() === 0 && spec !== '-') throw new Error('scenario ran no checks (h.assert, h.waitFor, h.eventually or a helper built on them)')
 } catch (e) {
   console.error(e.stack || e.message)
