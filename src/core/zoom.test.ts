@@ -14,8 +14,8 @@ describe('zoom', () => {
     expect(ZOOM_STEPS).toContain(1)
   })
   // In range (ZOOM_STEPS[0]..last): every preset steps to its neighbor; between two presets, the
-  // neighbor in that direction. Out of range (e.g. 6, 0.1) is not covered: zoomStep(6, ±1) gives
-  // 0.25 today (unreachable: factors only come from here).
+  // neighbor in that direction. Out of range: next test (unreachable today: factors only come from
+  // here; zoomStep(6, ±1) gave 0.25 before the clamp).
   it('in range: presets step to their neighbors, clamped at the ends', () => {
     ZOOM_STEPS.forEach((s, i) => {
       expect(zoomStep(s, 1)).toBe(ZOOM_STEPS[Math.min(i + 1, ZOOM_STEPS.length - 1)])
@@ -31,6 +31,17 @@ describe('zoom', () => {
       expect(zoomStep(mid, 1)).toBe(ZOOM_STEPS[i + 1])
       expect(zoomStep(mid, -1)).toBe(ZOOM_STEPS[i])
     }
+  })
+  it('out of range: clamped to the nearest end', () => {
+    const max = ZOOM_STEPS[ZOOM_STEPS.length - 1]
+    const min = ZOOM_STEPS[0]
+    expect(zoomStep(6, 1)).toBe(max)
+    expect(zoomStep(6, -1)).toBe(max) // the largest preset below it
+    expect(zoomStep(100, -1)).toBe(max)
+    expect(zoomStep(0.1, -1)).toBe(min)
+    expect(zoomStep(0.1, 1)).toBe(min) // the smallest preset above it
+    expect(zoomStep(0, 1)).toBe(min)
+    expect(zoomStep(6, 0)).toBe(1)
   })
   it('labels: percent, none at 100%', () => {
     expect(zoomLabel(1)).toBe('')
