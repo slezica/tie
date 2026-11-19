@@ -30,7 +30,7 @@ export function bindingsPage(section: HTMLElement, initial: Bindings, on: { mess
     <div class="bind-filters">
       <input id="bind-name" placeholder="Search by name" spellcheck="false" />
       <input id="bind-key" placeholder="Search by key" />
-      <button class="bind-btn bind-custom" title="Only customized" aria-pressed="false">${ICON.sliders}</button>
+      <button class="bind-btn bind-custom" title="Only customized" aria-pressed="false">${ICON.edit}</button>
       <button class="bind-btn bind-clear" title="Clear filters">${ICON.close}</button>
     </div>
     <div class="bind-table">

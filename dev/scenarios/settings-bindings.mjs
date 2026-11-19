@@ -88,7 +88,17 @@ export default async (ctx, h) => {
   h.assert((await isCustom('split-right')) && !(await resetOff('split-right')), 'customized: bold, reset enabled')
   h.assert(await page.isVisible('.settings'), 'Enter in the field did not save / close')
 
-  // Only customized.
+  // Only customized: a pencil toggle (the rows' edit icon), pressed look distinct.
+  h.assert(await page.evaluate(() => document.querySelector('.bind-custom svg').outerHTML === document.querySelector('.bind-row .edit svg').outerHTML), 'filter toggle: the pencil')
+  h.assert((await page.getAttribute('.bind-custom', 'title')) === 'Only customized', 'toggle tooltip')
+  // Pointer away first: hover has its own look.
+  const look = async () => (await page.mouse.move(1, 1), page.$eval('.bind-custom', (e) => { const s = getComputedStyle(e); return [s.color, s.backgroundColor, s.borderColor].join() }))
+  const off = await look()
+  await page.click('.bind-custom')
+  h.assert((await page.getAttribute('.bind-custom', 'aria-pressed')) === 'true', 'toggle pressed')
+  await h.eventually(ctx, async () => h.assert((await look()) !== off, `pressed look differs: ${off} / ${await look()}`))
+  await page.click('.bind-custom')
+  h.assert((await page.getAttribute('.bind-custom', 'aria-pressed')) === 'false', 'toggle released')
   await page.click('.bind-custom')
   await h.eventually(ctx, async () => h.assert(same(await visible(), ['Split right']), `customized only: ${await visible()}`))
   h.assert((await colW()) === w0, 'width unchanged by customized filter')

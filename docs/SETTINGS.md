@@ -60,7 +60,7 @@
     - `#bind-name`: case-insensitive substring of the action label.
     - `#bind-key`: capture field (`INPUT.md` "Capture fields"). Exact match on a complete chord, any chord the action answers to (hidden aliases included: `Cmd++` finds Zoom in). Empty = no filter.
     - Typing in one search clears the other.
-    - Sliders (`.bind-custom`, `aria-pressed`): only customized rows. X (`.bind-clear`): clears both searches and the toggle.
+    - Pencil toggle (`.bind-custom`, `aria-pressed`, tooltip "Only customized"; the rows' edit icon: customized = edited): only customized rows. Pressed: accent icon, border, soft accent fill. X (`.bind-clear`): clears both searches and the toggle.
 - Table (`.bind-row[data-action]`, `ACTIONS` order): Action | Binding | pencil, X.
     - Binding: the override, else the default chord (aliases hidden); unbound = dim `—`.
     - Binding column width `--bind-w`: widest text over all rows (defaults + current, bold) + margin. Measured at open and after each change, never by filtering.
