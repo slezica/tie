@@ -217,7 +217,7 @@ Selection: renames recommended; tags not worth the upkeep; optional `test --e2e 
 Left open on purpose (not fixed here).
 
 1. Settings Save over a hand-fixed file: settled (2026-11-18): never auto-reload; startup dialog, changed-on-disk banner with Ignore / Reload, main refuses a Save over an unseen edit (`SETTINGS.md` "File").
-2. `browser` "navigated" timeout under load: failed twice in loaded full runs today, passes alone. Same area as the hang in `2026-11-16-configurable-bindings.md` manual check 17.
+2. (Likely fixed 2026-11-19: three places typed the URL right after cmd+L without waiting for the location's focus; now `h.pressLocation`. 3 loaded runs green; cause not proven, reopen if seen again.) `browser` "navigated" timeout under load: failed twice in loaded full runs today, passes alone. Same area as the hang in `2026-11-16-configurable-bindings.md` manual check 17.
 3. `sec-html` under load (`Execution context was destroyed`: a late `n.md` write live-reloaded the page under a held frame handle): fixed, `n.md` is written before any tile opens; 4/4 alone after. Not re-run in a loaded full run.
 4. X-T2 UI-session download test is a log check only (a real download would open a native Save dialog).
 5. Extractions decided against: float clamp (L-U3), shelf drop slot math (S-U1), hex scroll mapping (C-G6), viewer pure logic (C-G7).

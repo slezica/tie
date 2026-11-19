@@ -328,6 +328,12 @@ export async function press(ctx, chord) {
   await send(ctx, 'keyUp', key, mods)
 }
 
+// cmd+L, then the location field focused: typing before that goes to the tile under load.
+export async function pressLocation(ctx) {
+  await press(ctx, 'Meta+l')
+  await waitFor(ctx, () => ctx.page.evaluate(() => document.activeElement?.classList.contains('location')), 'cmd+L focuses the location')
+}
+
 // Content frame of a tile (any content kind: a viewer, or the probe: the untrusted side), once it
 // has answered the handshake. Looked up by the tile's iframe src each time: a markdown tile reloads
 // its frame when it navigates to another directory (new token).
