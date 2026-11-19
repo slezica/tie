@@ -6,7 +6,7 @@ What Tie assumes about Chromium, Electron, its libraries and macOS. On a depende
 
 | Dependency | Version | Pinned in |
 |---|---|---|
-| Electron | 44.10.0 (Chromium 152.0.7977.169, Node v24.22.1) | `package.json` (exact); Chromium / Node: Electron `DEPS` at `v44.10.0` |
+| Electron | 44.11.5 (Chromium 152.0.7977.169, Node v24.22.3) | `package.json` (exact); Chromium / Node: `process.versions` (sources below read at Electron `v44.10.0`: same Chromium) |
 | `@xterm/xterm` + `@xterm/addon-fit` | 6.0.0 + 0.11.0 | `package.json` |
 | `node-pty` | 1.1.0 + `patches/node-pty+1.1.0.patch` | `package.json`, `patch-package` |
 | `tie-peer` (`native/peer`) | local; libproc, `getsockopt` | `package.json` (`file:`) |
@@ -53,7 +53,7 @@ Security rows with their own guard and test live in `SECURITY.md` "Guards"; here
 | Over a window drag region (`-webkit-app-region: drag`) macOS owns the pointer: Chromium reports leaving the document | shelf reveal zone check (`SHELF.md`) | by hand | Reveal dismissal simpler | Electron major |
 | On macOS a modifier's own key-up may still report its flag held | `captured()` (`core/keymap.ts`) | by hand | — | Electron major |
 
-## Electron (44.10.0)
+## Electron (44.11.5; sources read at 44.10.0)
 
 | Assumption | Used by | Evidence | If false | Re-check on |
 |---|---|---|---|---|
