@@ -1,10 +1,12 @@
-// Security: browser tiles (<webview> guests). Guest realm has no bridge; can't load tie:,
-// tie-content:, file:, chrome: (navigation, redirects, subresources); the UI's own loads are
-// stopped too; attach rebuilds prefs whatever the tag asks (preload, nodeintegration, partition...),
-// refuses bad src and content frames; popups: blocked without input, system browser right after a
-// real click; downloads land in the (harness) downloads folder under a safe unique name; permissions
-// denied; the UI session has no network while the guest does; a crash is an error, the rest
-// keeps working. Hidden window: real clicks reach the guest.
+// Security: browser tiles (<webview> guests). Guest realm has no bridge; user agent without
+// Electron; can't load tie:, tie-content:, file:, chrome: (navigation, subframes, subresources;
+// redirects: Chromium refuses them before Tie's guard); the UI's own loads are stopped too; attach
+// rebuilds prefs whatever the tag asks (preload, nodeintegration, partition...), refuses bad src and
+// content frames; popups are never windows: http(s) ones (clicked or scripted) go through the
+// link-out confirm, others are blocked; downloads ask (Save armed after 600 ms), then land in the
+// (harness) downloads folder under a safe unique name; permissions denied; the UI session has no
+// network while the guest does; a crash is an error, the rest keeps working. Hidden window: real
+// clicks reach the guest.
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +19,9 @@ const page = (title, body) => `<!doctype html><html><head><meta charset="utf-8">
 
 export default async (ctx, h) => {
   const start = Date.now()
-  const s = await h.site(ctx, (path) => {
+  const agents = new Set() // User-Agent headers the site saw
+  const s = await h.site(ctx, (path, req) => {
+    agents.add(req.headers['user-agent'])
     const p = path.split('?')[0]
     if (p === '/') return page('Main', `<button id="pop" onclick="window.open('/popup-click')" style="margin:20px">pop</button>
 <a id="blank" href="/popup-blank" target="_blank" style="margin:20px">blank</a>
@@ -29,7 +33,8 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     if (p === '/dl') return { headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="../.evil.sh"' }, body: 'echo pwned\n' }
     if (p === '/redir-file') return { status: 302, headers: { location: 'file:///etc/hosts' } }
     if (p === '/redir-tie') return { status: 302, headers: { location: 'tie://app/index.html' } }
-    if (p === '/frames') return page('Frames', '<iframe id="f1" src="file:///etc/hosts"></iframe><iframe id="f2" src="tie://app/index.html"></iframe>')
+    if (p === '/frames') return page('Frames', '<iframe id="f1" src="file:///etc/hosts"></iframe><iframe id="f2" src="tie://app/index.html"></iframe><iframe id="f3" src="data:text/html,ok"></iframe>')
+    if (p === '/same') return 'same-origin'
     return page('Other', p)
   })
   const dir = join(process.cwd(), 'tmp', `sec-browser-${process.pid}`)
@@ -47,6 +52,10 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     h.assert(Object.values(seen).every((v) => v === 'undefined'), `guest realm: ${JSON.stringify(seen)}`)
     const gl = (await guests()).find((x) => x.url === s.url + '/')
     h.assert(/Partitions\/browser$/.test(gl.partition), `browser partition: ${gl.partition}`)
+    // User agent: Electron's (and Tie's) name taken out (initBrowserSession): main's view, the
+    // page's and the header the site got.
+    const uas = [gl.userAgent, await g.evaluate(() => navigator.userAgent), ...agents]
+    h.assert(uas.every((u) => u && /Chrome\//.test(u) && !/Electron|Tie\//.test(u)), `user agent: ${JSON.stringify([...new Set(uas)])}`)
 
     // Page-initiated navigation away to local schemes: refused, the page stays.
     const html = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'b')).id
@@ -60,12 +69,15 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       h.assert(g.url() === s.url + '/' && (await h.tileOf(ctx, b)).web.url === s.url + '/', `navigation to ${u} refused (now ${g.url()})`)
     }
     h.assert(/blocked guest navigation main tie:\/\/app/.test(log()) && /blocked guest navigation main tie-content:/.test(log()), 'guard logged tie: / tie-content: refusals')
-    // Redirects to local schemes: never followed.
+    // Redirects to local schemes: never followed. Chromium refuses these (unsafe redirect) before
+    // any will-redirect: Tie's redirect guard (guest.ts) is never reached here (tried: file:, tie:,
+    // mailto:, custom, data:, about:, javascript:, chrome:; none logged `blocked guest redirect`).
+    // Defense in depth, unreachable from the harness: this checks Chromium's layer.
     for (const r of ['/redir-file', '/redir-tie']) {
       await g.evaluate((r) => (location.href = r), r).catch(() => {})
       await ctx.sleep(700) // absence: never followed (Chromium refuses these itself: nothing to wait for)
       const now = (await guests()).map((x) => x.url)
-      h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)), `redirect ${r}: ${now}`)
+      h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)) && (await h.tileOf(ctx, b)).web.url === s.url + '/', `redirect ${r}: ${now}`)
     }
     await ctx.tie('close', '--tile', b)
     const b2 = (await ctx.tie('add', s.url + '/frames', '--at', t0, '--side', 'r')).id
@@ -78,8 +90,12 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       return { fetchFile: await f('file:///etc/hosts'), fetchTie: await f('tie://app/index.html'), fetchToken: await f(tokenUrl), imgTie: await img('tie://app/icon.png'), imgToken: await img(tokenUrl) }
     }, tokenUrl)
     h.assert(Object.values(reads).every((v) => v === 'failed'), `local reads from the guest: ${JSON.stringify(reads)}`)
-    const frameUrls = await g.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => { try { return f.contentWindow.location.href } catch { return 'cross-origin' } }))
-    h.assert(frameUrls.every((u) => !/^(file|tie):/.test(u)), `subframes never load local schemes: ${frameUrls}`)
+    // Subframes: tie: refused by the guard (logged); file: refused by Chromium first (never from an
+    // http page; not logged); data: allowed (control: the frame URLs come from CDP, not from
+    // contentWindow.location, which throws for any cross-origin frame).
+    await h.waitLog(ctx, /\[security\] blocked guest navigation subframe tie:\/\/app\/index\.html/)
+    const frameUrls = await h.waitFor(ctx, () => { const u = g.frames().map((f) => f.url()); return u.some((x) => x.startsWith('data:')) && u }, 'data: subframe loads')
+    h.assert(frameUrls.every((u) => !/^(file|tie|tie-content):/.test(u)), `subframes never load local schemes: ${frameUrls}`)
 
     // The UI's own loads (src, location bar, back/forward: browser-initiated) are checked too.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] webview`).loadURL('file:///etc/hosts').catch(() => {}), b2)
@@ -107,8 +123,18 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     const hseen = await h.waitFor(ctx, () => hp.evaluate(() => window.__seen), 'hostile realm')
     h.assert(Object.values(hseen).every((v) => v === 'undefined'), `hostile attributes: no bridge, no Node ${JSON.stringify(hseen)}`)
     h.assert(/attributes dropped .*preload/.test(log()) && /attributes dropped .*webpreferences/.test(log()), 'attributes dropped (logged)')
-    const sop = await hp.evaluate(() => fetch('http://127.0.0.1:1/').then(() => 'read', () => 'failed'))
-    h.assert(sop === 'failed', 'web security on (no cross-origin read)')
+    // Web security on: another origin (a second live site, no CORS headers) unreadable; own origin
+    // readable (control: a closed port or a dead site would fail either way).
+    const s2 = await h.site(ctx, () => 'other-origin')
+    try {
+      const sop = await hp.evaluate(async (other) => ({
+        cross: await fetch(other + '/').then((r) => r.text(), () => 'failed'),
+        same: await fetch('/same').then((r) => r.text(), () => 'failed'),
+      }), s2.url)
+      h.assert(sop.cross === 'failed' && sop.same === 'same-origin', `web security on (no cross-origin read): ${JSON.stringify(sop)}`)
+    } finally {
+      await s2.close()
+    }
     await ctx.page.evaluate(() => document.getElementById('hostile').remove())
     // Bad src: refused at attach.
     for (const src of ['file:///etc/hosts', 'tie://app/index.html', 'javascript:alert(1)']) {
@@ -165,9 +191,15 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
     await ctx.sleep(500) // absence: never opened
     // (Chromium refuses file: from an http page before the handler: either way, never opened.)
     h.assert(!/external open file:/.test(log()), 'non-http popup never opened, even with a click')
+    // Non-http popups that do reach the handler: blocked there (popupUrl → null, logged), no window.
+    const blocked = await g.evaluate(() => [String(window.open('about:blank')), String(window.open('mailto:pop@example.com'))])
+    await h.waitLog(ctx, /\[security\] blocked popup about:blank$/m)
+    await h.waitLog(ctx, /\[security\] blocked popup mailto:pop@example\.com$/m)
+    h.assert(blocked.every((x) => x === 'null') && !(await ctx.page.isVisible('.dialog.external-open')), `blocked popups: ${blocked}`)
     const d = await g.locator('#dl').boundingBox() // (Playwright waits forever after the refused mailto: navigation)
     await click('#mail')
-    await ctx.sleep(500) // absence: never opened
+    // A mailto: link is a main-frame navigation: refused by the guard (logged), never handed out.
+    await h.waitLog(ctx, /\[security\] blocked guest navigation main mailto:someone@example\.com$/m)
     h.assert(!/external open mailto:/.test(log()) && (await h.tileOf(ctx, p)).web.url.startsWith(s.url), 'mailto: never opened')
     h.assert(!s.hits.some((x) => x.startsWith('/popup')), `no popup ever loaded: ${s.hits.filter((x) => x.startsWith('/popup'))}`)
     h.assert((await guests()).length === 1, 'no extra guests (windows)')
@@ -179,8 +211,25 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       const realBefore = existsSync(real) ? statSync(real).mtimeMs : null
       const files = () => (existsSync(dl) ? readdirSync(dl).filter((f) => !f.endsWith('.crdownload')) : [])
       // Every download asks: a dialog with the sanitized name and the site; nothing saved before Save.
+      // Save disabled when the dialog appears, armed ~600 ms later (recorded in the UI as it happens:
+      // a check from here could come late under load).
+      await ctx.page.evaluate(() => {
+        window.__arm = null
+        const o = new MutationObserver(() => {
+          const b = document.querySelector('.dialog.save-download .confirm')
+          if (!b) return
+          o.disconnect()
+          const at = performance.now()
+          window.__arm = { disabled: b.disabled, after: null }
+          new MutationObserver(() => !b.disabled && window.__arm.after === null && (window.__arm.after = performance.now() - at)).observe(b, { attributes: true })
+        })
+        o.observe(document.body, { childList: true })
+      })
       await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
       await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'download: confirm dialog')
+      await h.waitArmed(ctx)
+      const arm = await ctx.page.evaluate(() => window.__arm)
+      h.assert(arm?.disabled === true && arm.after >= 500, `Save disabled at first, armed after ~600 ms: ${JSON.stringify(arm)}`)
       const dlg = await ctx.page.evaluate(() => ({ name: document.querySelector('.dialog.save-download .url')?.textContent, focus: document.activeElement?.className, text: document.querySelector('.dialog.save-download')?.textContent }))
       h.assert(/evil\.sh/.test(dlg.name ?? '') && !/^\./.test(dlg.name) && /cancel/.test(dlg.focus) && dlg.text.includes('127.0.0.1'), `dialog: ${JSON.stringify(dlg)}`)
       h.assert(files().length === 0, 'nothing saved before Save')
