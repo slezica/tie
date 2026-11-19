@@ -276,10 +276,58 @@ Notes.
 - Skipped (optional): C-M8, H-M4. Not touched: `PENDING.md` (still names `markdown-keys`, `sec-browser`), `picker.test.ts` fixture paths.
 - Full e2e after wave 3: 87/87 passed, 87 s, jobs 4, ptys leaked 0 (`out/log/runs/20261118-224558-e2e`). Unit 301 / 21 files, typecheck clean.
 
+## Mutation runs (2026-11-18)
+
+One mutation at a time in `src/`, the one scenario run (`test --e2e <name>`), then `git checkout`. Lines as before the mutation.
+
+- X-U1 | `main/security.ts:70` window open handler `deny` → `allow` | `sec-navigate` | RED (`window.open returned [object Window]`)
+- X-U11 | `main/security.ts:58` main frame always allowed | `sec-navigate` | RED (`timed out: log blocked navigation main …/location`)
+- X-U11b | `main/security.ts:61` logged, `preventDefault` dropped | `sec-navigate` | RED (`location: shell left tie://app/index.html`)
+- X-U12 | `main/index.ts:172` pty kill on `did-start-loading` (not `did-navigate`) | `sec-navigate` | RED (`a blocked navigation killed the ptys`)
+- X-U3 | `core/policy.ts:89` viewer CSP + `connect-src *` | `sec-content-escape` | RED (`viewer CSP refused connect-src …/fetch`)
+- X-U3 | `core/policy.ts:89` `img-src <token> *` | `sec-content-escape` | RED (`viewer CSP refused img-src …/img`)
+- X-U4 | `renderer/frame.ts:222` sandbox + `allow-popups` | `sec-content-escape` | RED (`refused in the frame: main never asked`; `window.open` still null: main's deny)
+- X-U4b | `renderer/frame.ts:222` sandbox + `allow-top-navigation` | `sec-content-escape` | RED (`sandbox refuses top navigation / popups: {"top":"no throw"}`)
+- X-U5 | `main/guest.ts:143` subframes always allowed | `sec-browser-nav` | RED (`timed out: log blocked guest navigation subframe tie://app`; log only: the browser partition can't load tie: anyway)
+- X-U6 | `main/guest.ts:47` `webSecurity: false` | `sec-browser-nav` | RED, first at `navigation to chrome://gpu refused`, then (ad-hoc copy without it) `local reads from the guest` (file:///etc/hosts read), then (without that) `web security on (no cross-origin read)`
+- X-U8 | `core/guest.ts:73` `popupUrl` lets about:blank through | `sec-browser-popups` | RED (`timed out: log blocked popup about:blank`)
+- X-U13 | `core/content.ts:77` `contentFile` containment dropped | `sec-content-protocol` | RED (`timed out: log refused content route …/..%2foutside.svg`; main's layer refused it as `outside root`)
+- X-U13 | `main/content.ts:233` real-path `isInside` dropped | `sec-content-protocol` | RED (`refused: /link.svg`)
+- X-U14 | `main/security.ts:141` `root + decodeURIComponent(pathname)` for `resolveInside` | `sec-protocol` | RED (`tie://app/..%2f…etc%2fhosts: READ 214`)
+- X-U17 | `core/policy.ts:89` `img-src <token> *` | `sec-mermaid` | RED (`CSP img-src refused /classfill`)
+- X-T1 | `renderer/frame.ts:117` flood logged, not dropped | `sec-content-escape` | RED (`flood: most messages dropped unparsed (5000 of 5000 parsed)`)
+- X-T2 | `main/index.ts:280` `noDownloads(ses)` skipped | `sec-navigate` | RED (`timed out: log blocked download blob:tie://app/`)
+- X-T4 | `main/keys.ts:50` capture for any webContents (`wc === ui` dropped) | `sec-keys-capture` | RED (`guest keys never forwarded: [Cmd+D, Cmd+Q, Cmd+T, X, F8]`)
+- X-T6 | `renderer/frame.ts:125` gesture rule off | `sec-links-off` | RED (`timed out: log refused request without focus … openLink`)
+- X-T6 | `core/security.ts:27` `externalUrl` any scheme | `sec-links-off` | RED (`frame link out, no dialog: … file:///etc/hosts, x-app://…`)
+- X-T12 | `viewers/runtime.ts:168` auxclick guard removed | `sec-markdown` | RED (`middle click prevented by the runtime: 1:false`)
+- X-T14 | `renderer/dialog.ts:47` no arming | `sec-browser-popups` | RED (`Save disabled at first, armed after ~600 ms: {"disabled":false}`)
+- Link dialog (`externalParts`) | skipped (checked in wave 2)
+- S-V3 | `renderer/tabs.ts:90` tab switch keeps the selection | `shelf-select` | RED (`tab left: de-selected (<id>)`)
+- S-V1 | `renderer/tabs.ts:31` `tabTitle` ignores the shelf | `tabs` | RED (`shelf-only tab title: empty (want tie)`)
+- H-V1 | `renderer/driver.ts:99` `bring` skips the tab switch | `cli` | RED (`focus: switched tab, expanded, active`)
+- H-V1 | `renderer/driver.ts:103` `bring` skips the expand | `cli` | RED (same assertion)
+- H-V3 | `renderer/kinds/terminal.ts:89` `cwdNow` → undefined (stored cwd) | `cwd-split` | RED (`cmd+D: tile cwd …/fresh0 (want …/fresh1)`)
+- L-R1 | `renderer/ops.ts:285` `refocus` never blurs | `layout-collapse-zoom` | RED (`keys go nowhere, not to a (focus: <a>)`)
+- L-R1b | `renderer/ops.ts:284` `refocus` focuses a collapsed tile | `layout-collapse-zoom` | RED (same assertion; message says "a", focus is on x)
+- L-V1 | `renderer/ops.ts:290` `focusNext` least recent (`findLast`) | `keys-swap` | RED (`focus: most recent board tile, b`)
+- L-R3 | `main/keys.ts:61` no suspend in `fields` mode | `keys` | RED (`cmd+D while settings open: not sent, no split (sent 2 …)`)
+- L-R3 | `core/keymap.ts:71` an override keeps the default chord | `keys-bindings` | RED (`cmd+T: default dropped (tabs 2 -> 3)`); ad-hoc copy past it: `cmd+D: default dropped (actions sent: 2)`
+- C-V2 | `viewers/text.ts:110` viewer keeps its first rev | `viewer-text` | RED (`timed out: live update`)
+- C-V1 | `renderer/keys.ts:94` nav-back on a nav-less tile acts on the first tile with nav | `markdown-links` | RED (`cmd+[ on a terminal: no-op`)
+- S-G3 | `main/index.ts:320` quit skips `pty.killAll()` | `quit` | GREEN → fixed (c3a087d): the kernel's hangup at exit kills plain shells anyway; added a `trap '' HUP; exec sleep 33` tile, only killAll's SIGKILL ends it; now RED (`quit killed every shell and command (alive: <pid>)`)
+- Check-count guard, leak flag | skipped (checked in wave 2)
+
+Notes.
+
+- `noDownloads` (X-T2): the scenario checks the guard's log only. "Logged, not prevented" untried: a UI-session download without it would open a native Save dialog.
+- X-U5: the subframe guard can only be seen through its log (Chromium refuses tie: on the browser partition anyway).
+- X-U6: `webSecurity: false` also lets a guest page read `file:///etc/hosts` and navigate to `chrome://` (seen as `about:blank#blocked`): three cases catch it.
+
 ## Wave 4: product-side (serial)
 
 1. Security fixes X-N1, X-N2 (orchestrator, not delegated).
 2. Extractions to core + unit tests (Pending 1).
 3. Dev hooks: suspend level on the dev socket (H-H11), cwd poll knob (H-V3).
-4. Guard mutation runs for the `X-U*` fixes (remove guard → red → restore).
+4. Guard mutation runs for the `X-U*` fixes (remove guard → red → restore): done ("Mutation runs").
 5. Full e2e.
