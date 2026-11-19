@@ -22,6 +22,23 @@ describe('roots', () => {
     expect(rootFor('/p', '/p/docs/a.md', '/p', '/p/docs')).toBe('/p/docs')
     expect(rootFor('/p', '/q/a.md', null, '/p/docs')).toBe('/q')
   })
+  it('rootFor: a name prefix is not containment (/p vs /pq)', () => {
+    expect(rootFor('/p', '/pq/a.md')).toBe('/pq') // cwd /p doesn't hold /pq/a.md
+    expect(rootFor('/x', '/pq/a.md', '/p')).toBe('/pq') // current /p not kept
+    expect(rootFor('/x', '/pq/a.md', null, '/p')).toBe('/pq') // explicit /p ignored
+  })
+  it('rootFor: / as current or explicit holds everything; empty values are absent', () => {
+    expect(rootFor('/p', '/q/a.md', '/')).toBe('/')
+    expect(rootFor('/p', '/q/a.md', null, '/')).toBe('/')
+    expect(rootFor('/p', '/p/a.md', '', '')).toBe('/p')
+    expect(rootFor('/p', '/q/a.md', undefined, undefined)).toBe('/q')
+  })
+  it('withinRoot: each segment encoded (#, ?, %, unicode), never re-rooted', () => {
+    expect(withinRoot('/r', '/r/a#b/c?d.md')).toBe('/a%23b/c%3Fd.md')
+    expect(withinRoot('/r', '/r/100%.md')).toBe('/100%25.md')
+    expect(withinRoot('/r', '/r/ñ/é.md')).toBe('/%C3%B1/%C3%A9.md')
+    expect(withinRoot('/r/s', '/r/s/t/u.md')).toBe('/t/u.md')
+  })
   it('dirOf, withinRoot', () => {
     expect(dirOf('/a/b.md')).toBe('/a')
     expect(dirOf('/b.md')).toBe('/')
