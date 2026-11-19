@@ -246,3 +246,42 @@ export function actionFor(k: KeyInput, keymap: Keymap = DEFAULT_KEYMAP): Action 
   const c = chord(k)
   return Object.hasOwn(keymap, c) ? keymap[c] : undefined
 }
+
+// What the UI has focused. `fields`: a text field or modal, its keys stay its own (quit excepted).
+// `capture`: a capture field (settings: key search, binding edit), every key goes to it, quit included.
+export type KeyMode = 'off' | 'fields' | 'capture'
+export interface KeyEvent extends KeyInput {
+  down: boolean // keyDown (else keyUp)
+  repeat: boolean // auto-repeat
+}
+// `pass`: the page (UI, frame or guest) gets the key. Else it is blocked, and maybe `action` runs or
+// `capture` goes to the UI's capture field.
+export interface KeyDecision {
+  pass: boolean
+  action?: Action
+  capture?: Captured
+}
+
+// SECURITY: the one decision for every real key (main/keys.ts `onInput` applies it). `fromUi`: the
+// key came from the UI's own webContents (not a browser guest).
+// - Capture mode, UI keys: nothing runs and the page sees nothing, except the field's own keys
+//   (Escape / Enter / Backspace); the chord goes to the field. Complete chords once: no key-ups,
+//   no repeats.
+// - Capture mode, guest keys: never forwarded (the UI must not read what is typed into a site), and
+//   nothing runs: the key stays the guest's.
+// - `fields`: only `quit` runs. `off`: every bound chord runs.
+// - A running chord is blocked from the page; `quit` ignores auto-repeat (one question).
+export function decideKey(k: KeyEvent, mode: KeyMode, fromUi: boolean, keymap: Keymap = DEFAULT_KEYMAP): KeyDecision {
+  if (mode === 'capture' && fromUi) {
+    if (capturePasses(k)) return { pass: true }
+    const c = captured(k)
+    if (c.complete && (!k.down || k.repeat)) return { pass: false }
+    return { pass: false, capture: c }
+  }
+  if (!k.down) return { pass: true }
+  const action = actionFor(k, keymap)
+  if (!action || (mode !== 'off' && action !== 'quit')) return { pass: true }
+  if (mode === 'capture') return { pass: true }
+  if (k.repeat && action === 'quit') return { pass: false }
+  return { pass: false, action }
+}

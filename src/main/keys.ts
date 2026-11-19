@@ -1,7 +1,7 @@
 // Shortcuts in main. before-input-event sees every real key for the window's webContents (keys
 // typed into content frames included) before any page does. docs/INPUT.md.
 import type { BrowserWindow, WebContents } from 'electron'
-import { actionFor, resolveKeymap, chordsOf, capturePasses, captured, type Captured, type Action, type Bindings, type KeyInput, type Keymap } from '../core/keymap'
+import { decideKey, resolveKeymap, chordsOf, type Captured, type Action, type Bindings, type KeyEvent, type KeyMode, type Keymap } from '../core/keymap'
 import { log } from './env'
 import { untrusted } from '../core/log'
 
@@ -22,7 +22,7 @@ export const quitChord = (): string | undefined => chordsOf('quit', bindings)[0]
 
 // What the UI has focused. `fields`: a text field or modal, its keys stay its own (quit excepted).
 // `capture`: a capture field (settings: key search, binding edit), every key goes to it, quit included.
-let mode: 'off' | 'fields' | 'capture' = 'off'
+let mode: KeyMode = 'off'
 export function setKeysSuspended(on: unknown) {
   mode = on === 'capture' ? 'capture' : on === true ? 'fields' : 'off'
 }
@@ -46,24 +46,17 @@ let send: (action: KeyAction) => void = () => {}
 let capture: (c: Captured) => void = () => {}
 let ui: WebContents | null = null
 function onInput(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-  const k: KeyInput = { key: input.key, code: input.code, meta: input.meta, control: input.control, alt: input.alt, shift: input.shift }
-  if (mode === 'capture' && wc === ui) {
-    // Raw input, for diagnosing key names (layouts, Alt). Only here: never a log of what is typed elsewhere.
-    log('keys', 'raw', input.type, untrusted(k))
-    if (capturePasses(k)) return // the field's own keys
-    e.preventDefault() // the page sees nothing; menu accelerators don't fire either
-    const c = captured(k)
-    if (c.complete && (input.type !== 'keyDown' || input.isAutoRepeat)) return
-    return capture(c)
+  const k: KeyEvent = { key: input.key, code: input.code, meta: input.meta, control: input.control, alt: input.alt, shift: input.shift, down: input.type === 'keyDown', repeat: input.isAutoRepeat }
+  // Raw input, for diagnosing key names (layouts, Alt). Only in capture mode: never a log of what is typed elsewhere.
+  if (mode === 'capture' && wc === ui) log('keys', 'raw', input.type, untrusted(k))
+  const d = decideKey(k, mode, wc === ui, keymap) // the rules: core/keymap.ts
+  if (d.pass) return
+  e.preventDefault() // the page sees nothing; menu accelerators don't fire either
+  if (d.capture) capture(d.capture)
+  if (d.action) {
+    log('keys', d.action)
+    send(d.action)
   }
-  if (input.type !== 'keyDown') return
-  const action = actionFor(k, keymap)
-  if (!action || (mode !== 'off' && action !== 'quit')) return
-  if (mode === 'capture') return // a guest's key while the UI captures: nothing runs, the key stays the guest's
-  e.preventDefault()
-  if (input.isAutoRepeat && action === 'quit') return
-  log('keys', action)
-  send(action)
 }
 
 export function watchKeys(wc: WebContents) {

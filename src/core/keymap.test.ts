@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chord, chordsOf, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, captured, capturePasses, type Bindings, type KeyInput } from './keymap'
+import { chord, chordsOf, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, captured, capturePasses, decideKey, type Bindings, type KeyInput } from './keymap'
 
 const k = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean }> = {}) => ({ key, meta: false, control: false, alt: false, shift: false, ...mods })
 
@@ -234,5 +234,54 @@ describe('alt chords and capture', () => {
     expect(capturePasses(k('Enter', { control: true }))).toBe(false)
     expect(capturePasses(k('Tab'))).toBe(false)
     expect(capturePasses(k('d'))).toBe(false)
+  })
+})
+
+describe('decideKey', () => {
+  const ev = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean; down: boolean; repeat: boolean }> = {}) => ({ ...k(key), down: true, repeat: false, ...mods })
+  const split = ev('d', { meta: true })
+  const quit = ev('q', { meta: true })
+
+  it('off: a bound chord runs and is blocked from the page; plain keys pass', () => {
+    expect(decideKey(split, 'off', true)).toEqual({ pass: false, action: 'split-right' })
+    expect(decideKey(split, 'off', false)).toEqual({ pass: false, action: 'split-right' }) // guests too
+    expect(decideKey(ev('d'), 'off', true)).toEqual({ pass: true })
+    expect(decideKey(ev('Escape'), 'off', true)).toEqual({ pass: true })
+  })
+  it('key-ups never run anything and pass', () => {
+    expect(decideKey({ ...split, down: false }, 'off', true)).toEqual({ pass: true })
+  })
+  it('repeats run again, except quit (one question)', () => {
+    expect(decideKey({ ...split, repeat: true }, 'off', true)).toEqual({ pass: false, action: 'split-right' })
+    expect(decideKey({ ...quit, repeat: true }, 'off', true)).toEqual({ pass: false })
+    expect(decideKey(quit, 'off', true)).toEqual({ pass: false, action: 'quit' })
+  })
+  it('fields: only quit runs; other chords stay the field\'s', () => {
+    expect(decideKey(split, 'fields', true)).toEqual({ pass: true })
+    expect(decideKey(split, 'fields', false)).toEqual({ pass: true })
+    expect(decideKey(quit, 'fields', true)).toEqual({ pass: false, action: 'quit' })
+  })
+  it('capture, UI keys: nothing runs, the chord goes to the field', () => {
+    expect(decideKey(split, 'capture', true)).toEqual({ pass: false, capture: { chord: 'Cmd+D', complete: true } })
+    expect(decideKey(quit, 'capture', true)).toEqual({ pass: false, capture: { chord: 'Cmd+Q', complete: true } })
+    expect(decideKey(ev('x'), 'capture', true)).toEqual({ pass: false, capture: { chord: 'X', complete: true } })
+  })
+  it('capture, UI keys: complete chords once (no key-up, no repeat); held modifiers live', () => {
+    expect(decideKey({ ...split, down: false }, 'capture', true)).toEqual({ pass: false })
+    expect(decideKey({ ...split, repeat: true }, 'capture', true)).toEqual({ pass: false })
+    expect(decideKey(ev('Meta', { meta: true }), 'capture', true)).toEqual({ pass: false, capture: { chord: 'Cmd+', complete: false } })
+    expect(decideKey(ev('Meta', { down: false }), 'capture', true)).toEqual({ pass: false, capture: { chord: '', complete: false } })
+  })
+  it('capture, UI keys: the field\'s own keys pass (bare Escape, Enter, Backspace), not with modifiers', () => {
+    for (const key of ['Escape', 'Enter', 'Backspace']) expect(decideKey(ev(key), 'capture', true)).toEqual({ pass: true })
+    expect(decideKey(ev('Enter', { meta: true }), 'capture', true).pass).toBe(false)
+  })
+  it('capture, guest keys: never forwarded, nothing runs, quit included', () => {
+    for (const e of [split, quit, ev('x'), ev('Meta', { meta: true })]) expect(decideKey(e, 'capture', false)).toEqual({ pass: true })
+  })
+  it('follows the given keymap', () => {
+    const km = resolveKeymap({ 'split-right': 'Ctrl+G' })
+    expect(decideKey(split, 'off', true, km)).toEqual({ pass: true })
+    expect(decideKey(ev('g', { control: true }), 'off', true, km)).toEqual({ pass: false, action: 'split-right' })
   })
 })
