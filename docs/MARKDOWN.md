@@ -11,7 +11,7 @@ Live, read-only view of a `.md` / `.markdown` file. A file kind (`TILES.md` "Fil
 | Viewer | `src/viewers/markdown.html\|ts`, `mermaid.ts` | pipeline: markdown-it → highlight.js → DOMPurify → Mermaid (on demand); on `runtime.ts`, `live.ts`, `highlight.ts` |
 | Docs | `main/docs.ts` | `doc:*` IPC: file check, open + watch, picker walks, native dialog (no writes) |
 | Watcher | `main/watch.ts` | directory watch, debounce, stable reads, revisions (unit-tested on real files) |
-| Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind, `noViewer`; `classifyLink`; policy row (CSP, cap) |
+| Pure | `core/kinds.ts`, `core/links.ts`, `core/policy.ts` | extension → kind (`fileKind`); `classifyLink`; policy row (CSP, cap) |
 | Opening | `driver.ts` (`tie add`), `files.ts` (drops), `drag.ts` (file template) + `picker.ts` (file picker) | |
 
 ## Flow
