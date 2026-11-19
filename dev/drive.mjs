@@ -114,6 +114,9 @@ try {
   const result = await Promise.race([mod.default(ctx, helpers), new Promise((_, no) => (timer = setTimeout(() => no(new Error(`scenario timed out after ${limit / 1000} s (TIE_SCENARIO_TIMEOUT)`)), limit)))])
   clearTimeout(timer)
   if (result !== undefined) console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
+  // A scenario file that checked nothing (no assert, waitFor or eventually passed) proves nothing:
+  // fails. Ad hoc runs (stdin) only report the count.
+  if (helpers.checkCount() === 0 && spec !== '-') throw new Error('scenario ran no checks (h.assert, h.waitFor, h.eventually or a helper built on them)')
 } catch (e) {
   console.error(e.stack || e.message)
   code = 1
@@ -130,7 +133,7 @@ try {
     if (leaked > 0) console.error(`ptys leaked: +${leaked}`)
   }
   if (fresh && keep) console.log(`kept instance: ${instance}`)
-  appendFileSync(join(runDir, 'drive.log'), `exit=${code}\n`)
+  appendFileSync(join(runDir, 'drive.log'), `checks=${helpers.checkCount()}\nexit=${code}\n`)
   process.stderr.write(`trace: ${runDir}\n`)
 }
 process.exit(code)

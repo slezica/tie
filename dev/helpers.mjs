@@ -4,6 +4,12 @@ import { rpc } from './lib.mjs'
 
 // Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
 
+// Checks run in this process (one scenario per drive run): passed `assert`s, `waitFor`s and
+// `eventually`s, including those inside helpers. drive.mjs logs `checks=N` and fails a scenario at 0
+// (it checked nothing: HARNESS.md "Scenarios").
+let checks = 0
+export const checkCount = () => checks
+
 // `tie list --json` (straight over the socket: a `bin/tie` process per poll is slow under load).
 export async function list(ctx) {
   return rpc(ctx.instance, 'list')
@@ -162,6 +168,7 @@ export async function threeWaySplit(ctx) {
 
 export function assert(cond, msg) {
   if (!cond) throw new Error(`assertion failed: ${msg}`)
+  checks++
 }
 
 // Every terminal's pty size matches its xterm grid (catches missed resizes).
@@ -383,7 +390,7 @@ export async function waitFor(ctx, fn, what, ms = 4000) {
   }
   do {
     const v = await Promise.race([run(), ctx.sleep(Math.max(0, end - Date.now())).then(() => null)])
-    if (v) return v
+    if (v) return (checks++, v)
     await ctx.sleep(50)
   } while (Date.now() < end)
   throw new Error(`timed out: ${what}${last ? ` (${last})` : ''}`)
@@ -524,7 +531,9 @@ export async function eventually(ctx, fn, ms = 4000) {
       let timer
       const stuck = new Promise((_, no) => (timer = setTimeout(() => no(new Error(`eventually: a try did not settle in ${ms} ms`)), Math.max(0, end - Date.now()) + 50)))
       try {
-        return await Promise.race([fn(), stuck])
+        const v = await Promise.race([fn(), stuck])
+        checks++
+        return v
       } finally {
         clearTimeout(timer)
       }
