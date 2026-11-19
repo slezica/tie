@@ -1,5 +1,6 @@
-// Quit asks, always (⌘Q, window close): busy terminals listed by tab; Esc / Cancel keep Tie; ⌘Q
-// while a dialog is open: no second one; Quit quits (ptys killed).
+// Quit asks, always (⌘Q, window close): busy terminals listed (one tab: a plain list; several:
+// grouped by tab); Esc / Cancel keep Tie; ⌘Q while a dialog is open: no second one; Quit quits, every
+// shell and its commands killed.
 import { existsSync } from 'node:fs'
 import { infoPath, rpc } from '../lib.mjs'
 
@@ -21,9 +22,19 @@ export default async (ctx, h) => {
     h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === a, 'keys back to the terminal')
   })
 
-  // Busy terminals in two tabs (one shelved): listed, grouped by tab.
+  // One tab, a busy terminal: listed, no tab groups.
   await ctx.page.keyboard.type('sleep 30\n')
   await h.waitChild(ctx, a, /sleep/)
+  await k('Meta+q')
+  await h.eventually(ctx, async () => {
+    const groups = await ctx.page.$$eval('.dialog p.group', (els) => els.length)
+    const items = await ctx.page.$$eval('.dialog ul.running li', (els) => els.map((x) => x.textContent))
+    h.assert((await ctx.page.isVisible('.dialog.quit')) && groups === 0 && items.length === 1 && /sleep/.test(items[0]), `one tab: plain list (${groups} groups): ${items}`)
+  })
+  await ctx.page.keyboard.press('Escape')
+  await h.waitNoDialog(ctx)
+
+  // Busy terminals in two tabs (one shelved): listed, grouped by tab.
   await k('Meta+t')
   await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === 2, 'new tab')
   const b = (await h.list(ctx)).active
@@ -64,6 +75,15 @@ export default async (ctx, h) => {
     h.assert(alive() && (await ctx.page.isVisible('.dialog.quit')), 'window close asks')
     h.assert((await h.list(ctx)).tiles.some((t) => t.id === b), 'window kept meanwhile')
   })
+  // Every shell (pty) and command, to check after the quit.
+  const pids = []
+  for (const t of (await h.list(ctx)).tiles) {
+    if (t.term?.pid) pids.push(t.term.pid)
+    for (const c of await h.children(ctx, t.id)) pids.push(c.pid)
+  }
+  h.assert(pids.length >= 5, `shells + commands found: ${pids}`) // a, b, sh; sleep 30, sleep 32 &
   await ctx.page.click('.dialog .confirm')
   await h.eventually(ctx, async () => h.assert(!alive(), 'Quit quits'))
+  const living = () => pids.filter((pid) => { try { return process.kill(pid, 0), true } catch { return false } })
+  await h.eventually(ctx, async () => h.assert(!living().length, `quit killed every shell and command (alive: ${living()})`))
 }
