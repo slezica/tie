@@ -150,20 +150,36 @@ export function initPty(wc: () => WebContents | null) {
       })
       return p.pid
     },
+    // write / resize / kill: node-pty throws when the terminal side is already closed (the exit
+    // is reported only once the process is gone too: ioctl EBADF) and on sizes that aren't
+    // positive integers. Never out of here: an exception in an IPC handler is uncaught in main.
     write(id: number, data: string) {
-      ptys.get(id)?.write(data)
+      if (typeof data !== 'string') return
+      try {
+        ptys.get(id)?.write(data)
+      } catch (e) {
+        log('pty', 'write failed', id, String(e))
+      }
     },
     resize(id: number, cols: number, rows: number) {
       const p = ptys.get(id)
-      if (!p || cols < 1 || rows < 1) return
+      if (!p || !Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return
       log('pty', 'resize', id, cols, rows)
-      p.resize(cols, rows)
+      try {
+        p.resize(cols, rows)
+      } catch (e) {
+        log('pty', 'resize failed', id, String(e))
+      }
     },
     kill(id: number) {
       const p = ptys.get(id)
       if (!p) return
       log('pty', 'kill', id)
-      p.kill()
+      try {
+        p.kill()
+      } catch (e) {
+        log('pty', 'kill failed', id, String(e))
+      }
     },
     // Resolves once every pty reported exit (or after timeout). Quitting with live ptys
     // lets node-pty call into a torn-down JS env, which aborts the process.

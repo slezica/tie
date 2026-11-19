@@ -94,6 +94,7 @@ Meta changes: `host.changed()` → `refreshTitle()` → `tile-meta` event.
 
 - Spawn failure (shell, cwd, throw): `host.error()` → `showError()`: "Error" + message replaces content. Tile stays open; `tie list --json` shows `error`.
 - Settings refuse to save an invalid shell (`SETTINGS.md`).
+- Calls on a pty that node-pty would throw on are dropped in `main/pty.ts` (logged `pty`): sizes that aren't positive integers, non-text writes, a resize / write / kill after the terminal side closed (`ioctl EBADF`: the exit comes only once the process is gone too). Scenario `terminal-pty-errors` (bad sizes and writes; the EBADF case is not reproduced).
 
 ## Busy
 
