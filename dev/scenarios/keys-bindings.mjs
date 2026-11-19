@@ -38,15 +38,14 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+t')
   await h.eventually(ctx, async () => h.assert((await tabs()) === t0 + 2, 'cmd+T: back to default (new-tab no longer customized)'))
 
-  // Refused: reserved, bare key, conflict, unknown action. Nothing changes.
+  // Refused through the save path: reserved, conflict. Nothing changes. Every message (bare key,
+  // unknown action, wrong type too): src/core/keymap.test.ts `bindingErrors`.
   const refused = async (b, re) => {
     const r = await set(b)
     h.assert(!r.ok && r.errors.some((e) => e.field === 'bindings' && re.test(e.message)), `refused ${JSON.stringify(b)}: ${JSON.stringify(r)}`)
   }
   await refused({ 'split-right': 'Cmd+C' }, /Split right: Reserved combination: Cmd\+C/)
-  await refused({ 'split-right': 'K' }, /Split right: Needs Cmd or Ctrl/)
   await refused({ 'split-right': 'Cmd+T' }, /Split right and New tab both use Cmd\+T/)
-  await refused({ nope: 'Cmd+J' }, /Unknown action: nope/)
   h.assert(JSON.stringify(await get()) === JSON.stringify({ 'split-right': 'Cmd+K' }), 'refused saves change nothing')
   const m = await tiles()
   await h.press(ctx, 'Meta+k')
