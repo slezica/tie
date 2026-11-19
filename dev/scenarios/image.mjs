@@ -1,6 +1,6 @@
 // Image tiles: png / svg / ... by extension, fit to the tile (shrink only), click or `z` toggles
-// actual size (scrolls), reload on change (new revision, swapped in; actual size stays actual), broken image says so, file
-// template + picker opens an image (kind by extension). Hidden window: real clicks and keys in the frame.
+// actual size (scrolls), reload on change (new revision, swapped in; actual size stays actual), broken image says so.
+// Hidden window: real clicks and keys in the frame.
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -68,13 +68,6 @@ export default async (ctx, h) => {
     const b = await open(join(dir, 'bad.png'), s)
     h.assert((await view(b)).errors === 1 && (await h.contentFrame(ctx, b).then((f) => f.isVisible('#msg'))), 'broken image: message')
     h.assert(!(await h.tileOf(ctx, b)).error, 'tile itself fine')
-
-    // File template + picker (any file; kind by extension).
-    const n = (await h.list(ctx)).tiles.length
-    const images = (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length
-    await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, t0, 'b'))
-    await h.pick(ctx, png)
-    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length === images + 1 && (await h.list(ctx)).tiles.length === n + 1, 'template opens an image')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
