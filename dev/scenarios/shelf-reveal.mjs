@@ -1,7 +1,8 @@
 // Shelf hover reveal: the pointer travels from the item into the reveal and it stays (terminal,
 // markdown frame, browser guest); keys stay with the active tile until a click inside, which pins
 // and interacts; leaving item + reveal + band (or the window) dismisses; title bar Pin / Unpin; a pin
-// survives outside clicks, focus keys, tie focus; reveal above a zoomed tile. Hidden window: real pointer input into frames and guests.
+// survives outside clicks, focus keys, tie focus; reveal above a zoomed tile; a shelved terminal's pty
+// size never changes (hover, pin, unpin: one reveal size). Hidden window: real pointer input into frames and guests.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
@@ -45,8 +46,19 @@ export default async (ctx, h) => {
     await h.waitTile(ctx, md, (t) => t.doc?.rev, 'markdown loaded')
     await h.waitTile(ctx, w, (t) => t.web?.ready && !t.web.loading, 'guest loaded')
 
+    // A shelved terminal's pty size: the same hidden, revealed, pinned, unpinned (SHELF.md: reveal size
+    // independent of the item; shelved tiles stay laid out at it).
+    const ptySize = async (id) => {
+      const t = (await info(id)).term
+      return `${t.pty?.cols}x${t.pty?.rows} (xterm ${t.cols}x${t.rows})`
+    }
+    await h.assertPtySizes(ctx)
+    const size0 = await ptySize(c)
+    const sameSize = async (what) => h.assert((await ptySize(c)) === size0, `${what}: pty size ${await ptySize(c)}, was ${size0}`)
+
     // Terminal: hover the item, move into the reveal: kept, takes the pointer, not the keys.
     let p = await into(c)
+    await sameSize('hover reveal')
     h.assert((await revealed()) === c, 'terminal reveal kept while the pointer moves into it')
     h.assert((await under(p.x, p.y)) === c, 'hover reveal takes the pointer')
     let l = await L()
@@ -64,11 +76,13 @@ export default async (ctx, h) => {
     })
     await page.keyboard.type('echo reveal-$((6*7))\n')
     await h.waitFor(ctx, async () => (await h.screen(ctx, c)).includes('reveal-42'), 'typed into the revealed terminal')
+    await sameSize('pinned')
     await away()
     h.assert((await info(c)).pinned && (await revealed()) === null, 'pin survives the pointer leaving')
     await h.pin(ctx, c) // item click: unpin
     h.assert(!(await info(c)).pinned, 'item click unpins')
     await away()
+    await sameSize('unpinned, hidden')
 
     // Leaving dismisses: out of the reveal's far side; back over the band to the item, then along the toolbar.
     await into(c)
@@ -191,6 +205,8 @@ export default async (ctx, h) => {
       h.assert(l.active === a && (await info(a)).zoomed, `focus key moves to the zoomed tile (active ${l.active})`)
     })
     h.assert((await info(c)).pinned && (await under(p.x, p.y)) === c, 'pinned reveal stays on top after a focus change')
+    await sameSize('pinned over a zoomed tile, after the rest')
+    await h.assertPtySizes(ctx)
     await ctx.shot('pinned-over-zoomed')
   } finally {
     await s.close()
