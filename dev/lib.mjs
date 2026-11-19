@@ -168,6 +168,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
   rmSync(env.TIE_SETTINGS, { force: true })
+  rmSync(`${env.TIE_SETTINGS}.bak`, { force: true }) // "Recreate with defaults" backup (settings-malformed-recreate)
   // The harness drives Tie from outside (not from a Tie terminal): external control seeded on.
   // Scenario settings win (seed first); a raw string is written as-is (no seed).
   const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ ...SEED, ...opts.settings })
@@ -209,6 +210,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     for (let i = 0; i < 50 && alive(); i++) await sleep(100)
     if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
+    rmSync(`${env.TIE_SETTINGS}.bak`, { force: true })
     rmSync(env.TIE_DOWNLOADS, { recursive: true, force: true })
     rmSync(userDataPath(instance), { recursive: true, force: true })
   }
