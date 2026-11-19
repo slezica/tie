@@ -286,6 +286,12 @@ export const pasteWarning = (ctx) =>
 // Window frame tree from main (`tie frames`): url, origin, pid, out-of-process.
 export const frames = (ctx) => ctx.tie('frames')
 
+// Main's key suspend level (dev socket `key-mode`, main/keys.ts): `off` (shortcuts run), `fields`
+// (a text field or modal has the keys), `capture` (a capture field takes every key as a chord name).
+// It follows the UI's focus asynchronously (IPC): wait for it before pressing keys.
+export const keyMode = (ctx) => rpc(ctx.instance, 'key-mode')
+export const waitKeyMode = (ctx, mode, ms) => waitFor(ctx, async () => (await keyMode(ctx)) === mode, `key mode ${mode}`, ms)
+
 // Keys through main (webContents.sendInputEvent): they pass before-input-event, where shortcuts
 // live. CDP keys (ctx.page.keyboard) skip it: fine for typing text, not for shortcuts.
 // Chords like Playwright's: 'Meta+d', 'Meta+Shift+ArrowLeft', 'Control+Tab'. Modifiers held with

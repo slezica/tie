@@ -18,8 +18,6 @@ export default async (ctx, h) => {
     await page.evaluate(() => {
       window.__cap = []
       window.__keys = []
-      window.__shell = [] // keys the shell page saw (window, capture phase)
-      addEventListener('keydown', (e) => window.__shell.push(e.key), true)
       window.tie.keys.onCapture((c) => window.__cap.push(c))
       const el = document.createElement('input')
       el.id = 'cap'
@@ -32,24 +30,12 @@ export default async (ctx, h) => {
     const cap = () => page.evaluate(() => window.__cap)
     const chords = async () => (await cap()).filter((c) => c.complete).map((c) => c.chord)
 
-    // Main's mode follows the UI's focus asynchronously (IPC): wait for it rather than sleep. An
-    // unbound key (F7) comes back as a captured chord in capture mode, else it reaches the shell
-    // page. Main handles keys in order, so once one probe key shows up, none is still in flight.
-    const until = async (what, check) => {
-      for (let i = 0; i < 40; i++) {
-        await h.press(ctx, 'F7')
-        if (await h.waitFor(ctx, check, what, 250).catch(() => false)) return
-      }
-      throw new Error(`timed out: ${what}`)
-    }
+    // Main's mode follows the UI's focus asynchronously (IPC): wait for it (dev socket `key-mode`).
     const captureOn = async () => {
-      await until('capture mode on', async () => (await chords()).includes('F7'))
-      await page.evaluate(() => ((window.__cap = []), (window.__keys = []), (window.__shell = [])))
+      await h.waitKeyMode(ctx, 'capture')
+      await page.evaluate(() => ((window.__cap = []), (window.__keys = [])))
     }
-    const captureOff = async () => {
-      await page.evaluate(() => (window.__shell = []))
-      await until('capture mode off', () => page.evaluate(() => window.__shell.includes('F7')))
-    }
+    const captureOff = () => h.waitKeyMode(ctx, 'off')
     await captureOn()
 
     // Shortcuts: captured as names, not run, unseen by the page. Quit too.

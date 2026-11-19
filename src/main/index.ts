@@ -5,7 +5,7 @@ import { instance, socketPath, infoPath, logPath, debugPort, debugTags, log, PRI
 import { initPty } from './pty'
 import { startSocket } from './socket'
 import { harden, setUiUrl, openExternal, uiIpc, serveShell, UI_URL, UI_PARTITION, noNetwork, noWebRtcUdp } from './security'
-import { initKeys, setKeysSuspended, setBindings, quitChord } from './keys'
+import { initKeys, setKeysSuspended, setBindings, quitChord, keyMode } from './keys'
 import { accelerator } from '../core/keymap'
 import { openContent, closeContent, killContent, clearContent, serveContent, initContent } from './content'
 import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startWalk, stopWalk, stopWalks, type DocPush } from './docs'
@@ -209,6 +209,7 @@ function createWindow(ses: Electron.Session) {
 // real keys (shortcuts live there). `pick {path}`: the next file picker's answer in harness
 // instances (null = cancel; docs.ts). `guest {action}`: browser guests (guest.ts). `window-close`:
 // the window's close, as its red button. `window-size {w, h}`: resize the window (layout tests).
+// `key-mode`: main's key suspend level (`off | fields | capture`, keys.ts), read-only.
 const devMethods: Record<string, (params: unknown) => unknown> = {
   frames: () => frameTree(),
   'window-close': () => void win?.close(), // as the red button (close event)
@@ -219,6 +220,7 @@ const devMethods: Record<string, (params: unknown) => unknown> = {
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
   guest: (params) => guestMethod(params, shellSession), // browser guests (guest.ts)
+  'key-mode': () => keyMode(),
 }
 let shellSession: Electron.Session | null = null
 

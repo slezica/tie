@@ -26,6 +26,8 @@ let mode: 'off' | 'fields' | 'capture' = 'off'
 export function setKeysSuspended(on: unknown) {
   mode = on === 'capture' ? 'capture' : on === true ? 'fields' : 'off'
 }
+// Current mode, read-only (dev socket `key-mode`: the harness waits on it instead of sleeping).
+export const keyMode = () => mode
 
 // SECURITY: shortcuts act only on real input (synthetic KeyboardEvents never reach main) and are
 // blocked here, so neither the UI page, a content frame nor a browser guest ever sees them:

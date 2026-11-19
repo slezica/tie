@@ -10,12 +10,12 @@ export default async (ctx, h) => {
   const resetOff = (a) => page.$eval(`${row(a)} .reset`, (e) => e.disabled)
   const colW = () => page.$eval('.bind-head span:nth-child(2)', (e) => e.getBoundingClientRect().width)
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  // Focus changes reach main asynchronously (nothing observable): debounce before keys.
-  const settle = () => ctx.sleep(300)
+  // Focus changes reach main asynchronously: keys only once main's mode follows (capture field).
+  const capturing = () => h.waitKeyMode(ctx, 'capture')
   const edit = async (a, ...keys) => {
     await page.locator(`${row(a)} .edit`).click()
     await h.waitFor(ctx, () => page.evaluate((s) => document.activeElement?.matches(`${s} input.chord`), row(a)), `editing ${a}`)
-    await settle()
+    await capturing()
     for (const k of keys) await h.press(ctx, k)
   }
 
@@ -36,7 +36,7 @@ export default async (ctx, h) => {
 
   // Key search: a captured chord; clears the name search.
   await page.click('#bind-key')
-  await settle()
+  await capturing()
   await h.press(ctx, 'Meta+d')
   await h.eventually(ctx, async () => h.assert(same(await visible(), ['Split right']), `key filter: ${await visible()}`))
   h.assert((await page.inputValue('#bind-name')) === '', 'key search cleared name search')
