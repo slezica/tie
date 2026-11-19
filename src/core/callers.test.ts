@@ -31,6 +31,23 @@ describe('callerTile', () => {
     expect(callerTile({ pid: 5, uid: 1 }, 1, p, new Map([[0, 'x']]))).toEqual({ kind: 'external' })
     expect(seen).toEqual([5])
   })
+  it('nested ptys: the nearest one wins', () => {
+    // 200 (t1's pty) ← 300 ← 500 (t2's pty, e.g. a Tie inside t1) ← 600 (caller)
+    const nested: Record<number, number> = { ...tree, 500: 300, 600: 500 }
+    expect(callerTile({ pid: 600, uid: 501 }, 501, (p) => nested[p] ?? null, new Map([[200, 't1'], [500, 't2']]))).toEqual({ kind: 'tile', tile: 't2' })
+  })
+  it('uid checked before any lineage lookup', () => {
+    let lookups = 0
+    expect(callerTile({ pid: 200, uid: 0 }, 501, (p) => (lookups++, parentOf(p)), ptys).kind).toBe('refused')
+    expect(lookups).toBe(0)
+  })
+  it('peer pid 1 or 0: external, no lookups', () => {
+    let lookups = 0
+    const p = (pid: number) => (lookups++, null)
+    expect(callerTile({ pid: 1, uid: 501 }, 501, p, new Map([[1, 'x']]))).toEqual({ kind: 'external' })
+    expect(callerTile({ pid: 0, uid: 501 }, 501, p, new Map([[0, 'x']]))).toEqual({ kind: 'external' })
+    expect(lookups).toBe(0)
+  })
   it('loop: bounded, external', () => {
     let calls = 0
     const loop = (pid: number) => (calls++, pid === 10 ? 11 : 10)

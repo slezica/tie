@@ -16,6 +16,16 @@ describe('untrusted log values', () => {
     expect(isUntrusted({ untrusted: 1, x: 2 })).toBe(false)
     expect(isUntrusted(Object.create({ untrusted: 1 }))).toBe(false)
   })
+  it('escapes C0, DEL and C1 controls (CSI, NEL), not other text', () => {
+    expect(escapeUntrusted('\x7f\x85\x9b31m\x9f')).toBe('\\u007f\\u0085\\u009b31m\\u009f')
+    expect(escapeUntrusted('\u2029')).toBe('\\u2029')
+    expect(escapeUntrusted('é ü 日本 \xa0')).toBe('é ü 日本 \xa0')
+    expect(escapeUntrusted(undefined)).toBe('undefined')
+  })
+  it('plainLog undoes the escaping exactly (also escaped backslash-u)', () => {
+    for (const v of ['a\nb\x1b[31m\x9b', 'x\\u003cy', '\\u005cu', '</untrusted>\r\n'])
+      expect(plainLog(formatArg(untrusted(v))), JSON.stringify(v)).toBe(v)
+  })
   it('plainLog is the readable inverse for printable text', () => {
     const line = `2026 [security] external open ${formatArg(untrusted('https://x/?q=<b>'))}`
     expect(plainLog(line)).toBe('2026 [security] external open https://x/?q=<b>')

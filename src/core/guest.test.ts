@@ -14,6 +14,20 @@ describe('guestNavAllowed', () => {
     for (const u of ['file:///etc/hosts', 'tie://app/', 'tie-content://abc/', 'chrome://gpu', 'javascript:x', 'mailto:a@b.c']) expect(guestNavAllowed(u, false)).toBe(false)
   })
   it('non-strings refused', () => expect(guestNavAllowed(undefined as unknown as string, true)).toBe(false))
+  it('edge forms', () => {
+    // userinfo, IPv6, ports: still http(s) with a host
+    for (const u of ['https://user:pw@example.com/', 'http://[::1]:8080/', 'https://a.b:443/']) expect(guestNavAllowed(u, true)).toBe(true)
+    // main frame about:blank only as exactly that (a fragment or query makes it another URL)
+    for (const u of ['about:blank#x', 'about:blank?x', 'ABOUT:BLANK', 'about:blank/']) expect(guestNavAllowed(u, true)).toBe(false)
+    // unparsable or hostless http(s): refused; scheme matched on the raw string (a tab or a space
+    // before it is no http)
+    for (const u of ['https://a.b:99999/', 'ht\ttps://a.b', ' https://a.b']) expect(guestNavAllowed(u, true), u).toBe(false)
+    // the URL parser supplies a host where it can (http:///x → http://x/): http(s), allowed
+    expect(guestNavAllowed('http:///x', true)).toBe(true)
+    // case-insensitive scheme for subframes too
+    expect(guestNavAllowed('DATA:text/html,x', false)).toBe(true)
+    expect(guestNavAllowed('FILE:///etc/hosts', false)).toBe(false)
+  })
 })
 
 describe('guestSrc', () => {
@@ -23,6 +37,11 @@ describe('guestSrc', () => {
   })
   it('refuses the rest', () => {
     for (const u of ['', 'file:///x', 'tie://app/', 'javascript:1', 'about:srcdoc', 'https://', 42, null]) expect(guestSrc(u)).toBe(null)
+  })
+  it('edge forms', () => {
+    expect(guestSrc('https://user:pw@a.b/x')).toBe('https://user:pw@a.b/x') // userinfo kept
+    expect(guestSrc('http://[::1]:8080')).toBe('http://[::1]:8080/')
+    for (const u of ['about:blank#x', ' https://a.b', 'https://a.b:99999', 'data:text/html,x', 'blob:https://a.b/1']) expect(guestSrc(u), u).toBe(null)
   })
 })
 
@@ -43,13 +62,21 @@ describe('locationUrl', () => {
       expect(locationUrl(t)).toBe(null)
   })
   it('about:blank', () => expect(locationUrl('about:blank')).toBe('about:blank'))
+  it('edge forms', () => {
+    expect(locationUrl('user@example.com')).toBe('https://user@example.com/') // userinfo: a host after @
+    expect(locationUrl('[::1]:8080')).toBe('https://[::1]:8080/')
+    expect(locationUrl('HTTP://A.B')).toBe('http://a.b/')
+    expect(locationUrl('http:a')).toBe('http://a/') // typed scheme: as the URL parser reads it
+    for (const t of ['about:blank#x', 'localhost:99999', 'https://', 'example.com\tx']) expect(locationUrl(t), t).toBe(null)
+  })
 })
 
 describe('popupUrl', () => {
   it('http(s) with a host goes to the confirm; everything else is blocked', () => {
     expect(popupUrl('https://a.b/x')).toBe('https://a.b/x')
     expect(popupUrl('http://a.b')).toBe('http://a.b/')
-    for (const u of ['about:blank', 'file:///x', 'mailto:a@b.c', 'javascript:x', '', 'https://']) expect(popupUrl(u)).toBe(null)
+    for (const u of ['about:blank', 'file:///x', 'mailto:a@b.c', 'javascript:x', '', 'https://', 'about:blank#x', 'data:text/html,x', 'blob:https://a.b/1', 'tie://app/']) expect(popupUrl(u)).toBe(null)
+    expect(popupUrl('https://user:pw@a.b/x')).toBe('https://user:pw@a.b/x') // whole URL to the confirm
   })
 })
 
