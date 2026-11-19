@@ -30,5 +30,6 @@ Known, not fixed:
 
 ## Unreleased
 
+- Settings panel: Save disabled when nothing differs from the active settings.
 - Settings panel: About page (versions, instance, settings and log paths).
 - Settings panel: `~` path on the status line (full path in its tooltip).

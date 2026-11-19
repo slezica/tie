@@ -96,6 +96,7 @@ export default async (ctx, h) => {
   // Defaults: reset disabled, not bold.
   h.assert((await resetOff('focus-left')) && !(await isCustom('focus-left')), 'default row: reset disabled, normal')
 
+  h.assert(await page.isDisabled('.settings .save'), 'Save disabled: no binding changed')
   // Edit: chord replaces, Enter accepts.
   await edit('split-right', 'Meta+k')
   await h.eventually(ctx, async () => h.assert((await page.inputValue(`${row('split-right')} input.chord`)) === 'Cmd+K', 'field shows the chord'))
@@ -104,6 +105,11 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert((await chordOf('split-right')) === 'Cmd+K', `edited: ${await chordOf('split-right')}`))
   h.assert((await isCustom('split-right')) && !(await resetOff('split-right')), 'customized: bold, reset enabled')
   h.assert(await page.isVisible('.settings'), 'Enter in the field did not save / close')
+  h.assert(!(await page.isDisabled('.settings .save')), 'Save enabled: a binding changed')
+  await page.click(`${row('split-right')} .reset`)
+  await h.eventually(ctx, async () => h.assert(await page.isDisabled('.settings .save'), 'Save disabled: the binding put back'))
+  await edit('split-right', 'Meta+k', 'Enter')
+  await h.eventually(ctx, async () => h.assert((await chordOf('split-right')) === 'Cmd+K', 're-edited'))
 
   // Only customized: a pencil toggle (the rows' edit icon), pressed look distinct.
   h.assert(await page.evaluate(() => document.querySelector('.bind-custom svg').outerHTML === document.querySelector('.bind-row .edit svg').outerHTML), 'filter toggle: the pencil')

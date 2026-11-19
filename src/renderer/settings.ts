@@ -194,7 +194,9 @@ function build(info: SettingsInfo) {
   const confirmExternal = $<HTMLInputElement>('#set-confirm-external')
   const allowExternal = $<HTMLInputElement>('#set-allow-external')
   const gitignore = $<HTMLInputElement>('#set-gitignore')
+  let refreshSave = () => {} // set below, once the fields exist
   const bindings = bindingsPage($('section[data-page="bindings"]'), settings.bindings, {
+    change: () => refreshSave(),
     message: (text) => (text ? showErrors([{ field: 'bindings', message: text }]) : clearErrors()),
   })
   themeSel.value = theme(settings.theme) === THEMES[settings.theme] ? settings.theme : 'tie-dark'
@@ -287,8 +289,9 @@ function build(info: SettingsInfo) {
     const first = errors[0]?.field
     if (first && pageOf[first]) show(pageOf[first])
   }
+  const patch = () => ({ ...draft(), shell: shell.value.trim(), bindings: bindings.value() })
   const save = async () => {
-    const res = await tie.settings.set({ ...draft(), shell: shell.value.trim(), bindings: bindings.value() })
+    const res = await tie.settings.set(patch())
     if (res.ok) {
       applySettings(res.settings)
       return close()
@@ -306,13 +309,25 @@ function build(info: SettingsInfo) {
   banner = (changed) => {
     if (!changed && bar.contains(document.activeElement)) show(page) // focus stays in the panel
     bar.hidden = !changed
-    saveBtn.disabled = changed
+    refreshSave()
     if (!changed) reason.hidden = true
   }
+  // Save is enabled only with something to save: a value that differs from the active settings
+  // (edited and put back: disabled again), or after Ignore (the file differs; Save overwrites it).
+  let overwrite = false
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  const dirty = () => {
+    const { bindings: b, ...rest } = patch()
+    const keys = (o: Settings['bindings']) => Object.entries(o).sort(([x], [y]) => x.localeCompare(y))
+    return !same(keys(b), keys(settings.bindings)) || Object.entries(rest).some(([k, v]) => !same(v, settings[k as keyof Settings]))
+  }
+  refreshSave = () => (saveBtn.disabled = !bar.hidden || !(overwrite || dirty()))
+  for (const ev of ['input', 'change']) panel.addEventListener(ev, () => refreshSave())
   banner(info.changed)
   $('.settings-banner .ignore').addEventListener('click', async () => {
     const now = await tie.settings.ignore()
     if (!panel) return
+    overwrite = true
     banner?.(false)
     if (!now.error) clearErrors() // a load error (unparseable at startup) is lifted too
   })

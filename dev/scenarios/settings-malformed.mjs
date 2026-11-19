@@ -1,6 +1,6 @@
 // Unparseable settings file at startup (SETTINGS.md "File"): Tie runs on defaults, a dialog names the
 // file (Close focused: Enter keeps the file); Close leaves the bytes and Save stays blocked. Fixed on
-// disk: the open panel's banner appears, Reload applies the file, Save works again.
+// disk: the open panel's banner appears, Reload applies the file, Save works again (with a change).
 // Recreate with defaults: settings-malformed-recreate.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -37,10 +37,12 @@ export default async (ctx, h) => {
   await h.openSettings(ctx)
   h.assert(await ctx.page.isVisible('.status.error'), 'load error on the status line')
   h.assert(!(await ctx.page.isVisible('.settings-banner')), 'no banner: file unchanged')
+  await ctx.page.fill('#set-font-size', '13') // Save needs a change to be enabled
   await ctx.page.locator('.save').click()
   await ctx.sleep(200) // absence: the panel stays, the file isn't written
   h.assert(await ctx.page.isVisible('.settings'), 'save refused')
   h.assert(bytes() === settings, 'refused save: file untouched')
+  await ctx.page.fill('#set-font-size', '12') // the change put back (it previews live)
 
   // Fixed by hand: the open panel shows the banner (watcher), nothing applied yet.
   const fixed = '{ "theme": "nord", "fontSize": 15 }\n'
@@ -52,7 +54,7 @@ export default async (ctx, h) => {
   h.assert((await h.cssVar(ctx, '--tile-font-size')) === '12px', 'not auto-reloaded')
   await ctx.shot('banner')
 
-  // Reload: applied live, panel shows the file's values, Save enabled, file not rewritten.
+  // Reload: applied live, panel shows the file's values, Save no longer blocked, file not rewritten.
   await ctx.page.locator('.settings-banner .reload').click()
   await h.eventually(ctx, async () => {
     h.assert((await h.cssVar(ctx, '--bg')) === '#2e3440', 'nord applied')
@@ -60,10 +62,11 @@ export default async (ctx, h) => {
     h.assert(!(await ctx.page.isVisible('.settings-banner')), 'banner gone')
   })
   h.assert((await ctx.page.inputValue('#set-font-size')) === '15' && (await ctx.page.inputValue('#set-theme')) === 'nord', 'panel shows the file')
-  h.assert(!(await ctx.page.isVisible('.status.error')) && !(await ctx.page.isDisabled('.save')), 'Save unblocked')
+  h.assert(!(await ctx.page.isVisible('.status.error')) && (await ctx.page.isDisabled('.save')), 'no error; Save disabled: nothing to save')
   h.assert(bytes() === fixed, 'Reload never writes')
 
   await ctx.page.fill('#set-font-size', '16')
+  h.assert(!(await ctx.page.isDisabled('.save')), 'Save unblocked by a change')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'Save closes the panel'))
   const written = JSON.parse(bytes())

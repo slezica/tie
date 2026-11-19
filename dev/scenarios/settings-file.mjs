@@ -92,7 +92,9 @@ export default async (ctx, h) => {
   h.assert(!(await ctx.page.isChecked('#set-allow-external')), '(c) allowExternalControl "true" is not true')
   const gotC = (await ctx.page.evaluate(() => window.tie.settings.get())).settings
   h.assert(gotC.allowExternalControl === false && gotC.fontSize === 32, `(c) main sanitized: ${JSON.stringify(gotC)}`)
-  h.assert(!(await ctx.page.isDisabled('.save')), '(c) Save enabled')
+  h.assert(await ctx.page.isDisabled('.save'), '(c) Save disabled: the panel equals the settings')
+  await ctx.page.fill('#set-line-height', '1.3') // a change, so Save's state below is the banner's doing
+  h.assert(!(await ctx.page.isDisabled('.save')), '(c) Save enabled by a change')
   h.assert(bytes() === editC, '(c) Reload never writes (file still says 200)')
 
   // (f) Reload of a file with a syntax error: reason shown, banner stays, Save disabled.

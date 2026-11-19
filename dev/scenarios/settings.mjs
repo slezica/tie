@@ -110,6 +110,7 @@ export default async (ctx, h) => {
   await terminalTitle(ctx, h)
   await securityPage(ctx, h)
   await aboutPage(ctx, h)
+  await saveState(ctx, h)
   await filesPage(ctx, h)
 }
 
@@ -199,6 +200,33 @@ async function aboutPage(ctx, h) {
   h.assert((await row('log').getAttribute('title')).endsWith('.log') && (await row('settings').getAttribute('title')).endsWith('settings.json'), 'log and settings paths')
   h.assert(await ctx.page.evaluate(() => document.querySelector('.settings nav button[data-page="about"]').previousElementSibling.tagName === 'HR'), 'separator above About')
   await ctx.shot('about-page')
+  await ctx.page.keyboard.press('Escape')
+  await ctx.page.waitForSelector('.settings', { state: 'detached' })
+}
+
+// Save is enabled only with something to save: a value put back to the active one disables it again.
+async function saveState(ctx, h) {
+  await h.openSettings(ctx, 'appearance')
+  const off = () => ctx.page.isDisabled('.save')
+  h.assert(await off(), 'Save disabled: no changes')
+  const size = await ctx.page.inputValue('#set-font-size')
+  await ctx.page.fill('#set-font-size', String(Number(size) + 1))
+  h.assert(!(await off()), 'Save enabled: font size changed')
+  await ctx.page.fill('#set-font-size', size)
+  h.assert(await off(), 'Save disabled: font size put back')
+  const theme = await ctx.page.inputValue('#set-theme')
+  await ctx.page.selectOption('#set-theme', theme === 'nord' ? 'tie-dark' : 'nord')
+  h.assert(!(await off()), 'Save enabled: theme changed')
+  await ctx.page.selectOption('#set-theme', theme)
+  h.assert(await off(), 'Save disabled: theme put back')
+  await ctx.page.locator('nav button[data-page="files"]').click()
+  await ctx.page.click('#set-gitignore')
+  h.assert(!(await off()), 'Save enabled: checkbox changed')
+  await ctx.page.click('#set-gitignore')
+  h.assert(await off(), 'Save disabled: checkbox put back')
+  await ctx.page.locator('nav button[data-page="terminal"]').click()
+  await ctx.page.fill('#set-shell', '/bin/zsh-other')
+  h.assert(!(await off()), 'Save enabled: shell changed')
   await ctx.page.keyboard.press('Escape')
   await ctx.page.waitForSelector('.settings', { state: 'detached' })
 }

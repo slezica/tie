@@ -10,7 +10,7 @@
 - Baseline: the file's content as last loaded or written by Tie (missing and unreadable are baselines too). Changed = the disk's content differs (content, not mtime: a touch or an identical rewrite is no change). Tie's own writes set the baseline in the same tick: they never count as a change.
 - Watch: main watches the file for the whole run (`watch.ts`: directory watch, survives rename saves; stable reads), recomputes "changed" fresh on each event and pushes `settings:file {changed, path}`, also when it flips back (the edit undone). Nothing applied. Latency: the watcher's debounce, 100 ms (max 500; `settings-file` logs it).
 - Panel banner (`.settings-banner`, top strip over every page): `Settings changed in <path>`, `Ignore` / `Reload`; Save disabled while it shows. `settings:get` returns `changed` read fresh, so it shows at first paint; the panel follows the push while open. Closed panel: nothing shows.
-    - Ignore (`settings:ignore`): baseline := the disk content, nothing loaded; banner gone, Save enabled (a Save then overwrites the file). A further change raises it again.
+    - Ignore (`settings:ignore`): baseline := the disk content, nothing loaded; banner gone, Save enabled, even with no panel change (a Save then overwrites the file). A further change raises it again.
     - Reload (`settings:reload`): the file parsed as at startup (same trust: `sanitize`, no `validateSettings`), applied live as after a Save, baseline := it, panel rebuilt from it (unsaved panel edits dropped). Fails (syntax, unreadable): a second banner line with the reason, banner and disabled Save stay; Ignore still works.
     - Main's guard (`saveRefusal`): `settings:set` refuses `{field: 'file', message: 'Settings changed in <path>'}` while the disk differs from the baseline (closes the race between an edit and the click).
 - Startup with a file that doesn't load: Tie runs on defaults (memory), the file untouched; once the UI is up, a dialog (`.dialog.settings-load`): `Syntax errors in your settings file, at <path>.` + the parser's message; `Close` (focused: Enter keeps the file) / `Recreate with defaults`. Unreadable (permissions): `Can't read your settings file, at <path>.`, `Close` only.
@@ -49,13 +49,14 @@
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
 - Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) | `About` (last, under a separator; read-only: Tie version, instance, Electron / Chromium / Node versions, settings and log paths with `~`, full path in the tooltip; from `settings:get` `about`) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
+- Save is enabled only with something to save: a panel value differs from the active settings (compared on every `input` / `change` and binding edit; a value put back disables it again), or after Ignore in this panel (the file differs: Save overwrites it). Always disabled under the banner.
 - Only the Save button saves. Enter in a text / number field or a select: done with it, focus to the panel itself (`.settings`, keeps Escape); value kept. On a focused button Enter presses that button; capture fields: their own Enter (accept). Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
 - Status line (`.status`, bottom left): the settings file path, or what blocks Save. Paths shown with `~` (as the banner and the startup dialog); the full path is the tooltip.
 
 ## Bindings page (`src/renderer/bindings.ts`)
 
-- `bindingsPage(section, settings.bindings, {message})` → `{value, focus}`. Edits its own draft; Save sends `bindings: value()` whole; Cancel drops it.
+- `bindingsPage(section, settings.bindings, {message, change})` → `{value, focus}`. Edits its own draft; Save sends `bindings: value()` whole; Cancel drops it.
 - Filter row (live):
     - `#bind-name`: case-insensitive substring of the action label.
     - `#bind-key`: capture field (`INPUT.md` "Keyboard", capture fields). Exact match on a complete chord, any chord the action answers to (hidden aliases included: `Cmd++` finds Zoom in). Empty = no filter.

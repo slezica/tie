@@ -18,8 +18,8 @@ const p = (text: string) => {
   return el
 }
 
-// `message`: a refused edit (null clears it), shown by the panel's status line.
-export function bindingsPage(section: HTMLElement, initial: Bindings, on: { message(text: string | null): void }): BindingsPage {
+// `change`: the draft may have changed (the panel's Save state). `message`: a refused edit (null clears it), shown by the panel's status line.
+export function bindingsPage(section: HTMLElement, initial: Bindings, on: { message(text: string | null): void; change?(): void }): BindingsPage {
   const draft: Bindings = { ...initial }
   const custom = (a: Action) => Object.hasOwn(draft, a)
   // One chord per action in the table: the override, else the default (hidden aliases not shown).
@@ -100,6 +100,7 @@ export function bindingsPage(section: HTMLElement, initial: Bindings, on: { mess
     for (const a of ACTIONS) paint(a.id)
     measure()
     filter()
+    on.change?.()
   }
 
   // Filters. Using one search clears the other.
