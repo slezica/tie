@@ -138,15 +138,15 @@
   <ol>
     <li><strong>Main.</strong> Node.js with Electron's APIs. It spawns ptys, reads files, serves Tie's pages over two custom URL schemes (<code>tie://</code> for the UI, <code>tie-content://</code> for content), installs every guard, and answers the socket. Nothing untrusted ever runs here.</li>
     <li><strong>UI renderer.</strong> One Chromium page, <code>tie://app/index.html</code>. Only Tie's code runs in it. It has a bridge, <code>window.tie</code>, that main checks on every call: must be this window, must be the main frame, must be the UI's URL. Terminals render here (xterm.js) because keystrokes must reach ptys; that makes it the most valuable room in the house.</li>
-    <li><strong>Content frame processes.</strong> Each file tile is an <code>&lt;iframe&gt;</code> inside the UI page, but Chromium puts it in its own process because its origin differs (site isolation). Its URL is <code>tie-content://&lt;128-bit token&gt;/…</code>; the token is minted per tile and folder (a new one when the tile moves to another folder or flips its scripts) and is the only credential: it names the folder main will serve. Viewer kinds (markdown, text, image, hex) load Tie's own viewer page; the html kind loads the file itself.</li>
+    <li><strong>Content frame processes.</strong> Each file tile is an <code>&lt;iframe&gt;</code> inside the UI page, but Chromium puts it in its own process because its origin differs (site isolation). Its URL is <code>tie-content://&lt;128-bit token&gt;/…</code>; the token is minted per tile and root (a new one when the root changes or the viewer reloads) and is the only credential: it names the directory main will serve (the tile's <em>root</em>: the context tile's cwd when it holds the file, else the file's folder). Viewer kinds (markdown, text, image, hex) load Tie's own viewer page; the html kind loads the file itself.</li>
     <li><strong>Browser guest processes.</strong> A <code>&lt;webview&gt;</code> is a separate web contents with its own session (<code>persist:browser</code>): it has the network and persistent cookies, and none of Tie's schemes or bridges. Main rebuilds its preferences from nothing when it attaches, whatever the tag asked for.</li>
-    <li><strong>Pty children.</strong> Your login shell, or <code>--cmd</code>, spawned by main with a pseudo-terminal. They are yours: your uid, Tie's environment plus <code>TIE_SOCKET</code>, <code>TIE_TILE</code>, <code>TIE_INSTANCE</code>, Tie's bin first on <code>PATH</code>, and the usual <code>TERM</code> variables. The <code>tie</code> CLI runs inside them (or anywhere else of yours) and talks to main over a unix socket that only your account can open. Main identifies callers by kernel lineage (peer pid and its ancestors, same uid): a <code>tie</code> run in a Tie terminal acts as that tile, whatever <code>TIE_TILE</code> says; other programs need Settings → Security → Allow external programs.</li>
+    <li><strong>Pty children.</strong> Your login shell, or <code>--cmd</code>, spawned by main with a pseudo-terminal. They are yours: your uid, Tie's environment plus <code>TIE_SOCKET</code>, <code>TIE_TILE</code>, <code>TIE_INSTANCE</code>, Tie's bin first on <code>PATH</code>, and the usual <code>TERM</code> variables. The <code>tie</code> CLI runs inside them (or anywhere else of yours) and talks to main over a unix socket that only your account can open. Main identifies callers by kernel lineage (peer pid and its ancestors, same uid): a <code>tie</code> run in a Tie terminal acts as that tile, whatever <code>TIE_TILE</code> says; other programs need Settings → Security → Allow external programs to control Tie (off by default).</li>
   </ol>
 
   <h3>What happens when you open something</h3>
   <ul>
     <li><strong>A terminal.</strong> The UI asks main <code>pty:spawn</code>. Main runs the configured shell. Output streams back as bytes; xterm draws them. Only OSC 8 hyperlinks are links (plain URLs aren't clickable); even those do nothing until you cmd-click.</li>
-    <li><strong>A markdown file.</strong> The UI asks main to check the file (exists, regular, size cap, kind by extension) and to open a token for its folder. The UI makes an iframe pointing at <code>tie-content://token/_tie/markdown.html</code>. Main serves Tie's viewer there with a fresh per-response nonce in its CSP. The viewer answers a handshake; the UI sends it the file's text over a MessagePort. The viewer renders, sanitizes, and only ever sends typed requests back.</li>
+    <li><strong>A markdown file.</strong> The UI asks main to check the file (exists, regular, size cap, kind by extension, else by content) and to open a token for its root. The UI makes an iframe pointing at <code>tie-content://token/_tie/markdown.html</code>. Main serves Tie's viewer there with a fresh per-response nonce in its CSP. The viewer answers a handshake; the UI sends it the file's text over a MessagePort. The viewer renders, sanitizes, and only ever sends typed requests back.</li>
     <li><strong>An html file.</strong> Same token mechanism, but the frame loads the file itself, with Tie's bootstrap script injected first. The CSP lets only the bootstrap run: the page's own scripts never do, and a red "Scripts blocked" tag in the title bar says when a page had some. Html tiles are static documents; a dynamic page belongs in a local server and a browser tile.</li>
     <li><strong>A web site.</strong> The UI creates a webview with <code>src</code>. Main's attach guard throws away every attribute but <code>src</code>, forces the browser partition, sandbox, no preload. From then on the site is a browser tab with extra rules.</li>
   </ul>
@@ -168,13 +168,13 @@
     <thead><tr><th>Kind</th><th>Code running</th><th>Can read</th><th>Can send to the UI</th><th>Can cause outside</th></tr></thead>
     <tbody>
       <tr><td><strong>terminal</strong> <span class="tag t">trusted</span></td><td>xterm (Tie's) in the UI; your programs in the pty</td><td>Program output as bytes; your keystrokes</td><td>Everything a program of yours can do; it is you</td><td>Anything, as you. OSC 8 links: hover shows target, cmd-click + confirm; plain URLs aren't links</td></tr>
-      <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images from its folder (as pixels only)</td><td><code>followLink</code>, <code>hover</code>, <code>pong</code></td><td>Open a local file in a tile (shown to you, not to it; outside its folder only after you confirm the path); open a URL after confirm</td></tr>
-      <tr><td><strong>text / hex / image</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file</td><td><code>pong</code> (no links)</td><td>Nothing</td></tr>
-      <tr><td><strong>html</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup (its scripts never run)</td><td>Its folder, recursively, by markup only (stylesheets, images, fonts)</td><td><code>followLink</code>, <code>hover</code>, <code>blocked</code>, <code>pong</code></td><td>Navigate within its folder; open a file beside; URL after confirm</td></tr>
+      <tr><td><strong>markdown</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file's text; images under its root (as pixels only)</td><td><code>followLink</code>, <code>hover</code> (+ <code>ready</code>, <code>pong</code>, <code>scrolled</code>)</td><td>Open a local file in a tile (shown to you, not to it; outside its root only after you confirm the path); open a URL after confirm</td></tr>
+      <tr><td><strong>text / hex / image</strong> <span class="tag u">untrusted file</span></td><td>Tie's viewer; the file is data</td><td>The file</td><td><code>ready</code>, <code>pong</code>, <code>scrolled</code> (no links)</td><td>Nothing</td></tr>
+      <tr><td><strong>html</strong> <span class="tag u">untrusted file</span></td><td>Tie's bootstrap only; the page is markup (its scripts never run)</td><td>Its root, recursively, by markup only (stylesheets, images, fonts, media)</td><td><code>followLink</code>, <code>hover</code>, <code>blocked</code> (+ <code>ready</code>, <code>pong</code>)</td><td>Navigate within its root; open a file beside (one a second); URL after confirm</td></tr>
       <tr><td><strong>browser</strong> <span class="tag u">untrusted site</span></td><td>The site, like a browser tab</td><td>The internet; its own cookies</td><td>Nothing (events only: title, URL, hovered link, loading, crash)</td><td>Popup to the system browser after you confirm it; download after you confirm it</td></tr>
     </tbody>
   </table></div>
-  <p>Notice what is absent from the last column everywhere except the terminal: the UI, the ptys, other tiles, your files beyond the one folder, the network. Those are the doors. Part 5 lists them.</p>
+  <p>Notice what is absent from the last column everywhere except the terminal: the UI, the ptys, other tiles, your files beyond the one root, the network. Those are the doors. Part 5 lists them.</p>
 </section>
 
 <section id="security">
@@ -188,7 +188,7 @@
     <li><strong>Exits are guarded, not features.</strong> A visitor can wave: typed requests only, validated for shape, needing focus for anything that acts, confirmed by you before a link leaves the house, popups from browser tiles included.</li>
     <li><strong>Two layers where one would do.</strong> No network: CSP <em>and</em> a dead proxy on the whole session. No UI navigation: main's guard <em>and</em> the frames' sandbox (no top navigation). Frames loading elsewhere: the nav lock <em>and</em> the UI CSP's <code>frame-src</code>. Downloads from content: the sandbox flag <em>and</em> the session refusing them.</li>
     <li><strong>What differs per kind lives in one table.</strong> <code>core/policy.ts</code>: sandbox flags, CSP, navigation rule, payload, size cap. Everything else is the same baseline for every content kind.</li>
-    <li><strong>Every guard gets a scenario, written red first.</strong> Guards get lost in refactors otherwise. <code>sec-*</code> in <code>dev/scenarios</code>. Not yet covered (listed in <code>PENDING.md</code>): the Bluetooth, client-certificate and device denials (nothing to probe in the harness), the frame message cap, content-side download refusal, the html new-tile throttle, the confirm-off path.</li>
+    <li><strong>Every guard gets a scenario, written red first.</strong> Guards get lost in refactors otherwise. <code>sec-*</code> in <code>dev/scenarios</code>; <code>SECURITY.md</code> names each guard's test. No scenario: the Bluetooth, client-certificate and device denials (nothing to probe in the harness), the html new-tile throttle, a guest hang. Unreachable from the harness: the UI's and the guests' redirect guards (another layer refuses first). Checked by log only: the UI session refusing downloads.</li>
     <li><strong>Failures stay visible.</strong> A hung frame becomes an error tile, not a silent reload. Every refusal is logged, always (the <code>security</code> tag ignores the debug filter); text that isn't Tie's is marked <code>&lt;untrusted&gt;</code> and escaped so a log can't be used against its reader. Nothing restarts or retries on its own: an html page that tries to leave becomes an error tile naming where it tried to go.</li>
   </ol>
 
@@ -212,13 +212,13 @@
     <li><strong>CSP and no network.</strong> Viewer pages: scripts only by a nonce minted per response; images only from the own token. Html pages: only <code>'self'</code> (the token) plus <code>data:</code>/<code>blob:</code> for styles, images, fonts, media; connections to <code>'self'</code> only; scripts by nonce only (the bootstrap), no workers. Under all of it, the UI session's proxy points every connection at a closed port and WebRTC may not use UDP: even a CSP bug reaches no network.</li>
     <li><strong>Navigation lock.</strong> Main sees every navigation of every frame. A frame may load only its token's exact viewer URL (viewers) or <code>.html</code> files of its own root (html). Each token binds to the first frame that loads it. The UI window itself may only reload itself.</li>
     <li><strong>One port, typed verbs.</strong> The UI hands each frame one MessagePort after load. Requests must be plain objects with a known verb and exactly its keys. Over a thousand a second are dropped unread.</li>
-    <li><strong>You.</strong> Verbs that act (<code>followLink</code>, <code>openLink</code>) need the frame to be focused, and frames can't focus themselves (Blink refuses focus calls without a user gesture under the permissions policy Tie sets). Links from file tiles and terminals show you the full URL first (setting <code>confirmExternal</code>, on by default), with Open disabled for 600 ms. Browser-tile popups go through the same dialog. Every download asks you first.</li>
+    <li><strong>You.</strong> Verbs that act (<code>followLink</code>, <code>openLink</code>) need the frame to be focused, and frames can't focus themselves (Blink refuses focus calls without a user gesture under the permissions policy Tie sets). Links from file tiles and terminals show you the full URL first (setting <code>confirmExternal</code>, on by default): the site in bold, taken from the parsed URL (text before an <code>@</code> is called out), Open disabled for 600 ms. Browser-tile popups go through the same dialog. Every download asks you first.</li>
     <li><strong>Main again.</strong> Whatever the UI asks for after all that, main checks as if the UI were lying.</li>
   </ol>
 
   <h3>The pieces around the house</h3>
   <ul>
-    <li><strong>Keyboard shortcuts</strong> are matched in main before any page sees the key. A page can't swallow ⌘W or fake ⌘D. Synthetic key events never reach main.</li>
+    <li><strong>Keyboard shortcuts</strong> are matched in main before any page sees the key. A page can't swallow ⌘W or fake ⌘D. Synthetic key events never reach main. While a settings capture field has focus, the UI's keys go to it as names and nothing runs; a browser tile's keys are never forwarded.</li>
     <li><strong>Paste and drops</strong> into a terminal go through a guard: control characters and would-run newlines ask first; dropped file names are shell-quoted.</li>
     <li><strong>The socket and state dir</strong> are 0600 and 0700: your account only. Inside it, processes in Tie terminals get in by lineage; your other processes only with the setting on.</li>
     <li><strong>Permissions</strong> (camera, mic, location, notifications, clipboard read, Bluetooth, USB, client certificates) are denied for every session.</li>
@@ -233,9 +233,9 @@
   <div class="scroll"><table>
     <thead><tr><th>Door →<br>Tile ↓</th><th>Network</th><th>Files it didn't open</th><th>UI realm / main</th><th>Other tiles</th><th>Your keyboard</th><th>System browser</th><th>Disk writes</th><th>Run code as you</th></tr></thead>
     <tbody>
-      <tr><td><strong>markdown</strong></td><td class="c locked">●</td><td class="c guarded">● images under its folder, as pixels</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>markdown</strong></td><td class="c locked">●</td><td class="c guarded">● images under its root, as pixels</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
       <tr><td><strong>text / image / hex</strong></td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c locked">● no links</td><td class="c locked">●</td><td class="c locked">●</td></tr>
-      <tr><td><strong>html</strong></td><td class="c locked">●</td><td class="c guarded">● its folder, as markup</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
+      <tr><td><strong>html</strong></td><td class="c locked">●</td><td class="c guarded">● its root, as markup</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● click + confirm</td><td class="c locked">●</td><td class="c locked">●</td></tr>
       <tr><td><strong>browser</strong></td><td class="c open">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c locked">●</td><td class="c guarded">● only when you click in</td><td class="c guarded">● popup, after you say Open</td><td class="c guarded">● ~/Downloads, after you say Save</td><td class="c locked">●</td></tr>
       <tr><td><strong>terminal (your programs)</strong></td><td class="c open">●</td><td class="c open">●</td><td class="c open">● via <code>tie</code></td><td class="c open">● via <code>tie</code></td><td class="c open">●</td><td class="c guarded">● cmd-click + confirm</td><td class="c open">●</td><td class="c open">●</td></tr>
     </tbody>
@@ -243,7 +243,7 @@
   <p>Two readings of this table:</p>
   <ul>
     <li>Open doors exist in two places: the whole terminal row, because it is <em>you</em>, and the browser's network, because a browser without network is nothing. Anything that gets into a terminal has everything. That is why pastes are guarded and why nothing else can type into one.</li>
-    <li>Every file-tile row has exactly two guarded doors that lead out: your keyboard, and your system browser. Both need you. Reads inside the glass room (images, an html page's folder) stay inside; the only way to carry something out is still the browser door, which shows you the URL. The browser row adds downloads; both its doors out ask you first.</li>
+    <li>Every file-tile row has exactly two guarded doors that lead out: your keyboard, and your system browser. Both need you. Reads inside the glass room (images, an html page's root) stay inside; the only way to carry something out is still the browser door, which shows you the URL. The browser row adds downloads; both its doors out ask you first.</li>
   </ul>
 </section>
 
@@ -261,12 +261,12 @@
   <div class="scroll"><table>
     <thead><tr><th>Goal</th><th>Needs</th><th>Stopped by</th><th>Residual</th></tr></thead>
     <tbody>
-      <tr><td>Run code as you</td><td>Script in the UI realm, a pty write, or the socket</td><td>UI CSP, no foreign navigation, IPC sender check, no window listener, viewers sanitize, socket 0600</td><td>A Chromium sandbox escape; another process of yours</td></tr>
-      <tr><td>Read your files</td><td>A path main will serve</td><td>Token = one root; traversal, symlinks out, other tokens refused; viewers can't fetch at all</td><td>None from content: html has no scripts; markup can only display files under its folder</td></tr>
+      <tr><td>Run code as you</td><td>Script in the UI realm, a pty write, or the socket</td><td>UI CSP, no foreign navigation, IPC sender check, no window listener, viewers sanitize, socket 0600 + caller lineage</td><td>A Chromium sandbox escape; another process of yours</td></tr>
+      <tr><td>Read your files</td><td>A path main will serve</td><td>Token = one root; traversal, symlinks out, other tokens refused; viewers can't fetch at all</td><td>None from content: html has no scripts; markup can only display files under its root (as wide as the cwd it was opened from; <code>/</code> asks)</td></tr>
       <tr><td>Send data out</td><td>A network path or a URL you open</td><td>Dead proxy + CSP; confirm with full URL and long-link warning</td><td>You clicking Open on a URL that carries data</td></tr>
       <tr><td>Type for you</td><td>Keyboard focus</td><td>Frames can't focus themselves; shortcuts matched in main</td><td>A few seconds of script focus after your own click in a page</td></tr>
       <tr><td>Make you run something</td><td>Pasted or dropped text reaching a terminal raw</td><td>Paste guard (control characters, would-run newlines), quoted drop paths</td><td>Guards can be turned off in settings</td></tr>
-      <tr><td>Deceive</td><td>Looking like something trusted</td><td>Files can't name their tile; kind glyph is Tie's; dialogs are the UI's, outside the tile</td><td>Browser tiles are titled by the site; titles set by your own processes; a page imitating UI inside its own tile</td></tr>
+      <tr><td>Deceive</td><td>Looking like something trusted</td><td>Files can't name their tile; kind glyph is Tie's; dialogs are the UI's, outside the tile; site text loses bidi tricks (download names, page titles); the link dialog's site comes from the parsed URL</td><td>Browser tiles are titled by their URL (the site picks its host and path); titles set by your own processes; a page imitating UI inside its own tile</td></tr>
       <tr><td>Plant files</td><td>A download</td><td>Content frames: refused outright. Guests: a dialog for every download (name, size, site), sanitized unique name, never opened</td><td>You, pressing Save</td></tr>
       <tr><td>Freeze Tie</td><td>Main's memory or the UI thread</td><td>Streaming reads, size caps, watchdog kills hung frames, message flood cap</td><td>A guest hogging CPU until Chromium reports it</td></tr>
     </tbody>
@@ -296,7 +296,7 @@
       <li><code>README.md</code> says <code>[documentation](https://evil.example/login)</code>. The viewer renders it as a normal link.</li>
       <li>You hover. <span class="stop">The strip at the tile's bottom-left shows the real URL</span>, drawn by the UI, where the document can't draw.</li>
       <li>You click anyway. The viewer sends <code>followLink</code>. The UI classifies: http(s). <span class="stop">Dialog, full URL.</span> You cancel.</li>
-      <li>Had it been <code>javascript:</code>, <code>file:</code> or <code>smb:</code>: <span class="stop">refused</span> before any dialog. Had it been <code>../.ssh/id_rsa</code>: outside the document's folder, so a dialog shows the full path first; opened only if you say so, as a text tile, on your screen only.</li>
+      <li>Had it been <code>javascript:</code>, <code>file:</code> or <code>smb:</code>: <span class="stop">refused</span> before any dialog. Had it been <code>../.ssh/id_rsa</code>: outside the document's root, so a dialog shows the full path first; opened only if you say so, as a text tile, on your screen only.</li>
     </ol>
   </div>
 
@@ -304,7 +304,7 @@
     <h3>The drive-by</h3>
     <ol>
       <li>A site in a browser tile starts a download of <code>invoice.pdf.command</code> on load.</li>
-      <li><span class="stop">Main refuses it and the UI asks:</span> "Save file?", the sanitized name, the size, the site. Save is disabled for 600 ms. Nothing is on disk yet.</li>
+      <li><span class="stop">Main refuses it and the UI asks:</span> "Save file?", the sanitized name (no path, control or bidi characters), the size, the site. Save is disabled for 600 ms. Nothing is on disk yet.</li>
       <li>You press Save. Main allows that URL once; the guest downloads it again; it lands under a unique name in <code>~/Downloads</code>. <span class="stop">Never opened, never executed.</span> Cancel: nothing happens, and the site can only ask again.</li>
       <li>It calls <code>window.open</code> for an ad, with or without your click (Electron has no popup blocker). <span class="stop">The same "Open in browser?" dialog</span> as for any link, one at a time; Tie never opens windows. You cancel.</li>
       <li>It asks for Bluetooth, the camera, your location, a client certificate. <span class="stop">All denied</span>, no prompt.</li>
@@ -344,7 +344,7 @@
     <dt>Shell</dt><dd>Tie's UI page, <code>tie://app</code>. Trusted realm with <code>window.tie</code>. <code>src/renderer/</code>.</dd>
     <dt>Realm</dt><dd>A JavaScript global scope. Code in one realm can read everything in it and nothing in another.</dd>
     <dt>Origin</dt><dd>Scheme + host (+ port). The browser's unit of trust: storage, fetch and DOM access are per origin.</dd>
-    <dt>Token</dt><dd>128 random bits that are a content tile's host name, origin and credential. Maps to one folder in main.</dd>
+    <dt>Token</dt><dd>128 random bits that are a content tile's host name, origin and credential. Maps to one root directory in main.</dd>
     <dt>Viewer</dt><dd>Tie's own page for a file kind, served under <code>/_tie/</code> on the tile's token. <code>src/viewers/</code>.</dd>
     <dt>Bootstrap</dt><dd>Tie's script injected first into html documents: handshake, pong, link clicks and hovers. Not a boundary; page scripts share its realm.</dd>
     <dt>Sandbox attribute</dt><dd>The iframe's <code>sandbox=</code> flags. Viewers get <code>allow-scripts</code> only; html adds <code>allow-same-origin</code>.</dd>
