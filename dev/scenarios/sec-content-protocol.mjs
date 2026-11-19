@@ -21,11 +21,35 @@ export default async (ctx, h) => {
     const img = (path) => f.evaluate((src) => new Promise((r) => Object.assign(new Image(), { onload: () => r('load'), onerror: () => r('error'), src })), `tie-content://${token}${path}`)
 
     for (const p of ['/ok.svg', '/sub/ok.svg', '/sub/../ok.svg', '/inner-link.svg']) h.assert((await img(p)) === 'load', `inside root loads: ${p}`)
-    const refused = ['/../outside.svg', '/..%2foutside.svg', '/%2e%2e/outside.svg', '/sub/..%2f..%2foutside.svg', '/%252e%252e/outside.svg', '/..%5coutside.svg', '/link.svg', '/dirlink/outside.svg', '/', '/_tie/markdown.js', '/_tie/markdown-mermaid.js', '/_tie/../outside.svg']
-    for (const p of refused) h.assert((await img(p)) === 'error', `refused: ${p}`)
-    const log = ctx.appLog()
-    h.assert(/refused content outside root .*\/link\.svg/.test(log) && /refused content outside root .*\/dirlink\/outside\.svg/.test(log), 'symlinks out of root refused (real path check)')
-    h.assert(/refused content route .*\/$/m.test(log), 'root itself refused')
+    // Refused, each by its own layer: the reason main logs (content.ts `refuse`) ties the case to it,
+    // so removing either layer turns its cases red even though the other might still refuse them.
+    // - `route`: @core/content contentFile (decoded once; leftover %, backslash refused; containment
+    //   after resolving; /_tie/ and the root itself refused).
+    // - `outside root`: main's real-path check (realpath + isInside): symlinks out of the root.
+    // - `parser`: the URL parser drops dot segments (`..`, `%2e%2e`) before Tie sees the path: the
+    //   request is /outside.svg inside the root (missing there). Chromium's, not a Tie layer.
+    const refused = [
+      ['/..%2foutside.svg', 'route'],
+      ['/sub/..%2f..%2foutside.svg', 'route'],
+      ['/%252e%252e/outside.svg', 'route'],
+      ['/..%5coutside.svg', 'route'],
+      ['/', 'route'],
+      ['/_tie/markdown.js', 'route'],
+      ['/_tie/markdown-mermaid.js', 'route'],
+      ['/link.svg', 'outside root'],
+      ['/dirlink/outside.svg', 'outside root'],
+      ['/../outside.svg', 'parser'],
+      ['/%2e%2e/outside.svg', 'parser'],
+      ['/_tie/../outside.svg', 'parser'],
+    ]
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    for (const [p, layer] of refused) {
+      h.assert((await img(p)) === 'error', `refused: ${p}`)
+      const seen = layer === 'parser' ? '/outside.svg' : p
+      const why = layer === 'parser' ? '[a-z ]+' : layer
+      await h.waitLog(ctx, new RegExp(`\\[security\\] refused content ${why} tie-content://${token}${esc(seen)}$`, 'm'))
+    }
+    h.assert(!new RegExp(`refused content [a-z ]+ tie-content://${token}/(\\.\\.|%2e%2e)/`, 'i').test(ctx.appLog()), 'dot segments never reach Tie (URL parser)')
 
     // Closed tile: its token is forgotten (frame for it refused too).
     const url = f.url()
