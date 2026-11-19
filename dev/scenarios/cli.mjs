@@ -29,6 +29,30 @@ export default async (ctx, h) => {
   h.assert(pwd === realpathSync(dir), `relative --cwd: ${pwd}`)
   await ctx.tie('close', '--tile', rel)
 
+  // Default placement (no --at): beside the active tile (external caller: no caller tile), along
+  // its longer side (CLI.md "Placement"). Twice: the second splits the narrowed active tile.
+  {
+    const parentOf = (n, id) => {
+      if (!n || n.type === 'leaf') return null
+      const i = n.children.findIndex((c) => c.type === 'leaf' && c.id === id)
+      return i >= 0 ? { n, i } : n.children.map((c) => parentOf(c, id)).find(Boolean) ?? null
+    }
+    const a0 = (await h.list(ctx)).active
+    const added = []
+    for (let k = 0; k < 2; k++) {
+      const r = await h.rectOf(ctx, a0)
+      const dir = r.h > r.w ? 'col' : 'row'
+      const id = (await ctx.tie('add', 'terminal')).id
+      added.push(id)
+      const s = await ctx.tie('state')
+      const p = parentOf(s.tree, id)
+      h.assert(p && p.n.dir === dir && p.i > 0 && p.n.children[p.i - 1].id === a0, `bare add #${k + 1}: after ${a0} in a ${dir} split (${r.w}x${r.h}): ${JSON.stringify(s.tree)}`)
+      h.assert(s.active === a0, `bare add #${k + 1}: input stays on ${a0}`)
+    }
+    h.assert((await h.list(ctx)).tiles.filter((t) => added.includes(t.id)).every((t) => t.state === 'slotted'), 'bare adds slotted')
+    for (const id of added) await ctx.tie('close', '--tile', id)
+  }
+
   // list: flags of background-tab tiles come from their own tab.
   const a = (await h.list(ctx)).tiles[0].id
   await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')
@@ -52,6 +76,15 @@ export default async (ctx, h) => {
   // --shelve and --shelved are interchangeable.
   h.assert((await ctx.tie('move', '--tile', f, '--shelved')).state === 'shelved', 'move --shelved')
   h.assert((await ctx.tie('add', 'terminal', '--shelve')).state === 'shelved', 'add --shelve')
+
+  // move needs a placement; --at must name a board tile (f is shelved): refused, nothing added.
+  h.assert((await fails('move', '--tile', a))?.includes('move needs --at, --float, --shelve, --tab or --swap'), 'move without placement refused')
+  h.assert((await fails('move', '--tile', a, '--side', 'r'))?.includes('move needs --at'), 'move --side alone refused')
+  const nBefore = (await h.list(ctx)).tiles.length
+  h.assert((await fails('move', '--tile', a, '--at', f))?.includes(`not on board: ${f}`), 'move --at a shelved tile refused')
+  h.assert((await fails('add', 'terminal', '--at', f))?.includes(`not on board: ${f}`), 'add --at a shelved tile refused')
+  h.assert((await h.list(ctx)).tiles.length === nBefore, 'refused add: no tile')
+  h.assert((await h.tileOf(ctx, f)).state === 'shelved', 'refused move: f still shelved')
 
   // set: title and icon in one call; "" restores the automatic one; one field leaves the other.
   const auto = (await h.tileOf(ctx, a)).title
@@ -99,19 +132,18 @@ export default async (ctx, h) => {
 
   // focus: switches to the tile's tab, expands it, gives it input.
   const tabsBefore = (await h.list(ctx)).tabs.length
-  const [fa, fb] = await h.threeWaySplit(ctx).catch(async () => [(await h.list(ctx)).tiles[0].id, null])
-  if (fb) {
-    await h.clickButton(ctx, fb, 'collapse')
-    await h.press(ctx, 'Meta+t')
-    await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === tabsBefore + 1, 'cmd+T: new tab')
-    await ctx.tie('focus', '--tile', fb)
-    await h.eventually(ctx, async () => {
-      const fl = await h.list(ctx)
-      const t = fl.tiles.find((x) => x.id === fb)
-      h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
-      h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
-    })
-  }
+  const [, fb] = await h.threeWaySplit(ctx)
+  await h.clickButton(ctx, fb, 'collapse')
+  await h.press(ctx, 'Meta+t')
+  await h.waitFor(ctx, async () => (await h.list(ctx)).tabs.length === tabsBefore + 1, 'cmd+T: new tab')
+  h.assert((await h.tileOf(ctx, fb)).collapsed && (await h.list(ctx)).tab !== (await h.tileOf(ctx, fb)).tab, 'before focus: fb collapsed, on a hidden tab')
+  await ctx.tie('focus', '--tile', fb)
+  await h.eventually(ctx, async () => {
+    const fl = await h.list(ctx)
+    const t = fl.tiles.find((x) => x.id === fb)
+    h.assert(fl.tab === t.tab && fl.active === fb && !t.collapsed, 'focus: switched tab, expanded, active')
+    h.assert(fl.tabs.length === tabsBefore + 1, 'tab count unchanged by focus')
+  })
 
   // --help is the capability listing for agents: every command, kind and env var, in sections.
   {

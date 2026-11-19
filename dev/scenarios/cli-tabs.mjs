@@ -68,7 +68,6 @@ export default async (ctx, h) => {
   r = await ctx.tie('move', '--tile', b, '--tab', s1)
   l = await list()
   h.assert(l.tabs.length === 1 && l.tab === s1 && l.active === b, `last tile of the visible tab: tab closed, user follows (${JSON.stringify(l.tabs)})`)
-  await h.press(ctx, 'Meta+1')
 
   // add --tab new: a new tab with just that tile, not shown; add --tab <id> --focus: shown, input.
   const before = (await list()).active
