@@ -1,6 +1,7 @@
 // Markdown tile: tie add renders (headings, lists, highlighted code, theme colors), live reload for
 // every writer (in place, temp + rename, backup rename + new file), scroll kept, deleted → frozen +
-// Missing pill, recreated → updates, shelved → activity dot, theme changes reach the frame.
+// Missing pill, reload while missing → says why, keeps the last render, recreated → updates, shelved
+// → activity dot, theme changes reach the frame.
 import { mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -78,6 +79,15 @@ export default async (ctx, h) => {
     const p = await pill()
     h.assert(p.length === 1 && p[0].text === 'Missing' && p[0].color === 'red' && p[0].static, `Missing pill: ${JSON.stringify(p)}`)
     await ctx.shot('missing')
+    // Reload while missing: a modal says why; the tile keeps its last render and its pill.
+    await ctx.page.click(`.tile[data-id="${id}"] [data-nav="reload"]`)
+    await h.waitDialog(ctx, '.dialog-backdrop')
+    const why = await ctx.page.evaluate(() => ({ title: document.querySelector('.dialog h2')?.textContent, text: document.querySelector('.dialog p')?.textContent }))
+    h.assert(why.title === "Can't reload" && why.text.includes('No such file') && why.text.includes(f), `reload of a missing file: ${JSON.stringify(why)}`)
+    await ctx.page.click('.dialog .ok')
+    await h.waitNoDialog(ctx)
+    const mt = await h.tileOf(ctx, id)
+    h.assert(mt.doc.missing && !mt.error && (await h.mdState(ctx, id)).text.includes('Fourth') && (await pill()).length === 1, `still frozen, still missing: ${JSON.stringify(mt.doc)}`)
     writeFileSync(f, body('Fifth'))
     await h.waitFor(ctx, has('Fifth'), 'recreated file shows')
     h.assert(!(await h.tileOf(ctx, id)).doc.missing, 'not missing after recreate')

@@ -19,7 +19,7 @@ export default async (ctx, h) => {
   const index = (v) =>
     page(
       'Index',
-      `<h1 id="h">Index ${v}</h1><a id="to-b" href="b.html">to b</a> <a id="sub" href="sub/c.html">sub</a> <a id="other" href="../other/d.html">other</a> <a id="web" href="https://example.com/x?q=1">web</a> <a id="md" href="notes.md" target="_blank">notes</a> <a id="txt" href="log.txt">log</a> <a id="anchor" href="#end">end</a><p id="sib">${v > 1 ? 'sibling ' + v : ''}</p>${filler}<p id="end">end</p>`,
+      `<h1 id="h">Index ${v}</h1><a id="to-b" href="b.html">to b</a> <a id="sub" href="sub/c.html">sub</a> <a id="abs" href="/sub/c.html">abs</a> <a id="other" href="../other/d.html">other</a> <a id="web" href="https://example.com/x?q=1">web</a> <a id="md" href="notes.md" target="_blank">notes</a> <a id="txt" href="log.txt">log</a> <a id="anchor" href="#end">end</a><p id="sib">${v > 1 ? 'sibling ' + v : ''}</p>${filler}<p id="end">end</p>`,
       '<link rel="stylesheet" href="style.css">',
     )
   writeFileSync(join(dir, 'index.html'), index(1))
@@ -82,6 +82,27 @@ export default async (ctx, h) => {
     await h.clickIn(ctx, await fr(), '#sub')
     await shows('C')
     h.assert((await pg()).url.split('/')[2] === url0.split('/')[2], 'subfolder: same token')
+    await h.press(ctx, 'Meta+[')
+    await shows('Index')
+    // Root-absolute (/sub/c.html: from the root, not the disk's /) and own-origin (the token's full
+    // URL) links: in the root, same tile, same token; the link strip shows the real path.
+    const ab = await (await fr()).locator('#abs').boundingBox()
+    await ctx.page.mouse.move(ab.x + 5, ab.y + ab.height / 2)
+    await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === join(dir, 'sub', 'c.html'), 'root-absolute: link strip shows the path in the root')
+    await h.clickIn(ctx, await fr(), '#abs')
+    await shows('C')
+    p = await pg()
+    h.assert(p.path === join(dir, 'sub', 'c.html') && p.url.split('/')[2] === url0.split('/')[2], `root-absolute: in the root, same token: ${JSON.stringify(p)}`)
+    await h.press(ctx, 'Meta+[')
+    await shows('Index')
+    await (await fr()).evaluate(() => {
+      const a = Object.assign(document.createElement('a'), { id: 'own', href: location.origin + '/b.html', textContent: 'own' })
+      document.body.prepend(a)
+    })
+    await h.clickIn(ctx, await fr(), '#own')
+    await shows('B')
+    p = await pg()
+    h.assert(p.path === join(dir, 'b.html') && p.url.split('/')[2] === url0.split('/')[2], `own-origin URL: same tile, same token: ${JSON.stringify(p)}`)
     await h.press(ctx, 'Meta+[')
     await shows('Index')
     await h.clickIn(ctx, await fr(), '#other') // outside the page's folder: asks first
@@ -147,6 +168,16 @@ export default async (ctx, h) => {
     const again = (await ctx.tie('add', join(dir, 'index.html'), '--at', t0, '--side', 'r', '--cwd', dir)).id
     const fa = await h.htmlFrame(ctx, again)
     h.assert((await fa.evaluate(() => localStorage.getItem('k'))) === null, 'reopened: fresh storage')
+
+    // Crash: the page's renderer dies (CDP Page.crash on its frame's target) → "Page crashed" (after
+    // the navigation grace: a document's port also closes when it navigates), frame gone; no reload.
+    const cdp = await ctx.page.context().newCDPSession(fa)
+    await cdp.send('Page.crash').catch(() => {})
+    const err = await h.waitFor(ctx, async () => (await h.tileOf(ctx, again)).error, 'crashed page → tile error', 12000)
+    h.assert(err === 'Page crashed', `crash message: ${err}`)
+    h.assert(await ctx.page.isVisible(`.tile[data-id="${again}"] .tile-error`), 'error visible')
+    h.assert(!(await ctx.page.$(`.tile[data-id="${again}"] iframe`)), 'crashed frame removed')
+    h.assert(!(await h.tileOf(ctx, t0)).error && (await h.list(ctx)).tiles.length === 2, 'terminal untouched, tile stays')
   } finally {
     rmSync(base, { recursive: true, force: true })
   }

@@ -1,5 +1,5 @@
 // Image tiles: png / svg / ... by extension, fit to the tile (shrink only), click or `z` toggles
-// actual size (scrolls), reload on change (new revision, swapped in), broken image says so, file
+// actual size (scrolls), reload on change (new revision, swapped in; actual size stays actual), broken image says so, file
 // template + picker opens an image (kind by extension). Hidden window: real clicks and keys in the frame.
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -52,6 +52,18 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, () => view(s).then((x) => x.natural.w === 60 && x.loads === 2), 'svg reloaded on change')
     h.assert((await view(s)).rev !== v.rev, 'new revision')
 
+    // Changed while at actual size: the new image comes in at actual size too (mode kept).
+    const large = join(dir, 'large.svg')
+    writeFileSync(large, svg(1500, 1500, 'red'))
+    const l = await open(large, s)
+    h.assert((await view(l)).mode === 'fit' && (await view(l)).shown < 1500, `large svg: fit: ${JSON.stringify(await view(l))}`)
+    await h.clickIn(ctx, await h.contentFrame(ctx, l), '#img')
+    await h.eventually(ctx, async () => h.assert((await view(l)).mode === 'actual' && (await view(l)).shown === 1500, 'click: actual size'))
+    writeFileSync(large, svg(1600, 1600, 'blue'))
+    await h.waitFor(ctx, () => view(l).then((x) => x.natural.w === 1600 && x.loads === 2), 'large svg reloaded on change')
+    v = await view(l)
+    h.assert(v.mode === 'actual' && v.shown === 1600 && v.info === '1600 × 1600', `mode kept across the change: ${JSON.stringify(v)}`)
+
     // Not an image: message, no crash.
     const b = await open(join(dir, 'bad.png'), s)
     h.assert((await view(b)).errors === 1 && (await h.contentFrame(ctx, b).then((f) => f.isVisible('#msg'))), 'broken image: message')
@@ -59,9 +71,10 @@ export default async (ctx, h) => {
 
     // File template + picker (any file; kind by extension).
     const n = (await h.list(ctx)).tiles.length
+    const images = (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, t0, 'b'))
     await h.pick(ctx, png)
-    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length === 4 && (await h.list(ctx)).tiles.length === n + 1, 'template opens an image')
+    await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((x) => x.kind === 'image').length === images + 1 && (await h.list(ctx)).tiles.length === n + 1, 'template opens an image')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

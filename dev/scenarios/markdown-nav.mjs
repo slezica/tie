@@ -1,5 +1,6 @@
 // Nav bar (markdown): path shown (not editable), back / forward buttons follow history, reload
-// (button, cmd+R) re-reads the file and keeps the scroll, cmd+L does nothing (not editable).
+// (button, cmd+R) re-reads the file and keeps the scroll, back / forward restore each page's scroll
+// (a new page starts at the top), cmd+L does nothing (not editable).
 // Terminals have no nav bar; collapsed tiles hide it.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,7 +10,7 @@ export default async (ctx, h) => {
   mkdirSync(dir, { recursive: true })
   const filler = Array.from({ length: 80 }, (_, i) => `Line ${i}.`).join('\n\n')
   writeFileSync(join(dir, 'a.md'), `# A\n\n[to b](b.md)\n\n${filler}\n`)
-  writeFileSync(join(dir, 'b.md'), '# B\n')
+  writeFileSync(join(dir, 'b.md'), `# B\n\n${filler}\n`)
   try {
     const page = ctx.page
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
@@ -67,6 +68,22 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => opens() > n0 + 1, 'cmd+R re-reads')
     h.assert(/\[keys\] nav-reload/.test(ctx.appLog()), 'cmd+R is the nav-reload action')
     h.assert((await h.tileOf(ctx, id)).doc.history.length === 2, 'reload adds no history')
+
+    // Back / forward: each page's scroll restored; a pushed page starts at the top.
+    const scrollY = async () => (await h.mdState(ctx, id)).scrollY
+    const scrollAt = (y) => h.contentFrame(ctx, id).then((f) => f.evaluate((y) => scrollTo(0, y), y))
+    await scrollAt(900)
+    await page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), id)
+    await (await h.contentFrame(ctx, id)).evaluate(() => window.markdown.port.postMessage({ verb: 'followLink', href: 'b.md', newTile: false }))
+    await h.waitFor(ctx, shows('B'), 'b.md again')
+    h.assert((await scrollY()) === 0, `pushed page at the top (${await scrollY()})`)
+    await scrollAt(400)
+    await page.click(`.tile[data-id="${id}"] [data-nav="back"]`)
+    await h.waitFor(ctx, shows('A'), 'back to a.md')
+    h.assert(Math.abs((await scrollY()) - 900) < 5, `back: a.md scroll restored (${await scrollY()})`)
+    await page.click(`.tile[data-id="${id}"] [data-nav="forward"]`)
+    await h.waitFor(ctx, shows('B'), 'forward to b.md')
+    h.assert(Math.abs((await scrollY()) - 400) < 5, `forward: b.md scroll restored (${await scrollY()})`)
 
     // cmd+L: not editable → nothing takes focus.
     await h.press(ctx, 'Meta+l')
