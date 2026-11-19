@@ -1,5 +1,5 @@
-// Markdown tile: tie add renders (headings, lists, highlighted code, theme colors), live reload for
-// every writer (in place, temp + rename, backup rename + new file), scroll kept, deleted → frozen +
+// Markdown tile: tie add renders (headings, lists, highlighted code, theme colors), live reload
+// (backup rename + new file; other writers: watch.test), scroll kept, deleted → frozen +
 // Missing pill, reload while missing → says why, keeps the last render, recreated → updates, shelved
 // → activity dot, theme changes reach the frame.
 import { mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs'
@@ -52,11 +52,10 @@ export default async (ctx, h) => {
       h.assert(dr === 'rgb(80, 250, 123)', `Dracula: string in its ANSI green (${dr})`)
     })
 
-    // In place, scrolled down: text updates, scroll kept.
+    // A change, scrolled down: text updates, scroll kept. One writer here (backup rename + new file, as
+    // vim: the file is briefly gone); the others (in place, temp + rename): watch.test.
     await fr.evaluate(() => scrollTo(0, 600))
     const writes = [
-      ['in place', 'Second', () => writeFileSync(f, body('Second'))],
-      ['temp + rename', 'Third', () => (writeFileSync(join(dir, '.doc.md.tmp'), body('Third')), renameSync(join(dir, '.doc.md.tmp'), f))],
       ['backup rename + new', 'Fourth', () => (renameSync(f, f + '~'), writeFileSync(f, body('Fourth')), rmSync(f + '~'))],
     ]
     for (const [how, title, write] of writes) {

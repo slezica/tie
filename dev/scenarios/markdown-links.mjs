@@ -1,7 +1,7 @@
 // Markdown links: plain click navigates in the tile (other directories too), cmd+[ / cmd+] go back
 // and forward, cmd-click opens a new tile beside, anchors scroll, http(s) goes to the system
 // browser, files of other kinds open beside in their kind (text by content, html; and html → markdown
-// back), missing targets say so. Keyboard scrolls the focused frame.
+// back), missing targets say so. (Keyboard scrolling in a focused frame: markdown-nav.)
 // Hidden window: real clicks into the frame.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -65,15 +65,6 @@ export default async (ctx, h) => {
     const y1 = (await h.mdState(ctx, id)).scrollY
     h.assert(y1 > y0 + 200 && (await doc()).path.endsWith('/a.md'), `anchor scrolls (${y0} -> ${y1})`)
     await (await fr()).evaluate(() => scrollTo(0, 0))
-
-    // Keyboard scroll in the focused frame.
-    await ctx.page.keyboard.press('PageDown')
-    await h.eventually(ctx, async () => h.assert((await h.mdState(ctx, id)).scrollY > 100, 'PageDown scrolls the frame'))
-    // Smooth scroll over (same position twice), else it carries on past the reset.
-    let y = -1
-    await h.waitFor(ctx, async () => y === (y = (await h.mdState(ctx, id)).scrollY), 'PageDown scroll ends')
-    await (await fr()).evaluate(() => scrollTo(0, 0))
-    await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).scrollY === 0, 'scrolled back to the top')
 
     // A file outside the document's folder: asks first (full path shown); Cancel → nothing; Open →
     // the same tile (same kind).
