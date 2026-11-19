@@ -124,6 +124,10 @@ ${path.includes('auto') ? "<script>setTimeout(() => window.open('/popup-auto'), 
       // A download a script starts with no input: asks too, saves nothing until you say so.
       const auto = (await ctx.tie('add', s.url + '/autodl', '--at', t0, '--side', 'b')).id
       await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.save-download'), 'script download: asks')
+      // One dialog at a time: a download asked while it is open is dropped.
+      await h.guestClick(ctx, p, d.x + 5, d.y + d.height / 2)
+      await h.waitFor(ctx, async () => /download request dropped \(dialog open\)/.test(log()), 'second download while asking: dropped (logged)')
+      h.assert((await ctx.page.locator('.dialog.save-download').count()) === 1, 'one download dialog at a time')
       await ctx.page.click('.dialog .cancel')
       await ctx.sleep(500) // absence: nothing saved
       h.assert(files().length === 2, `nothing saved by it (${files().length} files)`)

@@ -110,4 +110,14 @@ launch && ok "incomplete stage: current version starts" || bad "incomplete stage
 stop
 [[ "$(fp "$app")" == "old-$$" && -e "$stage/Tie.app" ]] && grep -q '\[update\] stage incomplete' "$applog" && ok "incomplete stage: logged, left" || bad "incomplete stage handling"
 
+# SECURITY: a stage that is a symlink (to a complete bundle elsewhere) is refused: logged, not followed.
+cp -R "$app" "$tmp/elsewhere.app"
+echo "new-$$" > "$tmp/elsewhere.app/Contents/Resources/fingerprint"
+rm -rf "$stage/Tie.app"
+ln -s "$tmp/elsewhere.app" "$stage/Tie.app"
+: > "$applog"
+launch && ok "symlinked stage: current version starts" || bad "symlinked stage: no start"
+stop
+[[ "$(fp "$app")" == "old-$$" && -L "$stage/Tie.app" ]] && grep -q '\[update\] stage refused' "$applog" && ok "symlinked stage: refused, logged" || bad "symlinked stage handling"
+
 exit $failed

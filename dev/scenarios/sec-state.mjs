@@ -1,7 +1,7 @@
 // Security: the state dir (~/.config/tie) and what Tie writes there are private to the user
-// (0700 / 0600: the socket runs commands as the user; logs hold commands, paths, URLs); an
+// (0700 / 0600: the socket runs commands as the user; logs hold commands, paths, URLs; settings too); an
 // oversized socket request line drops that connection, the server lives on.
-import { statSync } from 'node:fs'
+import { statSync, chmodSync } from 'node:fs'
 import { connect } from 'node:net'
 import { stateDir, readInfo } from '../lib.mjs'
 
@@ -11,6 +11,13 @@ export default async (ctx, h) => {
   h.assert(mode(stateDir) === '700', `state dir 0700 (${mode(stateDir)})`)
   h.assert(mode(info.socket) === '600', `socket 0600 (${mode(info.socket)})`)
   h.assert(mode(`${stateDir}/${ctx.instance}.json`) === '600', `info file 0600`)
+  h.assert(mode(info.log) === '600', `log 0600 (${mode(info.log)})`)
+  // Settings file: 0600 after a Save, even over a file an editor left world-readable (the harness seed: 0644).
+  const settings = (await ctx.page.evaluate(() => window.tie.settings.get())).path
+  chmodSync(settings, 0o644)
+  await h.openSettings(ctx)
+  await ctx.page.locator('.save').click()
+  await h.waitFor(ctx, () => mode(settings) === '600', `settings file 0600 after Save (${mode(settings)})`)
 
   // A line over the cap: connection dropped, nothing executed; the next client is fine.
   const dropped = await new Promise((resolve) => {

@@ -223,6 +223,17 @@ export default async (ctx, h) => {
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && (ctx.appLog().match(/refused link t[a-z2-9]+ scheme/g) ?? []).length >= 3, 'other schemes refused')
     await p.assertUntouched('opens', 300)
 
+    // New tiles from the page: at most one per second (a page can hold, or fire, many links).
+    const kinds = async () => (await h.list(ctx)).tiles.map((x) => x.kind).sort().join()
+    const before = await kinds()
+    await h.clickIn(ctx, fe, '#h')
+    await fe.evaluate(() => (window.open('n.md'), window.open('data.json'))) // same task: no second in between
+    await h.waitFor(ctx, async () => /new tile throttled t[a-z2-9]+ .*data\.json/.test(ctx.appLog()), 'second new tile throttled (logged)')
+    await h.waitFor(ctx, async () => (await kinds()) === [...before.split(','), 'markdown'].sort().join(), 'first link opened beside')
+    await ctx.sleep(400) // absence: the throttled link opens nothing
+    h.assert((await kinds()) === [...before.split(','), 'markdown'].sort().join(), `one new tile, not two: ${await kinds()}`)
+    await ctx.tie('close', '--tile', (await h.list(ctx)).tiles.find((x) => x.kind === 'markdown').id)
+
     // Nav lock: other tokens, /_tie/ files: cancelled (frame stays, no error).
     for (const target of [`tie-content://${'e'.repeat(32)}/evil.html`, '/_tie/markdown.html']) {
       const n = (ctx.appLog().match(/blocked navigation subframe/g) ?? []).length
