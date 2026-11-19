@@ -223,7 +223,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     setMeta(id, { ...(p.title !== undefined && { title: String(p.title) }), ...(p.icon !== undefined && { icon: String(p.icon) }) })
     return tileInfo(id)
   },
-  // Full internal state (harness; answered in every build, not listed in `tie --help`).
+  // Full internal state (harness; dev builds only: refused in `initDriver`; not in `tie --help`).
   state: () => ({
     tree: S.tree,
     floats: S.floats,
@@ -271,7 +271,7 @@ export function initDriver(o: { dev: boolean }) {
     debug('rpc', method, params)
     try {
       const fn = methods[method]
-      if (!fn) throw new Error(`unknown method: ${method}`)
+      if (!fn || (method === 'state' && !devBuild)) throw new Error(`unknown method: ${method}`)
       const p = (params ?? {}) as Params
       if (method === 'add' || method === 'replace') await resolveOpen(p) // async: before choosing the space
       // Act in the tab of the tile concerned (or the caller's terminal), else the visible tab.

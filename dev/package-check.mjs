@@ -47,6 +47,15 @@ try {
     const list = JSON.parse(execFileSync(join(app, 'Contents/Resources/bin/tie'), ['list', '--json'], { env, encoding: 'utf8' }))
     if (list.tiles?.length === 1) console.log('ok   smoke: boots, CLI answers')
     else fail(`smoke: unexpected list ${JSON.stringify(list)}`)
+    // Dev-only socket methods are refused by a packaged build (`state`: internal dump).
+    let stateErr = ''
+    try {
+      execFileSync(join(app, 'Contents/Resources/bin/tie'), ['state'], { env, encoding: 'utf8', stdio: 'pipe' })
+    } catch (e) {
+      stateErr = String(e.stderr)
+    }
+    if (/unknown method: state/.test(stateErr)) console.log('ok   smoke: `tie state` refused (dev only)')
+    else fail(`smoke: \`tie state\` answered in a packaged build: ${stateErr}`)
     // Markdown viewer is packaged (not a dev-only viewer): a file opens without error.
     const md = join(ROOT, 'tmp', `${instance}.md`)
     writeFileSync(md, '# smoke\n\n```mermaid\nflowchart LR\n  A --> B\n```\n')
