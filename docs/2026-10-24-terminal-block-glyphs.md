@@ -46,6 +46,13 @@ Symptom: QR codes printed by `qr` and `offer` (half blocks `█▀▄`) show hor
   - #6115 wrong scale after DPR change (PR, open since 2026-08-18, no comments).
   - #4379 dozens of terminals on one page (issue, open since 2023).
 
+# Upstream status (2026-11-14 re-check)
+
+- No new stables: xterm 6.0.0 / addon-webgl 0.19.0 / addon-image 0.9.0 (all 2025-12-22). Betas: 6.1.0-beta.337, 0.20.0-beta.330, 0.10.0-beta.332 (2026-11-08).
+- #6068 (dispose keeps the GL context) **closed 2026-10-29**, fixed by #6069 (merged to master, milestone 7.0.0). Verified in `0.20.0-beta.330` bundle: `WEBGL_lose_context` + `loseContext()` on dispose, `_cursorBlinkStateManager` registered (#5817). Both leak workarounds in option B become unnecessary on the beta.
+- Still open, no milestone: #6074 (atlas unbounded), #6187 (clamp atlas, PR), #6115 (DPR scale, PR), #4379 (dozens of terminals), #6137 (WebGPU addon, PR).
+- Prior art added: several Electron multi-terminal apps hit the 16-context cap in 2026 and converged on "WebGL for visible terminals only, park hidden ones in DOM, evict oldest" (e.g. `dPeluChe/exegol#443`, `rdfitted/hive-manager#282`). Same shape as option B.
+
 # Research: WebGL renderer
 
 Delegated research, 2026-10-24. Probes ran as ad-hoc harness scenarios (no `src/` changes): addon bundle evaluated into the UI page over CDP, Terminals found via `Runtime.queryObjects`. Probe scripts were not kept.
