@@ -228,9 +228,17 @@ export function serveContent(ses: Session) {
       const html = body.toString('utf8').replaceAll('%NONCE%', nonce)
       return new Response(html, { headers: { ...HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': contentCsp(policyOf(r.entry.kind)!, nonce, token) } })
     }
-    // SECURITY: symlinks inside the root may point anywhere: the real path must stay inside too.
-    const real = await realpath(r.file).catch(() => null)
-    if (!real || !isInside(r.entry.root, real)) return refuse(req.url, 'outside root')
+    // SECURITY: symlinks inside the root may point anywhere: the real path must stay inside too. A
+    // path that doesn't resolve is refused all the same, logged as what it is: `not found` (missing,
+    // dangling symlink), else `unresolved` (permissions, loops).
+    let real: string
+    try {
+      real = await realpath(r.file)
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      return refuse(req.url, code === 'ENOENT' || code === 'ENOTDIR' ? 'not found' : 'unresolved')
+    }
+    if (!isInside(r.entry.root, real)) return refuse(req.url, 'outside root')
     const st = await stat(real).catch(() => null)
     if (!st?.isFile()) return refuse(req.url, 'not a file')
     const doc = isDocKind(r.entry.kind)

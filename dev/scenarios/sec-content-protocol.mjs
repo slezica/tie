@@ -26,8 +26,9 @@ export default async (ctx, h) => {
     // - `route`: @core/content contentFile (decoded once; leftover %, backslash refused; containment
     //   after resolving; /_tie/ and the root itself refused).
     // - `outside root`: main's real-path check (realpath + isInside): symlinks out of the root.
+    // - `not found`: the same check, a path that doesn't resolve (missing file): refused, not an escape.
     // - `parser`: the URL parser drops dot segments (`..`, `%2e%2e`) before Tie sees the path: the
-    //   request is /outside.svg inside the root (missing there). Chromium's, not a Tie layer.
+    //   request is /outside.svg inside the root (missing there: `not found`). Chromium's, not a Tie layer.
     const refused = [
       ['/..%2foutside.svg', 'route'],
       ['/sub/..%2f..%2foutside.svg', 'route'],
@@ -38,6 +39,7 @@ export default async (ctx, h) => {
       ['/_tie/markdown-mermaid.js', 'route'],
       ['/link.svg', 'outside root'],
       ['/dirlink/outside.svg', 'outside root'],
+      ['/missing.svg', 'not found'],
       ['/../outside.svg', 'parser'],
       ['/%2e%2e/outside.svg', 'parser'],
       ['/_tie/../outside.svg', 'parser'],
@@ -46,7 +48,7 @@ export default async (ctx, h) => {
     for (const [p, layer] of refused) {
       h.assert((await img(p)) === 'error', `refused: ${p}`)
       const seen = layer === 'parser' ? '/outside.svg' : p
-      const why = layer === 'parser' ? '[a-z ]+' : layer
+      const why = layer === 'parser' ? 'not found' : layer
       await h.waitLog(ctx, new RegExp(`\\[security\\] refused content ${why} tie-content://${token}${esc(seen)}$`, 'm'))
     }
     h.assert(!new RegExp(`refused content [a-z ]+ tie-content://${token}/(\\.\\.|%2e%2e)/`, 'i').test(ctx.appLog()), 'dot segments never reach Tie (URL parser)')

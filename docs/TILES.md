@@ -188,7 +188,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | other | file inside the root (`contentFile`, then real path inside real root). Document tokens (html): `.html`/`.htm` with the bootstrap injected, every file with `documentCsp` (`DOC_TYPES`) |
 
 - Token: 128-bit random hex, minted so the URL keeps it (all-digit hosts become IPv4). Registry: token → `{root (real path), kind, frame}`.
-- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out, non-files.
+- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out (`outside root`), paths that don't resolve (`not found`: missing, dangling symlink), non-files.
 - Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
 - Viewer CSP: from the policy row (above). Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
 - Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the UI, first frame binds the token.
