@@ -9,7 +9,7 @@ export const hiddenWindow = true
 const svg = (w, h, fill) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`
 
 export default async (ctx, h) => {
-  const dir = join(process.cwd(), 'tmp', `image-${process.pid}`)
+  const dir = join(process.cwd(), 'tmp', `viewer-image-${process.pid}`)
   mkdirSync(dir, { recursive: true })
   const png = join(dir, 'icon.png')
   copyFileSync(join(process.cwd(), 'build/icon.png'), png) // 1024 × 1024

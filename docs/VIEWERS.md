@@ -70,9 +70,9 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 
 ## Scenarios
 
-- `text`, `image`, `hex`: functional (kinds by content, highlighting, live, keys, fit/actual, virtualization, file template).
+- `viewer-text`, `viewer-image`, `viewer-hex`: functional (kinds by content, highlighting, live, keys, fit/actual, virtualization). `viewer-open`: `tie add`, Finder drops, file template + picker (any kind: main decides). `viewer-reload`: viewer rebuilds reload open tiles.
 - `sec-viewers`: hostile text literal (HTML, escapes, bidi), SVG with scripts/handlers/external refs inert (no probe hit), caps (CLI errors), main refusing files as other kinds.
-- `html`: sibling CSS, in-folder / subfolder / other-folder navigation, back/forward, page navigation (meta refresh) followed, other kinds beside, web confirm (Cancel / Open), anchors, live reload (page, sibling) with scroll kept, cmd+R, fresh storage on reopen.
+- `html`: sibling CSS, in-folder / subfolder / other-folder navigation, back/forward, page navigation (meta refresh) followed, other kinds beside, anchors, live reload (page, sibling) with scroll kept, cmd+R, page crash. Web confirm: `sec-html`; storage per open: `sec-storage`.
 - `html-static`: no inline / file / module scripts, no handlers; CSS applies; the "Scripts blocked" tag (not a toggle), none on a script-free page; bootstrap links and strip work; title never from `<title>`.
 - `sec-html`: exfiltration (CSP violation per vector + probes untouched, WebRTC STUN/TURN), confirm paths, gesture, UI/port/other tokens/traversal/`/_tie/`, navigation away and loops, opaque frames can't fetch.
 

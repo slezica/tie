@@ -8,7 +8,7 @@ import { join } from 'node:path'
 export const hiddenWindow = true
 
 export default async (ctx, h) => {
-  const R = join(process.cwd(), 'tmp', `rootcwd-${process.pid}`)
+  const R = join(process.cwd(), 'tmp', `cwd-roots-${process.pid}`)
   const proj = join(R, 'proj')
   mkdirSync(join(proj, 'docs'), { recursive: true })
   mkdirSync(join(proj, 'other'), { recursive: true })

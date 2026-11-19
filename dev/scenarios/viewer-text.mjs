@@ -7,7 +7,7 @@ import { join } from 'node:path'
 export const hiddenWindow = true
 
 export default async (ctx, h) => {
-  const dir = join(process.cwd(), 'tmp', `text-${process.pid}`)
+  const dir = join(process.cwd(), 'tmp', `viewer-text-${process.pid}`)
   mkdirSync(dir, { recursive: true })
   const code = join(dir, 'app.ts')
   let lines = Array.from({ length: 400 }, (_, i) => `const v${i} = ${i} // line ${i}`)

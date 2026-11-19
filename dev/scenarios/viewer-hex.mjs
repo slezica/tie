@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export default async (ctx, h) => {
-  const dir = join(process.cwd(), 'tmp', `hex-${process.pid}`)
+  const dir = join(process.cwd(), 'tmp', `viewer-hex-${process.pid}`)
   mkdirSync(dir, { recursive: true })
   const small = join(dir, 'small.bin')
   const bytes = Buffer.from([0x48, 0x69, 0x00, 0x3c, 0x62, 0x3e, 0x26, 0x7f, 0xff, ...Array(23).fill(0x41)]) // 32 bytes, NUL: binary
@@ -56,7 +56,7 @@ export default async (ctx, h) => {
     await ctx.shot('hex')
 
     // Empty file (no extension → text). (File template + picker: main decides the kind as for tie add,
-    // markdown-open.)
+    // viewer-open.)
     writeFileSync(join(dir, 'empty'), '')
     const e = (await ctx.tie('add', join(dir, 'empty'), '--at', b)).id
     h.assert((await h.tileOf(ctx, e)).kind === 'text', 'empty file: text')

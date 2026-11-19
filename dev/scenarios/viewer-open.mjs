@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export default async (ctx, h) => {
-  const dir = join(process.cwd(), 'tmp', `mdopen-${process.pid}`)
+  const dir = join(process.cwd(), 'tmp', `viewer-open-${process.pid}`)
   mkdirSync(dir, { recursive: true })
   const md = join(dir, 'notes.md')
   const md2 = join(dir, 'Other.MARKDOWN')

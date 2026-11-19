@@ -22,7 +22,7 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'page.html'), '<!doctype html><title>page</title><a id="md" href="b.md" style="display:block;padding:20px">to b.md</a>')
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--cwd', dir)).id // --cwd: root = the folder (root-cwd covers wider roots)
+    const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--cwd', dir)).id // --cwd: root = the folder (cwd-roots covers wider roots)
     await h.waitMd(ctx, id, 'A', 'a.md')
     const fr = () => h.contentFrame(ctx, id)
     const doc = async () => (await h.tileOf(ctx, id)).doc
@@ -48,7 +48,7 @@ export default async (ctx, h) => {
     await h.waitMd(ctx, id, 'A', 'back again')
 
     // A subfolder: inside the root (same token), its relative image resolves from the document's
-    // place in the root, anchor scrolled to. (Another root: the outside link below, root-cwd.)
+    // place in the root, anchor scrolled to. (Another root: the outside link below, cwd-roots.)
     await h.clickIn(ctx, await fr(), 'a >> text=to c')
     await h.waitMd(ctx, id, 'C', 'sub/c.md')
     const src1 = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)

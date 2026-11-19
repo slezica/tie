@@ -63,7 +63,7 @@ Net: `cd` the first terminal of a tab into a project; everything opened from the
 | Browser | host + path of the current URL (no scheme, trailing `/` stripped); before any URL, the start URL's; nothing → `browser` |
 
 - `tie list --json`: `cwd` per tile.
-- Scenarios: `cwd-split` (per kind, titles, `cd`, cmd+D from a terminal: fresh read), `cwd-templates` (shelf, empty board, file tile edge, OS drop, file template, terminal edge: fresh read), `cwd-links` (links beside), `root-cwd` (roots: rule, navigation, `--root`, `/` dialog, html).
+- Scenarios: `cwd-split` (per kind, titles, `cd`, cmd+D from a terminal: fresh read), `cwd-templates` (shelf, empty board, file tile edge, OS drop, file template, terminal edge: fresh read), `cwd-links` (links beside), `cwd-roots` (roots: rule, navigation, `--root`, `/` dialog, html).
 
 ## Limitations
 
