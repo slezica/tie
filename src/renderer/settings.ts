@@ -57,6 +57,9 @@ export async function settingsLoadDialog(info: SettingsInfo) {
   else await infoDialog("Couldn't recreate the settings file", r.message)
 }
 
+// Inputs Enter is done with (settings panel keydown); checkboxes, buttons: not these.
+const TEXT_INPUTS = new Set(['text', 'number', 'search', 'url', 'email', 'password', 'tel'])
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
 let opening = false
@@ -76,7 +79,7 @@ function build(info: SettingsInfo) {
   panel = document.createElement('div')
   panel.className = 'settings-backdrop'
   panel.innerHTML = `
-    <div class="settings" role="dialog" aria-label="Settings">
+    <div class="settings" role="dialog" aria-label="Settings" tabindex="-1">
       <div class="settings-banner" role="alert" hidden>
         <div class="text"><p class="msg"></p><p class="reason" hidden></p></div>
         <button class="ignore">Ignore</button>
@@ -319,7 +322,15 @@ function build(info: SettingsInfo) {
   panel.addEventListener('keydown', (e) => {
     e.stopPropagation()
     // Enter never saves: only the Save button does (Enter on a focused button presses that button).
-    if (e.key === 'Escape') cancel()
+    if (e.key === 'Escape') return cancel()
+    // Enter in a text / number field or a select: done with it ("I set the value"). Focus goes to
+    // the panel itself, which keeps its keys (Escape) and suspends shortcuts. Capture fields: their own.
+    const t = e.target as HTMLElement
+    const field = t instanceof HTMLSelectElement || (t instanceof HTMLInputElement && TEXT_INPUTS.has(t.type) && !t.classList.contains('capture-field'))
+    if (e.key === 'Enter' && !e.isComposing && field) {
+      e.preventDefault()
+      $('.settings').focus()
+    }
   })
   show(page)
   if (error) showErrors([{ field: 'file', message: error }])

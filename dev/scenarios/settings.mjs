@@ -70,6 +70,19 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Enter')
   await ctx.sleep(300) // absence: Enter in a field never saves or closes
   h.assert(await ctx.page.isVisible('.settings'), 'Enter in a field keeps the panel open')
+  // Enter is done with a text / number field or a select: it loses focus to the panel (which keeps
+  // Escape); value kept.
+  const panelFocused = () => ctx.page.evaluate(() => document.activeElement?.classList.contains('settings'))
+  h.assert(await panelFocused(), 'Enter unfocused the text field')
+  h.assert((await ctx.page.inputValue('#set-shell')) === 'bash --norc', 'value kept after Enter')
+  for (const sel of ['#set-terminal-title', '#set-font-size']) {
+    if (sel === '#set-font-size') await ctx.page.locator('nav button[data-page="appearance"]').click()
+    await ctx.page.focus(sel)
+    await ctx.page.keyboard.press('Enter')
+    await h.eventually(ctx, async () => h.assert(await panelFocused(), `Enter unfocused ${sel}`))
+  }
+  h.assert(await ctx.page.isVisible('.settings'), 'Enter in a select / number field keeps the panel open')
+  await ctx.page.locator('nav button[data-page="terminal"]').click()
   await ctx.page.click('.settings button.save')
   await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'closed on Save'))
   const t = await ctx.tie('add', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
