@@ -6,6 +6,7 @@ import { newTab, cycleTab, switchTabIndex } from './tabs'
 import { requestCloseTile, requestCloseTab, requestCloseGroup } from './close'
 import { askQuit } from './quit'
 import type { Action } from '@core/keymap'
+import { neighbor as rank } from '@core/focus'
 import { kindSpec } from './kinds'
 import { navAction, focusLocation } from './nav'
 import { templateOpts } from './drag'
@@ -150,34 +151,17 @@ async function fileBeside(side: Side) {
   withSpace(space, () => openTile(picked.kind, { type: 'slot', at: null, side }, picked.opts))
 }
 
-// Nearest visible tile in a direction from the active one (slotted and floating), or null. Prefers
-// tiles overlapping on the perpendicular axis, then the smallest gap along the axis, then the
-// smallest perpendicular offset, then the most recently used (like i3).
+// Nearest visible tile in a direction from the active one (slotted and floating), or null. Ranking:
+// @core/focus `neighbor` (overlap, gap, offset, most recently used).
 function neighbor(dir: Side): TileId | null {
   const from = S.active ? S.rects.get(S.active) : null
   if (!from || !S.active) return null
-  const horizontal = dir === 'l' || dir === 'r'
-  const sign = dir === 'r' || dir === 'b' ? 1 : -1
-  const cx = (r: Rect) => r.x + r.w / 2
-  const cy = (r: Rect) => r.y + r.h / 2
-  let best: { id: TileId; score: number[] } | null = null
-  for (const [id, r] of S.rects) {
+  const candidates: { id: TileId; rect: Rect }[] = []
+  for (const [id, rect] of S.rects) {
     const loc = location(id)
-    if (id === S.active || (loc !== 'slotted' && loc !== 'floating')) continue
-    const along = horizontal ? cx(r) - cx(from) : cy(r) - cy(from)
-    if (along * sign <= 1) continue
-    const gap = horizontal
-      ? sign > 0 ? r.x - (from.x + from.w) : from.x - (r.x + r.w)
-      : sign > 0 ? r.y - (from.y + from.h) : from.y - (r.y + r.h)
-    const overlap = horizontal
-      ? Math.min(from.y + from.h, r.y + r.h) - Math.max(from.y, r.y)
-      : Math.min(from.x + from.w, r.x + r.w) - Math.max(from.x, r.x)
-    const offset = horizontal ? Math.abs(cy(r) - cy(from)) : Math.abs(cx(r) - cx(from))
-    const mru = S.mru.indexOf(id)
-    const score = [overlap > 0 ? 0 : 1, Math.max(0, gap), Math.round(offset), mru < 0 ? Infinity : mru] // ties: most recently used
-    if (!best || compare(score, best.score) < 0) best = { id, score }
+    if (id !== S.active && (loc === 'slotted' || loc === 'floating')) candidates.push({ id, rect })
   }
-  return best?.id ?? null
+  return rank(from, candidates, S.mru, dir) ?? null
 }
 
 function focusDirection(dir: Side) {
@@ -198,9 +182,4 @@ function toggleShelf() {
   if (!id) return
   if (location(id) !== 'shelved') return place(id, { type: 'shelf' })
   if (S.pinned === id || S.revealed === id) place(id, besidePlacement(null))
-}
-
-function compare(a: number[], b: number[]): number {
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]
-  return 0
 }
