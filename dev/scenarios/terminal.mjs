@@ -44,11 +44,11 @@ export default async (ctx, h) => {
   await ctx.tie('close', '--tile', ok)
   // Sizes stay in sync through template spawn, moves, float, shelve.
   await h.spawnFromTemplate(ctx, b, 'b')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx))
+  await h.assertPtySizes(ctx)
   const [x] = (await h.list(ctx)).tiles.map((t) => t.id)
   await ctx.tie('move', '--tile', x, '--float')
   await ctx.tie('move', '--tile', b, '--shelve')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx))
+  await h.assertPtySizes(ctx)
 
   await ctx.shot('after')
 }

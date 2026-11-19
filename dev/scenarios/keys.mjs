@@ -13,7 +13,7 @@ export default async (ctx, h) => {
   const c = await h.waitFor(ctx, async () => { const x = await active(); return x !== b && x }, 'cmd+shift+D: new tile active')
   s = await h.state(ctx)
   h.assert(s.tree.children[1].dir === 'col' && s.tree.children[1].children.map((n) => n.id).join() === [b, c].join(), 'cmd+shift+D: below')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx))
+  await h.assertPtySizes(ctx)
   await ctx.shot('splits')
 
   await moves('Meta+ArrowUp', b, 'up: c -> b')

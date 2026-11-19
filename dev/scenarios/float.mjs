@@ -81,5 +81,5 @@ export default async (ctx, h) => {
   await h.drag(ctx, { x: se.x + se.width / 2, y: se.y + se.height / 2 }, { x: rf2.x + 10, y: rf2.y + 10 }, { steps: 5 })
   c2 = await own(f2)
   h.assert(c2.w === 200 && c2.h === 120, `minimum size 200×120 (${JSON.stringify(c2)})`)
-  await h.eventually(ctx, () => h.assertPtySizes(ctx))
+  await h.assertPtySizes(ctx)
 }

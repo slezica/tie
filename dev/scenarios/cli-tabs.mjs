@@ -69,7 +69,7 @@ export default async (ctx, h) => {
   const z = (await ctx.tie('add', 'terminal', '--tab', s4, '--focus')).id
   l = await list()
   h.assert(l.tab === s4 && l.active === z && tabTiles(l, s4).length === 2, 'add --tab --focus: shown, new tile active')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
+  await h.assertPtySizes(ctx)
   await h.press(ctx, 'Meta+1')
   await h.waitFor(ctx, async () => (await list()).tab === s1, 'cmd+1: tab 1')
 
@@ -84,7 +84,7 @@ export default async (ctx, h) => {
   const want = order.map((id) => (id === a ? b : id === b ? a : id))
   h.assert(h.leafIds(s.tree).join() === want.join(), `swap a, b: ${h.leafIds(s.tree)} (want ${want})`)
   h.assert(JSON.stringify(s.tree.sizes) === sizes && s.active === act, 'swap: sizes kept, input unchanged')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
+  await h.assertPtySizes(ctx)
   await ctx.shot('swapped')
 
   // --swap, shelved ↔ slotted: x takes a's slot, a goes to x's shelf place.

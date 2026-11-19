@@ -89,7 +89,7 @@ export default async (ctx, h) => {
   h.assert((await tabOf(b)) === t2 && l.tab === t2 && l.active === b, `b moved to tab 2, shown, active (tab ${l.tab}, active ${l.active})`)
   h.assert((await tabsOf(t1)).join() === a, 'tab 1 keeps a')
   h.assert(l.tabs.find((t) => t.id === t1).active === a, 'a still active in tab 1')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
+  await h.assertPtySizes(ctx)
   await ctx.shot('moved')
 
   // A tab's last tile onto another tab: the emptied tab closes.
@@ -113,7 +113,7 @@ export default async (ctx, h) => {
   h.assert(l.tabs.length === 2 && t3 !== t2 && (await tabsOf(t3)).join() === a && l.active === a, `new tab with only a (${JSON.stringify(l.tabs)})`)
   h.assert((await h.tileOf(ctx, a)).state === 'slotted', 'a slotted (root) in the new tab')
   h.assert((await tabsOf(t2)).sort().join() === [b, c].sort().join(), 'tab 2 keeps b, c')
-  await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
+  await h.assertPtySizes(ctx)
 
   // Shelf item onto another tab: unshelved there (slotted), active.
   const d = (await ctx.tie('add', 'terminal', '--shelved')).id
