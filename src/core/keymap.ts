@@ -244,10 +244,18 @@ export interface Captured {
   complete: boolean
 }
 const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Alt', 'Shift', 'AltGraph', 'CapsLock', 'Fn'])
+// A modifier key's own flag, from its key name or its physical code (either side).
+const FLAGS = { Meta: 'meta', Control: 'control', Alt: 'alt', Shift: 'shift' } as const
+const ownFlag = (k: KeyInput) =>
+  (Object.hasOwn(FLAGS, k.key) ? FLAGS[k.key as keyof typeof FLAGS] : undefined) ??
+  FLAGS[(/^(Meta|Control|Alt|Shift)(?:Left|Right)$/.exec(k.code ?? '')?.[1] ?? '') as keyof typeof FLAGS]
 export const capturePasses = (k: KeyInput): boolean => RESERVED_KEYS.has(k.key) && !k.meta && !k.control && !k.alt
-export function captured(k: KeyInput): Captured {
-  if (!MODIFIER_KEYS.has(k.key)) return { chord: chord(k), complete: true }
-  const mods = held(k)
+// `down`: a modifier's own key decides its flag, whatever the event says: held on its key-down,
+// released on its key-up (Chromium on macOS may still report it held on the key-up).
+export function captured(k: KeyInput, down = true): Captured {
+  const own = ownFlag(k)
+  if (!own && !MODIFIER_KEYS.has(k.key)) return { chord: chord(k), complete: true }
+  const mods = held(own ? { ...k, [own]: down } : k)
   return { chord: mods.length ? mods.join('+') + '+' : '', complete: false }
 }
 
@@ -263,8 +271,8 @@ export interface KeyEvent extends KeyInput {
   down: boolean // keyDown (else keyUp)
   repeat: boolean // auto-repeat
 }
-// `pass`: the page (UI, frame or guest) gets the key. Else it is blocked, and maybe `action` runs or
-// `capture` goes to the UI's capture field.
+// `pass`: the page (UI, frame or guest) gets the key. Else it is blocked, and maybe `action` runs.
+// `capture` (blocked or not: modifiers pass) goes to the UI's capture field.
 export interface KeyDecision {
   pass: boolean
   action?: Action
@@ -274,8 +282,10 @@ export interface KeyDecision {
 // SECURITY: the one decision for every real key (main/keys.ts `onInput` applies it). `fromUi`: the
 // key came from the UI's own webContents (not a browser guest).
 // - Capture mode, UI keys: nothing runs and the page sees nothing, except the field's own keys
-//   (Escape / Enter / Backspace); the chord goes to the field. Complete chords once: no key-ups,
-//   no repeats.
+//   (Escape / Enter / Backspace) and bare modifier keys; the chord goes to the field. Complete
+//   chords once: no key-ups, no repeats. Modifiers (down and up) go to the field and pass too:
+//   Chromium drops the key-up of a blocked key-down, so a blocked Cmd would never report its
+//   release (the field would keep showing it). A bare modifier carries no text.
 // - Capture mode, guest keys: never forwarded (the UI must not read what is typed into a site), and
 //   nothing runs: the key stays the guest's.
 // - `fields`: only `quit` runs. `off`: every bound chord runs.
@@ -283,8 +293,9 @@ export interface KeyDecision {
 export function decideKey(k: KeyEvent, mode: KeyMode, fromUi: boolean, keymap: Keymap = DEFAULT_KEYMAP): KeyDecision {
   if (mode === 'capture' && fromUi) {
     if (capturePasses(k)) return { pass: true }
-    const c = captured(k)
-    if (c.complete && (!k.down || k.repeat)) return { pass: false }
+    const c = captured(k, k.down)
+    if (!c.complete) return { pass: true, capture: c }
+    if (!k.down || k.repeat) return { pass: false }
     return { pass: false, capture: c }
   }
   if (!k.down) return { pass: true }

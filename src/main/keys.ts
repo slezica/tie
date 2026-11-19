@@ -41,6 +41,7 @@ export const keyMode = () => mode
 // while a capture field has focus there (renderer/keys.ts derives it from the focused element on
 // every focus change, so it can't stick). Keys go to the UI as chord names, and only keys of the
 // UI's own webContents: a guest's keys are never forwarded (there capture counts as `fields`).
+// Bare modifier keys also pass to the UI page (else Chromium drops their key-ups: decideKey).
 // Nothing runs meanwhile, quit included (the menu's Quit still asks).
 let send: (action: KeyAction) => void = () => {}
 let capture: (c: Captured) => void = () => {}
@@ -50,9 +51,9 @@ function onInput(wc: WebContents, e: Electron.Event, input: Electron.Input) {
   // Raw input, for diagnosing key names (layouts, Alt). Only in capture mode: never a log of what is typed elsewhere.
   if (mode === 'capture' && wc === ui) log('keys', 'raw', input.type, untrusted(k))
   const d = decideKey(k, mode, wc === ui, keymap) // the rules: core/keymap.ts
+  if (d.capture) capture(d.capture) // bare modifiers pass too (their key-ups must reach here)
   if (d.pass) return
   e.preventDefault() // the page sees nothing; menu accelerators don't fire either
-  if (d.capture) capture(d.capture)
   if (d.action) {
     log('keys', d.action)
     send(d.action)

@@ -1,5 +1,5 @@
 // Security: capture mode (main/keys.ts). While a capture field has focus in the UI, keys arrive as
-// chord names and nothing runs (quit included); the field's own keys pass; a browser guest's keys
+// chord names and nothing runs (quit included); the field's own keys and bare modifiers pass; a browser guest's keys
 // are never forwarded and run nothing; the mode ends with the field's focus (blur, focus into a
 // content frame). Hidden window: a click focuses the frame for real.
 export const hiddenWindow = true
@@ -47,14 +47,19 @@ export default async (ctx, h) => {
     h.assert(!(await page.isVisible('.settings')), 'no settings panel (menu accelerator) while capturing')
     h.assert((await page.evaluate(() => window.__keys)).length === 0, 'the page saw no captured key')
 
-    // Held modifiers: reported as incomplete.
+    // Held modifiers: incomplete, reported as pressed and as released. Bare modifiers pass to the
+    // page (Chromium drops the key-up of a blocked key-down: the release would never show).
     await page.evaluate(() => (window.__cap = []))
     await h.keyDown(ctx, 'Meta')
+    await h.keyDown(ctx, 'Shift')
     await h.keyUp(ctx, 'Meta')
-    await h.eventually(ctx, async () => h.assert((await cap()).length >= 1 && (await cap()).every((c) => !c.complete), `modifier alone is no chord: ${JSON.stringify(await cap())}`))
+    await h.keyUp(ctx, 'Shift')
+    const live = ['Cmd+', 'Cmd+Shift+', 'Shift+', '']
+    await h.eventually(ctx, async () => h.assert(JSON.stringify((await cap()).map((c) => c.chord)) === JSON.stringify(live) && (await cap()).every((c) => !c.complete), `modifiers follow press and release: ${JSON.stringify(await cap())}`))
+    h.assert(JSON.stringify(await page.evaluate(() => window.__keys)) === '["Meta","Shift"]', `only bare modifiers reach the page: ${JSON.stringify(await page.evaluate(() => window.__keys))}`)
 
     // The field's own keys pass to it, uncaptured.
-    await page.evaluate(() => (window.__cap = []))
+    await page.evaluate(() => ((window.__cap = []), (window.__keys = [])))
     for (const c of ['Backspace', 'Enter', 'Escape']) await h.press(ctx, c)
     await h.eventually(ctx, async () => h.assert(JSON.stringify(await page.evaluate(() => window.__keys)) === JSON.stringify(['Backspace', 'Enter', 'Escape']), 'own keys reach the field'))
     h.assert((await chords()).length === 0, 'own keys are not captured')

@@ -254,7 +254,17 @@ describe('alt chords and capture', () => {
   it('captures chords, shows held modifiers', () => {
     expect(captured(k('d', { meta: true, shift: true }))).toEqual({ chord: 'Cmd+Shift+D', complete: true })
     expect(captured(k('Shift', { meta: true, shift: true }))).toEqual({ chord: 'Cmd+Shift+', complete: false })
-    expect(captured(k('Meta'))).toEqual({ chord: '', complete: false })
+    expect(captured(k('Meta'))).toEqual({ chord: 'Cmd+', complete: false }) // its own key: held, even unflagged
+    expect(captured(k('CapsLock'))).toEqual({ chord: '', complete: false })
+  })
+  it("a modifier's own key decides its flag: held on key-down, released on key-up", () => {
+    expect(captured(k('Meta', { meta: true }), false)).toEqual({ chord: '', complete: false })
+    expect(captured(k('Shift', { meta: true, shift: true }), false)).toEqual({ chord: 'Cmd+', complete: false })
+    expect(captured(k('Shift', { meta: true }), false)).toEqual({ chord: 'Cmd+', complete: false })
+    // Right-hand keys, by code too.
+    expect(captured(k('Meta', { meta: true, code: 'MetaRight' }), false)).toEqual({ chord: '', complete: false })
+    expect(captured(k('Alt', { alt: true, control: true, code: 'AltRight' }), false)).toEqual({ chord: 'Ctrl+', complete: false })
+    expect(captured(k('Unidentified', { control: true, code: 'ControlRight' }), false)).toEqual({ chord: '', complete: false })
   })
   it("passes the field's own keys, unless with Cmd / Ctrl / Alt", () => {
     for (const key of ['Escape', 'Enter', 'Backspace']) expect(capturePasses(k(key))).toBe(true)
@@ -297,9 +307,61 @@ describe('decideKey', () => {
   it('capture, UI keys: complete chords once (no key-up, no repeat); held modifiers live', () => {
     expect(decideKey({ ...split, down: false }, 'capture', true)).toEqual({ pass: false })
     expect(decideKey({ ...split, repeat: true }, 'capture', true)).toEqual({ pass: false })
-    expect(decideKey(ev('Meta', { meta: true }), 'capture', true)).toEqual({ pass: false, capture: { chord: 'Cmd+', complete: false } })
-    expect(decideKey(ev('Meta', { down: false }), 'capture', true)).toEqual({ pass: false, capture: { chord: '', complete: false } })
+    expect(decideKey(ev('Meta', { meta: true }), 'capture', true)).toEqual({ pass: true, capture: { chord: 'Cmd+', complete: false } })
+    expect(decideKey(ev('Meta', { down: false }), 'capture', true)).toEqual({ pass: true, capture: { chord: '', complete: false } })
   })
+  it('capture, UI keys: bare modifiers pass (Chromium drops the key-up of a blocked key-down)', () => {
+    for (const key of ['Meta', 'Control', 'Alt', 'Shift']) {
+      expect(decideKey(ev(key), 'capture', true).pass).toBe(true)
+      expect(decideKey(ev(key, { down: false }), 'capture', true).pass).toBe(true)
+    }
+  })
+
+  // A capture field fed by decideKey, as renderer/capture.ts shows it: a complete chord becomes the
+  // value; held modifiers show while any are held, else the value.
+  const field = (value: string, events: ReturnType<typeof ev>[]) => {
+    const shown: string[] = []
+    for (const e of events) {
+      const c = decideKey(e, 'capture', true).capture
+      if (c?.complete) value = c.chord
+      shown.push(c && !c.complete && c.chord ? c.chord : value)
+    }
+    return shown
+  }
+  // Real key presses: + down, - up. `upHeld`: the key-up still flags its own modifier (as Chromium
+  // on macOS may); `downFlag`: the key-down flags it (hardware does; the harness doesn't).
+  const variants = [
+    { upHeld: false, downFlag: true },
+    { upHeld: true, downFlag: true },
+    { upHeld: false, downFlag: false },
+    { upHeld: true, downFlag: false },
+  ]
+  const FLAG = { Meta: 'meta', Shift: 'shift' } as const
+  const keys = (seq: string, v: (typeof variants)[number]) => {
+    const now = { meta: false, control: false, alt: false, shift: false }
+    return seq.split(' ').map((s) => {
+      const down = s[0] === '+'
+      const key = s.slice(1)
+      const flag = FLAG[key as keyof typeof FLAG]
+      let e
+      if (!flag) e = ev(key.toLowerCase(), { ...now })
+      else if (down) {
+        e = ev(key, { ...now, [flag]: v.downFlag || now[flag] })
+        now[flag] = true
+      } else {
+        now[flag] = false
+        e = ev(key, { ...now, [flag]: v.upHeld, down: false })
+      }
+      return e
+    })
+  }
+  for (const v of variants)
+    it(`capture field follows held modifiers (key-up ${v.upHeld ? 'still flagged' : 'cleared'}, key-down ${v.downFlag ? 'flagged' : 'unflagged'})`, () => {
+      expect(field('', keys('+Meta +Shift -Meta -Shift +A', v))).toEqual(['Cmd+', 'Cmd+Shift+', 'Shift+', '', 'A'])
+      expect(field('', keys('+Meta -Meta +Shift', v))).toEqual(['Cmd+', '', 'Shift+'])
+      expect(field('Cmd+D', keys('+Meta +Shift -Meta -Shift', v))).toEqual(['Cmd+', 'Cmd+Shift+', 'Shift+', 'Cmd+D'])
+      expect(field('Cmd+D', keys('+Shift +Meta -Shift -Meta', v))).toEqual(['Shift+', 'Cmd+Shift+', 'Cmd+', 'Cmd+D'])
+    })
   it('capture, UI keys: the field\'s own keys pass (bare Escape, Enter, Backspace), not with modifiers', () => {
     for (const key of ['Escape', 'Enter', 'Backspace']) expect(decideKey(ev(key), 'capture', true)).toEqual({ pass: true })
     expect(decideKey(ev('Enter', { meta: true }), 'capture', true).pass).toBe(false)
