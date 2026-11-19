@@ -3,20 +3,20 @@
 import { execFileSync } from 'node:child_process'
 import { userInfo } from 'node:os'
 
-// Valid: theme, fontFamily, cellWidth, borderless. Out of range: fontSize. Wrong type: lineHeight (number),
-// shell (string).
-export const settings = { theme: 'nord', fontFamily: 'Menlo', fontSize: 200, lineHeight: 'tall', cellWidth: 95, shell: 5, borderless: true }
+// Valid, non-default: theme, fontFamily, lineHeight, cellWidth, borderless. Out of range: fontSize. Wrong
+// type: shell (string). Sanitize's other rules (wrong-type numbers, enums, booleans): src/core/settings.test.ts.
+export const settings = { theme: 'nord', fontFamily: 'Menlo', fontSize: 200, lineHeight: 1.2, cellWidth: 95, shell: 5, borderless: true }
 
 export default async (ctx, h) => {
   // Loaded: valid as saved, the others sanitized field by field.
   const s = (await ctx.page.evaluate(() => window.tie.settings.get())).settings
-  const want = { theme: 'nord', fontFamily: 'Menlo', fontSize: 32, lineHeight: 1.15, cellWidth: 95, shell: '', borderless: true }
+  const want = { theme: 'nord', fontFamily: 'Menlo', fontSize: 32, lineHeight: 1.2, cellWidth: 95, shell: '', borderless: true }
   for (const [k, v] of Object.entries(want)) h.assert(s[k] === v, `${k} loaded as ${JSON.stringify(v)}: ${JSON.stringify(s[k])}`)
 
   // Applied at boot, as loaded.
   h.assert((await h.cssVar(ctx, '--bg')) === '#2e3440', 'theme applied at boot')
   h.assert((await h.cssVar(ctx, '--tile-font-size')) === '32px', `font size applied at boot, clamped (${await h.cssVar(ctx, '--tile-font-size')})`)
-  h.assert((await h.cssVar(ctx, '--tile-line-height')) === '1.15', `line height applied at boot, default (${await h.cssVar(ctx, '--tile-line-height')})`)
+  h.assert((await h.cssVar(ctx, '--tile-line-height')) === '1.2', `line height applied at boot (${await h.cssVar(ctx, '--tile-line-height')})`)
   const font = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-rows')).fontFamily)
   h.assert(font.startsWith('Menlo'), `font applied at boot (${font})`)
   // Cell width 95 %: the terminal's cells are narrower than the font's natural advance (letterSpacing
