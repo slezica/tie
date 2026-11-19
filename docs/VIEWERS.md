@@ -7,10 +7,9 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 1. By extension: `.md`, `.markdown` → markdown; `.png .jpg .jpeg .gif .webp .avif .svg .ico .bmp` → image; `.html`, `.htm` → html.
 2. Else by content (sniff, first 8 KB): UTF-8 without NUL → text; else → hex.
 
-- Folders, missing files: error (`tie add` exit 1; drops: modal). No "No viewer" for files any more.
-- Size caps (policy `maxBytes`): markdown 8 MB, text 10 MB, html 10 MB (the page; its folder's files: none), hex 16 MB, image 50 MB. Over: "File too large: <path> (max N MB)" (CLI, drops, picker); a file growing past it: change ignored.
-- Opening as a kind (main `canOpenAs`, checked on every `doc.open`): the file's own kind; hex for any file; text for any file that sniffs as text (e.g. markdown or SVG source). Else "Can't open as <kind>". Every UI path (CLI, drops, the `file` template) uses the file's own kind.
-- File template picker: any file.
+- Folders, missing files: error (`tie add` exit 1; drops: modal).
+- Size caps (policy `maxBytes`): markdown 8 MB, text 10 MB, html 10 MB (each page; its folder's other files: none, streamed), hex 16 MB, image 50 MB. Over: "File too large: <path> (max N MB)" (CLI, drops, picker); a file growing past it: change ignored.
+- Opening as a kind (main `canOpenAs`, checked on every `doc.open`): the file's own kind; hex for any file; text for any file that sniffs as text (e.g. markdown or SVG source). Else "Can't open as <kind>". Every UI path (CLI, drops, the `file` template + picker: any file) uses the file's own kind (defense: `sec-viewers`).
 - Links in documents (`classifyLink`): same kind (by extension) → in the tile; any other file → beside, in the kind main decides (extension, else content). Html ↔ markdown both ways (`markdown-links`).
 
 ## Text (`viewers/text.ts`)
@@ -20,13 +19,13 @@ File kinds besides markdown (`MARKDOWN.md`): text, image, hex (Tie viewers: the 
 - Highlighting: highlight.js (shared `highlight.ts` subset) by file name: extension as language/alias (`ts`, `py`, `rs`, `json`, `yaml`, `sh`...), a few mapped (`mjs`/`jsx` → javascript, `tsx` → typescript, `h` → c, `toml` → ini, `svg`/`htm` → xml, `Makefile`, `Dockerfile`, `.bashrc`...). Files over 512 KB: plain (cost). Multi-line tokens split per line (spans closed and reopened).
 - Literal: escaped (or highlight.js-escaped) text only. Control characters → Control Pictures (`␛`, `␇`, `␀`...); bidi overrides/isolates (U+202A–202E, U+2066–2069) → `⟨U+202E⟩`; both in red (`.ctl`). CRLF = line end.
 - Live (`live.ts`): changed lines marked, view never moves, edge markers, `n` (as markdown, `MARKDOWN.md` "Live updates").
-- Keys: Shift+↑/↓ third-page scroll (animated), `n`, `cmd+R` reload (page render, scroll kept). Links: not clickable (v1).
+- Keys: Shift+↑/↓ third-page scroll (animated), `n`, `cmd+R` reload (page render, scroll kept), `cmd+=` / `cmd+-` / `cmd+0` page zoom. Links: not clickable.
 - Empty file: "(empty file)".
 - Harness: `window.text` (`rev`, `key`, `text`, `lang`, `highlighted`, `lines`, `renders`, `marks()`).
 
 ## Image (`viewers/image.ts`)
 
-- Payload: none. The doc message carries `src` (the file's path within the root, on the frame's token); the viewer loads `<img src=tie-content://<token>/<name>?v=<rev>>` (CSP `img-src` own token).
+- Payload: none. The doc message carries `src` (the file's path within the root, on the frame's token); the viewer loads `<img src=tie-content://<token>/<src>?v=<rev>>` (CSP `img-src` own token).
 - SVG: as `<img>` only: no scripts, no event handlers, no external loads (image context). Never inlined.
 - Fit (default): shrink to the tile, never enlarge; centered on a checkerboard (theme colors). Click or `z`: actual size (scrolls; the clicked point stays under the pointer). Info corner: `W × H` (+ `· N%` when shrunk).
 - Change on disk: new revision → loaded off-screen, swapped in when decoded (no flash), mode kept.
@@ -48,25 +47,26 @@ The file is the page, static (decision 2026-10-21): its own scripts never run. T
 
 | Property | How |
 |---|---|
-| Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: modules, storage, fetch work; cross-origin to the UI (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
-| No network | document CSP (`documentCsp(nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media); scripts `'nonce-<response>'` (the bootstrap only); no workers, frames, objects, forms, `<base>`. Plus the UI session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
-| Folder | root = `DIRECTORIES.md` 5 (the context cwd when it holds the page, else its folder; token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
+| Own origin | frame `sandbox="allow-scripts allow-same-origin"` on `tie-content://<token>/`: its own storage, `'self'` loads; cross-origin to the UI (`tie://app`) and every other tile: parent/top unreachable, sandbox can't be lifted |
+| No network | document CSP (`documentCsp(nonce)`, `core/policy.ts`): only `'self'` (+ `data:`/`blob:` for styles, images, fonts, media); scripts `'nonce-<response>'` (the bootstrap only); `connect-src 'self'`; no workers, frames, objects, forms, `<base>`. Plus the UI session has no network at all (dead proxy, WebRTC without UDP: `main/security.ts` `noNetwork`): WebRTC escapes every CSP |
+| Folder | root = `DIRECTORIES.md` 5 (the tile's cwd when it holds the page, else its folder; token); files under it (subfolders too) served with the same CSP (`DOC_TYPES`; others `application/octet-stream`); traversal, symlinks out, `/_tie/` refused |
 | Navigation | nav lock `within-root`: `.html`/`.htm` of its own root only (`navAllowed`). Away (http(s), `file:`, other schemes): the UI CSP `frame-src` refuses → main reports `did-fail-provisional-load` (with the URL) → the tile fails at once: "Page navigated away: <url>" (no reload; decision 2026-10-21). Other tokens, `/_tie/`: cancelled by the nav lock (frame stays) |
 | Requests | bootstrap only: `ready`, `pong`, `followLink` (link clicks, `window.open`, `target=_blank`), `hover` (pointer over a link → the tile's link strip), `blocked` (count of scripts the CSP refused). Page scripts never run; the bootstrap's requests are still treated as hostile |
 | Popups | no `allow-popups`; `window.open` replaced by the bootstrap (request, returns `null`) |
 
 - Bootstrap: built ASCII-only (`esbuild charset ascii`), no `</script`/`<!--` (main refuses it otherwise), injected inline first in `<head>` (else after `<html>`, the doctype, a BOM: `bootstrapAt`). Header charset = the document's declared one (`htmlCharset`: the bootstrap can push `<meta charset>` past the 1024-byte prescan). Captures `addEventListener`, `postMessage`, `stopImmediatePropagation`... before page scripts run. Handshake listener: capture phase, first, stops propagation: the page never sees the port (tested).
-- Links (bootstrap click listener, bubble phase on `window`): clicks the page didn't `preventDefault`, not `#` or `javascript:` (the page's own). Host routing (`follow`): `/x` = the root's; own-origin URLs → paths; then `classifyLink`:
+- Links (bootstrap click listener, bubble phase on `window`): primary-button clicks the page didn't `preventDefault`, not `#` or `javascript:` (the page's own). Host routing (`follow`): `/x` = the root's; own-origin URLs → paths; then `classifyLink`:
+  - files outside the root: `confirmFile` first (`TILES.md` "Links out").
   - html file, plain click → this tile (history push). Inside the root (subfolders too): same token, `frame.load`. Outside: new token (`setRoot`; root by the rule again).
   - other files (any kind, main decides), or new-tile requests (cmd-click, `target`, `window.open`) → beside, at most one per second per tile.
-  - http(s) → `external.ts` confirm dialog (`TILES.md` "Links out"; the html note names the folder the page can read) → `openExternal`.
+  - http(s) → `external.ts` confirm dialog (`TILES.md` "Links out") → `openExternal`.
   - anything else → refused (`debug security`).
 - Gesture rule (`frame.ts`): `followLink` only while the frame is focused (or within 150 ms: a click's focus can lag its request across processes). The confirm and the throttle stay as defense in depth (a renderer bug in the page's process would get the bootstrap's powers).
-- History: host list. Host navigations (links, back/forward, reload) set the page first; the page's own navigations (script, links it handled) arrive from main (`did-frame-navigate` → `content:navigated`) → location follows, new entry. `cmd+[` / `cmd+]` / `cmd+R`; location not editable.
+- History: host list. Host navigations (links, back/forward, reload) set the page first; the page's own navigations (meta refresh) arrive from main (`did-frame-navigate` → `content:navigated`) → location follows, new entry. `cmd+[` / `cmd+]` / `cmd+R`; location not editable.
 - Watchdog: a closed port is a navigation if a `load` follows within 5 s, else "Page crashed". Hung: as viewers.
 - Live reload: main watches the root folder (non-recursive `fs.watch`, 150 ms debounce) → `content:changed` → page reloaded (+100 ms), activity mark. Scroll kept across reloads (bootstrap: `sessionStorage`, same path only).
 - Storage: per token origin (localStorage, IndexedDB, sessionStorage, Cache Storage work), in the UI's in-memory session: never on disk, gone at quit (`sec-storage`). A reopened file (or another folder) = a new token: empty.
-- Title = the file's path (`~` for home), never the page's `<title>` (2026-10-20: content can't label its tile); cwd = the tile's (`DIRECTORIES.md`), never the root. Zoom: `cmd+=` / `cmd+-` / `cmd+0` → bootstrap `tie:zoom` → CSS `zoom` on the root; the tile's factor is sent again on every `ready` (pages, reloads); pill `N%` (click: reset). Harness: `tie list --json` `page {path, root, url, ready, reloads, scripts, zoom, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
+- Title = the file's path (`~` for home), never the page's `<title>` (content can't label its tile); cwd = the tile's (`DIRECTORIES.md`), never the root. Zoom: `cmd+=` / `cmd+-` / `cmd+0` → bootstrap `tie:zoom` → CSS `zoom` on the root; the tile's factor is sent again on every `ready` (pages, reloads); pill `N%` (click: reset). Harness: `tie list --json` `page {path, root, url, ready, reloads, blocked, zoom, history}`; `h.htmlFrame(ctx, id)` = the page's realm.
 
 ## Scenarios
 
