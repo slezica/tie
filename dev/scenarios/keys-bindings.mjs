@@ -13,9 +13,13 @@ export default async (ctx, h) => {
   const t0 = await tabs()
   await h.press(ctx, 'Meta+y')
   await h.eventually(ctx, async () => h.assert((await tabs()) === t0 + 1, 'cmd+Y: new tab (override from file)'))
+  // An unbound key, then one that acts: actions reach the UI in order (one channel) and both run
+  // synchronously, so by the second's effect the first was handled.
+  const current = async () => { const l = await h.list(ctx); return l.tabs.findIndex((t) => t.current) }
   await h.press(ctx, 'Meta+t')
-  await ctx.sleep(250) // absence: cmd+T no longer bound
-  h.assert((await tabs()) === t0 + 1, 'cmd+T: default dropped')
+  await h.press(ctx, 'Meta+1')
+  await h.eventually(ctx, async () => h.assert((await current()) === 0, 'cmd+1: first tab'))
+  h.assert((await tabs()) === t0 + 1, `cmd+T: default dropped (tabs ${t0 + 1} -> ${await tabs()})`)
 
   // Saved override applies live; the replaced default stops matching.
   let r = await set({ 'split-right': 'Cmd+K' })
@@ -23,9 +27,14 @@ export default async (ctx, h) => {
   const n = await tiles()
   await h.press(ctx, 'Meta+k')
   await h.eventually(ctx, async () => h.assert((await tiles()) === n + 1, 'cmd+K: split (live)'))
+  // A split's effect is async (cwd read), so the order check is main's: each action it sends is
+  // logged, in order; once cmd+K's split shows, cmd+D's line (if any) is in the log already.
+  const actions = () => (ctx.appLog().match(/\[keys\] [a-z0-9-]+$/gm) ?? []).length
+  const sent = actions()
   await h.press(ctx, 'Meta+d')
-  await ctx.sleep(250) // absence: cmd+D no longer bound
-  h.assert((await tiles()) === n + 1, 'cmd+D: default dropped')
+  await h.press(ctx, 'Meta+k')
+  await h.eventually(ctx, async () => h.assert((await tiles()) === n + 2, 'cmd+K again: split'))
+  h.assert(actions() === sent + 1, `cmd+D: default dropped (actions sent: ${actions() - sent})`)
   await h.press(ctx, 'Meta+t')
   await h.eventually(ctx, async () => h.assert((await tabs()) === t0 + 2, 'cmd+T: back to default (new-tab no longer customized)'))
 
