@@ -68,7 +68,7 @@
 - Edit (pencil): the cell becomes a focused capture field holding the current chord. Each chord replaces it; Backspace empties; Enter / blur accept; Escape cancels. Focus then returns to the row's pencil.
     - Same as now: nothing. Default chord: override dropped (not customized, aliases back). Empty: `null` (unbound).
     - Invalid (`validBinding`): unchanged; message on the status line.
-    - Owned by another action (`conflicts` on the candidate draft, aliases included; also on X): dialog `.binding-conflict` naming both, Cancel / Replace. Replace: the other becomes `null` (customized). Focus back to the row after the dialog.
+    - Owned by another action (`conflicts` on the candidate draft, aliases included; also on X): dialog `.binding-conflict`, title "Key already in use", one line `<chord> is bound to “<other action>”.`, Cancel / Replace. Replace: the other becomes `null` (customized). Focus back to the row after the dialog.
 - Errors from main (`field: 'bindings'`): status line, `.bind-table.invalid`, jump to the page.
 
 ## Themes (`themes.ts`)

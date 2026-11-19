@@ -12,10 +12,9 @@ export interface BindingsPage {
 }
 
 const SPECS = new Map(ACTIONS.map((a) => [a.id, a]))
-const p = (text: string, cls?: string) => {
+const p = (text: string) => {
   const el = document.createElement('p')
   el.textContent = text
-  if (cls) el.className = cls
   return el
 }
 
@@ -173,10 +172,7 @@ export function bindingsPage(section: HTMLElement, initial: Bindings, on: { mess
       const ok = await confirmDialog({
         cls: 'binding-conflict',
         title: 'Key already in use',
-        body: [
-          ...others.map(({ chord, other }) => p(`${chord} is bound to “${other.label}”.`)),
-          p(`Replace: “${spec.label}” takes it, ${others.map(({ other }) => `“${other.label}”`).join(', ')} ${others.length > 1 ? 'become' : 'becomes'} unbound.`, 'note'),
-        ],
+        body: others.map(({ chord, other }) => p(`${chord} is bound to “${other.label}”.`)),
         confirm: 'Replace',
       })
       if (section.isConnected) focusRow(spec.id) // the dialog's refocus() went to the active tile

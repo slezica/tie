@@ -121,8 +121,10 @@ export default async (ctx, h) => {
   // Conflict: Cancel keeps both.
   await edit('nav-reload', 'Meta+t', 'Enter')
   await page.waitForSelector('.dialog.binding-conflict')
-  const text = await page.textContent('.dialog.binding-conflict')
-  h.assert(text.includes('New tab') && text.includes('Reload') && text.includes('Cmd+T'), `dialog names both: ${text}`)
+  const body = await page.$$eval('.dialog.binding-conflict p', (ps) => ps.map((p) => p.textContent))
+  h.assert(same(body, ['Cmd+T is bound to “New tab”.']), `one line: chord, other action: ${JSON.stringify(body)}`)
+  const buttons = await page.$$eval('.dialog.binding-conflict button', (bs) => bs.map((b) => b.textContent))
+  h.assert(same(buttons.sort(), ['Cancel', 'Replace']), `buttons: ${buttons}`)
   await ctx.shot('conflict')
   await page.click('.dialog.binding-conflict .cancel')
   await page.waitForSelector('.dialog.binding-conflict', { state: 'detached' })
