@@ -38,9 +38,8 @@ Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the 
 Title (`tabTitle`), first match:
 
 1. `customTitle`.
-2. Tile = active, else first shelved, any kind. Its cwd's basename (`Tile.cwd`, `~` for home; `DIRECTORIES.md`).
-3. That tile's display title.
-4. `empty`.
+2. Tile = active, else first shelved, any kind: its cwd's basename (`prettyDir(Tile.cwd)`, `~` for home; `DIRECTORIES.md`). A tile's cwd is always set: the tile's own title never names the tab.
+3. No such tile: `empty`.
 
 ## Open and close
 

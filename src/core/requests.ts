@@ -5,7 +5,7 @@ export type Request =
   | { verb: 'ready' }
   | { verb: 'pong'; n: number } // answer to the host's watchdog ping n (frame.ts)
   | { verb: 'openLink'; url: string } // external URL (probe)
-  | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (markdown)
+  | { verb: 'followLink'; href: string; newTile: boolean } // a link as written in the document (viewer runtime: file views; html bootstrap)
   | { verb: 'hover'; href: string } // pointer over a link ('' = left): the host shows its real target in the link strip
   | { verb: 'blocked'; n: number } // html: scripts the document CSP refused so far (bootstrap counts violations)
   | { verb: 'scrolled'; y: number } // the viewer's scroll position (throttled): the host restores it after a viewer reload (dev)
