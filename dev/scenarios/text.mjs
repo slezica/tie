@@ -52,11 +52,12 @@ export default async (ctx, h) => {
     await fr.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))) // scrolled + rendered
     const topOf = (n) => fr.evaluate((n) => [...document.querySelectorAll('#lines > div')].find((d) => d.textContent === `const v${n} = ${n} // line ${n}`)?.getBoundingClientRect().top, n)
     const y0 = await topOf(200)
-    const rev0 = v.rev
+    const rev0 = (await view(id)).rev
+    h.assert(rev0, 'revision before the change')
     lines.splice(10, 0, '// inserted A', '// inserted B')
     lines[300] = 'const changed = true'
     write()
-    await h.waitFor(ctx, () => view(id).then((x) => x.rev !== (rev0 ?? '') && x.lines === 402), 'live update')
+    await h.waitFor(ctx, () => view(id).then((x) => x.rev !== rev0 && x.lines === 402), 'live update')
     await h.eventually(ctx, async () => {
       v = await view(id)
       const y1 = await topOf(200)

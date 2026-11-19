@@ -1,6 +1,6 @@
 // Image tiles: png / svg / ... by extension, fit to the tile (shrink only), click or `z` toggles
-// actual size (scrolls), reload on change (new revision, swapped in), broken image says so, picker
-// filter = image extensions. Hidden window: real clicks and keys in the frame.
+// actual size (scrolls), reload on change (new revision, swapped in), broken image says so, file
+// template + picker opens an image (kind by extension). Hidden window: real clicks and keys in the frame.
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 

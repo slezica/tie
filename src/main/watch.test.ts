@@ -122,7 +122,7 @@ describe('watchFile', () => {
     expect(events.length).toBeLessThanOrEqual(3)
   })
 
-  it('directory removed and recreated: re-armed (poll)', async () => {
+  it('directory removed and recreated: seen by the poll', async () => {
     const sub = join(dir, 'sub')
     mkdirSync(sub)
     const f = join(sub, 'a.md')
@@ -133,7 +133,22 @@ describe('watchFile', () => {
     mkdirSync(sub)
     writeFileSync(f, 'two')
     expect(await until(() => texts().includes('two'))).toBe(true)
-    await sleep(400) // re-armed: the next write comes through
+  })
+
+  it('directory removed and recreated: re-armed, later writes come without the poll', async () => {
+    const sub = join(dir, 'sub')
+    mkdirSync(sub)
+    const f = join(sub, 'a.md')
+    writeFileSync(f, 'one')
+    await start(f, 'one') // poll off: check() stands in for its ticks
+    rmSync(sub, { recursive: true })
+    void w!.check()
+    expect(await until(() => texts().includes('<missing>'))).toBe(true)
+    mkdirSync(sub)
+    writeFileSync(f, 'two')
+    void w!.check() // as a poll tick: reads, re-arms the new directory
+    expect(await until(() => texts().includes('two'))).toBe(true)
+    await sleep(400) // FSEvents misses events right after a stream starts (see start)
     writeFileSync(f, 'three')
     expect(await until(() => texts().includes('three'))).toBe(true)
   })

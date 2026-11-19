@@ -1,6 +1,6 @@
 // Hex tiles: binary files (by content) as offset | bytes | ASCII; virtualized rows (a 4 MB file keeps
 // a few dozen rows in the DOM; scrolling to the end shows the last offset); live changes redrawn in
-// place with changed rows highlighted; empty file; the hex template opens any file (a PNG too).
+// place with changed rows highlighted; empty file (text); the file template + picker on a binary (a PNG) → hex.
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 

@@ -1,6 +1,6 @@
 // Opening files: `tie add <path>` (kind by extension, else by content: text; missing / folder fail
 // with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal:
-// still the path), shelf template + file picker (harness stub: dev socket `pick`).
+// still the path), file template + picker (`#picker`: `h.pick` types the path; Esc cancels).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
@@ -51,7 +51,7 @@ export default async (ctx, h) => {
     h.assert(m.state === 'slotted', 'root slot')
     await shows(m.id, 'Notes')
 
-    // Onto a markdown tile (title bar, then content): beside it, on the nearest edge.
+    // Onto a markdown tile's content: beside it, on the nearest edge.
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'b'), { files: [md2] })
     const m2 = await h.waitFor(ctx, async () => (await mdTiles()).find((t) => t.id !== m.id), 'dropped on markdown content')
     await shows(m2.id, 'Other')

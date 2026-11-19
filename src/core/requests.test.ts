@@ -37,7 +37,7 @@ describe('parseRequest', () => {
   })
 })
 
-describe('markdown verbs', () => {
+describe('link and page verbs (file views, html bootstrap)', () => {
   it('followLink: href + newTile', () => {
     expect(parseRequest({ verb: 'followLink', href: 'b.md', newTile: true })).toEqual({ verb: 'followLink', href: 'b.md', newTile: true })
     for (const m of [
@@ -60,7 +60,7 @@ describe('markdown verbs', () => {
   it('gesture verbs: link opens', () => {
     expect(['ready', 'pong', 'openLink', 'followLink', 'hover', 'blocked'].filter((v) => needsGesture(v as Verb))).toEqual(['openLink', 'followLink'])
   })
-  it('title: text, bounded', () => {
+  it('hover, blocked: bounded; no title verb (content never names its tile)', () => {
     expect(parseRequest({ verb: 'hover', href: 'x.md' })).toEqual({ verb: 'hover', href: 'x.md' })
     expect(parseRequest({ verb: 'hover', href: '' })).toEqual({ verb: 'hover', href: '' })
     expect(parseRequest({ verb: 'blocked', n: 3 })).toEqual({ verb: 'blocked', n: 3 })

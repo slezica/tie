@@ -65,7 +65,7 @@ export default async (ctx, h) => {
   await cdp.send('Page.crash').catch(() => {})
   const err2 = await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).error, 'crashed frame → tile error', 12000)
   h.assert(err2 === 'Viewer crashed', `crash message: ${err2}`)
-  h.assert(!alive(pb), 'crashed process gone')
+  await h.waitFor(ctx, async () => !alive(pb), `crashed process ${pb} gone`, 8000)
   h.assert((await shellLatency()) < 250, 'shell responsive after crash')
   await terminalWorks()
   h.assert((await h.list(ctx)).tiles.length === 3, 'all tiles still there')

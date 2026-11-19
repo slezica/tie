@@ -28,7 +28,6 @@ export default async (ctx, h) => {
   writeFileSync(join(dir, 'sub', 'c.html'), page('C', '<h1>C</h1>'))
   writeFileSync(join(base, 'other', 'd.html'), page('D', '<h1>D</h1>'))
   writeFileSync(join(dir, 'style.css'), 'h1 { color: rgb(1, 2, 3) }')
-  writeFileSync(join(dir, 'data.json'), '{"v": 42}')
   writeFileSync(join(dir, 'notes.md'), '# Notes\n')
   writeFileSync(join(dir, 'log.txt'), 'log line\n')
   try {
@@ -129,8 +128,9 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await text('#h')) === 'Index 2', 'page change reloads')
     const y1 = await (await fr()).evaluate(() => scrollY)
     h.assert(Math.abs(y1 - 1200) <= 2, `scroll kept across reload: ${y1}`)
-    writeFileSync(join(dir, 'data.json'), '{"v": 43}')
-    await h.waitFor(ctx, async () => (await pg()).reloads >= reloads + 2, 'sibling change reloads')
+    // Sibling: the stylesheet, so only a reload after this write can show the new color.
+    writeFileSync(join(dir, 'style.css'), 'h1 { color: rgb(4, 5, 6) }')
+    await h.waitFor(ctx, async () => (await (await fr()).evaluate(() => getComputedStyle(document.getElementById('h')).color)) === 'rgb(4, 5, 6)', 'sibling change reloads')
     h.assert((await pg()).reloads >= reloads + 2 && !(await h.tileOf(ctx, id)).error, 'reloads counted, no error (navigation is not a crash)')
     await ctx.shot('reloaded')
 

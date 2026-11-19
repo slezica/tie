@@ -135,11 +135,15 @@ export default async (ctx, h) => {
     await ctx.tie('close', '--tile', back.id)
     await ctx.tie('close', '--tile', pg.id)
 
-    // History keys on a terminal: nothing.
+    // History keys on a terminal: nothing (the markdown tile has a back entry, it stays).
+    await ctx.tie('focus', '--tile', id)
+    await h.clickIn(ctx, await fr(), 'a >> text=to b')
+    await h.waitFor(ctx, shows('B'), 'b.md: a back entry')
+    const h0 = JSON.stringify((await doc()).history)
     await ctx.tie('focus', '--tile', t0)
     await h.press(ctx, 'Meta+[')
     await ctx.sleep(300) // absence: no navigation
-    h.assert((await count()) === 3, 'cmd+[ on a terminal: no-op')
+    h.assert((await doc()).path.endsWith('/b.md') && JSON.stringify((await doc()).history) === h0 && (await count()) === 3, `cmd+[ on a terminal: no-op (${h0})`)
     await ctx.shot('links')
   } finally {
     rmSync(dir, { recursive: true, force: true })

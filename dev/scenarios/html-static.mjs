@@ -35,7 +35,10 @@ export default async (ctx, h) => {
     await ctx.shot('blocked')
     // Clicking the tag does nothing; an inline handler never runs on a real click.
     await ctx.page.click(`.tile[data-id="${id}"] .pill`)
+    // Proof the click landed: a listener added by the harness (CDP, past the CSP) sees it.
+    await fr.evaluate(() => document.getElementById('h').addEventListener('click', () => (window.__clicked = 1)))
     await h.clickIn(ctx, fr, '#h')
+    await h.waitFor(ctx, () => fr.evaluate(() => window.__clicked === 1), 'click reached the heading')
     h.assert(!(await fr.evaluate(() => window.__handler)) && (await h.tileOf(ctx, id)).page.ready, 'handler did not run; page still there')
     // Bootstrap works: the hover strip.
     const wb = await fr.locator('#w').boundingBox()
