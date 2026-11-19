@@ -6,12 +6,12 @@
 
 - `place(id, placement)` (`ops.ts`): `detach` from anywhere, insert, `activate` (shelf: `focusNext` if it was active).
 - Placement: `{type:'slot', at, side}` | `{type:'float', rect?}` | `{type:'shelf', index?}`.
-- `detach` clears the tile's collapse, zoom, pin, reveal.
+- `detach` clears the tile's collapse, zoom, pin, reveal, selection.
 - `swap(a, b)` (`ops.ts`): exchange two tiles' locations, same space only (else no-op, debug log). Any pair: slot ↔ slot (leaf ids, `swapLeaves`: sizes and donors stay with the positions), slot ↔ float (the slotted tile takes the float's rect and z-order), float ↔ float, shelf ↔ anything (shelf index).
-- `replaceTile(old, id)` (`ops.ts`, `tie replace`, `CLI.md`): `id` takes `old`'s place (leaf via `replaceLeaf`, float rect + z-order, shelf index) and state (active, zoomed, collapsed, pinned, revealed), then `old` closes (`closeTile`). Same space only (else no-op, debug log).
-  - Each tile keeps its own collapse / zoom where the new place allows (`canCollapse`); onto the shelf: collapse, zoom, activity cleared; off the shelf: pin, reveal cleared.
+  - Each tile keeps its own collapse / zoom where the new place allows (`canCollapse`); onto the shelf: collapse, zoom, activity cleared; off the shelf: pin, reveal, selection cleared.
   - Active tile stays active; moved to the shelf: `focusNext`.
-  - Keys: `cmd+shift+arrows`; mouse: a tile dropped on a slotted tile's center zone (`INPUT.md` "Drop targets").
+  - Keys: `cmd+shift+arrows`; mouse: a tile dropped on a slotted tile's center zone (`INPUT.md` "Drop targets"); CLI: `tie move --swap`.
+- `replaceTile(old, id)` (`ops.ts`, `tie replace`, `CLI.md`): `id` takes `old`'s place (leaf via `replaceLeaf`, float rect + z-order, shelf index) and state (active, zoomed, collapsed, pinned, revealed), then `old` closes (`closeTile`). Same space only (else no-op, debug log).
 - `displaceTile(old, kind, opts)` (`ops.ts`): a new tile takes slotted `old`'s exact leaf, `old` moves to the end of the shelf (just shelved: not revealed, not pinned); the new tile is active. Built as open-shelved + `swap` + `activate`. Mouse: a template or OS file dropped on a tile's center zone.
 - `moveToSpace(id, spaceId)` (`ops.ts`): into another space (drop onto its tab, `TABS.md`): `detach`, then `place(besidePlacement(null))` there (active in that space); the source space `focusNext`s if it was active there, and closes if emptied. Same space: shelved → unshelved beside; else no-op. `{activate: false}` (CLI `--tab` into the visible tab): as `place`.
 
@@ -23,11 +23,11 @@
 | Function | Effect |
 |---|---|
 | `insert(root, target, side, id)` | New leaf takes half of target. Same-dir parent: sibling; else target becomes a 2-split. Unknown/null target: first leaf |
-| `remove(root, id)` | Freed space to siblings, proportionally. Unchanged tree keeps identity |
+| `remove(root, id)` | Freed space back to its donor (the sibling subtree holding it: split then close restores sizes), else to siblings proportionally. Unchanged tree keeps identity |
 | `move(root, id, target, side)` | `remove` + `insert`; onto itself: no-op |
 | `swapLeaves(root, a, b)` | Exchange two leaf ids (donor links relabeled: they follow the positions). Only one present: it takes the other id. Neither / same: unchanged |
 | `replaceLeaf(root, a, b)` | `b` takes `a`'s leaf (size, place, donor; leaves with donor `a` now point at `b`). `b` already in the tree: removed first. `a` absent / same: unchanged |
-| `resize(root, path, index, dpx, len, min)` | One border; only the two neighbors change. Min `MIN` = 80 px |
+| `resize(root, path, index, dpx, len, min)` | One border; only the two neighbors change. Min `MIN` = 80 px (at most half the pair) |
 | `equalize(root, path)` | Every child of the split at `path` gets `1/n` (border double-click) |
 | `insertGroup(root, at, side, ids, board, opts)` | Leaves `ids` as a group: "Group insertion" below |
 | `dropZone(rect, x, y)` | `'center'` inside the centered `CENTER_ZONE` (25%) rectangle, else the nearest edge (rect split by diagonals) |
@@ -41,7 +41,7 @@
 - Area: what `insert(root, at, side, ids[0])` gives that tile, measured with `compute` in `board` with `opts` (the board's `layoutOpts()`, zoom ignored). Empty tree: the whole board.
 - Split evenly along the area's longer side (`w >= h`: `row`, side by side; else `col`, stacked), in order.
 - Normalized: a group in the parent's direction merges into it (shares multiply); the other children's shares are those of a single insert.
-- Donors: every group leaf has the target's donor link (`at`): closing all, in any order, gives the target its space back.
+- Donors: every group leaf has the target (`at`) as donor: closing all, in any order, gives the target its space back.
 - N = 1: exactly `insert`. `ids` already in the tree: moved.
 
 `compute()`:
@@ -75,11 +75,11 @@
 
 ## Focus
 
-- `S.active`: per space. Null only when no board tile is left (a pinned shelved tile can be active).
+- `S.active`: per space. Null when no board tile is left, or with a shelf selection (`SHELF.md` "Selection"). A pinned shelved tile can be active.
 - `S.mru`: most recent first, updated by `activate()`.
 - After close or shelve: `focusNext()` = MRU tile still on the board.
 - `activate()` calls `refocus()` only if its space is visible.
-- `refocus()`: keys to the active tile; blur if none, collapsed, or xterm not opened.
+- `refocus()`: keys to the active tile; blur if none, collapsed, or it can't take them (`Surface.focus()` false: not started).
 - Empty board: hint "Drag a terminal from the toolbar, or press ⌘D".
 
 ## Ping
@@ -95,8 +95,8 @@
 CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
 
 - `--top-h`: top strip: the toolbar (`--toolbar-h`, 40px) when it is on top; else the system title bar (`--titlebar-h`, 28px, traffic lights), 0 with `borderless`. `--bottom-h`: the toolbar at the bottom (default), else 0.
-- `--pad` (window edge), `--gap` (between tiles), `--title-h` (title bar, collapsed thickness), `--peak` (reveal arrow), `--slot` (shelf item / template square), `--tabs-min` (tab list floor; CSS only).
-- `--tile-pad`: CSS only. `MIN` (80) and `REVEAL` (0.3 × 0.5) are constants in `state.ts`.
+- `--pad` (window edge, 6), `--gap` (between tiles, 6), `--title-h` (title bar, collapsed thickness, 30), `--peak` (reveal arrow, 8), `--slot` (shelf item / template square, 28), `--slot-gap` (between slots, 2).
+- CSS only: `--toolbar-h`, `--titlebar-h`, `--tabs-min` (tab list floor, 140), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
 
 ```
 top   = max(top-h, pad);  bottom = max(bottom-h, pad)
@@ -108,5 +108,9 @@ board = { x: pad, y: top, w: W - 2·pad, h: H - top - bottom }
 ## Rendering
 
 - `S.rects`: last rendered rects of the visible space (used by keys, driver, drag). Other spaces' tiles: `display: none`.
-- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, settings 7000, dialog 7500, quit hint 9000.
+- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, settings 7000, dialog 7500.
 - Layout is not persisted across restarts.
+
+## Scenarios
+
+`layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`, `keys-swap`, `ping`.
