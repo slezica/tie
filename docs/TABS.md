@@ -14,12 +14,12 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 ## Switching (`switchTab`)
 
 - Activates the space's active tile (refocus), else blurs.
-- Clears hover reveal of the tab left.
+- Clears the hover reveal and the shelf selection of the tab left.
 - Hidden spaces' tiles: `display: none`; terminals keep running, fit skipped.
 
 ## Toolbar
 
-One `#toolbar`, in the bottom strip `#bottom` (default) or the top strip `#top` after the traffic lights (`toolbar` setting, `SETTINGS.md`; `appearance.ts` moves it). Both strips are the window drag region; everything in the toolbar is `no-drag`. Height `--toolbar-h` (40 px).
+One `#toolbar`, in the bottom strip `#bottom` (default) or the top strip `#top` after the traffic lights (`toolbar` setting, `SETTINGS.md`; `appearance.ts` moves it). Both strips drag the window (`-webkit-app-region: drag`), toolbar gaps included; tabs, `+`, `#shelf` and `#templates` are `no-drag`. Height `--toolbar-h` (40 px).
 
 Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the tab list `#tab-list` + `#tab-add`), `#shelf` (`SHELF.md`), `#templates`. Flex: the tab list takes what is left (`flex: 1`), the shelf keeps its content width, templates never shrink.
 
@@ -43,8 +43,8 @@ Title (`tabTitle`), first match:
 
 ## Open and close
 
-- New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (`{empty: true}`: none, for drops) (root slot, app cwd `S.cwd`: no context tile). Boot: same, first space gets a terminal (`main.ts`).
-- Emptied tab: closing its last tile by any path (close button, cmd+W, exit of a `--cmd` tile closed by the user, `tie close`, from another tab) closes the tab (`closeTile` empty hook → `dropSpace`, registered by `initTabs`). Visible: back to the tab before; hidden: gone, the visible tab stays. The only tab stays: board empty (notice), title `empty`; cmd+W there (nothing active) does nothing.
+- New tab (`newTab`: `+`, cmd+T): inserted after the visible one, switched to, with a terminal (root slot, app cwd `S.cwd`: no context tile); `{empty: true}`: none (drops, CLI `new`). Boot: the first space gets a terminal (`main.ts`).
+- Emptied tab: its last tile closed or moved out by any path (close button, cmd+W, `tie close`, a drop onto another tab, `tie move --tab`) closes the tab (`closeTile` / `moveToSpace` empty hook → `dropSpace`, registered by `initTabs`). Visible: back to the tab before; hidden: gone, the visible tab stays. The only tab stays: board empty (notice), title `empty`; cmd+W there (nothing active) does nothing.
 - Close (tab ×, cmd+shift+W → `requestCloseTab`, `close.ts`): the tab with every tile (board, floats, shelf). Busy terminals listed first (confirm); idle or empty: at once; shift+click on the ×: no questions (`INPUT.md` "Closing").
 - `closeTab(id)`: closes its tiles (no questions), then `dropSpace`: visible → switch to the tab before; hidden → removed, visible tab kept, `S.current` back to visible.
 - Never zero tabs: the only tab closed → fresh space + terminal.
@@ -67,3 +67,7 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
 ## Limitations
 
 - No tab commands over the CLI beyond `--tab` (new tab, move into a tab): no close, rename, reorder or switch (except `--focus`).
+
+## Scenarios
+
+`tabs`, `tabs-drops`, `tabs-overflow`, `cli-tabs`.
