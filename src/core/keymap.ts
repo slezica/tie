@@ -149,13 +149,15 @@ export function parseChord(c: string): { mods: (typeof MODS)[number][]; key: str
   return { mods: mods as (typeof MODS)[number][], key }
 }
 
-// Error text, or null if the chord may be bound.
+// Error text, or null if the chord may be bound. Modifier rule: Cmd, Ctrl or Alt (or a function
+// key): Shift alone or a bare key would eat typing. Alt+letter (macOS: types a character) and
+// Ctrl+letter (terminal programs) are left to the user.
 export function validBinding(c: string): string | null {
   const p = parseChord(c)
   if (!p) return `Not a key combination: ${String(c)}`
   if (RESERVED_KEYS.has(p.key)) return `Reserved key: ${p.key}`
   if (RESERVED_CHORDS.has(c)) return `Reserved combination: ${c}`
-  if (!p.mods.includes('Cmd') && !p.mods.includes('Ctrl') && !FN.test(p.key)) return `Needs Cmd or Ctrl (or a function key): ${c}`
+  if (!p.mods.some((m) => m !== 'Shift') && !FN.test(p.key)) return `Needs Cmd, Ctrl or Alt (or a function key): ${c}`
   return null
 }
 

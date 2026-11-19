@@ -1,8 +1,19 @@
 // Settings → Bindings page: filters (name, key, only customized, clear), edit through real keys
-// (main → capture field), invalid chord refused, unbind, reset, conflict dialog, Save applies live,
-// Cancel reverts, column width fixed while filtering.
+// (main → capture field), invalid chord refused, Alt-only chord bound, unbind, reset, conflict
+// dialog, Save applies live, Cancel reverts, column width fixed while filtering.
 export default async (ctx, h) => {
   const page = ctx.page
+  // Keys the UI page sees (the terminal's textarea included), by physical key: Alt+A reaches the
+  // focused terminal while unbound (control), not once bound.
+  await page.evaluate(() => {
+    window.__seen = []
+    window.addEventListener('keydown', (e) => window.__seen.push(e.code), true)
+  })
+  const seen = () => page.evaluate(() => window.__seen)
+  const [term] = (await h.list(ctx)).tiles.map((t) => t.id)
+  await h.waitShell(ctx, term)
+  await h.press(ctx, 'Alt+a')
+  await h.eventually(ctx, async () => h.assert((await seen()).includes('KeyA'), `unbound Alt+A reaches the terminal: ${await seen()}`))
   const row = (a) => `.bind-row[data-action="${a}"]`
   const visible = () => page.$$eval('.bind-row:not([hidden]) .label', (ls) => ls.map((l) => l.textContent))
   const chordOf = (a) => page.$eval(`${row(a)} .chord`, (e) => e.textContent)
@@ -75,6 +86,12 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert(/Split down: Reserved combination: Cmd\+C/.test(await page.textContent('.settings .status')), 'reserved refused'))
   h.assert((await chordOf('split-down')) === 'Cmd+Shift+D' && !(await isCustom('split-down')), 'refused: unchanged')
 
+  // Alt-only chord: named from the key's position, accepted.
+  await edit('split-down', 'Alt+a')
+  await h.eventually(ctx, async () => h.assert((await page.inputValue(`${row('split-down')} input.chord`)) === 'Alt+A', 'field shows Alt+A'))
+  await h.press(ctx, 'Enter')
+  await h.eventually(ctx, async () => h.assert((await chordOf('split-down')) === 'Alt+A' && (await isCustom('split-down')), `Alt+A bound: ${await chordOf('split-down')}`))
+
   // Escape cancels the edit (panel stays).
   await edit('zoom-out', 'Meta+j', 'Escape')
   await h.eventually(ctx, async () => h.assert((await chordOf('zoom-out')) === 'Cmd+-', 'escape: unchanged'))
@@ -103,7 +120,7 @@ export default async (ctx, h) => {
   await page.click('.dialog.binding-conflict .confirm')
   await h.eventually(ctx, async () => h.assert((await chordOf('nav-reload')) === 'Cmd+T' && (await chordOf('new-tab')) === '—' && (await isCustom('new-tab')), 'replace: other unbound'))
   await page.click('.bind-custom')
-  await h.eventually(ctx, async () => h.assert((await visible()).length === 3, `customized: ${await visible()}`))
+  await h.eventually(ctx, async () => h.assert((await visible()).length === 4, `customized: ${await visible()}`))
   await ctx.shot('edited')
   await page.click('.bind-clear')
 
@@ -111,7 +128,7 @@ export default async (ctx, h) => {
   await page.locator('.settings .save').click()
   await page.waitForSelector('.settings', { state: 'detached' })
   const saved = (await page.evaluate(() => window.tie.settings.get())).settings.bindings
-  h.assert(same(saved, { 'split-right': 'Cmd+K', 'new-tab': null, 'nav-reload': 'Cmd+T' }), `saved: ${JSON.stringify(saved)}`)
+  h.assert(same(saved, { 'split-right': 'Cmd+K', 'split-down': 'Alt+A', 'new-tab': null, 'nav-reload': 'Cmd+T' }), `saved: ${JSON.stringify(saved)}`)
   const tiles = async () => (await h.list(ctx)).tiles.length
   const tabs = () => page.evaluate(() => document.querySelectorAll('.tab').length)
   const n = await tiles(), t = await tabs()
@@ -121,6 +138,15 @@ export default async (ctx, h) => {
   await h.press(ctx, 'Meta+t')
   await ctx.sleep(250) // absence: old chords no longer bound
   h.assert((await tiles()) === n + 1 && (await tabs()) === t, 'cmd+D, cmd+T: nothing')
+  // Alt+A runs its action from a terminal, which no longer sees the key. Shift after it: the page
+  // gets keys in order, so once Shift shows, an unblocked Alt+A would have shown before it.
+  h.assert((await h.focused(ctx)) && (await h.focused(ctx)) !== 'BODY', 'a tile has the keys')
+  await page.evaluate(() => (window.__seen = []))
+  await h.press(ctx, 'Alt+a')
+  await h.eventually(ctx, async () => h.assert((await tiles()) === n + 2, 'Alt+A splits down'))
+  await h.press(ctx, 'Shift')
+  await h.eventually(ctx, async () => h.assert((await seen()).length > 0, 'marker key seen'))
+  h.assert(!(await seen()).includes('KeyA'), `bound Alt+A blocked from the page: ${await seen()}`)
 
   // Cancel reverts the draft.
   await h.openSettings(ctx, 'bindings')
@@ -131,5 +157,5 @@ export default async (ctx, h) => {
   await page.waitForSelector('.settings', { state: 'detached' })
   h.assert(same((await page.evaluate(() => window.tie.settings.get())).settings.bindings, saved), 'cancel: nothing saved')
   await h.press(ctx, 'Meta+k')
-  await h.eventually(ctx, async () => h.assert((await tiles()) === n + 2, 'cmd+K still splits'))
+  await h.eventually(ctx, async () => h.assert((await tiles()) === n + 3, 'cmd+K still splits'))
 }

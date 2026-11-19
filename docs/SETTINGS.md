@@ -38,7 +38,7 @@
 
 - `bindings`: action ids and chord format in `core/keymap.ts` (`ACTIONS`, `chord()`). Present = customized (a customized `zoom-in` drops its hidden aliases); `null` = unbound.
     - `sanitize`: unknown actions, malformed / reserved chords dropped (those actions keep their defaults). Conflicts left: `resolveKeymap` is deterministic (overrides first, `ACTIONS` order).
-    - `validateSettings` (`bindingErrors`): unknown action, malformed chord, reserved (Escape / Enter / Backspace with any modifiers, cmd+C/V/X/A/Z, cmd+shift+Z, cmd+,), no Cmd / Ctrl (function keys excepted), two actions on one chord (default aliases included). Default chords always pass (`Ctrl+Tab`). `field: 'bindings'`, message names the action(s).
+    - `validateSettings` (`bindingErrors`): unknown action, malformed chord, reserved (Escape / Enter / Backspace with any modifiers, cmd+C/V/X/A/Z, cmd+shift+Z, cmd+,), no Cmd / Ctrl / Alt (Shift alone or a bare key: refused; function keys excepted; `Alt+A`, `Ctrl+C` allowed: left to the user), two actions on one chord (default aliases included). Default chords always pass (`Ctrl+Tab`). `field: 'bindings'`, message names the action(s).
     - A save replaces the whole object (no per-action merge). Applied live: main rebuilds the keymap (`keys.ts` `setBindings`) and the menu (Quit label).
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
 - `shell` applies to new terminals only. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).

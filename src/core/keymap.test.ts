@@ -119,20 +119,26 @@ describe('parseChord', () => {
 })
 
 describe('validBinding', () => {
-  it('accepts Cmd / Ctrl chords and bare function keys', () => {
-    for (const c of ['Cmd+K', 'Ctrl+K', 'Cmd+Alt+Shift+Up', 'F5', 'Shift+F12', 'Alt+F1', 'Cmd+Space', 'Cmd+Delete'])
+  it('accepts Cmd / Ctrl / Alt chords and bare function keys', () => {
+    for (const c of ['Cmd+K', 'Ctrl+K', 'Alt+K', 'Alt+A', 'Alt+Shift+Left', 'Alt+1', 'Alt+Space', 'Cmd+Alt+Shift+Up', 'F5', 'Shift+F12', 'Alt+F1', 'Cmd+Space', 'Cmd+Delete'])
       expect(validBinding(c), c).toBe(null)
   })
-  it('refuses bare keys, Alt / Shift only', () => {
-    for (const c of ['K', 'Shift+K', 'Alt+K', 'Alt+Shift+Left', 'Space', 'Delete']) expect(validBinding(c), c).toMatch(/Needs Cmd or Ctrl/)
+  it('refuses bare keys and Shift only', () => {
+    for (const c of ['K', 'Shift+K', 'Shift+Left', 'Space', 'Delete', '1']) expect(validBinding(c), c).toBe(`Needs Cmd, Ctrl or Alt (or a function key): ${c}`)
+  })
+  it('Alt keeps the reserved rules', () => {
+    expect(validBinding('Alt+Enter')).toMatch(/Reserved key/)
+    expect(validBinding('Alt+Escape')).toMatch(/Reserved key/)
   })
   it('refuses reserved keys with any modifiers, editing combos, cmd+,', () => {
     for (const c of ['Escape', 'Cmd+Escape', 'Cmd+Enter', 'Cmd+Shift+Backspace']) expect(validBinding(c), c).toMatch(/Reserved key/)
     for (const c of ['Cmd+C', 'Cmd+V', 'Cmd+X', 'Cmd+A', 'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+,']) expect(validBinding(c), c).toMatch(/Reserved combination/)
   })
-  it('Tab is bindable with Cmd / Ctrl', () => {
+  it('Tab is bindable with Cmd / Ctrl / Alt', () => {
     expect(validBinding('Cmd+Shift+Tab')).toBe(null)
-    expect(validBinding('Tab')).toMatch(/Needs Cmd or Ctrl/)
+    expect(validBinding('Alt+Tab')).toBe(null)
+    expect(validBinding('Tab')).toMatch(/Needs Cmd, Ctrl or Alt/)
+    expect(validBinding('Shift+Tab')).toMatch(/Needs Cmd, Ctrl or Alt/)
     expect(validBinding('Ctrl+Tab')).toBe(null)
     expect(validBinding('Ctrl+Shift+Tab')).toBe(null)
   })
@@ -187,11 +193,13 @@ describe('bindingErrors', () => {
   it('valid', () => {
     expect(bindingErrors({})).toEqual([])
     expect(bindingErrors({ quit: null, 'split-right': 'Cmd+K' })).toEqual([])
+    expect(bindingErrors({ 'split-right': 'Alt+A', 'split-down': 'Alt+Shift+A' })).toEqual([])
   })
   it('names the action', () => {
     expect(bindingErrors({ nope: 'Cmd+K' })).toEqual(['Unknown action: nope'])
     expect(bindingErrors({ 'split-right': 'Cmd+C' })).toEqual(['Split right: Reserved combination: Cmd+C'])
-    expect(bindingErrors({ 'split-right': 'K' })[0]).toMatch(/^Split right: Needs Cmd or Ctrl/)
+    expect(bindingErrors({ 'split-right': 'K' })).toEqual(['Split right: Needs Cmd, Ctrl or Alt (or a function key): K'])
+    expect(bindingErrors({ 'split-right': 'Shift+K' })[0]).toMatch(/^Split right: Needs Cmd, Ctrl or Alt/)
     expect(bindingErrors({ 'split-right': 5 })).toEqual(['Split right: not a key combination'])
     expect(bindingErrors({ 'split-right': 'Cmd+T' })).toEqual(['Split right and New tab both use Cmd+T'])
   })
@@ -203,6 +211,7 @@ describe('bindingErrors', () => {
 describe('cleanBindings', () => {
   it('keeps valid entries and null, drops the rest', () => {
     expect(cleanBindings({ quit: null, 'split-right': 'Cmd+K', 'split-down': 'Cmd+C', nope: 'Cmd+J', 'new-tab': 4 })).toEqual({ quit: null, 'split-right': 'Cmd+K' })
+    expect(cleanBindings({ 'split-right': 'Alt+A', 'split-down': 'Shift+A' })).toEqual({ 'split-right': 'Alt+A' })
     for (const x of [null, undefined, 'x', [], 3]) expect(cleanBindings(x)).toEqual({})
     expect(Object.keys(cleanBindings(JSON.parse('{"__proto__": {"quit": null}}')))).toEqual([])
   })
@@ -233,6 +242,11 @@ describe('alt chords and capture', () => {
     expect(chord(k('“', { alt: true, control: true, code: 'BracketLeft' }))).toBe('Ctrl+Alt+[')
     expect(chord(k('ArrowLeft', { alt: true, code: 'ArrowLeft' }))).toBe('Alt+Left')
     expect(validBinding('Cmd+Alt+E')).toBeNull()
+  })
+  it('an Alt chord binds and matches as captured', () => {
+    const m = resolveKeymap({ 'split-right': 'Alt+A' })
+    expect(actionFor(k('å', { alt: true, code: 'KeyA' }), m)).toBe('split-right')
+    expect(actionFor(k('a', { alt: true, code: 'KeyA' }), m)).toBe('split-right')
   })
   it('ignores the code without Alt', () => {
     expect(chord(k('d', { meta: true, code: 'KeyE' }))).toBe('Cmd+D')
