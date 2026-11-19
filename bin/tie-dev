@@ -138,10 +138,10 @@ case "$cmd" in
       # Viewers aren't in the dev server's graph: their own watcher rebuilds them (main reloads frames).
       node dev/viewers.mjs --watch & VW=$!
       trap 'kill $VW 2>/dev/null' EXIT
-      npx electron-vite dev; exit $?
+      npx electron-vite dev -- -ApplePersistenceIgnoreState YES; exit $?
     fi
     if needs_build; then build; fi
-    exec node_modules/electron/dist/Electron.app/Contents/MacOS/Electron . ;;
+    exec node_modules/electron/dist/Electron.app/Contents/MacOS/Electron . -ApplePersistenceIgnoreState YES ;;
   build)
     npx electron-vite build && touch "$STAMP" ;;
   start)
