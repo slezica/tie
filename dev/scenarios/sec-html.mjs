@@ -35,6 +35,9 @@ export default async (ctx, h) => {
   writeFileSync(join(base, 'secret.txt'), 'SECRET')
   symlinkSync(join(base, 'secret.txt'), join(dir, 'link.txt'))
   writeFileSync(join(dir, 'data.json'), '{"v": 1}')
+  // Written before any tile opens: a write into the folder later would live-reload the html page
+  // under a frame handle the scenario still holds.
+  writeFileSync(join(dir, 'n.md'), '# n\n')
   // Over the html cap (10 MB): a document of the folder main must not read whole; a large asset
   // is streamed (never read whole either) and arrives intact.
   writeFileSync(join(dir, 'big.html'), Buffer.alloc(10 * 1024 * 1024 + 1, 0x61))
@@ -183,7 +186,6 @@ export default async (ctx, h) => {
     const pf = await h.contentFrame(ctx, pr)
     const opaque = await pf.evaluate((t) => fetch(`tie-content://${t}/data.json`).then(() => 'ok', () => 'threw'), new URL(pf.url()).host)
     h.assert(opaque === 'threw', `probe frame fetch: ${opaque}`)
-    writeFileSync(join(dir, 'n.md'), '# n\n')
     const md = (await ctx.tie('add', join(dir, 'n.md'), '--at', id, '--cwd', dir)).id
     const mf = await h.contentFrame(ctx, md)
     const mdFetch = await mf.evaluate(() => fetch(`${location.protocol}//${location.host}/n.md`).then(() => 'ok', () => 'threw'))

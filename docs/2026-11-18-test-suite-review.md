@@ -218,7 +218,7 @@ Left open on purpose (not fixed here).
 
 1. Settings Save over a hand-fixed file (`settings-malformed`): the panel opened on defaults, Save writes them over the fixed file. Author to choose: leave / panel reloads when the file becomes readable / Save blocked until reopened.
 2. `browser` "navigated" timeout under load: failed twice in loaded full runs today, passes alone. Same area as the hang in `2026-11-16-configurable-bindings-and-schemes.md` manual check 17.
-3. `sec-html` under load: `frame.evaluate: Execution context was destroyed` at the gesture-rule `window.open` (`sec-html.mjs:197`): the scenario writes `n.md` into the html tile's folder, its live reload lands after `h.htmlFrame` found the old frame (`[content] load … evil.html` in the log). Once in the final full run (`out/log/runs/20261118-231215-e2e/sec-html/`), 3/3 alone. Scenario-only fix: write `n.md` before the html tile opens, or wait for that reload.
+3. `sec-html` under load (`Execution context was destroyed`: a late `n.md` write live-reloaded the page under a held frame handle): fixed, `n.md` is written before any tile opens; 4/4 alone after. Not re-run in a loaded full run.
 4. X-T2 UI-session download test is a log check only (a real download would open a native Save dialog).
 5. Extractions decided against: float clamp (L-U3), shelf drop slot math (S-U1), hex scroll mapping (C-G6), viewer pure logic (C-G7).
 6. `docs/PENDING.md` still names old scenario names `markdown-keys`, `sec-browser` (file holds the author's uncommitted edits).
