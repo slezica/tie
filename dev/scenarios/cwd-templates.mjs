@@ -1,6 +1,7 @@
 // Templates and OS drops inherit their context tile's cwd (DIRECTORIES.md): template → shelf (the
 // active tile), → a file tile's edge (that tile), → empty board area (the active floating tile);
-// the file template (picker start and the opened tile); an OS file drop beside a tile.
+// the file template (picker start and the opened tile); an OS file drop beside a tile; template → a
+// terminal's edge: its shell's cwd, read fresh (not the 2 s poll).
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +15,26 @@ export default async (ctx, h) => {
   // The one tile not in `before`, once it exists.
   const added = (before, what) => h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => !before.has(t.id)), what)
   try {
+    // Template → a terminal's edge right after a `cd`: the shell's cwd, read fresh (h.openFresh). Points
+    // taken first; a bare drag (h.drag settles animations mid-drag: seconds under load, past the next poll).
+    const t0 = (await h.list(ctx)).tiles[0].id
+    await h.waitShell(ctx, t0)
+    await h.waitActive(ctx, t0)
+    const from = await h.template(ctx)
+    const to = await h.sidePoint(ctx, t0, 'b')
+    const drop = async () => {
+      await ctx.page.mouse.move(from.x, from.y)
+      await ctx.page.mouse.down()
+      await ctx.page.mouse.move(to.x, to.y, { steps: 6 })
+      await ctx.page.mouse.up()
+    }
+    const f0 = await h.openFresh(ctx, R, t0, drop, 'template next to a terminal')
+    h.assert(f0.t.kind === 'terminal' && f0.t.cwd === f0.dir, `template: tile cwd ${f0.t.cwd} (want ${f0.dir})`)
+    await h.waitActive(ctx, f0.t.id)
+    await h.waitShell(ctx, f0.t.id)
+    await ctx.page.keyboard.type('clear; pwd\n')
+    await h.waitFor(ctx, async () => (await h.screen(ctx, f0.t.id)).startsWith(f0.dir + 'bash'), `${f0.t.id}: pwd = ${f0.dir}`)
+
     // Template → shelf: the visible tab's active tile (a terminal in one/: its shell, fresh).
     const a = await ctx.tieAt(join(R, 'one'), 'add', 'terminal', '--focus')
     await h.waitShell(ctx, a.id)

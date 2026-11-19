@@ -615,6 +615,65 @@ export async function waitRunning(ctx, id, re, ms) {
   }, `${id} running ${re}`, ms)
 }
 
+// A terminal opened from terminal `from` takes its shell's cwd read fresh, not main's 2 s lsof poll
+// (DIRECTORIES.md): `open()` runs right after a `cd`, proven to land between two polls. `from` must
+// be the active tile (keys typed into it); new directories go under `root`. The poll phase is pinned
+// first (a `cd` landing with a poll), the second `cd` follows at once, the stored cwd is still the
+// first right before `open()`, and the new tile exists before the next poll could have run (1.7 s:
+// 300 ms margin for lsof). Too slow (loaded machine): close it, again with fresh directories.
+// Returns {t: the new tile, dir: the cwd it must have}.
+export async function openFresh(ctx, root, from, open, what) {
+  const { mkdirSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  // A new directory under root: its name (typed relative, so the timed `cd` types fast) and path.
+  const fresh = () => {
+    const name = `fresh${openFresh.n++}`
+    mkdirSync(join(root, name))
+    return { name, path: join(root, name) }
+  }
+  const stored = async (id) => (await tileOf(ctx, id)).cwd
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  // The cd has run: the prompt is back after it.
+  const cdDone = (id, typed) => waitText(ctx, id, new RegExp(`cd ${esc(typed)}[\\s\\S]*\\$\\s*$`))
+  // The stored cwd becomes `dir`. Returns the start of the last read that still saw the old value:
+  // the poll's tick came no earlier than ~that (minus lsof's run time), so the next one comes no
+  // earlier than 2 s later. null: already there at the first read.
+  const polledAfter = async (id, dir) => {
+    const end = Date.now() + 6000
+    let prev = null
+    while (Date.now() < end) {
+      const t0 = Date.now()
+      if ((await stored(id)) === dir) return prev
+      prev = t0
+      await ctx.sleep(10) // poll interval of this wait
+    }
+    throw new Error(`timed out: ${id} stored cwd ${dir}`)
+  }
+  for (let i = 0; i < 6; i++) {
+    const old = fresh()
+    const dir = fresh()
+    await ctx.page.keyboard.type(`cd ${old.path}\n`)
+    const since = await polledAfter(from, old.path)
+    if (since === null) continue
+    await ctx.page.keyboard.type(`cd ../${dir.name}\n`)
+    await cdDone(from, `../${dir.name}`)
+    if ((await stored(from)) !== old.path) continue // the next poll came already: no proof
+    const before = new Set((await list(ctx)).tiles.map((t) => t.id))
+    // Watched while `open()` runs (a drag settles its animations after the drop).
+    const opening = open()
+    const t = await waitFor(ctx, async () => (await list(ctx)).tiles.find((x) => !before.has(x.id)), what)
+    const ms = Date.now() - since
+    await opening
+    ctx.log(`${what}: opened ${ms} ms after the poll${ms < 1700 ? '' : ': again'}`)
+    if (ms < 1700) return { t, dir: dir.path }
+    await ctx.tie('close', '--tile', t.id)
+    await ctx.tie('focus', '--tile', from)
+    await waitActive(ctx, from)
+  }
+  throw new Error(`${what}: no try fit between two polls`)
+}
+openFresh.n = 0
+
 // App log (the run's app.log, as read by ctx.appLog) with at least n matches of `re`; returns them.
 export const waitLog = (ctx, re, n = 1, ms) => waitFor(ctx, async () => {
   const m = ctx.appLog().match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')) ?? []

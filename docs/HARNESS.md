@@ -111,6 +111,7 @@ EOF
 | `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered) |
 | `waitTile(id, pred)`, `waitGone(id)`, `waitActive(id)`, `waitRevealed(id\|null)` | `tie list` entry once `pred` holds; tile closed; active tile; shelf hover reveal (`tie state`) |
 | `waitShell(id)` (fails at once on a tile error; timeout names pid + last lines), `waitText(id, re)`, `children(id)`, `waitChild(id, re)`, `waitNoChild(id)`, `waitRunning(id, re)` | terminal: shell started, prompt drawn; screen matches (`screen` joins rows without newlines: no `^`/`$` per line); shell's child processes (`ps`): a typed command started / ended; a program running in the tile (its own process, as a `--cmd` bash execs a single command, or a child) |
+| `openFresh(root, from, open, what)` | terminal `from` (active) `cd`s between two cwd polls, then `open()`: proves the new tile took the shell's cwd fresh, not main's 2 s poll (retries when too slow); `{t, dir}` |
 | `waitLog(re, n)` | run's app log has n matches |
 | `waitDialog(sel)`, `waitNoDialog()`, `waitArmed()` | dialog open; closed; its confirm enabled (dialogs that arm after a delay) |
 

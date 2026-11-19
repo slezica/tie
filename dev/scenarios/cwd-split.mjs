@@ -1,6 +1,7 @@
 // Tile cwd (DIRECTORIES.md) per kind: `tie add` stores the caller's cwd on every kind (root stays the
 // file's folder); titles (file / html: path, browser: host + path, tab: cwd basename); cmd+D from a
-// file / html / browser tile → a terminal in that tile's cwd; cmd+O from a browser → picker there.
+// file / html / browser tile → a terminal in that tile's cwd; cmd+O from a browser → picker there; cmd+D
+// from a terminal → its shell's cwd, read fresh (not the 2 s poll).
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename } from 'node:path'
@@ -77,6 +78,16 @@ export default async (ctx, h) => {
       h.assert(n.kind === 'terminal' && n.cwd === ROOT, `${how}: app cwd ${ROOT} (got ${n.kind} ${n.cwd})`)
       await h.waitShell(ctx, n.id)
     }
+
+    // cmd+D from a terminal right after a `cd`: the shell's cwd, read fresh (h.openFresh).
+    const a = (await h.list(ctx)).active
+    await h.waitActive(ctx, a)
+    const s1 = await h.openFresh(ctx, R, a, () => h.press(ctx, 'Meta+d'), 'cmd+D split')
+    h.assert(s1.t.kind === 'terminal' && s1.t.cwd === s1.dir, `cmd+D: tile cwd ${s1.t.cwd} (want ${s1.dir})`)
+    await h.waitActive(ctx, s1.t.id)
+    await h.waitShell(ctx, s1.t.id)
+    await ctx.page.keyboard.type('clear; pwd\n')
+    await h.waitFor(ctx, async () => (await h.screen(ctx, s1.t.id)).startsWith(s1.dir + 'bash'), `${s1.t.id}: pwd = ${s1.dir}`)
   } finally {
     await s.close()
     rmSync(R, { recursive: true, force: true })
