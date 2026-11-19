@@ -13,8 +13,9 @@ export { TERMINAL_TITLES, parseCommand, type Settings, type SettingsError, type 
 export const settingsPath =
   process.env.TIE_SETTINGS || join(stateDir, instance === 'default' ? 'settings.json' : `settings.${instance}.json`)
 
-// First dev run: start from the installed app's settings rather than blank. (A write not made by
-// the user: flagged to the author, see the RULE below.)
+// First dev run: start from the installed app's settings rather than blank. The one exception to
+// the RULE below (author's decision): a one-time seed of a new dev instance's own file, never the
+// installed app's file. Runs before the baseline is taken: the seeded content is the baseline (no banner).
 if (!process.env.TIE_SETTINGS && instance === 'dev' && !existsSync(settingsPath) && existsSync(join(stateDir, 'settings.json')))
   copyFileSync(join(stateDir, 'settings.json'), settingsPath)
 
@@ -73,8 +74,7 @@ export const saveRefusal = (): string | null => loadRefusal() ?? (fileChanged() 
 // RULE: the settings file is written only by an explicit user action: the panel's Save
 // (setSettings) and "Recreate with defaults" in the startup dialog (recreateSettings). Never by
 // startup, load / sanitize (adjusted values stay in memory), the panel opening or cancelling,
-// previews, Ignore, Reload or the watcher. (Exception, pending the author: the first dev run's
-// seed copy above.)
+// previews, Ignore, Reload or the watcher. One exception: the first dev run's seed copy above.
 function write(text: string) {
   writeFileSync(settingsPath, text, { mode: PRIVATE })
   baseline = { text } // same tick as the write: no watcher event can see it as a change
