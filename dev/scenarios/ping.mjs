@@ -40,7 +40,7 @@ export default async (ctx, h) => {
 
   await h.press(ctx, 'Meta+ArrowUp') // c -> b
   await h.eventually(ctx, async () => h.assert((await L()).active === b && !(await info(b)).pinged, 'activation clears'))
-  await h.pin(ctx, s)
+  await h.clickShelf(ctx, s)
   h.assert(!(await info(s)).pinged, 'pinning a shelved tile clears')
 
   await ctx.tie('ping', '--tile', a)

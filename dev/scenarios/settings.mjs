@@ -2,26 +2,21 @@
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
   await ctx.tie('move', '--tile', b, '--shelve')
-  const open = async () => {
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
-  }
-  const cssVar = (n) => ctx.page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), n)
   const termBg = () => ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-viewport') ?? document.querySelector('.xterm')).backgroundColor)
 
-  await open()
+  await h.openSettings(ctx)
   await ctx.shot('appearance')
   // Fresh settings file: every field shows its default.
   for (const [sel, v] of [['#set-font-size', '12'], ['#set-line-height', '1.15'], ['#set-cell-width', '100'], ['#set-theme', 'tie-dark'], ['#set-font', '']])
     h.assert((await ctx.page.inputValue(sel)) === v, `default ${sel} = ${v}`)
   // Live preview, then cancel reverts.
   await ctx.page.selectOption('#set-theme', 'solarized-light')
-  h.assert((await cssVar('--bg')) === '#fdf6e3', 'preview applies')
+  h.assert((await h.cssVar(ctx, '--bg')) === '#fdf6e3', 'preview applies')
   await ctx.page.keyboard.press('Escape')
-  h.assert((await cssVar('--bg')) === '#22252c', 'cancel reverts (Tie Dark default)')
+  h.assert((await h.cssVar(ctx, '--bg')) === '#22252c', 'cancel reverts (Tie Dark default)')
 
   // Save Nord + line height + font (Monaco: ships with macOS, not in the default stack) + size.
-  await open()
+  await h.openSettings(ctx)
   await ctx.page.selectOption('#set-theme', 'nord')
   // Line height previews in the terminal rows (xterm renders on the next frame).
   const rowH = () => ctx.page.evaluate(() => document.querySelector('.xterm-rows > div').getBoundingClientRect().height)
@@ -43,10 +38,10 @@ export default async (ctx, h) => {
   await h.waitFor(ctx, async () => (await cw()) < w100 * 0.95, `char width shrinks rows (${w100} -> ${await cw()})`)
   await ctx.shot('fonts')
   await ctx.page.locator('.save').click()
-  await h.eventually(ctx, async () => h.assert((await cssVar('--bg')) === '#2e3440', 'nord saved'))
+  await h.eventually(ctx, async () => h.assert((await h.cssVar(ctx, '--bg')) === '#2e3440', 'nord saved'))
   const saved = (await ctx.page.evaluate(() => window.tie.settings.get())).settings
   h.assert(saved.lineHeight === 1.3 && saved.fontFamily === 'Monaco' && saved.fontSize === 14 && saved.cellWidth === 90, `saved: ${JSON.stringify(saved)}`)
-  h.assert((await cssVar('--tile-line-height')) === '1.3', `line height applied: ${await cssVar('--tile-line-height')}`)
+  h.assert((await h.cssVar(ctx, '--tile-line-height')) === '1.3', `line height applied: ${await h.cssVar(ctx, '--tile-line-height')}`)
   const lh = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.titlebar')).lineHeight)
   h.assert(lh === 'normal', `chrome line height untouched (${lh})`)
   const tf = await ctx.page.evaluate(() => getComputedStyle(document.querySelector('.xterm-rows')).fontFamily)
@@ -61,16 +56,15 @@ export default async (ctx, h) => {
   await ctx.page.mouse.move(400, 400)
 
   // Light theme: previews over a saved theme, Escape back to it (screenshot for review).
-  await open()
+  await h.openSettings(ctx)
   await ctx.page.selectOption('#set-theme', 'solarized-light')
-  h.assert((await cssVar('--bg')) === '#fdf6e3' && (await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'light preview')
+  h.assert((await h.cssVar(ctx, '--bg')) === '#fdf6e3' && (await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'light preview')
   await ctx.shot('solarized-light-panel')
   await ctx.page.keyboard.press('Escape')
-  h.assert((await cssVar('--bg')) === '#2e3440' && !(await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'cancel: back to saved nord')
+  h.assert((await h.cssVar(ctx, '--bg')) === '#2e3440' && !(await ctx.page.evaluate(() => document.documentElement.classList.contains('light'))), 'cancel: back to saved nord')
 
   // Terminal page: shell command.
-  await open()
-  await ctx.page.locator('nav button[data-page="terminal"]').click()
+  await h.openSettings(ctx, 'terminal')
   await ctx.shot('terminal-page')
   await ctx.page.fill('#set-shell', 'bash --norc')
   await ctx.page.keyboard.press('Enter')
@@ -80,10 +74,10 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert(!(await ctx.page.$('.settings')), 'closed on Save'))
   const t = await ctx.tie('add', 'terminal', '--cmd', 'echo "argv0=$0"; sleep 30')
   await h.waitText(ctx, t.id, 'argv0=')
-  const line = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n')[0], t.id)
+  const line = (await h.lines(ctx, t.id))[0]
   h.assert(line.startsWith('argv0=bash'), `custom shell used: ${line}`)
   // Persisted across reopen; theme still nord.
-  await open()
+  await h.openSettings(ctx)
   h.assert((await ctx.page.inputValue('#set-shell')) === 'bash --norc', 'shell persisted')
   h.assert((await ctx.page.inputValue('#set-theme')) === 'nord', 'theme persisted')
   await ctx.page.keyboard.press('Escape')
@@ -101,21 +95,20 @@ export default async (ctx, h) => {
   // Borderless: the title strip goes (traffic lights hidden by main), the board reaches the top; persists.
   const boardY = async () => (await h.list(ctx)).board.y
   const y0 = await boardY()
-  await open()
-  await ctx.page.locator('nav button[data-page="appearance"]').click()
+  await h.openSettings(ctx, 'appearance')
   await ctx.page.check('#set-borderless')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => h.assert((await boardY()) < y0 - 10, `board reaches the top (${y0} -> ${await boardY()})`))
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.borderless === true, 'borderless saved')
 
-  await terminalTitle(ctx, h, open)
-  await securityPage(ctx, h, open)
-  await filesPage(ctx, h, open)
+  await terminalTitle(ctx, h)
+  await securityPage(ctx, h)
+  await filesPage(ctx, h)
 }
 
 // Terminal title setting: command (default: foreground program, program titles ignored) | auto
 // (program's OSC title) | directory (basename, full path as tooltip). Applies live to open terminals.
-async function terminalTitle(ctx, h, open) {
+async function terminalTitle(ctx, h) {
   const x = (await ctx.tie('add', 'terminal', '--focus')).id
   await h.waitShell(ctx, x)
   // Marker computed by the shell: on screen once the printf (OSC title) has run.
@@ -124,8 +117,7 @@ async function terminalTitle(ctx, h, open) {
   const title = async () => (await h.tileOf(ctx, x)).title
   const tip = () => ctx.page.$eval(`.tile[data-id="${x}"] .titlebar .title`, (e) => e.title)
   const mode = async (v) => {
-    await open()
-    await ctx.page.locator('nav button[data-page="terminal"]').click()
+    await h.openSettings(ctx, 'terminal')
     await ctx.page.selectOption('#set-terminal-title', v)
     await ctx.page.locator('.save').click()
     await ctx.page.waitForSelector('.settings', { state: 'detached' })
@@ -144,8 +136,7 @@ async function terminalTitle(ctx, h, open) {
   await ctx.page.keyboard.type('/bin/sleep 5\n') // absolute: PATH may alias sleep to gsleep
   // Process poll (1 s).
   await h.eventually(ctx, async () => h.assert((await title()) === 'sleep', `command: foreground program: ${await title()}`))
-  await open()
-  await ctx.page.locator('nav button[data-page="terminal"]').click()
+  await h.openSettings(ctx, 'terminal')
   h.assert((await ctx.page.inputValue('#set-terminal-title')) === 'command', 'terminal title persisted')
   await ctx.page.keyboard.press('Escape')
   await ctx.tie('close', '--tile', x)
@@ -153,8 +144,8 @@ async function terminalTitle(ctx, h, open) {
 
 // Security page: socket callers + links out; no Content page. The external-control switch applies
 // at once (this harness is an external caller; the seed turned it on).
-async function securityPage(ctx, h, open) {
-  await open()
+async function securityPage(ctx, h) {
+  await h.openSettings(ctx)
   h.assert(!(await ctx.page.$('nav button[data-page="content"]')), 'no Content page')
   await ctx.page.locator('nav button[data-page="security"]').click()
   h.assert(await ctx.page.isVisible('#set-confirm-external'), 'link confirm on Security')
@@ -163,19 +154,18 @@ async function securityPage(ctx, h, open) {
   await ctx.page.uncheck('#set-allow-external')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => {
-    const err = await ctx.tie('list').then(() => null, (e) => e.message)
+    const err = await h.tieError(ctx, 'list')
     h.assert(err === 'tie: External control is off (Settings → Security)', `external refused once off: ${err}`)
   })
-  await open()
-  await ctx.page.locator('nav button[data-page="security"]').click()
+  await h.openSettings(ctx, 'security')
   await ctx.page.check('#set-allow-external')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => h.assert((await ctx.tie('list')).tiles.length > 0, 'external allowed again'))
 }
 
 // Files page (after Terminal): "Respect .gitignore", default on; saved as gitignore.
-async function filesPage(ctx, h, open) {
-  await open()
+async function filesPage(ctx, h) {
+  await h.openSettings(ctx)
   const pages = await ctx.page.$$eval('.settings nav button', (bs) => bs.map((b) => b.dataset.page))
   h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'bindings', 'terminal', 'files', 'security']), `pages: ${pages}`)
   await ctx.page.locator('nav button[data-page="files"]').click()
@@ -185,8 +175,7 @@ async function filesPage(ctx, h, open) {
   await ctx.page.locator('.save').click()
   await ctx.page.waitForSelector('.settings', { state: 'detached' })
   h.assert((await ctx.page.evaluate(() => window.tie.settings.get())).settings.gitignore === false, 'gitignore saved off')
-  await open()
-  await ctx.page.locator('nav button[data-page="files"]').click()
+  await h.openSettings(ctx, 'files')
   h.assert(!(await ctx.page.isChecked('#set-gitignore')), 'gitignore off persisted')
   await ctx.page.keyboard.press('Escape')
 }

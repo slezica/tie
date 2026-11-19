@@ -81,10 +81,7 @@ export default async (ctx, h) => {
     // each checked: the document CSP refuses (violation events, below; forms: the sandbox; workers
     // from elsewhere: same-origin rule) and the UI session has no network (probes untouched, even
     // for what the CSP doesn't cover: WebRTC).
-    await fr.evaluate(() => {
-      window.__v = []
-      document.addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.effectiveDirective} ${e.blockedURI}`))
-    })
+    await h.recordViolations(fr)
     await fr.evaluate(
       ({ u, tcpPort, udpPort }) => {
         const T = (fn) => {
@@ -139,7 +136,7 @@ export default async (ctx, h) => {
     // Every attempt refused (CSP violation events come in as the attempts run).
     let v
     await h.eventually(ctx, async () => {
-      v = await (await h.htmlFrame(ctx, id)).evaluate(() => window.__v)
+      v = await h.violations(await h.htmlFrame(ctx, id))
       for (const [dir, path] of [['connect-src', '/fetch'], ['connect-src', '/xhr'], ['connect-src', '/beacon'], ['connect-src', '/es'], ['connect-src', 'ws://'], ['img-src', '/img'], ['img-src', '/css-bg'], ['img-src', '/attr-bg'], ['img-src', '/svg-image'], ['style-src-elem', '/style'], ['style-src-elem', '/import.css'], ['font-src', '/font'], ['script-src-elem', '/script-el.js'], ['script-src-elem', '/preload'], ['default-src', '/prefetch'], ['connect-src', '/ping'], ['media-src', '/audio'], ['frame-src', p.url], ['object-src', p.url]])
         h.assert(v.some((x) => x.startsWith(dir + ' ') && x.includes(path)), `CSP refused ${dir} ${path}: ${JSON.stringify(v)}`)
     }, 8000)
@@ -196,7 +193,7 @@ export default async (ctx, h) => {
     // The web from the page: only through the dialog. Not focused: refused (gesture rule).
     const fe = await h.htmlFrame(ctx, id)
     await ctx.tie('focus', '--tile', t0)
-    await h.waitFor(ctx, () => ctx.page.evaluate((t0) => document.activeElement?.closest('.tile')?.dataset.id === t0, t0), 'keys to t0')
+    await h.waitFor(ctx, async () => (await h.focused(ctx)) === t0, 'keys to t0')
     await fe.evaluate((u) => window.open(u + '/nofocus'), p.url)
     await h.waitFor(ctx, async () => /refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'refusal logged')
     h.assert(!(await ctx.page.isVisible('.dialog.external-open')) && /refused request without focus t[a-z2-9]+ followLink/.test(ctx.appLog()), 'window.open without focus: refused, no dialog')

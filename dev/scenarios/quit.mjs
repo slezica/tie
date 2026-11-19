@@ -19,7 +19,7 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   await h.eventually(ctx, async () => {
     h.assert(alive() && (await dialogs()) === 0, 'Esc: still running, dialog gone')
-    h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === a, 'keys back to the terminal')
+    h.assert((await h.focused(ctx)) === a, 'keys back to the terminal')
   })
 
   // One tab, a busy terminal: listed, no tab groups.
@@ -84,6 +84,6 @@ export default async (ctx, h) => {
   h.assert(pids.length >= 5, `shells + commands found: ${pids}`) // a, b, sh; sleep 30, sleep 32 &
   await ctx.page.click('.dialog .confirm')
   await h.eventually(ctx, async () => h.assert(!alive(), 'Quit quits'))
-  const living = () => pids.filter((pid) => { try { return process.kill(pid, 0), true } catch { return false } })
+  const living = () => pids.filter(h.alive)
   await h.eventually(ctx, async () => h.assert(!living().length, `quit killed every shell and command (alive: ${living()})`))
 }

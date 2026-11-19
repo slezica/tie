@@ -3,9 +3,6 @@
 // bar (cmd+L, typed URL, refused input), keys from the guest (cmd+D splits), focus activation,
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
 // focused), tie add browser [url], CLI errors. Hidden window: real clicks reach the guest.
-import { execFileSync } from 'node:child_process'
-import { join } from 'node:path'
-import { ROOT } from '../lib.mjs'
 import * as h from '../helpers.mjs'
 
 export const hiddenWindow = true
@@ -25,16 +22,7 @@ export default async (ctx, h) => {
     if (path === '/store') return page('Store', "<script>window.__before = localStorage.getItem('k'); localStorage.setItem('k', 'v'); document.cookie = 'c=1; max-age=3600'</script>")
     return null
   })
-  const cli = (...args) => {
-    const env = { ...process.env, TIE_INSTANCE: ctx.instance }
-    delete env.TIE_SOCKET
-    delete env.TIE_TILE
-    try {
-      return { code: 0, out: execFileSync(join(ROOT, 'bin/tie'), args, { env, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim() }
-    } catch (e) {
-      return { code: e.status, err: e.stderr.toString().trim() }
-    }
-  }
+  const cli = (...args) => ctx.tieRaw(args)
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const hits = (p) => s.hits.filter((x) => x === p).length
@@ -53,7 +41,7 @@ export default async (ctx, h) => {
     // by the UI (update-target-url → Host.hint), not by the page; gone when the pointer leaves it.
     const box = await g.locator('#two').boundingBox()
     const body = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
-    const strip = () => ctx.page.evaluate((id) => { const e = document.querySelector(`.tile[data-id="${id}"] .link-strip`); return e && !e.hidden ? e.textContent : null }, b)
+    const strip = () => h.linkStrip(ctx, b)
     await ctx.page.mouse.move(body.x + box.x + 10, body.y + box.y + box.height / 2)
     await h.waitFor(ctx, async () => (await strip()) === s.url + '/two', 'hover: link strip shows the target')
     await ctx.page.mouse.move(body.x + body.width / 2, body.y + body.height - 10)
@@ -231,16 +219,16 @@ export default async (ctx, h) => {
     await ctx.tie('close', '--tile', st2)
 
     // CLI: tie add browser [url]; errors.
-    const bare = JSON.parse(cli('add', 'browser', '--json').out)
+    const bare = JSON.parse((await cli('add', 'browser', '--json')).out)
     h.assert(bare.kind === 'browser' && bare.web.url === 'about:blank' && !bare.active, `tie add browser: ${JSON.stringify(bare.web)}`)
-    const withUrl = JSON.parse(cli('add', 'browser', s.url + '/two', '--json').out)
+    const withUrl = JSON.parse((await cli('add', 'browser', s.url + '/two', '--json')).out)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, withUrl.id)).web.title === 'Page Two', 'tie add browser <url>')
     for (const [args, err] of [
       [['add', 'browser', 'file:///etc/hosts'], 'Not a web address'],
       [['add', 'browser', 'javascript:alert(1)'], 'Not a web address'],
       [['add', 'browser', 'how to'], 'Not a web address'],
     ]) {
-      const res = cli(...args)
+      const res = await cli(...args)
       h.assert(res.code === 1 && res.err.includes(err), `${args.join(' ')}: ${JSON.stringify(res)}`)
     }
     return { tiles: (await h.list(ctx)).tiles.map((x) => `${x.id} ${x.kind} ${x.title}`), hits: s.hits.length }

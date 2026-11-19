@@ -45,7 +45,7 @@ export default async (ctx, h) => {
   await h.waitShell(ctx, (await L()).tiles[0].id)
 
   // External caller (the harness): no terminal of its own.
-  const ext = await ctx.tie('replace', md).then(() => null, (e) => e.message)
+  const ext = await h.tieError(ctx, 'replace', md)
   h.assert(/no terminal to replace/.test(ext ?? ''), `external: ${ext}`)
   // Clients can't call the internal replaced method (it would close any tile).
   const a = (await L()).tiles[0].id
@@ -53,7 +53,7 @@ export default async (ctx, h) => {
   h.assert(/unknown method: replaced/.test(raw ?? '') && (await has(a)), `client replaced refused: ${raw}`)
   // Old name: gone from the CLI and the protocol, nothing opened.
   const before = await ids()
-  const old = await ctx.tie('open', md).then(() => null, (e) => e.message)
+  const old = await h.tieError(ctx, 'open', md)
   h.assert(/unknown command: open \(commands: list, add, replace,/.test(old ?? ''), `tie open: unknown command: ${old}`)
   const oldRpc = await rpc(ctx.instance, 'open', { kind: 'terminal' }).then(() => null, (e) => e.message)
   h.assert(/unknown method: open/.test(oldRpc ?? '') && (await ids()) === before, `open method: unknown: ${oldRpc}`)
@@ -65,7 +65,7 @@ export default async (ctx, h) => {
   const na = await replace(a)
   h.assert(na.state === 'slotted' && JSON.stringify(na.rect) === JSON.stringify(ra), `slot kept: ${JSON.stringify(ra)} -> ${JSON.stringify(na.rect)}`)
   h.assert(na.active, 'new tile active (old was)')
-  h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === na.id, 'keys to the new tile')
+  h.assert((await h.focused(ctx)) === na.id, 'keys to the new tile')
   h.assert(!na.title.includes('replace') && na.icon === '', 'no custom title / icon')
   await ctx.shot('replace-slot')
 

@@ -17,10 +17,7 @@ export default async (ctx, h) => {
     const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     await h.waitFor(ctx, async () => (await h.mdState(ctx, id)).text.includes('Plain'), 'plain render')
     const fr = await h.contentFrame(ctx, id)
-    await fr.evaluate(() => {
-      window.__v = []
-      addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.violatedDirective} ${e.blockedURI}`))
-    })
+    await h.recordViolations(fr)
     await ctx.sleep(500) // absence: the library isn't fetched for a document without diagrams
 
     // Lazy: no diagram, no library.
@@ -53,14 +50,13 @@ export default async (ctx, h) => {
     const bg = () => fr.evaluate(() => window.markdown.diagrams.config.themeVariables.background)
     const before = { fill: await fill(), bg: await bg() }
     h.assert(before.bg === '#22252c', `theme background: ${before.bg}`)
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
+    await h.openSettings(ctx)
     await ctx.page.selectOption('#set-theme', 'solarized-light')
     await h.waitFor(ctx, async () => (await bg()) === '#fdf6e3' && (await fill()) !== before.fill, 'diagrams re-rendered in the new theme')
     await ctx.shot('light')
     await ctx.page.keyboard.press('Escape')
 
-    const v = await fr.evaluate(() => window.__v)
+    const v = await h.violations(fr)
     h.assert(!v.length, `no CSP violations: ${v}`)
     h.assert(!(await h.tileOf(ctx, id)).error, 'tile fine')
   } finally {

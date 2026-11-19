@@ -44,9 +44,7 @@ export default async (ctx, h) => {
     h.assert(dom.bg === 'rgb(34, 37, 44)' && !/mono/i.test(dom.font.split(',')[0]) && Math.abs(parseFloat(dom.size) - 13.8) < 0.1 && Math.abs(parseFloat(dom.h1size) - 27.6) < 0.2, `theme bg, proportional font, scaled sizes: ${JSON.stringify(dom)}`)
     await ctx.shot('rendered')
     // A theme without code token colors (Dracula): tokens fall back to its ANSI palette.
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
-    await ctx.page.locator('nav button[data-page="appearance"]').click()
+    await h.openSettings(ctx, 'appearance')
     await ctx.page.selectOption('#set-theme', 'dracula')
     await ctx.page.locator('.save').click()
     await h.eventually(ctx, async () => {
@@ -102,8 +100,7 @@ export default async (ctx, h) => {
     await ctx.tie('move', '--tile', id, '--at', a, '--side', 'r')
 
     // Theme change (settings preview) reaches the frame; light theme.
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
+    await h.openSettings(ctx)
     await ctx.page.selectOption('#set-theme', 'solarized-light')
     await h.waitFor(ctx, async () => (await (await h.contentFrame(ctx, id)).evaluate(() => getComputedStyle(document.documentElement).backgroundColor)) === 'rgb(253, 246, 227)', 'light theme in frame')
     await ctx.shot('light')

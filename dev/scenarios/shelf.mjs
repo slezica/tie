@@ -25,7 +25,7 @@ export default async (ctx, h) => {
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'hover does not pin')
   await ctx.page.mouse.move(400, 400)
   await h.waitRevealed(ctx, null)
-  await h.pin(ctx, c)
+  await h.clickShelf(ctx, c)
   await ctx.shot('pinned')
   l = await h.list(ctx)
   h.assert(l.tiles.find((t) => t.id === c).pinned && l.active === c, 'click pins + activates')
@@ -37,7 +37,7 @@ export default async (ctx, h) => {
     l = await h.list(ctx)
     h.assert(l.active !== c && l.tiles.find((t) => t.id === c).pinned, `click on another tile activates it, pin stays (active ${l.active})`)
   })
-  await h.pin(ctx, c) // item click
+  await h.clickShelf(ctx, c) // item click
   l = await h.list(ctx)
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'item click unpins')
   // Activity dot: shelf a tile running output. The pointer leaves the shelf first: items grow
@@ -86,14 +86,14 @@ export default async (ctx, h) => {
   l = await h.list(ctx)
   h.assert(l.shelf.join() === [c, d].join(), `reorder to the right: ${l.shelf}`)
   // A pinned tile dragged to the board: unpinned, slotted, active.
-  await h.pin(ctx, c)
+  await h.clickShelf(ctx, c)
   await h.waitFor(ctx, async () => (await h.state(ctx)).pinned === c, 'c pinned')
   await h.unshelve(ctx, c, a, 'b', { during: () => ctx.shot('unshelve-preview') })
   l = await h.list(ctx)
   h.assert(l.tiles.find((t) => t.id === c).state === 'slotted' && l.active === c, 'unshelved + active')
   h.assert((await h.state(ctx)).pinned === null, 'unshelving the pinned tile unpins')
   // A pinned tile closed (its ×): unpinned, the recent board tile takes the keys.
-  await h.pin(ctx, d)
+  await h.clickShelf(ctx, d)
   await h.waitFor(ctx, async () => (await h.state(ctx)).pinned === d, 'd pinned')
   await h.clickButton(ctx, d, 'close') // exited: closes at once
   await h.waitGone(ctx, d)

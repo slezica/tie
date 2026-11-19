@@ -6,10 +6,7 @@
 export default async (ctx, h) => {
   const py = `import ctypes, os; f = ctypes.CDLL(None).responsibility_get_pid_responsible_for_pid; print("responsible=%d parent=%d" % (f(os.getpid()), os.getppid()))`
   const t = await ctx.tie('add', 'terminal', '--cmd', `python3 -c '${py}'; sleep 30`)
-  const line = await h.waitFor(ctx, async () => {
-    const text = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`)?.innerText ?? '', t.id)
-    return text.split('\n').find((l) => l.startsWith('responsible='))
-  }, 'child printed its responsible pid', 8000)
+  const line = await h.waitFor(ctx, async () => (await h.lines(ctx, t.id)).find((l) => l.startsWith('responsible=')), 'child printed its responsible pid', 8000)
   const m = /responsible=(\d+) parent=(\d+)/.exec(line)
   h.assert(m, `unexpected output: ${line}`)
   ctx.log(line)

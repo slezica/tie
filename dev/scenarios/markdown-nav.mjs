@@ -15,8 +15,7 @@ export default async (ctx, h) => {
     const page = ctx.page
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--focus')).id
-    const shows = (title) => () => h.mdState(ctx, id).then((s) => s.text.startsWith(title))
-    await h.waitFor(ctx, shows('A'), 'a.md')
+    await h.waitMd(ctx, id, 'A', 'a.md')
     const bar = (id) =>
       page.evaluate((id) => {
         const t = document.querySelector(`.tile[data-id="${id}"]`)
@@ -37,19 +36,19 @@ export default async (ctx, h) => {
     // Follow a link (as a click would: frame focused, request over the port).
     await page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), id)
     await (await h.contentFrame(ctx, id)).evaluate(() => window.markdown.port.postMessage({ verb: 'followLink', href: 'b.md', newTile: false }))
-    await h.waitFor(ctx, shows('B'), 'b.md')
+    await h.waitMd(ctx, id, 'B', 'b.md')
     b = await bar(id)
     h.assert(b.location === join(dir, 'b.md') && b.back && !b.forward, `after link: ${JSON.stringify(b)}`)
 
     // Buttons.
     await page.click(`.tile[data-id="${id}"] [data-nav="back"]`)
-    await h.waitFor(ctx, shows('A'), 'back button')
+    await h.waitMd(ctx, id, 'A', 'back button')
     b = await bar(id)
     h.assert(b.location === join(dir, 'a.md') && !b.back && b.forward, `after back: ${JSON.stringify(b)}`)
     await page.click(`.tile[data-id="${id}"] [data-nav="forward"]`)
-    await h.waitFor(ctx, shows('B'), 'forward button')
+    await h.waitMd(ctx, id, 'B', 'forward button')
     await page.click(`.tile[data-id="${id}"] [data-nav="back"]`)
-    await h.waitFor(ctx, shows('A'), 'back again')
+    await h.waitMd(ctx, id, 'A', 'back again')
     h.assert((await page.evaluate(() => document.activeElement?.tagName)) !== 'BUTTON', 'buttons never take focus')
 
     // Reload: the file is read again (new doc), rendered as a page, scroll kept.
@@ -75,14 +74,14 @@ export default async (ctx, h) => {
     await scrollAt(900)
     await page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).focus(), id)
     await (await h.contentFrame(ctx, id)).evaluate(() => window.markdown.port.postMessage({ verb: 'followLink', href: 'b.md', newTile: false }))
-    await h.waitFor(ctx, shows('B'), 'b.md again')
+    await h.waitMd(ctx, id, 'B', 'b.md again')
     h.assert((await scrollY()) === 0, `pushed page at the top (${await scrollY()})`)
     await scrollAt(400)
     await page.click(`.tile[data-id="${id}"] [data-nav="back"]`)
-    await h.waitFor(ctx, shows('A'), 'back to a.md')
+    await h.waitMd(ctx, id, 'A', 'back to a.md')
     h.assert(Math.abs((await scrollY()) - 900) < 5, `back: a.md scroll restored (${await scrollY()})`)
     await page.click(`.tile[data-id="${id}"] [data-nav="forward"]`)
-    await h.waitFor(ctx, shows('B'), 'forward to b.md')
+    await h.waitMd(ctx, id, 'B', 'forward to b.md')
     h.assert(Math.abs((await scrollY()) - 400) < 5, `forward: b.md scroll restored (${await scrollY()})`)
 
     // cmd+L: not editable → nothing takes focus.

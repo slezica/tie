@@ -5,8 +5,6 @@
 // moves), context menu elsewhere;
 // hover and scroll keep it; a tile closing or leaving the shelf (CLI) leaves it.
 import { join } from 'node:path'
-import { execFileSync } from 'node:child_process'
-import { ROOT } from '../lib.mjs'
 
 export default async (ctx, h) => {
   const page = ctx.page
@@ -35,7 +33,7 @@ export default async (ctx, h) => {
   await away()
 
   // A pinned tile: cmd+click another item selects only that one; the pin stays, unfocused.
-  await h.pin(ctx, b)
+  await h.clickShelf(ctx, b)
   await h.waitActive(ctx, b)
   await h.selectShelf(ctx, c)
   let s = await h.state(ctx)
@@ -48,7 +46,7 @@ export default async (ctx, h) => {
   let l = await L()
   h.assert(l.tiles.find((t) => t.id === c).selected === true && l.tiles.filter((t) => t.selected).length === 1, 'list: c selected only')
   h.assert(l.tiles.find((t) => t.id === b).pinned && !l.tiles.find((t) => t.id === b).active, 'b pinned, not active')
-  const table = execFileSync(join(ROOT, 'bin/tie'), ['list'], { env: { ...process.env, TIE_INSTANCE: ctx.instance, TIE_SOCKET: '', TIE_TILE: '' }, encoding: 'utf8' })
+  const table = (await ctx.tieRaw(['list'])).out
   h.assert(new RegExp(`${c}.*selected`).test(table), `tie list flags: ${table}`)
 
   // cmd held while hovering: no reveal.
@@ -109,10 +107,10 @@ export default async (ctx, h) => {
   await away()
 
   // Plain click on an item: de-selects, then acts as a click (here: pins it).
-  await h.pin(ctx, d)
+  await h.clickShelf(ctx, d)
   await expectSel([], 'plain item click')
   h.assert((await h.state(ctx)).pinned === d, 'the click still pins')
-  await h.pin(ctx, d) // unpin
+  await h.clickShelf(ctx, d) // unpin
   await away()
 
   // Plain click on a board tile: de-selects, it takes the keys.

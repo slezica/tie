@@ -88,7 +88,7 @@ export default async (ctx, h) => {
     // URL) links: in the root, same tile, same token; the link strip shows the real path.
     const ab = await (await fr()).locator('#abs').boundingBox()
     await ctx.page.mouse.move(ab.x + 5, ab.y + ab.height / 2)
-    await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === join(dir, 'sub', 'c.html'), 'root-absolute: link strip shows the path in the root')
+    await h.waitFor(ctx, async () => (await h.linkStrip(ctx, id)) === join(dir, 'sub', 'c.html'), 'root-absolute: link strip shows the path in the root')
     await h.clickIn(ctx, await fr(), '#abs')
     await shows('C')
     p = await pg()

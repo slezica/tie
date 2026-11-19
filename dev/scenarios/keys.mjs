@@ -36,8 +36,7 @@ export default async (ctx, h) => {
   // A modal (settings) takes no shortcuts (main passes them to it); closed, they act again.
   await ctx.tie('focus', '--tile', a) // a slotted tile: cmd+D would split it
   await h.waitActive(ctx, a)
-  await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-  await ctx.page.waitForSelector('.settings')
+  await h.openSettings(ctx)
   // Main logs each action it sends, in order: once the second split shows, the first's line (if
   // main had sent it) is in the log.
   const splits = () => (ctx.appLog().match(/\[keys\] split-right$/gm) ?? []).length

@@ -40,11 +40,8 @@ export default async (ctx, h) => {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
     const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
     const fr = await h.contentFrame(ctx, id)
-    await fr.evaluate(() => {
-      window.__cb = () => (window.__xss = 'callback')
-      window.__v = []
-      addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.violatedDirective} ${e.blockedURI}`))
-    })
+    await fr.evaluate(() => (window.__cb = () => (window.__xss = 'callback')))
+    await h.recordViolations(fr)
     writeFileSync(f, doc)
     const done = (n) => () => fr.evaluate((n) => window.markdown.diagrams.renders + window.markdown.diagrams.errors >= n, n)
     await h.waitFor(ctx, done(diagrams.length), 'diagrams rendered', 15000)
@@ -95,7 +92,7 @@ export default async (ctx, h) => {
     // url()s and the image shape); nothing else even attempted. The probe can't see a hit either way
     // (UI session: dead proxy): noNetwork only.
     await p.assertUntouched('remote resources in diagrams')
-    const v = await fr.evaluate(() => window.__v)
+    const v = await h.violations(fr)
     ctx.log('CSP violations:', JSON.stringify(v))
     for (const path of ['/classfill', '/stylefill', '/imgshape']) h.assert(v.includes(`img-src ${P}${path}`), `CSP img-src refused ${path}: ${v}`)
     h.assert(v.every((x) => /^(img-src|font-src|style-src)/.test(x)), `only resource loads blocked, nothing else: ${v}`)

@@ -1,20 +1,19 @@
 // Swap keys (cmd+shift+arrows: slot ↔ slot, slot ↔ float, no target) and cmd+S shelve / unshelve.
 export default async (ctx, h) => {
   const k = (chord) => h.press(ctx, chord)
-  const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
   const state = () => h.state(ctx)
   // Split holding a leaf (parent), or null.
   const parentOf = (n, id) => (n?.type !== 'split' ? null : n.children.some((c) => c.type === 'leaf' && c.id === id) ? n : n.children.map((c) => parentOf(c, id)).find(Boolean) ?? null)
   const [a, b, c] = await h.threeWaySplit(ctx) // a | b over c, c active
   let s = await state()
-  h.assert(leafIds(s.tree).join() === [a, b, c].join() && s.active === c, 'start: a | b over c, c active')
+  h.assert(h.leafIds(s.tree).join() === [a, b, c].join() && s.active === c, 'start: a | b over c, c active')
   const sizes = JSON.stringify(s.tree.sizes)
 
   // Slot ↔ slot: c swaps with a (what cmd+left would focus); sizes stay with the positions.
   await k('Meta+Shift+ArrowLeft')
   await h.eventually(ctx, async () => {
     s = await state()
-    h.assert(leafIds(s.tree).join() === [c, b, a].join(), `swap left: c | b over a (got ${leafIds(s.tree)})`)
+    h.assert(h.leafIds(s.tree).join() === [c, b, a].join(), `swap left: c | b over a (got ${h.leafIds(s.tree)})`)
     h.assert(s.active === c && JSON.stringify(s.tree.sizes) === sizes, 'c still active, sizes kept')
     await h.assertPtySizes(ctx)
   })
@@ -39,7 +38,7 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => {
     s = await state()
     const cf = s.floats.find((x) => x.id === c)
-    h.assert(leafIds(s.tree).join() === [f, b, a].join(), `float swap: f slotted in c's place (got ${leafIds(s.tree)})`)
+    h.assert(h.leafIds(s.tree).join() === [f, b, a].join(), `float swap: f slotted in c's place (got ${h.leafIds(s.tree)})`)
     h.assert(cf && cf.x === fr.x && cf.y === fr.y && cf.w === fr.w && cf.h === fr.h, 'c floats with f\'s rect')
     h.assert(s.active === c, 'c still active')
     await h.assertPtySizes(ctx)
@@ -56,7 +55,7 @@ export default async (ctx, h) => {
 
   // cmd+S on a pinned shelved tile: back on the board beside the most recent board tile (b; the
   // pinned c is active), along b's longer side; active, unpinned.
-  await h.pin(ctx, c)
+  await h.clickShelf(ctx, c)
   s = await state()
   h.assert(s.pinned === c && s.active === c, 'c pinned + active')
   const rb = await h.rectOf(ctx, b)

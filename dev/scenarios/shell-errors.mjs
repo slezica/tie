@@ -10,9 +10,7 @@ export default async (ctx, h) => {
   })
   await ctx.shot('tile-error')
 
-  await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-  await ctx.page.waitForSelector('.settings')
-  await ctx.page.locator('nav button[data-page="terminal"]').click()
+  await h.openSettings(ctx, 'terminal')
   await ctx.page.fill('#set-shell', 'no-such-shell-xyz -l')
   await ctx.page.locator('.save').click()
   await h.eventually(ctx, async () => {

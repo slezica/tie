@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, sleep, tie, connectPage, launch, plainLog, leftovers, leakedPtys } from './lib.mjs'
+import { ROOT, sleep, tie, tieAt, tieRaw, connectPage, launch, plainLog, leftovers, leakedPtys } from './lib.mjs'
 import * as helpers from './helpers.mjs'
 
 const args = process.argv.slice(2)
@@ -94,6 +94,8 @@ try {
     instance,
     sleep,
     tie: (...a) => tie(instance, ...a),
+    tieAt: (dir, ...a) => tieAt(instance, dir, ...a),
+    tieRaw: (args, opts) => tieRaw(instance, args, opts),
     shot: async (label) => {
       const p = join(shotDir, `${String(++n).padStart(2, '0')}-${label}.png`)
       await page.screenshot({ path: p, scale: 'css' })

@@ -7,9 +7,7 @@ export default async (ctx, h) => {
   const box = (sel) => ctx.page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().toJSON(), sel)
   const W = await ctx.page.evaluate(() => window.innerWidth)
   const set = async (fn) => {
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
-    await ctx.page.locator('nav button[data-page="appearance"]').click()
+    await h.openSettings(ctx, 'appearance')
     await fn()
     await ctx.page.locator('.save').click()
     await ctx.page.waitForSelector('.settings', { state: 'detached' })

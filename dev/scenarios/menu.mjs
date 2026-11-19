@@ -15,8 +15,7 @@ export default async (ctx, h) => {
   await ctx.page.locator('.menu-item', { hasText: 'Rename' }).click()
   await ctx.page.keyboard.type('my server')
   await ctx.page.keyboard.press('Enter')
-  const focused = () => ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id ?? document.activeElement?.tagName)
-  h.assert((await focused()) === a, `terminal refocused after rename: ${await focused()}`)
+  h.assert((await h.focused(ctx)) === a, `terminal refocused after rename: ${await h.focused(ctx)}`)
   await ctx.page.mouse.click(p.x, p.y, { button: 'right' })
   await ctx.page.locator('.menu-item', { hasText: 'Set icon' }).click()
   await ctx.page.keyboard.type('🚀')
@@ -40,7 +39,7 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   await h.waitFor(ctx, async () => !(await menuOpen()), 'Escape closes the rename field')
   h.assert((await meta(a)).title === 'my server', 'Escape: title kept')
-  h.assert((await focused()) === a, `terminal refocused after Escape: ${await focused()}`)
+  h.assert((await h.focused(ctx)) === a, `terminal refocused after Escape: ${await h.focused(ctx)}`)
 
   // Empty rename: back to the automatic title (the icon stays).
   await openOn(p)
@@ -83,5 +82,5 @@ export default async (ctx, h) => {
   await ctx.page.waitForSelector('.dialog')
   await ctx.page.keyboard.press('Escape')
   const act = (await h.list(ctx)).active
-  h.assert(act && (await focused()) === act, `terminal refocused after dialog: ${await focused()}`)
+  h.assert(act && (await h.focused(ctx)) === act, `terminal refocused after dialog: ${await h.focused(ctx)}`)
 }

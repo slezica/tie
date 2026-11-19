@@ -2,15 +2,6 @@
 export default async (ctx, h) => {
   const list = () => h.list(ctx)
   const tabTiles = (l, tab) => l.tiles.filter((t) => t.tab === tab).map((t) => t.id)
-  const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
-  const fails = async (...args) => {
-    try {
-      await ctx.tie(...args)
-      return null
-    } catch (e) {
-      return e.message
-    }
-  }
 
   // s1: a | b (a has input); s2: x (hidden).
   let l = await list()
@@ -50,11 +41,11 @@ export default async (ctx, h) => {
   h.assert(!l.tabs.some((t) => t.id === s3) && l.tabs.length === 2 && l.tab === s1, 'emptied hidden tab closed')
 
   // Errors: unknown tab; --tab with another placement (no tab left behind); unknown id.
-  h.assert((await fails('move', '--tile', b, '--tab', 's99'))?.includes('no such tab: s99'), 'unknown tab id')
-  h.assert((await fails('move', '--tile', b, '--tab', '9'))?.includes('no such tab: 9'), 'position out of range')
-  h.assert((await fails('move', '--tile', b, '--tab', 'new', '--float'))?.includes('--tab takes no other placement'), '--tab + --float rejected')
+  h.assert((await h.tieError(ctx, 'move', '--tile', b, '--tab', 's99'))?.includes('no such tab: s99'), 'unknown tab id')
+  h.assert((await h.tieError(ctx, 'move', '--tile', b, '--tab', '9'))?.includes('no such tab: 9'), 'position out of range')
+  h.assert((await h.tieError(ctx, 'move', '--tile', b, '--tab', 'new', '--float'))?.includes('--tab takes no other placement'), '--tab + --float rejected')
   h.assert((await list()).tabs.length === 2, 'rejected --tab new: no tab created')
-  h.assert((await fails('move', '--tile', 't99', '--tab', s2))?.includes('no such tile: t99'), 'unknown tile')
+  h.assert((await h.tieError(ctx, 'move', '--tile', 't99', '--tab', s2))?.includes('no such tile: t99'), 'unknown tile')
 
   // --tab with --focus: the user switches to it, the tile takes input.
   r = await ctx.tie('move', '--tile', b, '--tab', s2, '--focus')
@@ -84,14 +75,14 @@ export default async (ctx, h) => {
 
   // --swap, slot ↔ slot: places exchanged, sizes stay with the places, input unchanged.
   let s = await ctx.tie('state')
-  const order = leafIds(s.tree)
+  const order = h.leafIds(s.tree)
   const sizes = JSON.stringify(s.tree.sizes)
   const act = s.active
   h.assert(order.length === 3 && order.includes(a) && order.includes(b) && order.includes(x), `s1 holds a, b, x (${order})`)
   await ctx.tie('move', '--tile', a, '--swap', b)
   s = await ctx.tie('state')
   const want = order.map((id) => (id === a ? b : id === b ? a : id))
-  h.assert(leafIds(s.tree).join() === want.join(), `swap a, b: ${leafIds(s.tree)} (want ${want})`)
+  h.assert(h.leafIds(s.tree).join() === want.join(), `swap a, b: ${h.leafIds(s.tree)} (want ${want})`)
   h.assert(JSON.stringify(s.tree.sizes) === sizes && s.active === act, 'swap: sizes kept, input unchanged')
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
   await ctx.shot('swapped')
@@ -99,11 +90,11 @@ export default async (ctx, h) => {
   // --swap, shelved ↔ slotted: x takes a's slot, a goes to x's shelf place.
   await ctx.tie('move', '--tile', x, '--shelve')
   s = await ctx.tie('state')
-  const slotsBefore = leafIds(s.tree)
+  const slotsBefore = h.leafIds(s.tree)
   await ctx.tie('move', '--tile', x, '--swap', a)
   s = await ctx.tie('state')
   h.assert(s.shelf.join() === a, `shelf ↔ slot: a shelved (${s.shelf})`)
-  h.assert(leafIds(s.tree).join() === slotsBefore.map((id) => (id === a ? x : id)).join(), `shelf ↔ slot: x in a's slot (${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === slotsBefore.map((id) => (id === a ? x : id)).join(), `shelf ↔ slot: x in a's slot (${h.leafIds(s.tree)})`)
 
   // --swap --focus: the moved tile takes input.
   r = await ctx.tie('move', '--tile', b, '--swap', x, '--focus')
@@ -112,8 +103,8 @@ export default async (ctx, h) => {
 
   // --swap across tabs: error, nothing moves.
   const st = JSON.stringify(await ctx.tie('state'))
-  h.assert((await fails('move', '--tile', b, '--swap', y))?.includes(`not in the same tab: ${y}`), '--swap across tabs: error')
-  h.assert((await fails('move', '--tile', b, '--swap', y, '--tab', s4))?.includes('--swap takes no placement'), '--swap + --tab rejected')
+  h.assert((await h.tieError(ctx, 'move', '--tile', b, '--swap', y))?.includes(`not in the same tab: ${y}`), '--swap across tabs: error')
+  h.assert((await h.tieError(ctx, 'move', '--tile', b, '--swap', y, '--tab', s4))?.includes('--swap takes no placement'), '--swap + --tab rejected')
   h.assert(JSON.stringify(await ctx.tie('state')) === st, 'rejected swaps: no change')
 
   // Same tab: a board tile stays put; a shelved one comes back to the board (input stays).

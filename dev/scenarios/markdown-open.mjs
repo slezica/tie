@@ -2,7 +2,6 @@
 // with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal:
 // still the path), file template + picker (`#picker`: `h.pick` types the path; Esc cancels).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
-import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 
 export default async (ctx, h) => {
@@ -15,21 +14,14 @@ export default async (ctx, h) => {
   writeFileSync(md2, '# Other\n')
   writeFileSync(txt, 'plain\n')
   // bin/tie as a user runs it: exit code + stderr.
-  const cli = (...args) =>
-    new Promise((r) => {
-      const env = { ...process.env, TIE_INSTANCE: ctx.instance }
-      delete env.TIE_SOCKET
-      delete env.TIE_TILE
-      execFile(join(process.cwd(), 'bin/tie'), args, { env, cwd: dir }, (err, stdout, stderr) => r({ code: err?.code ?? 0, out: stdout.trim(), err: stderr.trim() }))
-    })
+  const cli = (...args) => ctx.tieRaw(args, { cwd: dir })
   const tiles = async () => (await h.list(ctx)).tiles
   const mdTiles = async () => (await tiles()).filter((t) => t.kind === 'markdown')
-  const shows = (id, title) => h.waitFor(ctx, () => h.mdState(ctx, id).then((s) => s.text.startsWith(title)), `${id} shows ${title}`)
   try {
     // CLI: path relative to the caller's cwd; kind names keep working; failures exit 1.
     const ok = await cli('add', 'notes.md')
     h.assert(ok.code === 0 && /^t[a-z2-9]+$/.test(ok.out), `tie add notes.md: ${JSON.stringify(ok)}`)
-    await shows(ok.out, 'Notes')
+    await h.waitMd(ctx, ok.out, 'Notes')
     const plain = await cli('add', 'plain.txt')
     h.assert(plain.code === 0 && (await h.tileOf(ctx, plain.out)).kind === 'text', `tie add plain.txt: text tile ${JSON.stringify(plain)}`)
     for (const [args, msg] of [
@@ -49,12 +41,12 @@ export default async (ctx, h) => {
     await h.osDrop(ctx, await h.boardCenter(ctx), { files: [md] })
     let m = await h.waitFor(ctx, async () => (await mdTiles())[0], 'dropped on empty board')
     h.assert(m.state === 'slotted', 'root slot')
-    await shows(m.id, 'Notes')
+    await h.waitMd(ctx, m.id, 'Notes')
 
     // Onto a markdown tile's content: beside it, on the nearest edge.
     await h.osDrop(ctx, await h.sidePoint(ctx, m.id, 'b'), { files: [md2] })
     const m2 = await h.waitFor(ctx, async () => (await mdTiles()).find((t) => t.id !== m.id), 'dropped on markdown content')
-    await shows(m2.id, 'Other')
+    await h.waitMd(ctx, m2.id, 'Other')
     const r1 = await h.rectOf(ctx, m.id)
     const r2 = await h.rectOf(ctx, m2.id)
     h.assert(r2.y > r1.y && Math.abs(r2.x - r1.x) < 2, `bottom edge → below: ${JSON.stringify([r1, r2])}`)
@@ -92,7 +84,7 @@ export default async (ctx, h) => {
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
     await h.pick(ctx, md2)
     const picked = await h.waitFor(ctx, async () => (await tiles()).length === n + 1 && (await mdTiles()).find((t) => t.active), 'picked file opens')
-    await shows(picked.id, 'Other')
+    await h.waitMd(ctx, picked.id, 'Other')
     await h.drag(ctx, await h.template(ctx, 'file'), await h.sidePoint(ctx, m.id, 'l'))
     await h.pickCancel(ctx)
     await h.settle(ctx)

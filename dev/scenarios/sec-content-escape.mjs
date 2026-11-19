@@ -65,10 +65,7 @@ export default async (ctx, h) => {
     // Network out: fetch, image, script, style; injected scripts (inline, from the root) don't run.
     // The viewer CSP refuses each (violation events, recorded in the frame); the probe can't see a
     // hit either way (UI session: dead proxy), so it checks only that second layer.
-    await fa.evaluate(() => {
-      window.__v = []
-      document.addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.effectiveDirective} ${e.blockedURI}`))
-    })
+    await h.recordViolations(fa)
     await fa.evaluate(
       ({ u, token }) => {
         fetch(u + '/fetch').catch(() => {})
@@ -83,7 +80,7 @@ export default async (ctx, h) => {
       { u: p.url, token: tokenOf(fa) },
     )
     const v = await h.eventually(ctx, async () => {
-      const v = await fa.evaluate(() => window.__v)
+      const v = await h.violations(fa)
       for (const [dir, what] of [['connect-src', `${p.url}/fetch`], ['img-src', `${p.url}/img`], ['script-src-elem', `${p.url}/script.js`], ['style-src-elem', `${p.url}/style.css`], ['script-src-elem', 'inline'], ['script-src-elem', 'tie-content'] /* the root's evil.js: an opaque frame's report names the scheme only */, ['script-src-attr', 'inline']])
         h.assert(v.includes(`${dir} ${what}`), `viewer CSP refused ${dir} ${what}: ${JSON.stringify(v)}`)
       return v

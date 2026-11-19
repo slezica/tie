@@ -48,7 +48,7 @@ export default async (ctx, h) => {
     await h.waitLog(ctx, /\[security\] blocked download blob:tie:\/\/app\//)
     // Blocked navigations never reach did-navigate: no pty killed.
     h.assert(!/page reload, killing/.test(ctx.appLog()), 'a blocked navigation killed the ptys')
-    process.kill(pid, 0) // throws if the shell died
+    h.assert(h.alive(pid), `shell ${pid} died`)
     h.assert((await h.tileOf(ctx, t0)).exit === null, 'terminal still running after the blocked navigations')
     // Still alive and driving.
     const l = await h.list(ctx)

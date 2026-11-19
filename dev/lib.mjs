@@ -32,17 +32,33 @@ export function readInfo(instance) {
   return JSON.parse(readFileSync(p, 'utf8'))
 }
 
+// bin/tie's environment for an instance: never the Tie the harness itself may run in.
+function tieEnv(instance) {
+  const env = { ...process.env, TIE_INSTANCE: instance }
+  delete env.TIE_SOCKET
+  delete env.TIE_TILE
+  return env
+}
+
 // Run bin/tie against an instance; returns parsed JSON (or null for empty output).
-export function tie(instance, ...args) {
+export const tie = (instance, ...args) => tieAt(instance, undefined, ...args)
+
+// Same, run from `cwd` (relative paths, `--cwd .`, a tile's context: DIRECTORIES.md).
+export function tieAt(instance, cwd, ...args) {
   return new Promise((resolve, reject) => {
-    const env = { ...process.env, TIE_INSTANCE: instance }
-    delete env.TIE_SOCKET
-    delete env.TIE_TILE
-    execFile(join(ROOT, 'bin/tie'), [...args, '--json'], { env }, (err, stdout, stderr) => {
+    execFile(join(ROOT, 'bin/tie'), [...args, '--json'], { env: tieEnv(instance), cwd }, (err, stdout, stderr) => {
       if (err) return reject(new Error(stderr.trim() || err.message))
       const out = stdout.trim()
       resolve(out ? JSON.parse(out) : null)
     })
+  })
+}
+
+// bin/tie as a user runs it (no --json added): never rejects; `{code, out, err}` (exit code,
+// trimmed stdout and stderr). opts.cwd: where it runs.
+export function tieRaw(instance, args, { cwd } = {}) {
+  return new Promise((resolve) => {
+    execFile(join(ROOT, 'bin/tie'), args, { env: tieEnv(instance), cwd }, (err, stdout, stderr) => resolve({ code: err ? (err.code ?? 1) : 0, out: stdout.trim(), err: stderr.trim() }))
   })
 }
 

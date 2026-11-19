@@ -43,7 +43,7 @@ export default async (ctx, h) => {
     // Bootstrap works: the hover strip.
     const wb = await fr.locator('#w').boundingBox()
     await ctx.page.mouse.move(wb.x + 5, wb.y + wb.height / 2)
-    await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === 'https://example.com/w', 'link strip')
+    await h.waitFor(ctx, async () => (await h.linkStrip(ctx, id)) === 'https://example.com/w', 'link strip')
     // Zoom: cmd+= twice → 125% (CSS zoom on the root), pill shows it; a reload keeps it; cmd+0 resets.
     const zoomOf = () => fr.evaluate(() => getComputedStyle(document.documentElement).zoom)
     const zoomPill = () => ctx.page.$$eval(`.tile[data-id="${id}"] .pill:not([hidden])`, (ps) => ps.map((p) => p.textContent).find((t) => /%$/.test(t)) ?? null)

@@ -7,10 +7,9 @@ export default async (ctx, h) => {
   const want = { shell: '', fontSize: 32, lineHeight: 2, cellWidth: 100, theme: 'tie-dark' }
   for (const [k, v] of Object.entries(want)) h.assert(s[k] === v, `${k} sanitized to ${JSON.stringify(v)}: ${JSON.stringify(s[k])}`)
   // Applied as sanitized.
-  const cssVar = (n) => ctx.page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), n)
-  h.assert((await cssVar('--tile-font-size')) === '32px', `font size clamped: ${await cssVar('--tile-font-size')}`)
-  h.assert((await cssVar('--tile-line-height')) === '2', `line height clamped: ${await cssVar('--tile-line-height')}`)
-  h.assert((await cssVar('--bg')) === '#22252c', `theme: Tie Dark default: ${await cssVar('--bg')}`)
+  h.assert((await h.cssVar(ctx, '--tile-font-size')) === '32px', `font size clamped: ${await h.cssVar(ctx, '--tile-font-size')}`)
+  h.assert((await h.cssVar(ctx, '--tile-line-height')) === '2', `line height clamped: ${await h.cssVar(ctx, '--tile-line-height')}`)
+  h.assert((await h.cssVar(ctx, '--bg')) === '#22252c', `theme: Tie Dark default: ${await h.cssVar(ctx, '--bg')}`)
   // The terminal starts (shell '' → the login shell) with a consistent grid.
   await h.eventually(ctx, async () => {
     const t = (await h.list(ctx)).tiles[0]

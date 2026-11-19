@@ -12,13 +12,6 @@ export default async (ctx, h) => {
   const pb = await pidOf(fb)
   const shell = (await h.frames(ctx)).find((x) => x.depth === 0)?.pid
   h.assert(pa && pb && pa !== pb && pa !== shell && pb !== shell, `separate processes: a ${pa}, b ${pb}, shell ${shell}`)
-  const alive = (pid) => {
-    try {
-      return process.kill(pid, 0)
-    } catch {
-      return false
-    }
-  }
   // Shell answers fast; a terminal still runs commands.
   const shellLatency = async () => {
     const t0 = Date.now()
@@ -49,7 +42,7 @@ export default async (ctx, h) => {
   h.assert(err === 'Viewer stopped responding', `hang message: ${err}`)
   h.assert(await ctx.page.isVisible(`.tile[data-id="${a}"] .tile-error`), 'error visible')
   h.assert(!(await ctx.page.$(`.tile[data-id="${a}"] iframe`)), 'hung frame removed')
-  await h.waitFor(ctx, async () => !alive(pa), `hung frame process ${pa} gone`, 8000)
+  await h.waitFor(ctx, async () => !h.alive(pa), `hung frame process ${pa} gone`, 8000)
   await ctx.shot('hung')
 
   // b, the UI and the terminal unaffected; no reload attempt on a.
@@ -65,7 +58,7 @@ export default async (ctx, h) => {
   await cdp.send('Page.crash').catch(() => {})
   const err2 = await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).error, 'crashed frame → tile error', 12000)
   h.assert(err2 === 'Viewer crashed', `crash message: ${err2}`)
-  await h.waitFor(ctx, async () => !alive(pb), `crashed process ${pb} gone`, 8000)
+  await h.waitFor(ctx, async () => !h.alive(pb), `crashed process ${pb} gone`, 8000)
   h.assert((await shellLatency()) < 250, 'shell responsive after crash')
   await terminalWorks()
   h.assert((await h.list(ctx)).tiles.length === 3, 'all tiles still there')

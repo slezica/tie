@@ -1,7 +1,6 @@
 // Drop on a tile's center zone (25% rectangle) = swap: slot ↔ slot (sizes kept), shelf item ↔ slot, float ↔ slot, onto a collapsed tile
 // (anywhere), onto a bar squashed by a zoom (anywhere); own tile: nothing. Title bar: no swap, the top band (split above).
 export default async (ctx, h) => {
-  const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
   const state = () => h.state(ctx)
   const shown = (sel) => ctx.page.evaluate((sel) => {
     const el = document.querySelector(sel)
@@ -24,7 +23,7 @@ export default async (ctx, h) => {
   await h.drag(ctx, pa, await center(a), {
     during: async () => h.assert(!(await shown('#preview')), 'own tile: no preview'),
   })
-  h.assert(leafIds((await state()).tree).join() === [a, b, c].join(), 'own tile: unchanged')
+  h.assert(h.leafIds((await state()).tree).join() === [a, b, c].join(), 'own tile: unchanged')
 
   // Slot ↔ slot: a onto c's center. Preview: c's rect, and a's own (second rect).
   await h.drag(ctx, pa, await center(c), {
@@ -36,7 +35,7 @@ export default async (ctx, h) => {
   })
   h.assert(!(await shown('#preview')) && !(await shown('#preview2')), 'previews cleared')
   s = await state()
-  h.assert(leafIds(s.tree).join() === [c, b, a].join(), `slot swap: c | b over a (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [c, b, a].join(), `slot swap: c | b over a (got ${h.leafIds(s.tree)})`)
   h.assert(JSON.stringify(s.tree.sizes) === sizes && s.active === a, 'sizes kept, a active')
   h.assert(near(await h.rectOf(ctx, a), rc) && near(await h.rectOf(ctx, c), ra), 'rects exchanged')
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
@@ -53,7 +52,7 @@ export default async (ctx, h) => {
     },
   })
   s = await state()
-  h.assert(leafIds(s.tree).join() === [c, d, a].join(), `shelf swap: d in b's slot (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [c, d, a].join(), `shelf swap: d in b's slot (got ${h.leafIds(s.tree)})`)
   h.assert(s.shelf.indexOf(b) === idx && !s.shelf.includes(d), `b shelved at d's index ${idx} (${s.shelf})`)
   h.assert(s.active === d, 'd active')
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
@@ -64,7 +63,7 @@ export default async (ctx, h) => {
   await h.drag(ctx, await h.titlePoint(ctx, f), await center(c))
   s = await state()
   const cf = s.floats.find((x) => x.id === c)
-  h.assert(leafIds(s.tree).join() === [f, d, a].join(), `float swap: f in c's slot (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [f, d, a].join(), `float swap: f in c's slot (got ${h.leafIds(s.tree)})`)
   h.assert(cf && cf.x === fr.x && cf.y === fr.y && cf.w === fr.w && cf.h === fr.h, 'c floats with f\'s rect')
   h.assert(s.active === f, 'f active')
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
@@ -78,19 +77,19 @@ export default async (ctx, h) => {
     during: async () => h.assert(near(await shown('#preview'), ra2), 'collapsed target: swap preview'),
   })
   s = await state()
-  h.assert(leafIds(s.tree).join() === [a, d, f].join(), `collapsed target: swapped (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [a, d, f].join(), `collapsed target: swapped (got ${h.leafIds(s.tree)})`)
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 
   // Shift held: a float drop, even over a center.
   await h.drag(ctx, await h.titlePoint(ctx, d), await center(f), { shift: true })
   s = await state()
-  h.assert(s.floats.some((x) => x.id === d) && leafIds(s.tree).join() === [a, f].join(), 'shift: floated, not swapped')
+  h.assert(s.floats.some((x) => x.id === d) && h.leafIds(s.tree).join() === [a, f].join(), 'shift: floated, not swapped')
 
   // Onto a title bar: no swap, the top band: d split above f.
   const rf = await h.rectOf(ctx, f)
   await h.drag(ctx, await h.titlePoint(ctx, d), { x: rf.x + rf.w / 2, y: rf.y + 12 })
   s = await state()
-  h.assert(leafIds(s.tree).join() === [a, d, f].join() && !s.floats.some((x) => x.id === d), `title bar: d split above f (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [a, d, f].join() && !s.floats.some((x) => x.id === d), `title bar: d split above f (got ${h.leafIds(s.tree)})`)
   await ctx.shot('after')
 
   // Center zone boundary (25% of width and height): just inside swaps, just outside splits.
@@ -99,7 +98,7 @@ export default async (ctx, h) => {
     during: async () => h.assert(near(await shown('#preview'), rf2) && !!(await shown('#preview2')), 'inside center: swap preview'),
   })
   s = await state()
-  h.assert(leafIds(s.tree).join() === [a, f, d].join(), `inside center: swapped (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [a, f, d].join(), `inside center: swapped (got ${h.leafIds(s.tree)})`)
   rf2 = await h.rectOf(ctx, d) // d now sits below f
   await h.drag(ctx, await h.titlePoint(ctx, f), { x: rf2.x + rf2.w * 0.36, y: rf2.y + rf2.h / 2 }, {
     during: async () => {
@@ -112,7 +111,7 @@ export default async (ctx, h) => {
 
   // Onto a bar squashed by a zoom: a swap, anywhere on it (as a collapsed tile). Shelf item b takes
   // the bar's leaf; activated there, it ends the zoom (LAYOUT.md "Zoom").
-  const ids = leafIds((await state()).tree)
+  const ids = h.leafIds((await state()).tree)
   const [t, z] = [ids[0], ids.at(-1)]
   const sq = async (id) => { const r = await h.rectOf(ctx, id); return Math.min(r.w, r.h) }
   await h.clickButton(ctx, z, 'zoom')
@@ -124,7 +123,7 @@ export default async (ctx, h) => {
     during: async () => h.assert(near(await shown('#preview'), rt), 'squashed target: swap preview'),
   })
   s = await state()
-  h.assert(leafIds(s.tree).join() === ids.map((x) => (x === t ? b : x)).join(), `squashed target: b in its leaf (got ${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === ids.map((x) => (x === t ? b : x)).join(), `squashed target: b in its leaf (got ${h.leafIds(s.tree)})`)
   h.assert(s.shelf.indexOf(t) === bIdx && s.active === b && s.zoomed === null, `${t} shelved at b's index, b active, zoom ended (${s.shelf}, ${s.active}, ${s.zoomed})`)
   await h.eventually(ctx, () => h.assertPtySizes(ctx)) // pty resizes are async
 }

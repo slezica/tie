@@ -114,9 +114,7 @@ export default async (ctx, h) => {
     await gone()
 
     // Gitignore off (settings panel, Files): out/tile.ts listed.
-    await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await ctx.page.waitForSelector('.settings')
-    await ctx.page.locator('nav button[data-page="files"]').click()
+    await h.openSettings(ctx, 'files')
     await ctx.page.uncheck('#set-gitignore')
     await ctx.page.locator('.save').click()
     await ctx.page.waitForSelector('.settings', { state: 'detached' })

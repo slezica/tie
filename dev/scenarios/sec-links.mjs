@@ -41,7 +41,7 @@ export default async (ctx, h) => {
     h.assert(!(await ctx.page.evaluate(() => window.__confirms.length)), 'no confirm() dialog')
 
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
-    const strip = () => ctx.page.textContent(`.tile[data-id="${t0}"] .link-strip`).catch(() => null)
+    const strip = () => h.linkStrip(ctx, t0)
     await ctx.page.mouse.move(web.x, web.y)
     await h.eventually(ctx, async () => h.assert((await strip())?.includes(p.url + '/osc'), `hover shows the full URL in the link strip (got ${await strip()})`))
     await ctx.shot('hover')

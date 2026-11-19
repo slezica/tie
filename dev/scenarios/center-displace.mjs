@@ -5,7 +5,6 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export default async (ctx, h) => {
-  const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
   const state = () => h.state(ctx)
   const near = (p, r) => p && Math.abs(p.x - r.x) < 2 && Math.abs(p.y - r.y) < 2 && Math.abs(p.w - r.w) < 2 && Math.abs(p.h - r.h) < 2
   const shown = (sel) => ctx.page.evaluate((sel) => {
@@ -32,9 +31,9 @@ export default async (ctx, h) => {
         await ctx.shot('displace-preview')
       },
     })
-    const n = await h.waitFor(ctx, async () => leafIds((await state()).tree).find((id) => ![a, b, c].includes(id)), 'new tile slotted')
+    const n = await h.waitFor(ctx, async () => h.leafIds((await state()).tree).find((id) => ![a, b, c].includes(id)), 'new tile slotted')
     let s = await state()
-    h.assert(leafIds(s.tree).join() === [a, n, c].join(), `new tile in b's leaf (got ${leafIds(s.tree)})`)
+    h.assert(h.leafIds(s.tree).join() === [a, n, c].join(), `new tile in b's leaf (got ${h.leafIds(s.tree)})`)
     h.assert(near(await h.rectOf(ctx, n), rb), 'same rect')
     h.assert(s.shelf.join() === [...shelf0, b].join(), `b appended to the shelf (${s.shelf})`)
     h.assert(s.active === n && s.pinned === null && s.revealed === null, `new tile active, b not shown (active ${s.active}, pinned ${s.pinned}, revealed ${s.revealed})`)
@@ -45,26 +44,26 @@ export default async (ctx, h) => {
 
     // Template near an edge: still a split (nothing shelved).
     await h.spawnFromTemplate(ctx, c, 'b')
-    s = await h.waitFor(ctx, async () => { const x = await state(); return leafIds(x.tree).length === 4 ? x : null }, 'edge: split')
+    s = await h.waitFor(ctx, async () => { const x = await state(); return h.leafIds(x.tree).length === 4 ? x : null }, 'edge: split')
     h.assert(s.shelf.join() === [...shelf0, b].join(), 'edge drop: shelf unchanged')
 
     // Finder file onto a (non-terminal) tile's center: the file's tile takes the leaf.
     const m = (await ctx.tie('add', md, '--at', a, '--side', 'b')).id
-    await h.waitFor(ctx, () => h.mdState(ctx, m).then((x) => x.text.startsWith('Dropped')), 'markdown shown')
+    await h.waitMd(ctx, m, 'Dropped', 'markdown shown')
     const rm = await h.rectOf(ctx, m)
-    const leaves = leafIds((await state()).tree)
+    const leaves = h.leafIds((await state()).tree)
     await h.osDrop(ctx, await h.sidePoint(ctx, m, 'c'), { files: [md] })
-    const m2 = await h.waitFor(ctx, async () => leafIds((await state()).tree).find((id) => !leaves.includes(id)), 'file tile slotted')
+    const m2 = await h.waitFor(ctx, async () => h.leafIds((await state()).tree).find((id) => !leaves.includes(id)), 'file tile slotted')
     s = await state()
-    h.assert(leafIds(s.tree).join() === leaves.map((id) => (id === m ? m2 : id)).join(), `file tile in m's leaf (got ${leafIds(s.tree)})`)
+    h.assert(h.leafIds(s.tree).join() === leaves.map((id) => (id === m ? m2 : id)).join(), `file tile in m's leaf (got ${h.leafIds(s.tree)})`)
     h.assert(near(await h.rectOf(ctx, m2), rm) && s.shelf[s.shelf.length - 1] === m && s.active === m2, `m shelved last, file tile active (${s.shelf}, ${s.active})`)
     h.assert((await h.tileOf(ctx, m2)).kind === 'markdown', 'file tile is markdown')
 
     // Onto a terminal's center: the terminal still takes the drop (the path, pasted), nothing displaced.
-    const before = leafIds((await state()).tree).join()
+    const before = h.leafIds((await state()).tree).join()
     await h.osDrop(ctx, await h.sidePoint(ctx, n, 'c'), { files: [md] })
     await h.waitText(ctx, n, md) // the terminal took it
-    h.assert(leafIds((await state()).tree).join() === before, 'terminal drop: no displace')
+    h.assert(h.leafIds((await state()).tree).join() === before, 'terminal drop: no displace')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

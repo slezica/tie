@@ -3,12 +3,6 @@
 // Cancel reverts, column width fixed while filtering.
 export default async (ctx, h) => {
   const page = ctx.page
-  const open = async () => {
-    await page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
-    await page.waitForSelector('.settings')
-    await page.locator('nav button[data-page="bindings"]').click()
-    await page.waitForSelector('section[data-page="bindings"].current')
-  }
   const row = (a) => `.bind-row[data-action="${a}"]`
   const visible = () => page.$$eval('.bind-row:not([hidden]) .label', (ls) => ls.map((l) => l.textContent))
   const chordOf = (a) => page.$eval(`${row(a)} .chord`, (e) => e.textContent)
@@ -25,7 +19,7 @@ export default async (ctx, h) => {
     for (const k of keys) await h.press(ctx, k)
   }
 
-  await open()
+  await h.openSettings(ctx, 'bindings')
   const all = await visible()
   h.assert(all.length === 35 && all[0] === 'Split right', `all rows: ${all.length}`)
   const w0 = await colW()
@@ -129,7 +123,7 @@ export default async (ctx, h) => {
   h.assert((await tiles()) === n + 1 && (await tabs()) === t, 'cmd+D, cmd+T: nothing')
 
   // Cancel reverts the draft.
-  await open()
+  await h.openSettings(ctx, 'bindings')
   h.assert((await chordOf('split-right')) === 'Cmd+K', 'reopened with saved bindings')
   await page.click(`${row('split-right')} .reset`)
   await h.eventually(ctx, async () => h.assert((await chordOf('split-right')) === 'Cmd+D', 'reset in draft'))

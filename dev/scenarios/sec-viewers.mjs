@@ -4,7 +4,6 @@
 // CLI error, no tile); main refuses files as another kind (image ← text, text ← binary).
 import { mkdirSync, writeFileSync, rmSync, openSync, ftruncateSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
-import { execFile } from 'node:child_process'
 
 const MB = 1024 * 1024
 
@@ -39,13 +38,7 @@ export default async (ctx, h) => {
     closeSync(fd)
     return f
   }
-  const cli = (...args) =>
-    new Promise((r) => {
-      const env = { ...process.env, TIE_INSTANCE: ctx.instance }
-      delete env.TIE_SOCKET
-      delete env.TIE_TILE
-      execFile(join(process.cwd(), 'bin/tie'), args, { env, cwd: dir }, (err, stdout, stderr) => r({ code: err?.code ?? 0, out: stdout.trim(), err: stderr.trim() }))
-    })
+  const cli = (...args) => ctx.tieRaw(args, { cwd: dir })
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
 

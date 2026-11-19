@@ -79,7 +79,7 @@ export default async (ctx, h) => {
     await sameSize('pinned')
     await away()
     h.assert((await info(c)).pinned && (await revealed()) === null, 'pin survives the pointer leaving')
-    await h.pin(ctx, c) // item click: unpin
+    await h.clickShelf(ctx, c) // item click: unpin
     h.assert(!(await info(c)).pinned, 'item click unpins')
     await away()
     await sameSize('unpinned, hidden')
@@ -130,7 +130,7 @@ export default async (ctx, h) => {
       l = await L()
       h.assert((await info(w)).pinned && l.active === w, `click in browser reveal pins + activates (active ${l.active})`)
     })
-    await h.pin(ctx, w)
+    await h.clickShelf(ctx, w)
     h.assert(!(await info(w)).pinned, 'unpinned')
     await away()
 

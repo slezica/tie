@@ -23,8 +23,7 @@ export default async (ctx, h) => {
   try {
     const [t0] = (await h.list(ctx)).tiles.map((t) => t.id)
     const id = (await ctx.tie('add', join(dir, 'a.md'), '--at', t0, '--side', 'r', '--cwd', dir)).id // --cwd: root = the folder (root-cwd covers wider roots)
-    const shows = (title) => () => h.mdState(ctx, id).then((s) => s.text.startsWith(title))
-    await h.waitFor(ctx, shows('A'), 'a.md')
+    await h.waitMd(ctx, id, 'A', 'a.md')
     const fr = () => h.contentFrame(ctx, id)
     const doc = async () => (await h.tileOf(ctx, id)).doc
     const count = async () => (await h.list(ctx)).tiles.length
@@ -32,33 +31,33 @@ export default async (ctx, h) => {
     // Plain click: same tile, same directory (same frame).
     const src0 = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)
     await h.clickIn(ctx, await fr(), 'a >> text=to b')
-    await h.waitFor(ctx, shows('B'), 'b.md in the same tile')
+    await h.waitMd(ctx, id, 'B', 'b.md in the same tile')
     h.assert((await h.tileOf(ctx, id)).title === h.tilde(join(dir, 'b.md')) && (await count()) === 2, 'title follows, no new tile')
     h.assert((await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)) === src0, 'same directory: same frame')
 
     // History keys (through main, frame focused).
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, shows('A'), 'back')
+    await h.waitMd(ctx, id, 'A', 'back')
     await h.press(ctx, 'Meta+]')
-    await h.waitFor(ctx, shows('B'), 'forward')
+    await h.waitMd(ctx, id, 'B', 'forward')
     h.assert(JSON.stringify((await doc()).history) === '{"index":1,"length":2}', `history ${JSON.stringify((await doc()).history)}`)
     await h.press(ctx, 'Meta+]') // at the end: nothing
     await ctx.sleep(300) // absence: no navigation
     h.assert((await doc()).path.endsWith('/b.md'), 'forward at the end: no-op')
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, shows('A'), 'back again')
+    await h.waitMd(ctx, id, 'A', 'back again')
 
     // A subfolder: inside the root (same token), its relative image resolves from the document's
     // place in the root, anchor scrolled to. (Another root: the outside link below, root-cwd.)
     await h.clickIn(ctx, await fr(), 'a >> text=to c')
-    await h.waitFor(ctx, shows('C'), 'sub/c.md')
+    await h.waitMd(ctx, id, 'C', 'sub/c.md')
     const src1 = await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] iframe`).src, id)
     h.assert(src1 === src0, 'subfolder: inside the root, same token')
     const c = await (await fr()).evaluate(() => ({ img: document.querySelector('img')?.naturalWidth, src: document.querySelector('img')?.getAttribute('src'), y: scrollY }))
     h.assert(c.img === 8 && c.src.endsWith('/sub/dot.svg') && c.y > 200, `image from the subfolder, scrolled to #part: ${JSON.stringify(c)}`)
     h.assert(JSON.stringify((await doc()).history) === '{"index":1,"length":2}', 'push drops forward entries')
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, shows('A'), 'back to a')
+    await h.waitMd(ctx, id, 'A', 'back to a')
 
     // Anchor: scrolls, nothing else.
     const y0 = (await h.mdState(ctx, id)).scrollY
@@ -88,15 +87,15 @@ export default async (ctx, h) => {
     await h.clickIn(ctx, await fr(), 'a >> text=up')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.open-file'), 'outside link: dialog again')
     await ctx.page.click('.dialog .confirm')
-    await h.waitFor(ctx, shows('Outside'), 'Open: outside.md in the same tile')
+    await h.waitMd(ctx, id, 'Outside', 'Open: outside.md in the same tile')
     await h.press(ctx, 'Meta+[')
-    await h.waitFor(ctx, shows('A'), 'back to a.md')
+    await h.waitMd(ctx, id, 'A', 'back to a.md')
 
     // External: hover shows the target in the tile's link strip; click asks first, then the system
     // browser (harness: logged). Missing: modal.
     const wb = await (await fr()).locator('a >> text=web').boundingBox()
     await ctx.page.mouse.move(wb.x + 5, wb.y + wb.height / 2)
-    await h.waitFor(ctx, async () => (await ctx.page.textContent(`.tile[data-id="${id}"] .link-strip`)) === 'https://example.com/ext', 'link strip shows the URL')
+    await h.waitFor(ctx, async () => (await h.linkStrip(ctx, id)) === 'https://example.com/ext', 'link strip shows the URL')
     await h.clickIn(ctx, await fr(), 'a >> text=web')
     await h.waitFor(ctx, () => ctx.page.isVisible('.dialog.external-open'), 'confirm dialog')
     h.assert((await ctx.page.textContent('.dialog.external-open .url')) === 'https://example.com/ext', 'full URL shown')
@@ -111,7 +110,7 @@ export default async (ctx, h) => {
     // Cmd-click: new markdown tile beside this one; this one stays.
     await h.clickIn(ctx, await fr(), 'a >> text=to b', { meta: true })
     const nt = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.find((t) => t.kind === 'markdown' && t.id !== id), 'new tile')
-    await h.waitFor(ctx, () => h.mdState(ctx, nt.id).then((s) => s.text.startsWith('B')), 'new tile shows b.md')
+    await h.waitMd(ctx, nt.id, 'B', 'new tile shows b.md')
     h.assert(nt.state === 'slotted' && (await doc()).path.endsWith('/a.md'), 'beside, original unchanged')
     const tree = (await ctx.tie('state')).tree
     h.assert(JSON.stringify(tree).includes(nt.id), 'slotted in the tree')
@@ -130,7 +129,7 @@ export default async (ctx, h) => {
     const n0 = (await h.list(ctx)).tiles.filter((t) => t.kind === 'markdown').length
     await h.clickIn(ctx, hf, '#md')
     const back = await h.waitFor(ctx, async () => (await h.list(ctx)).tiles.filter((t) => t.kind === 'markdown').length === n0 + 1 && (await h.list(ctx)).tiles.at(-1), 'html → markdown beside')
-    await h.waitFor(ctx, () => h.mdState(ctx, back.id).then((s) => s.text.startsWith('B')), 'shows b.md')
+    await h.waitMd(ctx, back.id, 'B', 'shows b.md')
     h.assert((await h.tileOf(ctx, pg.id)).page.path.endsWith('/page.html'), 'html tile stays')
     await ctx.tie('close', '--tile', back.id)
     await ctx.tie('close', '--tile', pg.id)
@@ -138,7 +137,7 @@ export default async (ctx, h) => {
     // History keys on a terminal: nothing (the markdown tile has a back entry, it stays).
     await ctx.tie('focus', '--tile', id)
     await h.clickIn(ctx, await fr(), 'a >> text=to b')
-    await h.waitFor(ctx, shows('B'), 'b.md: a back entry')
+    await h.waitMd(ctx, id, 'B', 'b.md: a back entry')
     const h0 = JSON.stringify((await doc()).history)
     await ctx.tie('focus', '--tile', t0)
     await h.press(ctx, 'Meta+[')

@@ -34,7 +34,6 @@ export default async (ctx, h) => {
 
   const errors = []
   ctx.page.on('pageerror', (e) => errors.push(e.message))
-  const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
   // Drag leftovers: drop previews, the pointer ghost, the body's drag classes.
   const dragUi = () => ctx.page.evaluate(() => {
     const shown = [...document.querySelectorAll('#preview, #preview2, .drop-preview, #ghost')].filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.id || e.className)
@@ -47,7 +46,7 @@ export default async (ctx, h) => {
   await h.drag(ctx, await h.titlePoint(ctx, b), await h.sidePoint(ctx, a, 'l'), { during: () => ctx.tie('close', '--tile', b) })
   h.assert(!errors.length, `no page errors after drop: ${errors}`)
   let s = await h.state(ctx)
-  h.assert(leafIds(s.tree).join() === a && !s.floats.length && !s.shelf.length, `just a left (${JSON.stringify(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === a && !s.floats.length && !s.shelf.length, `just a left (${JSON.stringify(s.tree)})`)
   h.assert(!(await dragUi()).length, `no drag leftovers: ${await dragUi()}`)
 
   // Context menu goes away with its tile.
@@ -71,12 +70,12 @@ export default async (ctx, h) => {
   // Swap target (a's center).
   await h.drag(ctx, await h.titlePoint(ctx, e), await h.sidePoint(ctx, a, 'c'), { during: closing(a) })
   s = await h.state(ctx)
-  h.assert(leafIds(s.tree).join() === [d, e].join() && !s.floats.length && !s.shelf.length, `swap target gone: d | e stay (${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === [d, e].join() && !s.floats.length && !s.shelf.length, `swap target gone: d | e stay (${h.leafIds(s.tree)})`)
   h.assert(!(await dragUi()).length, `no drag leftovers: ${await dragUi()}`)
   // Edge target (d's left).
   await h.drag(ctx, await h.titlePoint(ctx, e), await h.sidePoint(ctx, d, 'l'), { during: closing(d) })
   s = await h.state(ctx)
-  h.assert(leafIds(s.tree).join() === e && !s.floats.length && !s.shelf.length, `edge target gone: e stays (${leafIds(s.tree)})`)
+  h.assert(h.leafIds(s.tree).join() === e && !s.floats.length && !s.shelf.length, `edge target gone: e stays (${h.leafIds(s.tree)})`)
   h.assert(!(await dragUi()).length, `no drag leftovers: ${await dragUi()}`)
   h.assert(!errors.length, `no page errors after target closes: ${errors}`)
 }

@@ -11,6 +11,41 @@ export async function list(ctx) {
 // `tie state` (dev), same way.
 export const state = (ctx) => rpc(ctx.instance, 'state')
 
+// `tie <args>` expected to fail: its error message (stderr), or null if it succeeded.
+export const tieError = (ctx, ...args) => ctx.tie(...args).then(() => null, (e) => e.message)
+
+// Leaf ids of a slot tree (`tie state` tree), in order.
+export const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
+
+// Settings panel open (`tie:settings` event: menu accelerators can't be driven); `page`
+// (appearance, bindings, terminal, files, security): that page shown.
+export async function openSettings(ctx, page) {
+  await ctx.page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings')))
+  await ctx.page.waitForSelector('.settings')
+  if (!page) return
+  await ctx.page.locator(`nav button[data-page="${page}"]`).click()
+  await ctx.page.waitForSelector(`section[data-page="${page}"].current`)
+}
+
+// CSS custom property of the UI page's root (settings → tokens, SETTINGS.md), trimmed.
+export const cssVar = (ctx, name) => ctx.page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
+
+// Where keys go in the UI page: the focused element's tile id, else its tag name (e.g. BODY).
+export const focused = (ctx) => ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id ?? document.activeElement?.tagName)
+
+// A tile's link strip (bottom-left hover target, `Host.hint`): its text, or null while hidden.
+export const linkStrip = (ctx, id) => ctx.page.evaluate((id) => { const e = document.querySelector(`.tile[data-id="${id}"] .link-strip`); return e && !e.hidden ? e.textContent : null }, id)
+
+// A process is alive (signal 0).
+export function alive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function rectOf(ctx, id) {
   const t = (await list(ctx)).tiles.find((t) => t.id === id)
   if (!t?.rect) throw new Error(`no rect for ${id}`)
@@ -23,7 +58,7 @@ export async function titlePoint(ctx, id) {
   return r.w < 40 ? { x: r.x + r.w / 2, y: r.y + 60 } : { x: r.x + Math.min(80, r.w / 3), y: r.y + 15 }
 }
 
-// Point inside target tile near the given side (lands in that side's drop triangle).
+// Point inside target tile near the given side (lands in that side's edge band).
 export async function sidePoint(ctx, id, side) {
   const r = await rectOf(ctx, id)
   const cx = r.x + r.w / 2
@@ -91,7 +126,8 @@ export async function hoverShelf(ctx, id) {
   await waitFor(ctx, async () => { const s = await state(ctx); return s.revealed === id || s.pinned === id }, `hover reveals ${id}`)
 }
 
-export async function pin(ctx, id) {
+// Plain click on a shelf item: reveals and pins it, or unpins it if pinned (SHELF.md).
+export async function clickShelf(ctx, id) {
   const p = await shelfItem(ctx, id)
   await ctx.page.mouse.click(p.x, p.y)
   await settle(ctx)
@@ -235,8 +271,10 @@ export async function paste(ctx, id, text) {
   await settle(ctx) // outcome is async (settings read, maybe a dialog): callers wait for theirs
 }
 
-// Visible text of a terminal tile.
+// Visible text of a terminal tile (rows joined without newlines).
 export const screen = (ctx, id) => ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).textContent, id)
+// Visible text of a terminal tile as lines (rendered text, blank space around it trimmed).
+export const lines = (ctx, id) => ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-rows`).innerText.trim().split('\n'), id)
 
 // Open paste warning, or null: { warnings: ['control'|'run'], preview }.
 export const pasteWarning = (ctx) =>
@@ -325,6 +363,17 @@ export async function mdState(ctx, id) {
     scrollY: Math.round(scrollY),
   }))
 }
+// Markdown tile once its rendered text starts with `text` (a heading: which document it shows).
+export const waitMd = (ctx, id, text, what = `${id} shows ${text}`, ms) => waitFor(ctx, () => mdState(ctx, id).then((s) => s.text.startsWith(text)), what, ms)
+
+// CSP violations inside a frame (content or html page): `recordViolations` starts recording
+// (`securitypolicyviolation` events, `<directive> <blocked URI>`), `violations` reads them.
+export const recordViolations = (frame) =>
+  frame.evaluate(() => {
+    window.__v = []
+    document.addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.effectiveDirective} ${e.blockedURI}`))
+  })
+export const violations = (frame) => frame.evaluate(() => window.__v)
 
 // Poll until fn() is truthy (returns its value), else throw `what`.
 // Each try is raced against the time left: a promise that never settles (e.g. evaluate in a frame

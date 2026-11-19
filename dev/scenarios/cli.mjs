@@ -5,27 +5,11 @@ import { join } from 'node:path'
 import { ROOT, rpc } from '../lib.mjs'
 
 export default async (ctx, h) => {
-  const text = (id) => ctx.page.$eval(`.tile[data-id="${id}"] .xterm-rows`, (e) => e.innerText)
-  // CLI run from another directory, as from a shell.
-  const tieIn = (cwd, ...args) => {
-    const env = { ...process.env, TIE_INSTANCE: ctx.instance }
-    delete env.TIE_SOCKET
-    delete env.TIE_TILE
-    return JSON.parse(execFileSync(join(ROOT, 'bin/tie'), [...args, '--json'], { cwd, env }).toString())
-  }
-  const fails = async (...args) => {
-    try {
-      await ctx.tie(...args)
-      return null
-    } catch (e) {
-      return e.message
-    }
-  }
-
-  // Relative --cwd resolves against the caller's directory, not Tie's.
+  // Relative --cwd resolves against the caller's directory (CLI run from another directory, as
+  // from a shell), not Tie's.
   const dir = join(ROOT, 'dev')
-  const rel = tieIn(dir, 'add', 'terminal', '--cwd', '.', '--cmd', 'pwd -P; sleep 30').id
-  const pwd = (await h.waitFor(ctx, async () => (await text(rel)).trim(), 'pwd output', 10000)).split('\n')[0]
+  const rel = (await ctx.tieAt(dir, 'add', 'terminal', '--cwd', '.', '--cmd', 'pwd -P; sleep 30')).id
+  const pwd = await h.waitFor(ctx, async () => (await h.lines(ctx, rel))[0], 'pwd output', 10000)
   h.assert(pwd === realpathSync(dir), `relative --cwd: ${pwd}`)
   await ctx.tie('close', '--tile', rel)
 
@@ -78,11 +62,11 @@ export default async (ctx, h) => {
   h.assert((await ctx.tie('add', 'terminal', '--shelve')).state === 'shelved', 'add --shelve')
 
   // move needs a placement; --at must name a board tile (f is shelved): refused, nothing added.
-  h.assert((await fails('move', '--tile', a))?.includes('move needs --at, --float, --shelve, --tab or --swap'), 'move without placement refused')
-  h.assert((await fails('move', '--tile', a, '--side', 'r'))?.includes('move needs --at'), 'move --side alone refused')
+  h.assert((await h.tieError(ctx, 'move', '--tile', a))?.includes('move needs --at, --float, --shelve, --tab or --swap'), 'move without placement refused')
+  h.assert((await h.tieError(ctx, 'move', '--tile', a, '--side', 'r'))?.includes('move needs --at'), 'move --side alone refused')
   const nBefore = (await h.list(ctx)).tiles.length
-  h.assert((await fails('move', '--tile', a, '--at', f))?.includes(`not on board: ${f}`), 'move --at a shelved tile refused')
-  h.assert((await fails('add', 'terminal', '--at', f))?.includes(`not on board: ${f}`), 'add --at a shelved tile refused')
+  h.assert((await h.tieError(ctx, 'move', '--tile', a, '--at', f))?.includes(`not on board: ${f}`), 'move --at a shelved tile refused')
+  h.assert((await h.tieError(ctx, 'add', 'terminal', '--at', f))?.includes(`not on board: ${f}`), 'add --at a shelved tile refused')
   h.assert((await h.list(ctx)).tiles.length === nBefore, 'refused add: no tile')
   h.assert((await h.tileOf(ctx, f)).state === 'shelved', 'refused move: f still shelved')
 
@@ -94,26 +78,26 @@ export default async (ctx, h) => {
   h.assert(r.title === auto && r.icon === '🛠️', `set --title "": automatic title, icon kept: ${JSON.stringify(r)}`)
   r = await ctx.tie('set', '--tile', a, '--icon', '')
   h.assert(r.icon === '', `set --icon "": automatic icon: ${JSON.stringify(r)}`)
-  h.assert((await fails('set', '--tile', a))?.includes('set needs --title or --icon'), 'set needs a field')
-  h.assert((await fails('title', a, 'x'))?.includes('unknown command: title'), 'title: gone')
-  h.assert((await fails('icon', a, 'x'))?.includes('unknown command: icon'), 'icon: gone')
+  h.assert((await h.tieError(ctx, 'set', '--tile', a))?.includes('set needs --title or --icon'), 'set needs a field')
+  h.assert((await h.tieError(ctx, 'title', a, 'x'))?.includes('unknown command: title'), 'title: gone')
+  h.assert((await h.tieError(ctx, 'icon', a, 'x'))?.includes('unknown command: icon'), 'icon: gone')
   h.assert(await rpc(ctx.instance, 'title', { id: a, text: 'x' }).then(() => false, (e) => e.message === 'unknown method: title'), 'socket: no title method')
 
   // --tile replaces the positional id; external callers (the harness) have no current tile.
-  h.assert((await fails('ping', a))?.includes(`unexpected argument: ${a}`), 'positional id refused')
-  h.assert((await fails('close'))?.includes('no current tile: use --tile <id>'), 'no current tile')
-  h.assert((await fails('focus', '--tile', 'tzzzzzz'))?.includes('no such tile: tzzzzzz'), 'unknown --tile')
+  h.assert((await h.tieError(ctx, 'ping', a))?.includes(`unexpected argument: ${a}`), 'positional id refused')
+  h.assert((await h.tieError(ctx, 'close'))?.includes('no current tile: use --tile <id>'), 'no current tile')
+  h.assert((await h.tieError(ctx, 'focus', '--tile', 'tzzzzzz'))?.includes('no such tile: tzzzzzz'), 'unknown --tile')
   // Dev builds: add --id names the new tile (harness); tile-shaped and free, else refused.
   const named = await ctx.tie('add', 'terminal', '--shelved', '--id', 'tnamed')
   h.assert(named.id === 'tnamed', `add --id: ${named.id}`)
-  h.assert((await fails('add', 'terminal', '--id', 'tnamed'))?.includes('id in use: tnamed'), 'add --id: taken refused')
-  h.assert((await fails('add', 'terminal', '--id', 's1'))?.includes('bad id: s1'), 'add --id: not tile-shaped refused')
+  h.assert((await h.tieError(ctx, 'add', 'terminal', '--id', 'tnamed'))?.includes('id in use: tnamed'), 'add --id: taken refused')
+  h.assert((await h.tieError(ctx, 'add', 'terminal', '--id', 's1'))?.includes('bad id: s1'), 'add --id: not tile-shaped refused')
   await ctx.tie('close', '--tile', 'tnamed')
   // Invalid arguments are refused everywhere: stray positionals, options of another command, unknown options.
-  h.assert((await fails('list', 'x'))?.includes('unexpected argument: x'), 'list: positional refused')
-  h.assert((await fails('add', 'terminal', 'x'))?.includes('unexpected argument: x'), 'add: extra positional refused')
-  h.assert((await fails('close', '--tile', a, '--clear'))?.includes('unknown option --clear for close'), 'close: option of another command refused')
-  h.assert((await fails('add', 'terminal', '--bogus', '1'))?.includes('unknown option --bogus for add'), 'add: unknown option refused')
+  h.assert((await h.tieError(ctx, 'list', 'x'))?.includes('unexpected argument: x'), 'list: positional refused')
+  h.assert((await h.tieError(ctx, 'add', 'terminal', 'x'))?.includes('unexpected argument: x'), 'add: extra positional refused')
+  h.assert((await h.tieError(ctx, 'close', '--tile', a, '--clear'))?.includes('unknown option --clear for close'), 'close: option of another command refused')
+  h.assert((await h.tieError(ctx, 'add', 'terminal', '--bogus', '1'))?.includes('unknown option --bogus for add'), 'add: unknown option refused')
 
   // add --icon, single-letter aliases (l a c), entropic ids.
   const ai = await ctx.tie('a', 'terminal', '--shelved', '--title', 'iconed', '--icon', '🧪')

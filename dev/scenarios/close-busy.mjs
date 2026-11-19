@@ -37,7 +37,7 @@ export default async (ctx, h) => {
   await key('Escape')
   await h.eventually(ctx, async () => {
     h.assert(!(await dialog()) && (await has(c)), 'Esc keeps the tile')
-    h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === c, 'keys back to it')
+    h.assert((await h.focused(ctx)) === c, 'keys back to it')
   })
   // Context menu Close asks too; Enter closes.
   await ctx.page.click(`.tile[data-id="${c}"] .titlebar`, { button: 'right' })
@@ -79,7 +79,7 @@ export default async (ctx, h) => {
   await key('Escape')
   await h.eventually(ctx, async () => {
     h.assert(!(await dialog()) && (await has(e)), 'Esc keeps the cmd tile')
-    h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === e, 'keys back to it')
+    h.assert((await h.focused(ctx)) === e, 'keys back to it')
   })
   await key('Enter') // read returns: the command ends
   await h.waitFor(ctx, async () => (await h.tileOf(ctx, e))?.exit === 0, 'cmd exited')
@@ -124,8 +124,7 @@ export default async (ctx, h) => {
     const l = await L()
     h.assert(!(await dialog()) && l.tabs.length === 1 && !l.tiles.some((t) => t.id === g || t.id === s) && l.tiles.some((t) => t.id === a), 'Enter: tab closed with all its tiles')
   })
-  const gone = (pid) => { try { process.kill(pid, 0); return false } catch { return true } }
-  await h.waitFor(ctx, () => gone(sleeper), `busy command (pid ${sleeper}) killed with its tab`)
+  await h.waitFor(ctx, () => !h.alive(sleeper), `busy command (pid ${sleeper}) killed with its tab`)
 
   // Shift+click on the tab ×: busy, closes without asking.
   await k('Meta+t')
