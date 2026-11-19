@@ -331,6 +331,40 @@ Notes.
 - X-U5: the subframe guard can only be seen through its log (Chromium refuses tie: on the browser partition anyway).
 - X-U6: `webSecurity: false` also lets a guest page read `file:///etc/hosts` and navigate to `chrome://` (seen as `about:blank#blocked`): three cases catch it.
 
+### Second pass (2026-11-19): the notes not re-run above
+
+Same method. Lines as before the mutation.
+
+- Html CSP | `core/policy.ts:115` `connect-src *` | `sec-html` | RED (`CSP refused connect-src /fetch`)
+- Html nav lock | `core/content.ts:49` `/_tie/` allowed | `sec-html` | RED (`timed out: location /_tie/markdown.html: blocked (logged)`)
+- Html nav lock | `renderer/frame.ts:194` navigation-away error skipped | `sec-html` | RED (`timed out: navigation away → error`)
+- Html requests | `renderer/kinds/html.ts:150` web link → `tie.openExternal`, no confirm | `sec-html` | RED (`timed out: dialog for window.open`)
+- UI no network | `main/index.ts:200` `noWebRtcUdp` skipped | `sec-html` | RED (`raw connections reached: tcp 0, udp 3`)
+- UI no network | `main/index.ts:304` `noNetwork` skipped | `sec-html` | RED (`raw connections reached: tcp 1, udp 0`; TURN over TCP)
+- Text render | `viewers/text.ts:34` `escape` identity | `sec-viewers` | RED (`HTML shown as text`)
+- Text render | `viewers/text.ts:32` control characters raw | `sec-viewers` | RED (`escape sequences visible, not raw`)
+- Text render | `viewers/text.ts:33` bidi controls raw | `sec-viewers` | RED (`bidi controls visible, not applied`)
+- Open cap | `main/docs.ts:60` size check removed | `sec-viewers` | RED (`cap: {"code":0,…}`)
+- Walk | `main/docs.ts:139` `normalize` check removed | `sec-walk` | RED (`not normalized refused: {"ok":true}`)
+- Walk | `main/docs.ts:138` new walk doesn't stop the previous | `sec-walk` | RED (`superseded walk sent nothing`)
+- Attach | `main/guest.ts:39-40` prefs kept (no delete, no rebuild) | `sec-browser-nav` | RED (`hostile partition ignored: …/Partitions/evil`)
+- Attach | `main/guest.ts:39-40` prefs kept, partition forced | `sec-browser-nav` | RED (`hostile attributes: no bridge, no Node {"tie":"object",…}`)
+- Attach | `main/guest.ts:32` any src | `sec-browser-nav` | RED (`bad src refused at attach`)
+- UI-started loads | `main/guest.ts:157` `did-start-navigation` guard off | `sec-browser-nav` | RED, first only through the log (`stopped load logged`); fixed: wait for stopped-or-loaded, assert the URL first; now RED (`shell loadURL(file:) stopped: file:///etc/hosts`)
+- Popups | `renderer/guest.ts:29` popup → `tie.openExternal`, no confirm | `sec-browser-popups` | RED (`timed out: script popup without a gesture: the dialog`)
+- Popups | `main/guest.ts:175` `deny` → `allow` | `sec-browser-popups` | RED (`blocked popups: [object Window],[object Window]`)
+- Partition | `main/security.ts:34,36` permissions granted (media excepted: TCC prompt) | `sec-browser-session` | RED only at the 180 s scenario timeout (granted geolocation never answers); fixed: probes bounded (5 s); now RED (`guest permission notifyRequest: granted`)
+- Partition | `main/index.ts:307` `noNetwork` on the browser partition too | `sec-browser-session` | RED (`timed out: guest page`: the loopback site goes through the dead proxy)
+- Guest crash | `renderer/guest.ts:196` `render-process-gone` ignored | `sec-browser-session` | RED (`timed out: crash → error`)
+- Focus | `main/index.ts:46` `BlockingFocusWithoutUserActivation` off | `sec-focus` | RED (`request refused without focus`)
+- Focus | `renderer/frame.ts:223` `allow` attribute dropped | `sec-focus` | GREEN: the feature alone refuses the cross-origin frame (cause not pinned); no harness path isolates the attribute; `SECURITY.md` says so
+- Guest keys | `main/guest.ts:179` `watchKeys(guest)` skipped | `browser` | RED (`timed out: cmd+] forward from the guest`)
+
+Notes.
+
+- Text render: with `escape` gone, no markup reached the DOM anyway: `splitLines` drops a `<` that isn't a span tag. Accidental second layer; the text assertion catches the mutation.
+- Attach "bad src": seen through the guard's log only.
+
 ## Wave 4: product-side (serial): done
 
 1. Security fixes: X-N1, X-N2 (`4e00d36`: bidi / C1 out of download names, page titles, logged untrusted values; `@core/log` `BIDI`). Link dialog from the parsed URL, `@` warning (`d0fbcee`, `@core/links` `externalParts`; X-N5 dialog tail).
