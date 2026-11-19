@@ -1,4 +1,4 @@
-// Shelve by drag, hover reveal, pin (survives clicks elsewhere) / unpin, activity (cleared by hover),
+// Shelve by drag, item click pins / unpins (hover reveal, pins surviving clicks: shelf-reveal), activity (cleared by hover),
 // exit marks, reorder both ways, unshelve by drag; a pin ends when its tile leaves the shelf or closes.
 export default async (ctx, h) => {
   const [a, b, c] = await h.threeWaySplit(ctx)
@@ -19,24 +19,11 @@ export default async (ctx, h) => {
   let l = await h.list(ctx)
   h.assert(l.shelf.includes(c), 'c shelved')
   h.assert(l.active === b, `focus moved off the shelved tile to the recent board tile (active ${l.active})`)
-  await h.hoverShelf(ctx, c)
-  await ctx.shot('reveal')
-  l = await h.list(ctx)
-  h.assert(!l.tiles.find((t) => t.id === c).pinned, 'hover does not pin')
-  await ctx.page.mouse.move(400, 400)
-  await h.waitRevealed(ctx, null)
+  // Item click pins + activates, again unpins (hover reveal, keys, outside clicks: shelf-reveal).
   await h.clickShelf(ctx, c)
   await ctx.shot('pinned')
   l = await h.list(ctx)
   h.assert(l.tiles.find((t) => t.id === c).pinned && l.active === c, 'click pins + activates')
-  await ctx.page.keyboard.type('echo pinned-input\n')
-  await h.waitText(ctx, c, /echo pinned-input.*pinned-input/)
-  await ctx.shot('pinned-typed')
-  await ctx.page.mouse.click(300, 300) // another tile on the board
-  await h.eventually(ctx, async () => {
-    l = await h.list(ctx)
-    h.assert(l.active !== c && l.tiles.find((t) => t.id === c).pinned, `click on another tile activates it, pin stays (active ${l.active})`)
-  })
   await h.clickShelf(ctx, c) // item click
   l = await h.list(ctx)
   h.assert(!l.tiles.find((t) => t.id === c).pinned, 'item click unpins')
