@@ -4,22 +4,22 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Guides
 
-- `docs/ARCHITECTURE.md`: processes, IPC, instances, env, startup/quit.
-- `docs/LAYOUT.md`: slot tree, floats, collapse, zoom, focus, ping, geometry.
-- `docs/SHELF.md`: the shelf (concept + strip), templates, reveal/pin, activity.
-- `docs/TABS.md`: spaces, `withSpace`, toolbar, tab list overflow.
-- `docs/INPUT.md`: mouse, drops, drags, keys, menu.
-- `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, `tie-content` protocol, viewers.
-- `docs/TERMINALS.md`: spawn, cwd, sizing, titles, exit.
+- `docs/ARCHITECTURE.md`: processes, IPC, instances, startup, quit, build.
+- `docs/LAYOUT.md`: locations, slot tree, floats, collapse, zoom, focus, ping, geometry, rendering.
+- `docs/SHELF.md`: the shelf (concept + strip), reveal/pin, selection, group drag, activity.
+- `docs/TABS.md`: spaces, `withSpace`, switching, toolbar, tab list overflow, drops onto tabs.
+- `docs/INPUT.md`: mouse, drops, drags, keys, file picker, menu, dialogs, closing, OS drops.
+- `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, links out, `tie-content` protocol, viewers.
+- `docs/TERMINALS.md`: create, cwd, spawn, paste, links, size, keys, exit, errors, busy, close.
 - `docs/DIRECTORIES.md`: tile `cwd` vs frame `root` (root rule, `/` dialog), inheritance (`contextOf`), pathway table, titles.
-- `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, links, history, watching, opening.
+- `docs/MARKDOWN.md`: markdown kind (read-only): viewer pipeline, diagrams, links, live updates, history, watching, opening.
 - `docs/VIEWERS.md`: text, image, hex, html kinds: kind by extension or content, caps, viewers; html isolation, bootstrap, routing.
-- `docs/BROWSER.md`: browser kind: `<webview>` guest, attach + guest guards, partition, downloads, popups, nav bar.
+- `docs/BROWSER.md`: browser kind: `<webview>` guest, attach + guest guards, partition, downloads, popups, beforeunload, nav bar.
 - `docs/CLI.md`: `tie` CLI, socket protocol, placement.
-- `docs/SETTINGS.md`: settings, themes, tokens, fonts.
-- `docs/HARNESS.md`: `tie-dev`, scenarios, helpers, traces.
-- `docs/PACKAGING.md`: Tie.app, release, CLI launcher.
-- `docs/SECURITY.md`: threat model, guards + their tests, fuses, rules.
+- `docs/SETTINGS.md`: settings file rules, panel, Bindings page, themes, tokens, fonts, window options.
+- `docs/HARNESS.md`: `tie-dev`, fresh instances, scenarios, helpers, mdpage, TCC prompts, traces.
+- `docs/PACKAGING.md`: Tie.app, release, install while running, bundle, CLI launcher, signing.
+- `docs/SECURITY.md`: threat model, rules, guards + their tests, fuses.
 - `docs/EXECUTION-AND-SECURITY.html`: onboarding explainer: processes, realms, per-tile doors matrix, layers, threats, attack stories, change checklist (`tie add docs/EXECUTION-AND-SECURITY.html`).
 
 ## Records and backlog
@@ -32,12 +32,17 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-10-14-security-research.md`: prior art (Wave, VS Code, Joplin, Hyper/Tabby, Electron), methodology.
 - `docs/2026-10-15-tile-host-plan.md`: tile host, frame isolation, keys in main; phased plan.
 - `docs/2026-10-16-viewers-and-browser-plan.md`: text, image, hex, html, browser kinds; architecture, dependency graph.
+- `docs/2026-10-17-security-review.md`: full security pass (code, Electron defaults, harness probes): settled and open issues.
+- `docs/2026-10-17-security-report.html`: the review's rich report ("Tie Security Landscape"): every issue with where, threat model, exploit, impact.
 - `docs/2026-10-21-pty-wedge.md`: macOS pty subsystem wedge (every `openpty` blocks in the kernel); diagnosis, harness check.
 - `docs/2026-10-24-terminal-block-glyphs.md`: QR/block-char gaps (DOM renderer draws with font); options; WebGL renderer research.
 - `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
 - `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
 - `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
+- `docs/2026-10-30-cli-reorg.md`: CLI: current tile, `--tile`, entropic ids, `set`, aliases.
+- `docs/2026-10-30-file-picker.md`: Tie's own file picker (replaces the native dialog): design, scorer, walk, TCC research.
 - `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
+- `docs/2026-11-01-install-while-running.md`: `tie-dev install` while Tie runs: stage, swap at next launch, `--restart`.
 - `docs/2026-11-13-content-roots.md`: frame root = the context cwd when it holds the file; `--root`; `/` asks.
 - `docs/2026-11-14-plannotator-research.md`: Plannotator (plan/doc annotation for agents): features, hook protocol, annotation model, agent-facing text format, lessons for Tie.
 - `docs/2026-11-16-configurable-bindings.md`: configurable key bindings (model, capture, Bindings page; phased plan; manual check results).
@@ -59,53 +64,85 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Files
 
-- `src/core/layout.ts`: pure slot-tree logic (`insert`, `remove`, `swapLeaves`, `replaceLeaf`); drop zones on a tile (`dropZone`: centered `CENTER_ZONE` rectangle → swap / displace, else nearest edge band); shelf reveal hover zone (`inRevealZone`); `insertGroup` (N leaves as a group: the area one would take, split along its longer side), `nearestEdge` (group drops: no center). Tests: `layout.test.ts`.
-- `src/core/security.ts`: pure checks (IPC sender, external URL, path containment). Tests: `security.test.ts`.
-- `src/core/callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`tie replace`: direct child, idle shell) (main). Tests: `callers.test.ts`.
-- `src/core/paste.ts`: pure paste checks (control chars, would-run), caret preview, shell quoting. Tests: `paste.test.ts`.
-- `src/core/policy.ts`: content kinds security table (page, sandbox, CSP, nav rule, assets, payload, cap, bootstrap, dev), `contentCsp`, `documentCsp` (main + renderer + build). Tests: `policy.test.ts`.
-- `src/core/kinds.ts`: file → kind by extension (`fileKind`), else content (`sniff`, `sniffKind`: text/hex), `canOpenAs`, `FILE_KINDS`, `isFileKind`, `extOf` (main + renderer). Tests: `kinds.test.ts`.
-- `src/core/links.ts`: `classifyLink` for file views (main + renderer); `externalParts` (link dialog: site, tail, userinfo from the parsed URL) (renderer). Tests: `links.test.ts`.
-- `src/core/content.ts`: content URL/token/path checks, viewer files, nav rules `navAllowed` (viewer-exact, within-root), `documentUrl`, `bootstrapAt`, `htmlCharset` (main). Tests: `content.test.ts`.
-- `src/core/roots.ts`: content frame roots: `rootFor(cwd, path, current?, explicit?)` (current while it holds the file, else cwd when it does, else the folder), `contains`, `dirOf`, `withinRoot` (main-free; renderer). Tests: `roots.test.ts`.
-- `src/core/requests.ts`: frame → host request verbs + validator (renderer). Tests: `requests.test.ts`.
-- `src/core/watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps). Tests: `watchdog.test.ts`.
-- `src/core/ids.ts`: entropic ids (`randomId`: prefix + 6 chars base32 minus `0 1 l o`, live uniqueness check) (renderer). Tests: `ids.test.ts`.
-- `src/core/picker.ts`: fuzzy path scorer for the file picker (`score`: fzf v1 window, path-scheme bonuses, smart case, NFC, space-separated AND terms; `rank`: top-K by score, depth, length; `merge` for streamed chunks; `parseLine`: picker line → prefix, dir (`~`, lexical normalize), query; `joinPath`, `descendOf`) (renderer). Tests: `picker.test.ts`.
-- `src/core/keymap.ts`: `ACTIONS` (id, label, default chord, aliases), `Bindings` (sparse overrides), `resolveKeymap`, `conflicts`, `validBinding`, `bindingErrors` / `cleanBindings` (settings), `accelerator` (menu label), `chord`, `actionFor` (main + renderer); `decideKey` (`KeyMode`, `KeyEvent`: every real key → pass / block / action / capture; main). Tests: `keymap.test.ts`.
-- `src/core/docs.test.ts`: tree checks: `SECURITY.md` cites only existing scenarios; `ipcMain` and Electron `shell` only in `main/security.ts`.
-- `src/core/settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings: startup and Reload), `fileChanged` (disk vs baseline), `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main). Tests: `settings.test.ts`.
-- `src/core/focus.ts`: `neighbor(from, candidates, mru, dir)`: focus / swap direction ranking (overlap, gap, offset, MRU) (renderer). Tests: `focus.test.ts`.
-- `src/core/zoom.ts`: page zoom presets `ZOOM_STEPS`, `zoomStep(factor, dir)`, `zoomLabel` (renderer). Tests: `zoom.test.ts`.
-- `src/main/`: `index.ts` (window, menu, IPC, RPC bridge, quit, dev socket methods incl. `window-size`), `security.ts` (navigation/window/permission guards, `uiIpc`, `openExternal`, `tie://` protocol, `UI_PARTITION` (in memory), `noNetwork`), `guest.ts` (browser guests: attach guard, navigation/popup/download guards, beforeunload (`unloadGuest`, `leaveGuest`), keys, partition, dev `guest` method), `content.ts` (`tie-content://`: token registry, handler, frame nav lock, hung-frame kill; html documents: CSP, bootstrap injection, folder watch, navigation reports), `keys.ts` (shortcuts in `before-input-event`: `onInput` applies `decideKey`; keymap from settings `bindings`: `setBindings`, `quitChord`; `watchKeys` per guest; `keyMode`: dev socket `key-mode`), `docs.ts` (viewer files: check, open + watch, native file dialog `pickFile` (picker's `…`); picker walks `startWalk` / `stopWalk`; read-only), `walk.ts` (picker directory walk: streaming BFS, gitignore chain, TCC fences, budgets; tests: `walk.test.ts`), `watch.ts` (file watcher, stable reads, revisions; tests: `watch.test.ts`), `pty.ts` (pty host, polling, `tiles()` pid → tile, `busy` / `busyIgnoring`), `socket.ts` (JSON-RPC server, caller gate, `replace` checks + `replaced` on connection close), `settings.ts` (file: load at start only, baseline, `watchSettings`, save (the only writers: Save, Recreate; exception: first dev run seed copy), Reload / Ignore / Recreate, load errors; shell argv, `resolveExecutable`; rules in `@core/settings`), `env.ts` (instance, paths, debug port, `log()`), `update.ts` (`applyStaged`: staged update swap at launch, packaged only; `PACKAGING.md` "Install while running").
-- `src/preload/index.ts`: `window.tie` bridge.
-- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`. Shared: `runtime.ts` (handshake, theme, zoom, links, keys, guards, `style()`, harness `window.viewer`), `live.ts` (keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset). Kinds: `markdown` (pipeline; + `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit/actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake). `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, zoom, link/window.open requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
+- `src/core/`: pure logic, unit-tested beside (`<name>.test.ts`). Users in parentheses.
+  - `layout.ts`: slot tree (`insert`, `remove`, `move`, `swapLeaves`, `replaceLeaf`, `normalize`), rects (`compute`, `resize`, `equalize`), drop zones (`dropZone`: `CENTER_ZONE` → swap / displace, else nearest edge; `nearestEdge`: group drops), shelf reveal zone (`inRevealZone`), `insertGroup` (N leaves in the area one would take).
+  - `focus.ts`: `neighbor(from, candidates, mru, dir)`: focus / swap direction ranking (renderer).
+  - `security.ts`: `isUiSender`, `externalUrl`, `sameDocument`, `resolveInside` (main).
+  - `callers.ts`: socket caller rule `callerTile` (peer uid + lineage → tile / external / refused); `replaceBlock` (`tie replace`: direct child, idle shell) (main).
+  - `paste.ts`: `pasteRisks` (control chars, would-run), `showControls` (caret preview), `shellQuote` (renderer).
+  - `policy.ts`: content kinds security table `POLICY` (`ContentPolicy` rows), `policyOf`, `viewerKinds`, `contentCsp`, `documentCsp` (main + renderer + build).
+  - `kinds.ts`: file → kind: `fileKind` (extension), `sniff` / `sniffKind` (content: text / hex), `canOpenAs`, `FILE_KINDS`, `isFileKind`, `extOf` (main + renderer).
+  - `links.ts`: `classifyLink` (file views), `externalParts` (link dialog: site, tail, userinfo) (renderer).
+  - `content.ts`: content URL / token / path checks, viewer files, nav rule `navAllowed` (viewer-exact, within-root), `routeContent`, `documentUrl`, `bootstrapAt`, `htmlCharset` (main).
+  - `roots.ts`: frame roots: `rootFor(cwd, path, current?, explicit?)` (current while it holds the file, else cwd when it does, else the folder), `contains`, `dirOf`, `withinRoot` (renderer).
+  - `requests.ts`: frame → host request verbs: `parseRequest`, `needsGesture` (renderer).
+  - `watchdog.ts`: content frame watchdog timing (ping, hang, render grace, sleep gaps) (renderer).
+  - `guest.ts`: browser rules: `BROWSER_PARTITION`, `guestNavAllowed`, `locationUrl` (location bar), `popupUrl`, `downloadName` / `uniqueName`, `pageTitle` (main + renderer).
+  - `log.ts`: log line format: `untrusted(v)` → `<untrusted>…</untrusted>`, `escapeUntrusted`, `BIDI`, `plainLog` (main + renderer).
+  - `ids.ts`: `randomId` (prefix + 6 chars, base32 minus `0 1 l o`, live uniqueness check) (renderer).
+  - `picker.ts`: file picker scorer: `score` (fzf v1 window, path bonuses, smart case, NFC, AND terms), `rank` (top-K), `merge` (streamed chunks), `parseLine` (line → prefix, dir, query), `joinPath`, `descendOf` (renderer).
+  - `keymap.ts`: `ACTIONS` (id, label, default chord, aliases), `Bindings` (sparse overrides), `resolveKeymap`, `conflicts`, `validBinding`, `bindingErrors` / `cleanBindings`, `accelerator` (menu label), `chord`, `actionFor`; `decideKey` (`KeyMode`: every real key → pass / block / action / capture) (main + renderer).
+  - `settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings), `fileChanged`, `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main).
+  - `zoom.ts`: page zoom `ZOOM_STEPS`, `zoomStep(factor, dir)`, `zoomLabel` (renderer).
+  - `cli.test.ts`: `bin/tie` argument errors (subprocess, no socket), help sections.
+  - `docs.test.ts`: tree rules: `SECURITY.md` cites only existing scenarios; `ipcMain` and Electron `shell` only in `main/security.ts`.
+- `src/main/`:
+  - `index.ts`: window, menu, IPC, RPC bridge, quit, dev socket methods (`devMethods`, `HARNESS.md`).
+  - `security.ts`: `harden` (navigation / window / permission guards), `uiIpc`, `openExternal`, `serveShell` (`tie://`), `UI_PARTITION` (in memory), `noNetwork`, `noWebRtcUdp`.
+  - `guest.ts`: browser guests: `attachGuest`, `guardGuest` (navigation, popups), downloads (`initBrowserSession`, `allowDownload`, `noDownloads`), `noDeviceChoosers`, beforeunload (`unloadGuest`, `leaveGuest`), dev `guestMethod`.
+  - `content.ts`: `tie-content://`: token registry (`openContent`), `serveContent`, frame nav lock (`contentFrameAllowed`), hung-frame kill (`killContent`); html documents: CSP, bootstrap injection, folder watch, navigation reports.
+  - `keys.ts`: shortcuts in `before-input-event` (`onInput` applies `decideKey`); keymap from settings (`setBindings`, `quitChord`); `watchKeys` per guest; `keyMode` (dev socket `key-mode`).
+  - `docs.ts`: viewer files (`fileViewer`, `openDoc` + watch, `closeDoc`; read-only), native dialog `pickFile` (picker's `…`), picker walks `startWalk` / `stopWalk`.
+  - `walk.ts`: picker directory walk `walkDir` (streaming BFS, gitignore chain, TCC fences `PROTECTED_HOME`, budgets `WALK_CAP`). Tests: `walk.test.ts`.
+  - `watch.ts`: `watchFile`, `readStable`, `revision`. Tests: `watch.test.ts`.
+  - `pty.ts`: `initPty`: pty host, polling, `tiles()` (pid → tile), `busy` / `busyIgnoring`.
+  - `socket.ts`: `startSocket`: JSON-RPC server, caller gate, `replace` checks + `replaced` on connection close.
+  - `settings.ts`: settings file: load at start, baseline, `watchSettings`, writes only on Save / Recreate (`SETTINGS.md` "File"), Reload / Ignore, load errors; `shellArgv`, `resolveExecutable`.
+  - `env.ts`: instance, paths (`stateDir`, `socketPath`, `logPath`), `debugPort`, `log()`.
+  - `update.ts`: `applyStaged`: staged update swap at launch, packaged only (`PACKAGING.md` "Install while running").
+- `src/preload/index.ts`: `window.tie` bridge (`TieApi`).
+- `src/viewers/`: content viewers (`<kind>.html` + `.ts`, IIFE) → `out/viewers/`.
+  - Shared: `runtime.ts` (`startViewer`: handshake, theme, zoom, links, keys, guards; `style()`; harness `window.viewer`), `live.ts` (`createLive`: keyed diff, anchoring), `marks.ts` (change marks, edge markers, `n`), `highlight.ts` (highlight.js subset).
+  - Kinds: `markdown` (pipeline; `mermaid.ts`: diagrams, lazy library), `text` (lines, gutter, literal), `image` (fit / actual), `hex` (virtualized rows), `probe` (dev, own minimal handshake).
+  - `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, zoom, link / `window.open` requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
-  - `state.ts`: `S`, `Space`, `Tile`, geometry, `withSpace`, `location`, rects, `debug()`.
-  - `ops.ts`: all mutations (incl. shelf selection: `toggleSelected`, `clearSelection`, `selection`, `unshelveGroup`, `moveGroupToSpace`, `placeGroup` (every group board landing), `floatGroup`, `shelveGroup`; `replaceTile`: `tie replace`; `displaceTile`: a new tile takes a leaf, its tile shelved; `contextOf` / `cwdOf` / `setCwd`: tile cwd, `DIRECTORIES.md`). `render.ts`: state → DOM.
-  - `tile.ts`: tile host: element, title bar, nav bar, `Host` for kinds, mount/dispose, error state.
+  - `state.ts`: `S`, `Space`, `Tile`, geometry (`readGeometry`, `layoutOpts`, `shelfRect`, `revealSize`), `withSpace`, `location`, `spaceOf`, `debug()`.
+  - `ops.ts`: all mutations: place / swap / close / move, focus (`activate`, `refocus`), collapse / zoom / pin, shelf selection + group ops (`toggleSelected`, `placeGroup`, `floatGroup`, `shelveGroup`, `unshelveGroup`, `moveGroupToSpace`), `replaceTile` (`tie replace`), `displaceTile`, tile cwd (`contextOf`, `cwdOf`, `setCwd`). `render.ts`: `render()`: state → DOM.
+  - `tile.ts`: tile host: `createTile`, `mountTile`, title bar, `Host` for kinds, `showError`, `displayTitle` / `displayIcon`.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
-  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `PillColor`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 fixes: width cache `fixWidthCache`, link cache `fixLinkCache` (stale links)), `html.ts` (html page, static: routing, history, live reload, scripts-blocked tag), `probe.ts` (dev harness content kind; root `--root`, else its cwd).
-  - `roots.ts`: `resolveRoot(cwd, path, current?, explicit?)`: the rule + the `/` question (`choiceDialog`: Stop / Use file directory / Open anyway).
-  - `external.ts`: links out (`openExternal(url, from, note?)`: confirm dialog, setting `confirmExternal`, then main). `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`, `terminalTitle`). File kinds (markdown, text, image, hex): one line each in `index.ts` (file view + viewer).
-  - `fileview.ts`: file view for file kinds (doc, history, nav, folders, links, theme message).
-  - `frame.ts`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, focus, watchdog, `post`, `setRoot`).
-  - `guest.ts`: browser kind (`browserKind`: `<webview>`, title, nav bar with editable location, focus, crash/hang → error, beforeunload Leave / Stay; `initGuests`).
-  - `files.ts`: OS file drops → viewer tiles.
-  - `drag.ts`: `track()`, drag/drop (shelf group drag: `groupTarget`, `dropGroup`; preview pool `showPreviews`), border + float resize.
-  - `paste.ts`: guarded paste (`pasteInto`), paste/drop routing to `Surface.paste|drop`.
-  - `picker.ts`: file picker (`pickPath(startDir)`: path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
-  - `shelf.ts` (shelf strip + template list, selection de-select paths + group menu), `tabs.ts` (tab list, overflow), `menu.ts` (context menu; `showListMenu` with sub-entries), `dialog.ts` (`infoDialog`, `confirmDialog`, `choiceDialog`), `settings.ts` (panel: Appearance, Bindings, Terminal, Files, Security; changed-on-disk banner (Ignore / Reload); `applySettings`; startup dialog `settingsLoadDialog`), `bindings.ts` (Bindings page: filters, table, edit via capture field, conflict dialog; `bindingsPage`): UI parts.
-  - `keys.ts`: runs actions from main, key suspend reporting (`'capture'` level), split, focus-direction (candidates; ranking `@core/focus`). `capture.ts`: capture field (`captureField`: input taking key presses as a chord name; `INPUT.md` "Keyboard"). `quit.ts`: quit question (`askQuit`).
+  - `kinds/`: `index.ts` (`Surface`, `Host`, `Pill`, `KindSpec` registry: `kindSpec`, `needsFile`; `TEMPLATES`; file kinds: one `fileKind` line each), `terminal.ts` (xterm, pty wiring, links → strip + confirm, drop text, xterm 6.0 fixes `fixWidthCache`, `fixLinkCache`), `html.ts` (static html page: routing, history, live reload, "Scripts blocked" pill), `probe.ts` (dev harness kind; root `--root`, else its cwd).
+  - `fileview.ts`: `fileView`: file view for file kinds (doc, history, nav, folders, links, theme message); `reloadViewers` (hot mode).
+  - `frame.ts`: `frameSurface`: frame host for content kinds (sandboxed iframe, port, requests, gesture rule, flood cap, focus, watchdog, `post`, `setRoot`).
+  - `guest.ts`: browser kind (`browserKind`: `<webview>`, title, editable location, zoom, crash / hang → error, beforeunload Leave / Stay; `initGuests`).
+  - `roots.ts`: `resolveRoot(cwd, path, current?, explicit?)`: the root rule + the `/` question (Stop / Use file directory / Open anyway).
+  - `external.ts`: `openExternal(url, from, note?)` (link-out confirm unless `confirmExternal` off, then main), `confirmFile` (file outside the document's folder).
+  - `prefs.ts`: behaviour settings cached for synchronous reads (`confirmExternal`, `terminalTitle`, `gitignore`).
+  - `files.ts`: `dropFiles`: OS file drops → viewer tiles.
+  - `drag.ts`: `track()`, `startDrag`, drop targets (group: `groupTarget`, `dropGroup`; previews `showPreviews`), border + float resize.
+  - `paste.ts`: guarded paste (`pasteInto`), paste / drop routing to `Surface.paste|drop`.
+  - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
+  - `shelf.ts`: shelf strip, template list, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, overflow, tab drops.
+  - `menu.ts`: context menus (`showTileMenu`, `showMetaMenu`, `showListMenu`). `dialog.ts`: `infoDialog`, `confirmDialog`, `choiceDialog`.
+  - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
+  - `keys.ts`: runs actions from main, key suspend reporting, split, focus direction (ranking `@core/focus`). `capture.ts`: `captureField` (input taking key presses as a chord name; `INPUT.md` "Capture fields"). `quit.ts`: `askQuit`.
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseGroup`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
-  - `driver.ts`: socket methods → ops.
-  - `themes.ts` (`Theme {label, dark, accent, palette, code?}`: `code` = per-token colors for viewer code blocks, else ANSI fallback), `appearance.ts`: colors, fonts, window classes. `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile/template icons), `SHELLS`, `Icon`, `iconHtml`.
-  - `main.ts`: boot, delegated tile events.
+  - `driver.ts`: `initDriver`: socket methods → ops.
+  - `themes.ts`: `THEMES` (`Theme {label, dark, accent, palette, code?}`: `code` = viewer code token colors, else ANSI fallback), `xtermTheme`. `appearance.ts`: colors, fonts, window classes, `termOptions`.
+  - `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile / template icons), `SHELLS`, `Icon`, `iconHtml`.
+  - `main.ts`: boot, delegated tile events, OS-drag shield.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
-- `dev/`: `lib.mjs` (launch, CDP, tie wrappers `tie` / `tieAt` (cwd) / `tieRaw` (exit code + stderr), `rpc`, `leftovers`: per-instance pty leak check), `helpers.mjs` (incl. waits `eventually`, `wait*` (`waitMd`, `waitKeyMode`: dev socket `key-mode`); `openFresh` (a terminal's cwd read fresh, not the poll); check counter `checkCount`; `probe`, `contentFrame` (probe tiles too), `recordViolations` / `violations` (CSP), `mdState`, `clickIn`, `osDrop`, `pixels` / `fraction` (PNG paint checks), `pick` / `pickCancel` (file picker), `selectShelf` / `selected` / `clickShelf` (shelf), `openSettings`, `cssVar`, `tieError`, `leafIds`, `lines`, `focused`, `linkStrip`, `alive`, `nativePickNext`, `site`, `guestPage`, `guestKey`, `guestClick`), `frames.mjs` (frame tree), `package-check.mjs` (fuses + smoke), `install-check.sh` (`tie-dev check-install`: install while running in a `/tmp` sandbox), `electron-check.mjs`, `drive.mjs` (runner; `checks=N`, fails at 0), `e2e.mjs` (`test --e2e`: parallel, selection, leak total, `--strict-leaks`), `viewers.mjs` (viewer build + `--watch` for hot mode), `screenshot.mjs`, `mdpage.mjs` (`tie-dev mdpage`: standalone markdown page), `layout.mjs`, `scenarios/*.mjs` (e2e; named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`), `samples/` (viewer fixtures: `markdown.md`), `brand-electron.sh` (postinstall), `icon.cjs`.
-- `electron-builder.yml`, `resources/bin/tie` (CLI launcher): packaging. `electron.vite.config.ts`: build.
+- `dev/` (`HARNESS.md`):
+  - `lib.mjs`: `launch` (fresh instance), `connectPage` (CDP), `tie` / `tieAt` / `tieRaw`, `rpc` (socket), `quitInstance`, `leftovers` (per-instance pty leak check).
+  - `helpers.mjs`: scenario helpers (`h`; table in `HARNESS.md`), check counter `checkCount`.
+  - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
+  - `scenarios/*.mjs`: e2e, named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`; plus `close-busy`, `lifecycle`, `menu`, `ping`, `quit`.
+  - `viewers.mjs` (+ `viewers.d.mts`): viewer build, `--watch` for hot mode. `mdpage.mjs`: standalone markdown page. `samples/`: viewer fixtures (`markdown.md`).
+  - `frames.mjs`, `layout.mjs`, `screenshot.mjs`: `tie-dev frames | layout | screenshot`. `ptydump.sh`: pty wedge snapshot.
+  - `package-check.mjs` (fuses + smoke), `install-check.sh` (`tie-dev check-install`), `electron-check.mjs`.
+  - `brand-electron.sh` (postinstall: dev Electron named Tie), `icon.cjs` (placeholder icon).
+- `electron-builder.yml`, `resources/bin/tie` (CLI launcher), `build/` (icon): packaging. `electron.vite.config.ts`: build.
 - `patches/`: `patch-package` patches applied at install (`node-pty`: disclaimed spawn).
 
 ## Model
@@ -117,8 +154,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered), `selected: Set` (shelf selection, cmd+click; non-empty: nothing active; `SHELF.md` "Selection").
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
 - Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
-- New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`); only the last space may be empty; never zero spaces (`TABS.md`).
-- `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
+- New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`) unless it is the only one; never zero spaces (`TABS.md`).
+- `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space, window coords). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
 - `Tile` (common to all kinds):
   - `id` (`t` + 6 random chars, never reused: `@core/ids`), `kind` (`'terminal'`, `'markdown'`, `'text'`, `'image'`, `'hex'`, `'html'`, `'browser'`, dev `'probe'`), `customTitle`, `customIcon` (user text).
@@ -128,8 +165,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `el`, `body`, `surface`.
 - `Surface` (kind side, `kinds/index.ts`): `mount`, `resize`, `dispose`, `focus`, `title`, `icon` (→ `Glyph` key); optional `tip` (title tooltip), `cwdNow` (fresh cwd read: terminal), `paste`, `drop`, `appearance`, `info`, `busy` (→ `{what}` or null: terminals, `TERMINALS.md`), `unload` (→ may close: browser beforeunload), `nav` (`{state() → {location, back, forward, editable}, back, forward, reload, go?}`), `zoom` (`dir` 1 / -1 / 0: html, browser, markdown, text; `@core/zoom` steps), `pills` (`{label, title, on, toggle?, color?, gravity?}[]`: title-bar states, html "Scripts blocked", file kinds "Missing").
 - `Icon` (`icons.ts`): `{glyph: Glyph}` (built-in SVG, `GLYPH` key) | `{text}` (custom icon, escaped). `displayIcon(t)` → `Icon`; `iconHtml(icon)` renders it (title bar, shelf, tabs, ghost).
-- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `cwd` (absent: context tile's), `root` (dev probe), `cmd`, `path`, `hash`, `url`.
-- `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles`, `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
+- `KindSpec`: `kind`, `factory`, `opens` (`'bare'|'file'|'url'`). Shelf templates: `TEMPLATES` (`{id: 'terminal'|'file'|'browser', label, icon: Glyph}`). `OpenOpts`: `title`, `icon`, `cwd` (absent: context tile's), `root` (`--root`: file kinds, dev probe), `cmd`, `path`, `url`, `hash`, `id` (dev: `tie add --id`).
+- `ContentPolicy` (`core/policy.ts`, per content kind): `page` (`viewer`|`document`), `sandbox`, `styles` (`nonce`|`inline`), `nav` (`viewer-exact`|`within-root`), `assets`, `payload` (`text`|`bytes`|`none`), `maxBytes`, `bootstrap`, `dev`.
 - `Host` (given to a kind): `id`, `body`, `alive`, `changed`, `cwd` / `setCwd` (tile cwd), `activity`, `exit`, `error`, `close`, `hint` (link strip text, bottom-left).
 - Terminal state (kind-private, `TERMINALS.md`): `term`, `fit`, `pty` (= pid), `ptySize`, `oscTitle`, `proc`, `cmd` (cwd: the tile's).
 - Browser state (private, `guest.ts`): `wv` (the `<webview>`), `url`, `title`, `loading`, `ready` (dom-ready), `gid` (guest webContents id). Rules: `core/guest.ts`. Main: `guests` (live guest webContents).
@@ -138,7 +175,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 ## Patterns
 
 - Mutate only through `ops.ts`; ops end in `render()`, which always renders `S.visible`. Other space: `withSpace(id, fn)`.
-- Closing on the user's behalf: `requestCloseTile` / `requestCloseTab` (`close.ts`: asks if busy); scripted (`tie close`, exits): `closeTile`.
+- Closing on the user's behalf: `requestCloseTile` / `requestCloseGroup` / `requestCloseTab` (`close.ts`: asks if busy); scripted (`tie close`, exits): `closeTile`.
 - Async work on a tile (spawn, drop, menu action) re-checks `S.tiles.has(id)` (kinds: `host.alive()`): it may have closed.
 - UI code never reaches into a kind's state: only through `Surface`.
 - `refocus()` after closing any modal/menu: keys to the active tile, or blur.
@@ -153,10 +190,10 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Never throw inside node-pty callbacks (aborts the process).
 - Browser tiles: only via `browserKind` + main `attachGuest`/`guardGuest`; URL rules only in `core/guest.ts`.
 - Content kinds: only via `frameSurface` (`TILES.md`); what may differ per kind only in `core/policy.ts`; new frame verbs in `core/requests.ts` (`gesture` for anything acting for the user). Viewer colors from the host's theme message, set via CSSOM.
-- New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, glyph)` in `kinds/index.ts`.
+- New content kind = policy row + `KindSpec` + viewer pipeline (on `runtime.ts`); file kinds: + `FILE_KINDS` / extensions (`core/kinds.ts`) + `fileKind(kind, glyph, zoom?)` in `kinds/index.ts`.
 - Files: main decides (`fileViewer`, reads, writes); the renderer only names paths.
 - Security (`SECURITY.md`): IPC via `ipc.on|handle`; URLs out via `renderer/external.ts` → main `openExternal`; text into terminals via `pasteInto`; content never in the UI realm; socket callers by kernel lineage (`@core/callers`), never `TIE_TILE`; every guard has a `sec-*` scenario; security code gets a `// SECURITY:` comment.
-- Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.
+- Logs: `debug(tag, ...)` (renderer), `log(tag, ...)` (main), enabled by `TIE_DEBUG`; `security` and `update` always on. Any logged value that isn't Tie's own text (URL, href, path, name, request body, socket params): wrap with `untrusted(v)` (`@core/log`) → `<untrusted>…</untrusted>`, escaped.
 - Harness: prefer `tie-dev drive` (fresh offscreen instance). Failed run: read `out/log/runs/<time>-<name>/` first.
 - Harness runs: after a change, only the scenarios of the feature worked on (`test --e2e <names|globs>`) + `test --unit` + `typecheck`. Full `test --e2e` only when specifically needed (shared harness / `lib.mjs`, layout core, handing back a large refactor) and for release prep (`tie-dev release` runs it).
 - Scenarios wait, never sleep for something observable: `h.eventually`, `h.wait*` (`HARNESS.md`); a `ctx.sleep` only for "nothing happens" / debounce, commented.
@@ -211,5 +248,5 @@ terminal TIE_INSTANCE is the host's and is ignored; run/start refuse "default" u
 socket, lock, debug port, log under ~/.config/tie/.
 ```
 
-- `tie --help`: `list`, `add` (file, URL, kind; `--title`, `--icon`, `--tab`, `--cwd`, `--root`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (`--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`; dev-only `state`, `frames`, `add probe [--root D]`, `add --id`. See `docs/CLI.md`.
+- `tie --help`: `list`, `add` (file, URL, `terminal`, `browser`; `--cmd`, `--cwd`, `--root`, `--title`, `--icon`, placement `--at`/`--side`, `--float`, `--shelved`, `--tab`, `--focus`), `replace` (as `add`, takes the calling terminal's place), `close`, `move` (placement, `--tab`, `--swap`), `focus`, `ping`, `set` (`--title`, `--icon`); tile commands act on the caller, `--tile <id>` for another; aliases `l a r c m f s p`. Unlisted: `state` (internal dump, any build); dev builds only: `frames`, `add probe [--root D]`, `add --id`. See `docs/CLI.md`.
 - Ad-hoc scenario: `tie-dev drive - <<'EOF' ... EOF` (`docs/HARNESS.md`).
