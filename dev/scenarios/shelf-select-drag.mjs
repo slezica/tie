@@ -4,7 +4,8 @@
 // center: the nearest edge (no swap); empty board: fills it; strip: block reorder (order kept,
 // width stable); tab: all join it; shift: floats cascade. After a drop: selection cleared, the
 // first active. Escape cancels (nothing moves, selection kept). Drag of a non-selected item:
-// de-selects, moves alone.
+// de-selects, moves alone. Zoomed board (edge of the zoomed tile, a squashed bar) and a collapsed
+// tile: nearest edge, the landing unzoomed (zoom ends), collapse kept. "+": a new tab with the group.
 export default async (ctx, h) => {
   const page = ctx.page
   const L = () => h.list(ctx)
@@ -189,4 +190,72 @@ export default async (ctx, h) => {
     h.assert(l.active === group[0] && !l.tiles.some((t) => t.selected), `tab: first active, selection cleared (${l.active})`)
     h.assert(l.tiles.find((t) => t.id === g2).tab !== tab2, 'tab: unselected g2 stayed')
   })
+
+  const TITLE_MAX = 32 // a bar: title-bar thick
+  // Zoomed board (tab 2: other | y, y zoomed). As a single drop: targets are the zoomed layout's
+  // rects (the zoomed tile, squashed bars), the landing is unzoomed (the new tile is squashed:
+  // activating it ends the zoom), the previews show that landing.
+  await shelve(g1, g3)
+  const y = (await ctx.tie('add', 'terminal', '--at', other, '--side', 'r')).id
+  await h.clickButton(ctx, y, 'zoom')
+  await h.eventually(ctx, async () => h.assert((await S()).zoomed === y, 'y zoomed'))
+  await away()
+  // Edge of the zoomed tile: below y.
+  await h.selectShelf(ctx, g3, g1)
+  group = await inShelf(g1, g3)
+  seen = await groupDrag(g1, await h.sidePoint(ctx, y, 'b'), 'zoomed-edge')
+  await landed(group, seen, 'slotted', 'zoomed: edge')
+  h.assert(!(await S()).zoomed, 'zoomed edge: zoom ended')
+  let ry = await h.rectOf(ctx, y)
+  h.assert(seen.every((p) => p.y > ry.y + ry.h), `zoomed edge: below y (${seen.map(fmt)}; y ${fmt(ry)})`)
+  // A squashed bar: no swap (a single tile would swap with it); its nearest edge, unzoomed.
+  await shelve(g1, g3)
+  await h.clickButton(ctx, y, 'zoom')
+  await h.eventually(ctx, async () => h.assert((await S()).zoomed === y && (await h.rectOf(ctx, other)).w <= TITLE_MAX, 'y zoomed, other squashed'))
+  await away()
+  await h.selectShelf(ctx, g1, g3)
+  const bar = await h.rectOf(ctx, other)
+  seen = await groupDrag(g1, { x: bar.x + bar.w / 2 + 4, y: bar.y + bar.h / 2 }, 'zoomed-bar')
+  await landed(group, seen, 'slotted', 'zoomed: squashed bar')
+  h.assert(!(await S()).zoomed, 'squashed bar: zoom ended')
+  let ro = await h.rectOf(ctx, other)
+  ry = await h.rectOf(ctx, y)
+  h.assert(ro.w > TITLE_MAX && seen[0].x > ro.x + ro.w && seen[0].x + seen[0].w < ry.x, `squashed bar: between other and y (${seen.map(fmt)}; other ${fmt(ro)}, y ${fmt(ry)})`)
+
+  // Collapsed tile (other | y, y a collapsed strip): no swap either; its nearest edge (right), the
+  // area measured with y collapsed. y stays collapsed.
+  await shelve(g1, g3)
+  await h.clickButton(ctx, y, 'collapse')
+  await h.eventually(ctx, async () => h.assert((await h.rectOf(ctx, y)).w <= TITLE_MAX, 'y collapsed'))
+  await away()
+  await h.selectShelf(ctx, g1, g3)
+  const strip = await h.rectOf(ctx, y)
+  seen = await groupDrag(g1, { x: strip.x + strip.w / 2 + 4, y: strip.y + strip.h / 2 }, 'collapsed')
+  await landed(group, seen, 'slotted', 'collapsed')
+  const l2 = await L()
+  h.assert(l2.tiles.find((t) => t.id === y).collapsed && l2.tiles.find((t) => t.id === y).rect.w <= TITLE_MAX, 'collapsed: y stays collapsed')
+  ro = l2.tiles.find((t) => t.id === y).rect
+  h.assert(seen.every((p) => p.x > ro.x + ro.w), `collapsed: right of y (${seen.map(fmt)}; y ${fmt(ro)})`)
+
+  // "+": a new tab holding the group (as "Move N to tab ▸ New tab"), shown, the first active.
+  await shelve(g1, g3)
+  await away()
+  const tabs0 = (await L()).tabs.map((t) => t.id)
+  await h.selectShelf(ctx, g3, g1)
+  await h.drag(ctx, await h.shelfItem(ctx, g1), await h.boxOf(ctx, '#tab-add'), {
+    during: async () => {
+      h.assert((await previews()).length === 0 && (await page.$eval('#tab-add', (e) => e.classList.contains('drop'))), '+: marked, no board previews')
+      await ctx.shot('tab-add')
+    },
+  })
+  await h.eventually(ctx, async () => {
+    const l = await L()
+    const tab3 = l.tab
+    h.assert(l.tabs.length === tabs0.length + 1 && !tabs0.includes(tab3), `+: a new tab, shown (${l.tabs.map((t) => t.id)})`)
+    h.assert(l.tiles.filter((t) => t.tab === tab3).map((t) => t.id).sort().join() === [g1, g3].sort().join(), '+: it holds just the group')
+    h.assert([g1, g3].every((id) => l.tiles.find((t) => t.id === id).state === 'slotted'), '+: slotted')
+    h.assert(l.active === group[0] && !l.tiles.some((t) => t.selected), `+: first active, selection cleared (${l.active})`)
+    h.assert([other, y].every((id) => l.tiles.find((t) => t.id === id).tab === tab2), '+: tab 2 keeps other, y')
+  })
+  h.assert(!(await page.$eval('#tab-add', (e) => e.classList.contains('drop'))), '+: drop mark cleared')
 }
