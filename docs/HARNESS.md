@@ -59,11 +59,12 @@ export const exclusive = true              // optional: test --e2e runs it alone
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
-`ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
+`ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
 
 - `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`frame-input`, `browser`, `sec-browser`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
 - Runs once booted: first `.tab`, and every terminal showing its prompt (or an error; at most 3 s). Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
+- Check count: passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
 
 ```sh
@@ -84,26 +85,32 @@ EOF
 | `drag(from, to, {shift, steps, during})` | low-level drag, `during` hook mid-drag |
 | `dragTitle(id, target, side)` | move tile by title |
 | `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags |
-| `hoverShelf`, `pin`, `shelfItem`, `template`, `boxOf(selector)` | shelf + DOM points |
+| `hoverShelf`, `clickShelf`, `shelfItem`, `template`, `boxOf(selector)` | shelf: hover reveal, plain item click (pins; unpins a pinned one) + DOM points |
+| `selectShelf(...ids)`, `selected()` | cmd+click items (selection toggle, each confirmed in `tie state`); selected ids |
 | `resizeWindow(w, h)` | window size (dev socket `window-size`), waits for the re-layout |
 | `clickButton(id, collapse\|zoom\|close)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
-| `assert`, `assertPtySizes` | checks; pty size == xterm grid (terminal tiles) |
-| `termFit(id)`, `assertTermFit(id, label)` | terminal grid vs visible area: screen/body slack, text overrun past rows, full-width rows (`TERMINALS.md` "Size") |
+| `assert`, `assertPtySizes(ms)` | checks; pty size == xterm grid (terminal tiles; retries itself: call it directly, not in `eventually`) |
+| `termFit(id)`, `assertTermFit(id, label)`, `waitTermFit(id, label, ms)` | terminal grid vs visible area: screen/body slack, text overrun past rows, full-width rows (`TERMINALS.md` "Size"); `waitTermFit`: waits for the fit after a size change, then asserts |
 | `probe`, `uiUrl` | security: local page reporting hits + `window.tie` (`SECURITY.md`); UI URL |
-| `frames`, `probeFrame(id)` | window frame tree (`tie frames`: url, origin, pid, out-of-process); Playwright frame inside a probe tile, once its handshake is done |
+| `frames` | window frame tree (`tie frames`: url, origin, pid, out-of-process) |
 | `press(chord)`, `keyDown(key)`, `keyUp(key)` | keys through main (dev socket `input` → `sendInputEvent`): pass `before-input-event` like real keys. Use for shortcuts; CDP `ctx.page.keyboard` skips it (fine for typing) |
-| `paste(id, text)`, `screen(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text; open paste dialog (`warnings`, `preview`) or null |
-| `contentFrame(id)`, `mdState(id)`, `clickIn(frame, selector, {meta})` | any content tile's Playwright frame, once its viewer has a port (`window.viewer`; re-found after reloads); markdown viewer state (`text`, `html`, `rev`, `key`, `renders`, `scrollY`); real click inside a frame (`hiddenWindow`). Note: `frame.evaluate` runs with a user gesture (transient activation): what a page's script can do *without* one (focus itself, open popups) must be tested from the page's own timers |
+| `paste(id, text)`, `screen(id)`, `lines(id)`, `pasteWarning()` | OS-like paste into a terminal; its visible text (rows joined, no newlines); as lines (blank space around trimmed); open paste dialog (`warnings`, `preview`) or null |
+| `contentFrame(id, ms)`, `mdState(id)`, `waitMd(id, text, what, ms)`, `clickIn(frame, selector, {meta})` | any content tile's Playwright frame (viewers, and the probe: the attacker's seat), once its handshake is done (`window.viewer.port` / `window.probe.inits`; re-found after reloads; 8 s); markdown viewer state (`text`, `html`, `rev`, `key`, `renders`, `scrollY`); markdown tile once its text starts with `text`; real click inside a frame (`hiddenWindow`). Note: `frame.evaluate` runs with a user gesture (transient activation): what a page's script can do *without* one (focus itself, open popups) must be tested from the page's own timers |
 | `htmlFrame(id)` | html tile's page frame (the page's realm), once ready; re-found after navigations (`tie list` `page.url`) |
+| `recordViolations(frame)`, `violations(frame)` | CSP violations in a frame: start recording (`securitypolicyviolation`, `<directive> <blocked URI>`); read them |
 | `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
 | `tileOf(id)`, `waitFor(fn, what)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
+| `tieError(...args)`, `leafIds(tree)` | `tie <args>` expected to fail: its message, or null if it succeeded; leaf ids of a slot tree (`tie state` tree), in order |
+| `openSettings(page?)`, `cssVar(name)` | settings panel open (`tie:settings`), optionally on a page (`appearance`, `bindings`, `terminal`, `files`, `security`); CSS custom property of the UI root |
+| `focused()`, `linkStrip(id)`, `alive(pid)` | where keys go in the UI (focused element's tile id, else its tag); a tile's link strip text, null while hidden; process alive (signal 0) |
+| `keyMode()`, `waitKeyMode(mode)` | main's key suspend level (dev socket `key-mode`: `off`, `fields`, `capture`); wait for it before keys that depend on it (focus reaches main asynchronously) |
 | `pixels(png)`, `fraction(pix, test)` | decode a Playwright PNG (8-bit RGB/RGBA) → `{w, h, bpp, px, at(x, y) → [r, g, b]}`; share of pixels passing `test([r, g, b])` (paint checks: a guest's red page, no white flash) |
 | `tilde(path)` | a path as Tie titles it (`~` for home): file / html tile titles |
 | `pick(text)`, `pickCancel()`, `nativePickNext(path)` | file picker (`#picker`, after the drop / cmd+O): line replaced by `text` (absolute path: that file opens; or prefix + query), Enter, waits closed; Esc; next answer of the native dialog (`…`; null = cancel) |
 | `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered) |
 | `waitTile(id, pred)`, `waitGone(id)`, `waitActive(id)`, `waitRevealed(id\|null)` | `tie list` entry once `pred` holds; tile closed; active tile; shelf hover reveal (`tie state`) |
-| `waitShell(id)`, `waitText(id, re)`, `children(id)`, `waitChild(id, re)`, `waitNoChild(id)`, `waitRunning(id, re)` | terminal: shell started, prompt drawn; screen matches (`screen` joins rows without newlines: no `^`/`$` per line); shell's child processes (`ps`): a typed command started / ended; a program running in the tile (its own process, as a `--cmd` bash execs a single command, or a child) |
+| `waitShell(id)` (fails at once on a tile error; timeout names pid + last lines), `waitText(id, re)`, `children(id)`, `waitChild(id, re)`, `waitNoChild(id)`, `waitRunning(id, re)` | terminal: shell started, prompt drawn; screen matches (`screen` joins rows without newlines: no `^`/`$` per line); shell's child processes (`ps`): a typed command started / ended; a program running in the tile (its own process, as a `--cmd` bash execs a single command, or a child) |
 | `waitLog(re, n)` | run's app log has n matches |
 | `waitDialog(sel)`, `waitNoDialog()`, `waitArmed()` | dialog open; closed; its confirm enabled (dialogs that arm after a delay) |
 
