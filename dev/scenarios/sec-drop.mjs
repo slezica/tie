@@ -39,13 +39,15 @@ export default async (ctx, h) => {
     h.assert(s.includes(p.url + '/dropped') && s.includes('echo DROPPED-$((6*7))') && !s.includes('DROPPED-42'), `text pasted, not run: ${s.trim()}`)
     await ctx.page.keyboard.press('Control+u')
 
-    // Files: shell-quoted paths, nothing run.
+    // Files: shell-quoted paths, nothing run, no viewer tile opened.
+    const n0 = (await h.list(ctx)).tiles.length
     await drop(onTerm, { files: names.slice(0, 3).map((n) => join(dir, n)) })
     const q = (n) => `'${join(dir, n).replace(/'/g, `'\\''`)}'`
     await h.eventually(ctx, async () => {
       s = await h.screen(ctx, z)
       for (const n of names.slice(0, 3)) h.assert(s.includes(q(n)), `quoted ${q(n)} in: ${s.trim()}`)
     })
+    h.assert((await h.list(ctx)).tiles.length === n0, 'file drop on a terminal: no tile opened')
     h.assert(!existsSync(join(process.cwd(), 'PWNED')), 'no command substitution')
     await ctx.page.keyboard.press('Control+u')
 

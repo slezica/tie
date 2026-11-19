@@ -1,6 +1,6 @@
 // Opening files: `tie add <path>` (kind by extension, else by content: text; missing / folder fail
-// with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal:
-// still the path), file template + picker (`#picker`: `h.pick` types the path; Esc cancels).
+// with exit 1), Finder drops on the board (markdown → tile there; a folder → modal; on a terminal: a
+// pasted path, sec-drop), file template + picker (`#picker`: `h.pick` types the path; Esc cancels).
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -70,14 +70,6 @@ export default async (ctx, h) => {
     const shelf = await h.boxOf(ctx, '#shelf')
     await h.osDrop(ctx, { x: shelf.x, y: shelf.box.y + shelf.box.height - 20 }, { files: [md] })
     await h.waitFor(ctx, async () => (await mdTiles()).some((t) => t.state === 'shelved'), 'shelved tile')
-
-    // Onto a terminal: still pastes the path, no tile.
-    const z = (await ctx.tie('add', 'terminal', '--cmd', 'zsh -f', '--at', m.id)).id
-    await h.waitShell(ctx, z)
-    const before = (await tiles()).length
-    await h.osDrop(ctx, await h.sidePoint(ctx, z, 'c'), { files: [md] })
-    await h.eventually(ctx, async () => h.assert((await h.screen(ctx, z)).includes(`'${md}'`) && (await tiles()).length === before, 'terminal drop pastes the path'))
-    await ctx.tie('close', '--tile', z)
 
     // File template + picker: answered → tile there (markdown by extension); cancelled → nothing.
     const n = (await tiles()).length
