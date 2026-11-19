@@ -50,6 +50,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-11-17-shelf-multi-select.md`: shelf multi-select (cmd+click), group actions (close, unshelve, move, group drag).
 - `docs/2026-11-18-terminal-color-schemes.md`: custom terminal color schemes: open questions, not started.
 - `docs/2026-11-18-test-suite-review.md`: test suite review (5 areas): findings, waves (checks made real, harness helpers, merges / renames by feature glob), final scenario list.
+- `docs/2026-11-19-configurable-toolbars.md`: four bars, movable tabs / shelf / templates, edit layout mode: settled, pending, plan (not started).
 - `docs/RELEASES.md`: release notes, newest first: changes, pending manual testing, known issues.
 - `docs/PENDING.md`: backlog, open questions.
 
