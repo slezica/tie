@@ -78,7 +78,7 @@ export default async (ctx, h) => {
     h.assert(hits('/form') === n, 'Stay: no reload')
     await k('Meta+r')
     await h.waitFor(ctx, leave, 'reload again: dialog')
-    await ctx.page.keyboard.press('Enter')
+    await h.press(ctx, 'Enter') // through main: a CDP press that makes the guest navigate can wait forever (as browser.mjs)
     await h.eventually(ctx, async () => h.assert(hits('/form') === n + 1, `Leave: reloaded: ${JSON.stringify(s.hits)} n=${n}`))
     await touch(b)
 
