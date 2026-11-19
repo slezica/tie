@@ -3,20 +3,20 @@
 ## File (`src/main/settings.ts`)
 
 - Where: shape and pure rules in `src/core/settings.ts` (`Settings`, `DEFAULTS`, `sanitize`, `parseSettings` (text → settings: the one parse for startup and Reload), `fileChanged` (disk vs baseline), `validateSettings(s, executable)`, `parseCommand`; unit tests `settings.test.ts`). Main (`src/main/settings.ts`): the file (load, baseline, watch, save, Reload / Ignore / Recreate), shell argv, `resolveExecutable` (passed to `validateSettings`).
-- Path per instance (`ARCHITECTURE.md`). First `dev` run copies `settings.json` to `settings.dev.json`.
+- Path per instance (`ARCHITECTURE.md` "Instances").
 - Loaded once, at startup; missing → defaults. Never auto-reloaded: a hand edit while running is only reported (banner, below).
-- Written only by an explicit user action: the panel's Save, and "Recreate with defaults" in the startup dialog (+ its `.bak`). Never by startup, load / sanitize (adjusted values stay in memory: a file saying `fontSize: 200` keeps saying it), opening / cancelling the panel, previews, Ignore, Reload or the watcher. One exception: the first `dev` run's seed copy (above), a one-time seed of a new dev instance's own file, never the installed app's; it is that run's baseline (no banner).
-- `sanitize()` at load, Reload and save: numbers clamped, not a number (or 0) → default, numeric strings count; wrong types → defaults; `allowExternalControl` only on a real `true`. Theme alias `elegant-dark` → `tie-dark`. Not a JSON object → a syntax error.
+- Written only by an explicit user action: the panel's Save, and "Recreate with defaults" in the startup dialog (+ its `.bak`). Never by startup, load / sanitize (adjusted values stay in memory: a file saying `fontSize: 200` keeps saying it), opening / cancelling the panel, previews, Ignore, Reload or the watcher. One exception: the first `dev` run (no `TIE_SETTINGS`, no `settings.dev.json` yet) copies `settings.json` to `settings.dev.json`: a one-time seed of a new dev instance's own file, never the installed app's; it is that run's baseline (no banner).
+- `sanitize()` at load, Reload and save: numbers clamped, not a number (or 0) → default, numeric strings count; wrong types → defaults; `allowExternalControl` only on a real `true`. Load and Reload also: merged over `DEFAULTS`, theme alias `elegant-dark` → `tie-dark`; not a JSON object → a syntax error.
 - Baseline: the file's content as last loaded or written by Tie (missing and unreadable are baselines too). Changed = the disk's content differs (content, not mtime: a touch or an identical rewrite is no change). Tie's own writes set the baseline in the same tick: they never count as a change.
-- Watch: main watches the file for the whole run (`watch.ts`: directory watch, survives rename saves; stable reads), recomputes "changed" fresh on each event and pushes `settings:file {changed, path}`, also when it flips back (the edit undone). Nothing applied. Latency ≈ 150 ms (`settings-file`).
+- Watch: main watches the file for the whole run (`watch.ts`: directory watch, survives rename saves; stable reads), recomputes "changed" fresh on each event and pushes `settings:file {changed, path}`, also when it flips back (the edit undone). Nothing applied. Latency: the watcher's debounce, 100 ms (max 500; `settings-file` logs it).
 - Panel banner (`.settings-banner`, top strip over every page): `Settings changed in <path>`, `Ignore` / `Reload`; Save disabled while it shows. `settings:get` returns `changed` read fresh, so it shows at first paint; the panel follows the push while open. Closed panel: nothing shows.
     - Ignore (`settings:ignore`): baseline := the disk content, nothing loaded; banner gone, Save enabled (a Save then overwrites the file). A further change raises it again.
-    - Reload (`settings:reload`): the file parsed as at startup (same trust: `sanitize`, no `validateSettings`), applied live as after a Save (main: window, bindings + menu; UI `applySettings`: appearance, prefs, titles), baseline := it, panel rebuilt from it (unsaved panel edits dropped). Fails (syntax, unreadable): a second banner line with the reason, banner and disabled Save stay; Ignore still works.
-    - Main's guard: `settings:set` refuses `{field: 'file', message: 'Settings changed in <path>'}` while the disk differs from the baseline (closes the race between an edit and the click).
+    - Reload (`settings:reload`): the file parsed as at startup (same trust: `sanitize`, no `validateSettings`), applied live as after a Save, baseline := it, panel rebuilt from it (unsaved panel edits dropped). Fails (syntax, unreadable): a second banner line with the reason, banner and disabled Save stay; Ignore still works.
+    - Main's guard (`saveRefusal`): `settings:set` refuses `{field: 'file', message: 'Settings changed in <path>'}` while the disk differs from the baseline (closes the race between an edit and the click).
 - Startup with a file that doesn't load: Tie runs on defaults (memory), the file untouched; once the UI is up, a dialog (`.dialog.settings-load`): `Syntax errors in your settings file, at <path>.` + the parser's message; `Close` (focused: Enter keeps the file) / `Recreate with defaults`. Unreadable (permissions): `Can't read your settings file, at <path>.`, `Close` only.
-    - Close: nothing written. Save stays blocked (status line says why) until the file is fixed on disk (banner → Reload) or the user picks Ignore.
-    - Recreate: the file's bytes copied to `<name>.bak` beside it (0600, replaces an older one; named in the button's tooltip), then defaults written, baseline set, Save unblocked.
-- `settings:set(patch)`: refused while the file is broken or changed (above); else `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
+    - Close: nothing written. Save stays blocked (`{field: 'file'}`, status line: `Syntax errors in the settings file, fix it (or recreate it) before saving: …` / `Settings file unreadable, …`) until the file is fixed on disk (banner → Reload) or the user picks Ignore.
+    - Recreate (`settings:recreate`, syntax errors only): the file's bytes copied to `<name>.bak` beside it (0600, replaces an older one; named in the button's tooltip), then defaults written, baseline set, Save unblocked, applied. Fails: `Couldn't recreate the settings file` dialog.
+- `settings:set(patch)`: refused while the file is broken or changed (above); else `validateSettings` (shell must resolve to an executable, `terminalTitle` a known mode, `gitignore` a boolean, `bindings` below), merge, sanitize, write whole file (pretty JSON). Returns `{ok, settings}` or `{ok: false, errors: [{field, message}]}`.
 
 | Key | Default | Scope | Values |
 |---|---|---|---|
@@ -37,13 +37,12 @@
 | `bindings` | `{}` | app | key binding overrides, sparse: `{<action>: <chord> \| null}` (`INPUT.md` "Keyboard") |
 
 - `bindings`: action ids and chord format in `core/keymap.ts` (`ACTIONS`, `chord()`). Present = customized (a customized `zoom-in` drops its hidden aliases); `null` = unbound.
-    - `sanitize`: unknown actions, malformed / reserved chords dropped (those actions keep their defaults). Conflicts left: `resolveKeymap` is deterministic (overrides first, `ACTIONS` order).
-    - `validateSettings` (`bindingErrors`): unknown action, malformed chord, reserved (Escape / Enter / Backspace with any modifiers, cmd+C/V/X/A/Z, cmd+shift+Z, cmd+,), no Cmd / Ctrl / Alt (Shift alone or a bare key: refused; function keys excepted; `Alt+A`, `Ctrl+C` allowed: left to the user), two actions on one chord (default aliases included). Default chords always pass (`Ctrl+Tab`). `field: 'bindings'`, message names the action(s).
+    - `sanitize` (`cleanBindings`): unknown actions, chords `validBinding` refuses (malformed, reserved, no modifier) dropped (those actions keep their defaults); not an object → `{}`. Conflicts left: `resolveKeymap` is deterministic (overrides first, `ACTIONS` order).
+    - `validateSettings` (`bindingErrors`): not an object, unknown action, malformed chord, reserved (Escape / Enter / Backspace with any modifiers, cmd+C/V/X/A/Z, cmd+shift+Z, cmd+,), no Cmd / Ctrl / Alt (Shift alone or a bare key: refused; function keys excepted; `Alt+A`, `Ctrl+C` allowed: left to the user), two actions on one chord (default aliases included). Default chords always pass (`Ctrl+Tab`). `field: 'bindings'`, message names the action(s).
     - A save replaces the whole object (no per-action merge). Applied live: main rebuilds the keymap (`keys.ts` `setBindings`) and the menu (Quit label).
 - Scopes: app (UI + tiles), all tiles (content only, never chrome), tile kind.
-- `shell` applies to new terminals only. Everything else applies live (renderer cache: `prefs.ts`, set at boot and after each save).
+- `shell` applies to new terminals only; `borderless` corners at next launch (below). Everything else applies live after Save, Reload, Recreate: main (window, bindings + menu) and the UI's `applySettings` (`applyAppearance`; `applyPrefs`: renderer cache `prefs.ts`, also set at boot; every tile's `refreshTitle`, for `terminalTitle`).
 - Adding a setting: `Settings` + `DEFAULTS` + `sanitize` (`core/settings.ts`, + a unit case), `Settings` type (preload), `Appearance` + `applyAppearance` (if visual), `Prefs` + `applyPrefs` (if read synchronously), panel field + `draft()`.
-- `terminalTitle` live: `prefs` updated, then every tile's `refreshTitle` (panel save).
 
 ## Panel (`src/renderer/settings.ts`)
 
@@ -58,15 +57,15 @@
 - `bindingsPage(section, settings.bindings, {message})` → `{value, focus}`. Edits its own draft; Save sends `bindings: value()` whole; Cancel drops it.
 - Filter row (live):
     - `#bind-name`: case-insensitive substring of the action label.
-    - `#bind-key`: capture field (`INPUT.md` "Capture fields"). Exact match on a complete chord, any chord the action answers to (hidden aliases included: `Cmd++` finds Zoom in). Empty = no filter.
+    - `#bind-key`: capture field (`INPUT.md` "Keyboard", capture fields). Exact match on a complete chord, any chord the action answers to (hidden aliases included: `Cmd++` finds Zoom in). Empty = no filter.
     - Typing in one search clears the other.
-    - Pencil toggle (`.bind-custom`, `aria-pressed`, tooltip "Only customized"; the rows' edit icon: customized = edited): only customized rows. Pressed: accent icon, border, soft accent fill. X (`.bind-clear`): clears both searches and the toggle.
+    - Pencil toggle (`.bind-custom`, `aria-pressed`, tooltip "Only customized"; the rows' edit icon: customized = edited): only customized rows. Pressed: accent icon, border, soft accent fill. X (`.bind-clear`, tooltip "Clear filters"): clears both searches and the toggle, focus to `#bind-name`.
 - Table (`.bind-row[data-action]`, `ACTIONS` order): Action | Binding | pencil, X.
     - Rows scroll under a fixed head. Scrollbar always shown, its own room (`--bind-sb`; styled, not macOS overlay: an overlay one covered the X buttons); the head leaves the same room.
     - Binding: the override, else the default chord (aliases hidden); unbound = dim `—`.
     - Binding column width `--bind-w`: widest text over all rows (defaults + current, bold) + margin. Measured at open and after each change, never by filtering.
     - Customized (present in the draft): bold, X enabled. X = back to default.
-- Edit (pencil): the cell becomes a focused capture field holding the current chord. Each chord replaces it; Backspace empties; Enter / blur accept; Escape cancels. Focus then returns to the row's pencil.
+- Edit (pencil): the cell becomes a focused capture field holding the current chord. Each chord replaces it; Backspace empties; Enter / blur accept; Escape cancels. Enter / Escape: focus back to the row's pencil.
     - Same as now: nothing. Default chord: override dropped (not customized, aliases back). Empty: `null` (unbound).
     - Invalid (`validBinding`): unchanged; message on the status line.
     - Owned by another action (`conflicts` on the candidate draft, aliases included; also on X): dialog `.binding-conflict`, title "Key already in use", one line `<chord> is bound to “<other action>”.`, Cancel / Replace. Replace: the other becomes `null` (customized). Focus back to the row after the dialog.
