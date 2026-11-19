@@ -6,8 +6,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 
 ## Host (`renderer/tile.ts`)
 
-- `createTile(kind, opts)`: element (title bar: icon, title, kind pills (left or right of the spacer), square 22 px `.btn`s pin / collapse / zoom / close (`ICON` in `icons.ts`; pin only on a shown shelved tile: Pin on a hover reveal, Unpin (crossed pin) when pinned, `SHELF.md`; collapse = arrows joining, expand = arrows parting, along the axis the tile shrinks on: horizontal in a row split, vertical (`collapseV` / `expandV`) in a col split or floating; never rotated, kind icon upright on a vertical strip too). Active / pinged: the icon glows accent / yellow (no extra element: title text never moves); `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
-- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pills?: Pill[]`, `Pill {label(), title(), on(), toggle?(), color?, gravity?}`: labelled states in the title bar (html: a red "Scripts blocked" tag; file kinds: a red "Missing" tag while the file is gone, last render shown; a toggle only if `toggle` exists; empty label = hidden). `color`: `muted` (default), `accent`, `red`, `green`, `yellow` (theme tokens, `data-color`). `gravity`: `right` (default: after the spacer, before the buttons) or `left` (after the title). List fixed per surface; elements keyed by index (`data-pill`), kept across refreshes; refreshed by `changed()`.
+- `createTile(kind, opts)`: element (title bar: icon, title, exit status, kind pills (left or right of the spacer), square 22 px `.btn`s pin / collapse / zoom / close (`ICON` in `icons.ts`; pin only on a shown shelved tile: Pin on a hover reveal, Unpin (crossed pin) when pinned, `SHELF.md`; collapse = arrows joining, expand = arrows parting, along the axis the tile shrinks on: horizontal in a row split, vertical (`collapseV` / `expandV`) in a col split or floating; never rotated, kind icon upright on a vertical strip too). Active / pinged: the icon glows accent / yellow (no extra element: title text never moves); `.body`, `.link-strip`, `.rz` handles), `Host`, kind's `Surface` from the registry (`kinds/index.ts`), nav bar if the surface has `nav`.
+- `Host.hint(text | null)`: the link strip at the tile's bottom-left (hovered link's real target; UI realm, text only, content can't draw it). `Surface.pills?: Pill[]`, `Pill {label(), title(), on(), toggle?(), color?, gravity?}`: labelled states in the title bar (html: a red "Scripts blocked" tag; file kinds: a red "Missing" tag while the file is gone, last render shown; kinds with `zoom`: `N%` when not 100%, click resets; a toggle only if `toggle` exists; empty label = hidden). `color`: `muted` (default), `accent`, `red`, `green`, `yellow` (theme tokens, `data-color`). `gravity`: `right` (default: after the spacer, before the buttons) or `left` (after the title). List fixed per surface; elements keyed by index (`data-pill`), kept across refreshes; refreshed by `changed()`.
 - `mountTile()` → `Surface.mount()`; then `ResizeObserver` on `.body` → `Surface.resize()` (not after a failed mount).
 - `disposeTile()` → `Surface.dispose()`, element removed, `S.tiles` entry dropped.
 - `displayTitle` / `displayIcon`: custom first, else `Surface.title()` / `icon()`. `displayIcon` → `Icon` (`icons.ts`): `{glyph}` (built-in SVG, `GLYPH` key: what `Surface.icon()` returns) or `{text}` (custom icon, user text, escaped); `iconHtml(icon)` renders either (title bar, shelf, tabs, drag ghost).
@@ -32,7 +32,8 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `cwdNow?()` | fresh cwd for tiles opened from it (`cwdOf`; terminal: `lsof`); else `Tile.cwd` |
 | `paste?(text)`, `drop?(dataTransfer)` | `paste.ts` routing |
 | `appearance?()` | settings changes (`appearance.ts`) |
-| `info?()` | extra `tie list --json` fields (terminal: `term`; file views: `doc`) |
+| `info?()` | extra `tie list --json` fields (terminal: `term`; file views: `doc`; html: `page`; browser: `web`) |
+| `busy?()`, `unload?()` | `close.ts`: busy terminals ask (`TERMINALS.md` "Busy"); browser beforeunload (`BROWSER.md`) |
 | `nav?` | navigation (`Nav`, below): nav bar, `cmd+[` / `cmd+]` / `cmd+R` / `cmd+L` |
 | `zoom?(dir)` | page zoom (html, browser; file kinds with `zoom` in their `FileKindSpec`: markdown, text): `cmd+=` / `cmd+-` / `cmd+0` → `1` / `-1` / `0`; steps `@core/zoom`; shown as a pill |
 
@@ -68,9 +69,9 @@ A new content kind needs: a policy row (`core/policy.ts`), a `KindSpec` (`kinds/
 | `browser` | `<webview>` guest, browser partition | remote web (`guest.ts`; `BROWSER.md`): no frame host, no requests, no channel to the UI |
 | `probe` | content frame | dev builds only (registered at boot if `info.dev`); harness kind for escape tests |
 
-- File kinds register in one line each (`fileKind(kind, icon)` in `kinds/index.ts`: file view).
+- File kinds register in one line each (`fileKind(kind, glyph, zoom?)` in `kinds/index.ts`: file view).
 - `tie add <kind>` accepts registered kinds; `'file'` kinds only with a path (`tie add <path>`, drops, file template + picker).
-- Files → kinds (`core/kinds.ts`, `VIEWERS.md`): by extension (`fileKind`: markdown, image, html), else by content (`sniffKind`: text or hex; main reads the first 8 KB). `canOpenAs`: which kinds main lets a tile show a file as (own, hex, text if text-like); no UI asks for another kind today (defense: `sec-viewers`).
+- Files → kinds: `VIEWERS.md` "Which kind shows a file" (`core/kinds.ts`: extension, else content; `canOpenAs`).
 
 ## Policy table (`core/policy.ts`)
 
@@ -80,7 +81,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 |---|---|---|---|---|---|---|---|
 | `page` | `viewer` | `viewer` | `viewer` | `viewer` | `document` (the file) | `viewer` | `viewerFile`, `contentCsp`, `content.ts`, build (`viewerKinds`) |
 | `sandbox` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts` | `allow-scripts allow-same-origin` | `allow-scripts` | `frame.ts` |
-| `styles` (CSP `style-src`) | `inline` | `nonce` | `nonce` | `nonce` | (document CSP) | `nonce` | `contentCsp` |
+| `styles` (CSP `style-src`) | `inline` | `nonce` | `nonce` | `nonce` | `inline` (unused: `documentCsp`) | `nonce` | `contentCsp` |
 | `nav` (nav lock) | `viewer-exact` | `viewer-exact` | `viewer-exact` | `viewer-exact` | `within-root` | `viewer-exact` | `navAllowed` (`core/content.ts`), `frame.ts` |
 | `assets` (`/_tie/`) | `markdown-mermaid.js` | — | — | — | — | — | `viewerFile` |
 | `payload` | `text` | `text` | `none` (`<img>` from its token) | `bytes` | `none` (served by the protocol) | `none` | `main/docs.ts`, `fileview.ts` |
@@ -88,7 +89,7 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `bootstrap` | no | no | no | no | yes | no | `content.ts` (injected into html documents) |
 | `dev` | no | no | no | no | no | yes | `viewerKinds` (main serves dev rows in dev builds only) |
 
-- `contentCsp(policy, nonce, token)`: viewers: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms. Documents: `documentCsp()` (`VIEWERS.md` "Html": `'self'` + `data:`/`blob:`, inline/eval scripts, `connect-src 'self'`, nothing remote).
+- `contentCsp(policy, nonce, token)`: viewers: `default-src 'none'`; scripts by nonce; styles by nonce or `'unsafe-inline'` (no nonce beside it); `img-src` own token; no frames, objects, `<base>`, forms. Documents: `documentCsp(nonce)` (`VIEWERS.md` "Html": scripts by nonce only (the bootstrap); styles, images, fonts, media `'self'` + `data:`/`blob:`; `connect-src 'self'`; nothing remote).
 - Unit tests pin every row and each CSP string exactly (`policy.test.ts`).
 - Browser tiles are not frames: no row. Their rules: `core/guest.ts` (`BROWSER.md`).
 
@@ -109,21 +110,21 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 `fileView(host, opts, {kind, icon, zoom?})` → `Surface` (`zoom`: the page zoom keys; markdown and text, not fitted / virtualized viewers). A file kind is this plus its viewer (one line in `kinds/index.ts`).
 
-- Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, text | bytes}` + shelf activity; missing → last render frozen + "Missing" pill (until the file comes back); close on dispose.
+- Doc: `tie.doc.open(path, kind)` (main checks the file may be shown as the tile's kind, reads, watches; payload + cap from the policy row) → `{id, kind, rev, text?, bytes?}`; changes pushed (`doc:changed`) → viewer `{type: 'doc', key, rev, src, scroll, hash, y?, text | bytes}` + shelf activity; missing → last render frozen + "Missing" pill (until the file comes back); close on dispose.
 - Payload (policy): `text` → `text`; `bytes` → a copy of the bytes, its buffer transferred over the port (`post(msg, transfer)`); `none` → nothing: the viewer loads `src` (the file's URL path on the frame's token: its path within the root, `withinRoot`) itself (image).
-- Root: `DIRECTORIES.md` 5–7 (`resolveRoot` at mount, before the frame mounts; on `go` for targets outside the root). `info`: `doc.root`.
-- Frame: root = the file's directory; another directory → `setRoot` (new token). Each handshake: theme in `tie:init`, then the doc on `ready`.
+- Root: `DIRECTORIES.md` 5–7: `resolveRoot` at mount (before the frame mounts) and on each `go` (the current root kept while it holds the target). Another root → `setRoot` (new token).
+- Each handshake: theme in `tie:init`, then on `ready` the zoom (if not 100%) and the doc.
 - History: list + index; push drops forward entries. `nav`: location = path (not editable), back / forward, reload (re-read the file, render as a page, scroll kept; no history entry).
-- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
-- Title = the file's path, `~` for home (`DIRECTORIES.md` "Titles"); tiles opened beside get this tile's cwd; `info` → `doc {path, rev, missing, history}`.
-- Theme message (`themeMessage`): `--bg`, `--fg`, `--accent`, `--a0..15`, `--font`, `--mono`, `--size`, `dark`.
+- Links (`core/links.ts` `classifyLink`): anchor → viewer scrolls; web (http(s)) → `openExternal`; a file outside the root → `confirmFile` first ("Links out"); file of this kind (by extension) → this tile (cmd: new tile beside); file of another kind, or decided by content → new tile beside in its kind (`doc.viewer`: main decides; error → dialog); refused → `debug security`. Only viewers with `links` (markdown) send them.
+- Title = the file's path, `~` for home (`DIRECTORIES.md` "Titles"); tiles opened beside get this tile's cwd; `info` → `doc {path, root, rev, zoom, missing, history}`.
+- Theme message (`themeMessage`): `--bg`, `--fg`, `--accent`, `--a0..15`, `--font`, `--mono`, `--size`, `--code-<token>` (+ `-style`, `-weight`; themes with `code`), `dark`.
 
 ## Content kinds: frame host (`renderer/frame.ts`)
 
 `frameSurface(host, {viewer, root, title, icon, handlers, onReady?, page?, onNavigate?, onChanged?})` → `FrameSurface` (= `Surface` + `post(msg, transfer?)`, `setRoot(root, page?)`, `load(page)`, `origin()`). A content kind gives only these.
 
 1. `mount`: `tie.content.open(root, viewer, page?)` → main registers `root` under a fresh token → `{token, url}` (viewers: the viewer page; documents: `page` in the root) (or `{error}` → `host.error`).
-2. `<iframe class="content" sandbox=<policy> allow="" referrerpolicy="no-referrer" src=url>` in the body (fills it).
+2. `<iframe class="content" sandbox=<policy> allow="focus-without-user-activation 'none'" referrerpolicy="no-referrer" src=url>` in the body (fills it).
 3. On each `load`: new `MessageChannel`; `tie:init` (+ the kind's `init()` fields: file kinds send `theme`, the theme message) + one port posted to that iframe's `contentWindow` (`'*'`: opaque origin). Old port closed.
 4. Viewer answers `{verb: 'ready'}` within 5 s, else "Content did not load" (`runtime.ts` and the html bootstrap: the init theme applied, then after the first paint, two rAFs: an out-of-process frame shows as a white placeholder until it has submitted a frame). Each `ready` → `onReady()` (kind sends content), and the iframe shows: it is `.loading` (`opacity: 0`, still focusable) from mount / `setRoot` until then, so a new document's white first paint never shows (the body's tile background does). Checked by `content-paint`.
 5. Requests: port → `parseRequest` (`core/requests.ts`) → gesture rule → `handlers[verb]` → IPC → main (re-validates). Invalid, unhandled or refused: dropped, `debug('security', ...)`.
@@ -148,18 +149,18 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 - A viewer paused in DevTools (breakpoint) for > 5 s counts as hung.
 
 - No window `message` listener in the UI: requests arrive over the port only.
-- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: open a link, write a file) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the UI's focus update), then is refused.
-- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the UI's `activeElement` (`sec-focus`). Main's `input-event` can't serve as the signal: with out-of-process frames it sees only input to the main frame.
+- Gesture rule: verbs acting for the user (`gesture` in `VERBS`: `openLink`, `followLink`) only while the tile's iframe is `document.activeElement` (the user clicked or typed in it; VS Code's rule). Viewers post them from click handlers only. Unfocused: the request waits 150 ms for the focus (a click into an unfocused frame: its request can beat the UI's focus update), then is refused.
+- Focus can't be taken by script: a cross-origin iframe may call `window.focus()` / `el.focus()` at any time and would become `document.activeElement` (passing the gesture rule, taking the keyboard from a terminal). Content iframes carry `allow="focus-without-user-activation 'none'"` and main enables Blink's `BlockingFocusWithoutUserActivation` (`app.commandLine`, `index.ts`): such calls are refused ("Blocked focus call…" in the frame's console) unless the frame has transient user activation, i.e. within a few seconds of the user's last click or key in it. Autofocus is already blocked in cross-origin frames. Guests (`<webview>`): a guest page's `window.focus()` never moves the UI's `activeElement` (`sec-focus`).
 - Focus: a click in a frame gives the UI no `pointerdown`; `initFrames()` activates the tile on window `blur` when `document.activeElement` is its iframe (same shelf rule as pointerdown).
 - Message flood: a frame posting more than 1000 messages a second has the rest dropped unparsed (`FLOOD_MAX`).
 - Keys: shortcuts are matched in main (`INPUT.md`), so they work while a frame has focus; frames never see them.
-- Pointer shield: `track()` sets `body.tracking` from pointerdown; `body.tracking .body iframe` and `body.dragging .body` ignore the pointer. Pointer capture does not hold over out-of-process frames.
+- Pointer shield (frames would swallow moves and the release; pointer capture does not hold over out-of-process frames): `track()` sets `body.tracking` from pointerdown → iframes and webviews ignore the pointer; `body.dragging` → every `.body`; OS drags (`body.os-drag`) → iframes and webviews, the drop lands in the UI (`content-input`).
 
 ## Requests (`core/requests.ts`)
 
 | Verb | Args | Handled by |
 |---|---|---|
-| `ready` | — | host (clears load timer) |
+| `ready` | — | host (clears the load timer, starts the watchdog, shows the frame) → `onReady` |
 | `pong` | `n` (int ≥ 0) | host (watchdog) |
 | `openLink` | `url` (string, ≤ 4096); gesture | kind; probe → `tie.openExternal` (main: http(s) only) |
 | `hover` | `href` (string, ≤ 4096; `''` = left) | file views, html: `Host.hint` with where the link leads (URL, path, anchor, or "Blocked link") |
@@ -167,29 +168,29 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 | `blocked` | `n` (int ≥ 0, ≤ 1e6) | html: scripts the document CSP refused (title-bar tag) |
 | `followLink` | `href` (string, ≤ 4096), `newTile` (bool); gesture | file views: `classifyLink` → browser (confirm) / this tile / new tile ("File view"); html: same, other kinds beside (`VIEWERS.md`) |
 
+- `parseRequest`: plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
+- New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.
+
 ## Links out (`renderer/external.ts`)
 
-- `confirmFile(path, from)`: a document's link to a file outside its root (markdown, html) asks first: `.dialog.open-file` with the full path, Cancel focused, Open armed 600 ms; under the root: no dialog. Same module, same one-at-a-time rule.
-- The one path from any tile to the system browser: `openExternal(url, from, note?)` → confirm dialog (setting `confirmExternal`, default on) → `tie.openExternal` (main: http(s) only). Callers: file views (markdown links), html pages (links, `window.open`, `target=_blank`), terminals (cmd-click on OSC 8). The probe kind (dev) calls main directly.
-- Dialog `.dialog.external-open`: "`<from>` wants to open:", the full URL with the site address in bold (`.url .host`), a `.warn` line for links with > 200 characters after the origin (plus the caller's note: html names the folder the page can read), Cancel focused (Enter cancels), Open disabled 600 ms (`confirmDialog` `arm`: no click-through). One dialog app-wide; requests while it is open are dropped (`debug security`). Setting off: opened directly, `debug external`.
-
-- Plain objects only (prototype `Object.prototype`), own keys, exact key set per verb. Returns a fresh object.
-- New verb: type + validator in `VERBS`, unit test, kind handler, main re-validation if it reaches main.
+- The one path from any tile to the system browser: `openExternal(url, from, note?)` → confirm dialog (setting `confirmExternal`, default on) → `tie.openExternal` (main: http(s) only). Callers: file views (markdown links), html pages (links, `window.open`, `target=_blank`), terminals (cmd-click on OSC 8), browser popups (`BROWSER.md`). The probe kind (dev) calls main directly.
+- Dialog `.dialog.external-open`: "`<from>` wants to open:", the full URL with the site address in bold (`.url .host`); origin and tail from the parsed URL main opens, never sliced from the string (`externalParts`, `core/links.ts`). `.warn` lines: text before an `@` in the address (`user@`: the site is the bold part); > 200 characters after the origin (+ the caller's `note`, if any). Cancel focused (Enter cancels), Open disabled 600 ms (`confirmDialog` `arm`: no click-through). One dialog app-wide; requests while it is open are dropped (`debug security`). Setting off: opened directly, `debug external`.
+- `confirmFile(path, from)`: a document's link to a file outside its root (markdown, html) asks first: `.dialog.open-file` with the full path, Cancel focused, Open armed 600 ms; under the root: no dialog. Same one-at-a-time rule.
 
 ## Content protocol (`main/content.ts`, `core/content.ts`)
 
-`tie-content://<token>/`: `standard`, `secure`, `supportFetchAPI` (html pages fetch their folder's files); no `corsEnabled`, `bypassCSP`. Opaque viewer frames still can't fetch (no CORS; and their CSP has no `connect-src`).
+`tie-content://<token>/`: `standard`, `secure`, `supportFetchAPI`; no `corsEnabled`, `bypassCSP`. Opaque viewer frames still can't fetch (no CORS; and their CSP has no `connect-src`).
 
 | Path | Serves |
 |---|---|
 | `/_tie/<kind>.html` | viewer page; `%NONCE%` replaced per response; CSP `contentCsp` (policy row) |
 | `/_tie/<kind>.js` | viewer script (IIFE bundle) |
 | `/_tie/<asset>` | the kind's listed assets only (policy `assets`: markdown → `markdown-mermaid.js`) |
-| other | file inside the root (`contentFile`, then real path inside real root). Document tokens (html): `.html`/`.htm` with the bootstrap injected, every file with `documentCsp` (`DOC_TYPES`) |
+| other | file inside the root (`contentFile`, then real path inside real root), streamed. Document tokens (html): `.html`/`.htm` read whole (≤ the kind's `maxBytes`) with the bootstrap injected; every file with `documentCsp`, type from `DOC_TYPES` (else `application/octet-stream`) |
 
 - Token: 128-bit random hex, minted so the URL keeps it (all-digit hosts become IPv4). Registry: token → `{root (real path), kind, frame}`.
-- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out (`outside root`), paths that don't resolve (`not found`: missing, dangling symlink), non-files.
-- Headers: `nosniff`, `no-store`; root files `CSP: default-src 'none'; sandbox`.
+- Refused (404 + `[security] refused content <why>`): unknown token, non-GET, root itself, `/_tie/` names other than the kind's (page, script, listed assets), traversal/encodings, symlinks out (`outside root`), paths that don't resolve (`not found`: missing, dangling symlink; `unresolved`: permissions, loops), non-files (`not a file`), html documents over the cap (`document too large`).
+- Headers: `nosniff`, `no-store`; root files of viewer tokens `CSP: default-src 'none'; sandbox`.
 - Viewer CSP: from the policy row (above). Markdown: `style-src 'unsafe-inline'` instead of the style nonce (Mermaid's SVG; `MARKDOWN.md` "Diagrams").
 - Frame nav lock (`contentFrameAllowed`, from `will-frame-navigate`): the kind's nav rule (`navAllowed`; `viewer-exact`: exact viewer URL; `within-root`: `.html`/`.htm` of the token's root, not `/_tie/`) of a registered token, direct child of the UI, first frame binds the token.
 - Documents: main watches the root (non-recursive) and the bound frame's navigations (`initContent`: `did-frame-navigate`, `did-fail-provisional-load` except aborts) and pushes them to the UI. Storage per token origin, in memory (the UI's session: `SECURITY.md`).
@@ -204,17 +205,17 @@ The one reviewable security table for content kinds. Every frame-hosted kind has
 
 | Module | Does |
 |---|---|
-| `runtime.ts` | `startViewer(spec, extra)`: handshake (`tie:init` from `parent`, one port), `pong`, theme vars (CSSOM) → `onTheme`, `scroll` → anchor, other messages → `onMessage`; link clicks: always `preventDefault`, with `links` → anchors scroll, rest `followLink` (click handler only); `Shift+↑/↓` third-page scroll; plain `keys`; auxclick / drop guards; `style(css)` (nonce'd `<style>`); base CSS (colors, selection, focus). Harness: `window.viewer` = `window[name]` |
+| `runtime.ts` | `startViewer(spec, extra)`: handshake (`tie:init` from `parent`, one port), `pong`, theme vars (CSSOM) → `onTheme`, `scroll` → anchor, `tie:zoom` → CSS `zoom` on the root, other messages → `onMessage`; `scrolled` reports (throttled 200 ms); link clicks: always `preventDefault`, with `links` → anchors scroll, rest `followLink` (click handler only), pointer over a link → `hover`; `Shift+↑/↓` third-page scroll; plain `keys`; auxclick / drop guards; `style(css)` (nonce'd `<style>`); base CSS (colors, selection, focus). Harness: `window.viewer` = `window[name]` |
 | `live.ts` | `createLive(root, {blockHash, volatile})`: `key(next)` (data-k = hash + occurrence), `place(next, page\|live\|quiet)` (morphdom keyed diff, manual anchoring, marks), `renders`, `next` (`n`), `hash` |
 | `marks.ts` | change marks, edge markers, `n` walk (own CSS) |
 | `highlight.ts` | highlight.js core + common languages; `highlight(code, lang)`; token colors (own CSS) |
 
 - `probe`: own minimal handshake (no runtime: the attacker's seat). `window.probe = {port, received, inits}`. Scenarios run code in it (`h.contentFrame`).
-- `markdown`: pipeline only: markdown-it + DOMPurify; Mermaid on demand (`mermaid.ts` + asset `markdown-mermaid.js`, copied from `@mermaid-js/tiny`); `window.markdown` for the harness (`MARKDOWN.md`).
+- `markdown` (runtime + live + highlight): markdown-it + DOMPurify; Mermaid on demand (`mermaid.ts` + asset `markdown-mermaid.js`, copied from `@mermaid-js/tiny`); `window.markdown` for the harness (`MARKDOWN.md`).
 - `text` (runtime + live + highlight), `image` (runtime), `hex` (runtime): `VIEWERS.md`; `window.text|image|hex`.
-- Styles: `<style nonce="%NONCE%">` in the page (kind typography) + shared modules' `style()`; values from the host via CSSOM (style attributes are blocked by the CSP).
+- Styles: `<style nonce="%NONCE%">` in the page (kind typography) + shared modules' `style()`; values from the host via CSSOM (`nonce` rows: the CSP blocks style attributes).
 
 ## Limitations
 
 - OS drags entering straight over a frame go to the frame (a drop there can only try to navigate it: nav lock).
-- Gesture rule checks focus, not a fresh click: once the user clicked into a frame, script in it can post gesture verbs until focus leaves (and a script may refocus the frame within Chromium's transient activation window, a few seconds after that click). Html pages run their own scripts: their requests are routed as hostile (confirm for the web, Open disabled for 600 ms, one new tile per second).
+- Gesture rule checks focus, not a fresh click: once the user clicked into a frame, script in it can post gesture verbs until focus leaves (and a script may refocus the frame within Chromium's transient activation window, a few seconds after that click). Html requests come from the page's realm (the bootstrap; page scripts don't run): routed as hostile anyway (confirm for the web, Open disabled for 600 ms, one new tile per second).
