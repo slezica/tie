@@ -13,15 +13,22 @@ export default async (ctx, h) => {
   await page.evaluate(listen)
   await f.evaluate(listen)
 
-  // Focus inside the frame (real click), then ⌘D: split, key never reaches UI or frame.
+  // Focus inside the frame (real click), then ⌘D: split, the key never reaches the shell page.
   const r = await h.rectOf(ctx, p)
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2)
   await h.eventually(ctx, async () => h.assert((await page.evaluate(() => document.activeElement?.tagName)) === 'IFRAME' && (await h.list(ctx)).active === p, 'frame focused, tile active'))
+  // Positive control: a plain key sent the same way, in the same state, reaches the shell page, so
+  // its missing Cmd+d (below) is main's block. The frame isn't checked: keys sent through main
+  // (h.press, sendInputEvent on the window) land in the shell document even while the frame has
+  // focus (tried), so "the frame never saw Cmd+d" would hold without the block (SECURITY.md
+  // "Harness" limits).
+  await h.press(ctx, 'x')
+  await h.waitFor(ctx, () => page.evaluate(() => window.__keys.includes('x')), 'plain key reaches the shell page')
   let n = await count()
   await h.press(ctx, 'Meta+d')
   await h.eventually(ctx, async () => h.assert((await count()) === n + 1, 'cmd+D works with the frame focused'))
-  const seen = { shell: await page.evaluate(() => window.__keys), frame: await f.evaluate(() => window.__keys) }
-  h.assert(![...seen.shell, ...seen.frame].includes('Cmd+d'), `shortcut key blocked in main: ${JSON.stringify(seen)}`)
+  const seen = await page.evaluate(() => window.__keys)
+  h.assert(!seen.includes('Cmd+d'), `shortcut key blocked in main: ${JSON.stringify(seen)}`)
 
   // Synthetic KeyboardEvents: nothing (frame, shell).
   n = await count()

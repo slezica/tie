@@ -3,8 +3,8 @@
 // network (fetch, XHR, img, beacon, WebSocket, EventSource, form, CSS url(), fonts, prefetch,
 // preconnect, preload, script, media, frames, objects, workers, ping, WebRTC STUN/TURN, location,
 // meta refresh); window.open / target=_blank only through the confirm dialog (Cancel and Open
-// paths; never without focus); the UI (parent/top) unreachable; the port never visible to the
-// page; another tile's token unreadable; traversal, symlinks out, /_tie/ refused; navigating away
+// paths; never without focus); the UI (parent/top) unreachable; the page's own script never
+// runs; another tile's token unreadable; traversal, symlinks out, /_tie/ refused; navigating away
 // fails the tile at once (no reload); opaque viewer frames still can't fetch.
 // Hidden window: real clicks focus the frame.
 import { mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
@@ -39,7 +39,9 @@ export default async (ctx, h) => {
   // is streamed (never read whole either) and arrives intact.
   writeFileSync(join(dir, 'big.html'), Buffer.alloc(10 * 1024 * 1024 + 1, 0x61))
   writeFileSync(join(dir, 'big.bin'), Buffer.alloc(12 * 1024 * 1024, 0x62))
-  // The page records any message event carrying ports (the handshake must never reach it).
+  // A page script that would record message events carrying ports. Html pages are static: it never
+  // runs (`__ports` stays undefined), so it shows the page's scripts don't run, not that the
+  // bootstrap hides its port (no harness path puts a listener in the page before the handshake).
   const page = `<!doctype html><html><head><meta charset="utf-8"><title>Evil</title>
 <script>window.__ports = 0; addEventListener('message', (e) => { if (e.ports.length) window.__ports++ }, true); document.addEventListener('message', () => {}, true)</script></head>
 <body><h1 id="h">Evil</h1><a id="ext" href="${p.url}/link-click">ext</a> <a id="blank" href="${p.url}/blank" target="_blank">blank</a></body></html>`
@@ -57,7 +59,7 @@ export default async (ctx, h) => {
     const fs = (await h.frames(ctx)).filter((f) => f.url.startsWith(`tie-content://${token}/`))
     h.assert(fs.length === 1 && fs[0].outOfProcess && fs[0].origin === `tie-content://${token}`, `own process + origin: ${JSON.stringify(fs)}`)
 
-    // The UI: unreachable. The handshake port: never seen by the page.
+    // The UI: unreachable. The page's own script never ran (`ports` undefined: see the page above).
     const realm = await fr.evaluate(() => {
       const t = (fn) => {
         try {
