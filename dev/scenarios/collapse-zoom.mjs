@@ -1,6 +1,6 @@
 // Collapse in col split (bar) and row split (vertical strip); zoom via button and double-click:
 // the other slotted tiles squashed to bars (their own collapse kept for after), floats stay;
-// keys always go to a visible active tile.
+// floating zoom covers the board; zooming a collapsed tile expands it; keys never go to a hidden tile.
 export default async (ctx, h) => {
   const [a, b, c] = await h.threeWaySplit(ctx)
   await h.clickButton(ctx, b, 'collapse')
@@ -34,10 +34,10 @@ export default async (ctx, h) => {
   h.assert(!(await ctx.page.isVisible(`.tile[data-id="${a}"] .btn.collapse`)) && (await ctx.page.isVisible(`.tile[data-id="${fl}"]`)), 'squashed: no collapse button; float visible')
   await ctx.shot('zoomed')
   await ctx.tie('focus', '--tile', fl)
-  h.assert((await ctx.tie('state')).zoomed === c, 'activating a float keeps the zoom')
+  h.assert((await h.state(ctx)).zoomed === c, 'activating a float keeps the zoom')
   // Zoom button on a squashed bar: the zoom moves there.
   await h.clickButton(ctx, a, 'zoom')
-  await h.eventually(ctx, async () => h.assert((await ctx.tie('state')).zoomed === a && (await h.rectOf(ctx, c)).w <= 32 && (await h.rectOf(ctx, b)).w <= 32, 'zoom moved to a: b, c share one strip'))
+  await h.eventually(ctx, async () => h.assert((await h.state(ctx)).zoomed === a && (await h.rectOf(ctx, c)).w <= 32 && (await h.rectOf(ctx, b)).w <= 32, 'zoom moved to a: b, c share one strip'))
   await h.clickButton(ctx, a, 'zoom') // off
   // Close on a squashed bar: closes it, the zoom stays.
   const y = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'l')).id
@@ -45,7 +45,7 @@ export default async (ctx, h) => {
   await h.clickButton(ctx, c, 'zoom')
   await h.clickButton(ctx, y, 'close')
   await h.waitGone(ctx, y)
-  h.assert((await ctx.tie('state')).zoomed === c, 'closing a squashed tile keeps the zoom')
+  h.assert((await h.state(ctx)).zoomed === c, 'closing a squashed tile keeps the zoom')
   await ctx.tie('close', '--tile', fl)
   await ctx.tie('focus', '--tile', c)
   const p = await h.titlePoint(ctx, c)
@@ -60,7 +60,7 @@ export default async (ctx, h) => {
   const pa = await h.titlePoint(ctx, a)
   await ctx.page.mouse.click(pa.x, pa.y)
   await h.eventually(ctx, async () => {
-    const s = await ctx.tie('state')
+    const s = await h.state(ctx)
     h.assert(!s.zoomed && s.active === a, `click on a bar unzooms (zoomed=${s.zoomed}, active=${s.active})`)
   })
 
@@ -68,24 +68,63 @@ export default async (ctx, h) => {
   await h.clickButton(ctx, c, 'zoom')
   await h.press(ctx, 'Meta+d')
   await h.eventually(ctx, async () => {
-    const s = await ctx.tie('state')
+    const s = await h.state(ctx)
     h.assert(s.active !== c && !s.zoomed, `split while zoomed unzooms (zoomed=${s.zoomed}, active=${s.active})`)
   })
   await h.clickButton(ctx, a, 'zoom')
   await ctx.tie('focus', '--tile', b)
-  h.assert(!(await ctx.tie('state')).zoomed, 'tie focus unzooms')
+  h.assert(!(await h.state(ctx)).zoomed, 'tie focus unzooms')
+
+  // Floating zoom: the float covers the board, nothing squashed; activating a board tile (focus
+  // key) ends it, the float back to its own rect.
+  const near = (p, r) => Math.abs(p.x - r.x) < 2 && Math.abs(p.y - r.y) < 2 && Math.abs(p.w - r.w) < 2 && Math.abs(p.h - r.h) < 2
+  const g = (await ctx.tie('add', 'terminal', '--float', '--focus')).id
+  await h.waitShell(ctx, g)
+  const rg0 = await h.rectOf(ctx, g)
+  const ra0 = await h.rectOf(ctx, a)
+  await h.clickButton(ctx, g, 'zoom')
+  const board = (await h.list(ctx)).board
+  await h.eventually(ctx, async () => {
+    const s = await h.state(ctx)
+    h.assert(s.zoomed === g && s.active === g, `float zoomed + active (zoomed=${s.zoomed}, active=${s.active})`)
+    h.assert(near(await h.rectOf(ctx, g), board), `zoomed float covers the board ${JSON.stringify(await h.rectOf(ctx, g))}`)
+    h.assert(near(await h.rectOf(ctx, a), ra0) && !/collapsed/.test(await cls(a)), 'board tiles not squashed')
+  })
+  await ctx.shot('float-zoomed')
+  await h.press(ctx, 'Meta+ArrowLeft') // from the board-sized float: a, the only tile left of center
+  await h.eventually(ctx, async () => {
+    const s = await h.state(ctx)
+    h.assert(s.active === a && !s.zoomed, `board tile activated: zoom ends (zoomed=${s.zoomed}, active=${s.active})`)
+    h.assert(near(await h.rectOf(ctx, g), rg0), 'float back to its rect')
+  })
+  await ctx.tie('close', '--tile', g)
+  await h.waitGone(ctx, g)
+
+  // Zooming a collapsed tile clears its collapse; unzoomed, it stays expanded.
+  await h.clickButton(ctx, b, 'collapse') // (tie focus above expanded it)
+  h.assert((await h.state(ctx)).collapsed.includes(b), 'b collapsed')
+  await h.clickButton(ctx, b, 'zoom')
+  await h.eventually(ctx, async () => {
+    const s = await h.state(ctx)
+    h.assert(s.zoomed === b && s.active === b && !s.collapsed.includes(b), `collapsed b zoomed, collapse cleared (${JSON.stringify(s.collapsed)})`)
+    h.assert((await h.rectOf(ctx, b)).h > 100 && !/collapsed/.test(await cls(b)), 'b full size')
+  })
+  await h.clickButton(ctx, b, 'zoom') // off
+  await h.eventually(ctx, async () => {
+    const s = await h.state(ctx)
+    h.assert(!s.zoomed && !s.collapsed.includes(b) && (await h.rectOf(ctx, b)).h > 100, `unzoomed b stays expanded (${JSON.stringify(await h.rectOf(ctx, b))})`)
+  })
 
   // Focusing a collapsed tile: keys must not keep going to the previous terminal.
-  const txt = (id) => ctx.page.$eval(`.tile[data-id="${id}"] .xterm-rows`, (e) => e.textContent)
   const x = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
   await h.waitShell(ctx, x)
   await h.clickButton(ctx, x, 'collapse')
   await ctx.tie('focus', '--tile', a)
   await h.press(ctx, 'Meta+ArrowRight')
   await h.eventually(ctx, async () => h.assert((await h.list(ctx)).active === x, 'collapsed tile active'))
-  await ctx.page.keyboard.type('echo TYPED_INTO\n')
-  await h.waitText(ctx, x, 'TYPED_INTO').catch(() => null) // where the keys belong; then: not in a
-  h.assert(!(await txt(a)).includes('TYPED_INTO'), 'keys not sent to previous tile')
+  // refocus blurs (a collapsed tile takes no keys): nothing inside a tile keeps the focus.
+  const focused = () => ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id ?? document.activeElement?.tagName)
+  await h.eventually(ctx, async () => h.assert((await focused()) === 'BODY', `keys go nowhere, not to a (focus: ${await focused()})`))
 
   // A collapsed tile left alone on the board drops its collapse (fresh tab: just its terminal).
   await h.press(ctx, 'Meta+t')
@@ -94,8 +133,9 @@ export default async (ctx, h) => {
   const q = (await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')).id
   await h.settle(ctx)
   await h.clickButton(ctx, lone, 'collapse')
+  h.assert((await h.state(ctx)).collapsed.includes(lone), 'precondition: lone collapsed beside q')
   await ctx.tie('close', '--tile', q)
-  h.assert(!(await ctx.tie('state')).collapsed.includes(lone), 'sole tile not collapsed')
+  h.assert(!(await h.state(ctx)).collapsed.includes(lone), 'sole tile not collapsed')
   await ctx.tie('add', 'terminal', '--at', lone, '--side', 'r')
   await h.eventually(ctx, async () => h.assert((await h.rectOf(ctx, lone)).w > 100, 'stays expanded on next split'))
 }
