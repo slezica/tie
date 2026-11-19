@@ -35,22 +35,40 @@ export default async (ctx, h) => {
     h.assert(realm.tie === 'undefined' && /^threw/.test(realm.parentTie) && /^threw/.test(realm.topDoc), `UI unreachable: ${JSON.stringify(realm)}`)
     h.assert(/^threw/.test(realm.storage) && /^threw/.test(realm.cookie), `no storage: ${JSON.stringify(realm)}`)
 
-    // Top navigation, popups.
-    await fa.evaluate((u) => {
+    // Top navigation, popups: refused inside the frame by its sandbox (no allow-top-navigation, no
+    // allow-popups: SecurityError, window.open → null), so main's guard is never even asked (a
+    // sandbox that let them through would show as its `blocked navigation main` / `blocked
+    // window.open` lines).
+    const esc = await fa.evaluate((u) => {
+      const r = {}
       try {
         top.location.href = u + '/top'
-      } catch {}
+        r.top = 'no throw'
+      } catch (e) {
+        r.top = 'threw ' + e.name
+      }
       try {
-        window.open(u + '/open')
-      } catch {}
+        r.open = String(window.open(u + '/open'))
+      } catch (e) {
+        r.open = 'threw ' + e.name
+      }
       const l = Object.assign(document.createElement('a'), { href: u + '/blank', target: '_blank' })
       document.body.append(l)
       l.click()
+      return r
     }, p.url)
+    h.assert(esc.top === 'threw SecurityError' && esc.open === 'null', `sandbox refuses top navigation / popups: ${JSON.stringify(esc)}`)
     await p.assertUntouched('top navigation / popups')
+    h.assert(!/blocked window\.open|blocked navigation main/.test(ctx.appLog()), 'refused in the frame: main never asked')
     h.assert((await h.uiUrl(ctx)) === home, 'UI stayed')
 
     // Network out: fetch, image, script, style; injected scripts (inline, from the root) don't run.
+    // The viewer CSP refuses each (violation events, recorded in the frame); the probe can't see a
+    // hit either way (UI session: dead proxy), so it checks only that second layer.
+    await fa.evaluate(() => {
+      window.__v = []
+      document.addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.effectiveDirective} ${e.blockedURI}`))
+    })
     await fa.evaluate(
       ({ u, token }) => {
         fetch(u + '/fetch').catch(() => {})
@@ -64,6 +82,13 @@ export default async (ctx, h) => {
       },
       { u: p.url, token: tokenOf(fa) },
     )
+    const v = await h.eventually(ctx, async () => {
+      const v = await fa.evaluate(() => window.__v)
+      for (const [dir, what] of [['connect-src', `${p.url}/fetch`], ['img-src', `${p.url}/img`], ['script-src-elem', `${p.url}/script.js`], ['style-src-elem', `${p.url}/style.css`], ['script-src-elem', 'inline'], ['script-src-elem', 'tie-content'] /* the root's evil.js: an opaque frame's report names the scheme only */, ['script-src-attr', 'inline']])
+        h.assert(v.includes(`${dir} ${what}`), `viewer CSP refused ${dir} ${what}: ${JSON.stringify(v)}`)
+      return v
+    })
+    ctx.log('CSP violations:', JSON.stringify(v))
     await p.assertUntouched('network from content')
     const ran = await fa.evaluate(() => [window.__inline, window.__rootScript, window.__handler])
     h.assert(ran.every((x) => x === undefined), `injected scripts ran: ${ran}`)
@@ -99,8 +124,21 @@ export default async (ctx, h) => {
     })
     h.assert(!log.includes(`external open ${p.url}/extra`), 'extra keys dropped')
     h.assert(!log.includes(`${p.url}/window-message`), 'window messages ignored')
-    h.assert((log.match(/dropped request/g) ?? []).length >= 6, 'junk requests dropped and logged')
     h.assert((await fa.evaluate(() => window.probe.inits)) === 1, 'one handshake only')
+
+    // Flood: beyond FLOOD_MAX (1000) messages a second from one frame, the rest dropped unparsed
+    // (frame.ts onRequest): logged once, far fewer `dropped request` lines than messages sent.
+    const N = 5000
+    await fa.evaluate((N) => {
+      for (let i = 0; i < N; i++) window.probe.port.postMessage({ verb: 'flood', i })
+    }, N)
+    await h.waitLog(ctx, new RegExp(`\\[security\\] message flood, dropping ${a}`))
+    const flooded = () => (ctx.appLog().match(/dropped request t[a-z2-9]+ \{"verb":"flood"/g) ?? []).length
+    await ctx.sleep(1100) // the flood window (1 s) rolls over: nothing to wait for
+    h.assert(flooded() < N - 1000, `flood: most messages dropped unparsed (${flooded()} of ${N} parsed)`)
+    // The frame still talks once the second is over.
+    await fa.evaluate(() => window.probe.port.postMessage({ verb: 'after-flood' }))
+    await h.waitLog(ctx, /dropped request t[a-z2-9]+ \{"verb":"after-flood"\}/)
 
     // Still working: probe untouched by link opens (harness records them), app alive.
     await p.assertUntouched('content escape', 300)
