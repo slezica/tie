@@ -26,10 +26,13 @@ export default async (ctx, h) => {
     // Permissions: denied in the guest (browser partition).
     const perms = await g.evaluate(async () => {
       const q = async (name) => (await navigator.permissions.query({ name }).catch((e) => ({ state: 'error ' + e.message }))).state
+      // A granted permission may never answer (geolocation waits for a fix): bounded, so a
+      // regression fails naming the permission, not at the 180 s scenario timeout.
+      const bounded = (p) => Promise.race([p, new Promise((ok) => setTimeout(() => ok('hung (not denied)'), 5000))])
       return {
-        notifyRequest: await Notification.requestPermission(),
+        notifyRequest: await bounded(Notification.requestPermission()),
         notifications: await q('notifications'),
-        geolocation: await new Promise((ok) => navigator.geolocation.getCurrentPosition(() => ok('granted'), (e) => ok(e.code === 1 ? 'denied' : 'error ' + e.code))),
+        geolocation: await bounded(new Promise((ok) => navigator.geolocation.getCurrentPosition(() => ok('granted'), (e) => ok(e.code === 1 ? 'denied' : 'error ' + e.code), { timeout: 4000 }))),
         // macOS asks the system mic permission before the site one; an unanswered prompt (new
         // Tie.app cdhash after `tie-dev install`: the old TCC record no longer matches) blocks
         // getUserMedia for good. Bounded so the run fails with the reason, not the 180 s timeout.
@@ -37,7 +40,7 @@ export default async (ctx, h) => {
           navigator.mediaDevices.getUserMedia({ audio: true }).then(() => 'granted', (e) => 'denied ' + e.name),
           new Promise((ok) => setTimeout(() => ok('hung: system mic prompt pending (TCC); deny it once after a reinstall, HARNESS.md'), 5000)),
         ]),
-        clipboardRead: await navigator.clipboard.readText().then(() => 'granted', (e) => 'denied ' + e.name),
+        clipboardRead: await bounded(navigator.clipboard.readText().then(() => 'granted', (e) => 'denied ' + e.name)),
         midi: await q('midi'),
       }
     })
