@@ -1,5 +1,7 @@
-// e2e runner (`tie-dev test --e2e [--jobs N] [names|globs...]`): scenarios on fresh instances, N at
-// a time. One run folder: summary.txt (scenario order) + one trace folder per scenario.
+// e2e runner (`tie-dev test --e2e [--jobs N] [--strict-leaks] [names|globs...]`): scenarios on fresh
+// instances, N at a time. One run folder: summary.txt (scenario order) + one trace folder per scenario.
+// Leaked ptys (drive.log `ptys=N`) are reported per scenario and in total; `--strict-leaks` (release)
+// also fails the run on any.
 // Scenarios exporting `exclusive = true` run alone, after the others (they touch what every
 // instance shares, e.g. out/viewers).
 import { spawn } from 'node:child_process'
@@ -9,12 +11,14 @@ import { ROOT } from './lib.mjs'
 
 const args = process.argv.slice(2)
 let jobs = Number(process.env.TIE_JOBS || 4)
+let strictLeaks = false
 const patterns = []
 for (let i = 0; i < args.length; i++) {
   const a = args[i]
   if (a === '--jobs' || a === '-j') jobs = Number(args[++i])
   else if (a.startsWith('--jobs=')) jobs = Number(a.slice(7))
   else if (/^-j\d+$/.test(a)) jobs = Number(a.slice(2))
+  else if (a === '--strict-leaks') strictLeaks = true
   else if (a.startsWith('-')) (console.error(`unknown option: ${a}`), process.exit(1))
   else patterns.push(a.replace(/^dev\/scenarios\//, '').replace(/\.mjs$/, ''))
 }
@@ -40,6 +44,7 @@ mkdirSync(run, { recursive: true })
 
 const lines = new Map()
 let fail = 0
+let leaks = 0
 const one = (name) =>
   new Promise((resolve) => {
     const t0 = Date.now()
@@ -55,6 +60,7 @@ const one = (name) =>
       const log = join(run, name, 'drive.log')
       const leaked = existsSync(log) ? Number(/^ptys=(\d+)/m.exec(readFileSync(log, 'utf8'))?.[1] ?? 0) : 0
       if (leaked > 0) line += ` (ptys +${leaked})`
+      leaks += leaked
       lines.set(name, line)
       console.log(line)
       resolve()
@@ -70,8 +76,10 @@ await Promise.all(
 )
 for (const n of names.filter((n) => exclusive.has(n))) await one(n)
 
-writeFileSync(join(run, 'summary.txt'), names.map((n) => lines.get(n)).join('\n') + '\n')
 const failed = names.filter((n) => lines.get(n).startsWith('FAIL')).length
-console.log(`${names.length - failed}/${names.length} passed, ${Math.round((Date.now() - t0) / 1000)}s, jobs ${jobs}`)
+const total = `${names.length - failed}/${names.length} passed, ${Math.round((Date.now() - t0) / 1000)}s, jobs ${jobs}, ptys leaked ${leaks}`
+writeFileSync(join(run, 'summary.txt'), names.map((n) => lines.get(n)).join('\n') + '\n' + total + '\n')
+console.log(total)
+if (strictLeaks && leaks > 0) (console.log(`--strict-leaks: ${leaks} pty leak(s), see the (ptys +N) lines`), (fail = 1))
 console.log(`trace: ${run}`)
 process.exit(fail)

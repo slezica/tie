@@ -171,9 +171,10 @@ Commands:
   status                   Show instance info (pid, socket, debug port)
   logs [-f]                Show instance log (enable tags with TIE_DEBUG=layout,shelf,pty,rpc or *)
   test --unit              Unit tests (vitest)
-  test --e2e [--jobs N] [names|globs...]
+  test --e2e [--jobs N] [--strict-leaks] [names|globs...]
                            Scenarios on fresh instances, N at a time (default 4, TIE_JOBS); names or globs
-                           (e.g. 'sec-*' shelf* cli-replace) select, none = all
+                           (e.g. 'sec-*' shelf* cli-replace) select, none = all; --strict-leaks: leaked
+                           ptys fail the run (release)
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)

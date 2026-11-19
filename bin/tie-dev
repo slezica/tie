@@ -19,9 +19,10 @@ Commands:
   status                   Show instance info (pid, socket, debug port)
   logs [-f]                Show instance log (enable tags with TIE_DEBUG=layout,shelf,pty,rpc or *)
   test --unit              Unit tests (vitest)
-  test --e2e [--jobs N] [names|globs...]
+  test --e2e [--jobs N] [--strict-leaks] [names|globs...]
                            Scenarios on fresh instances, N at a time (default 4, TIE_JOBS); names or globs
-                           (e.g. 'sec-*' shelf* cli-replace) select, none = all
+                           (e.g. 'sec-*' shelf* cli-replace) select, none = all; --strict-leaks: leaked
+                           ptys fail the run (release)
   typecheck                tsc --noEmit
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
@@ -171,7 +172,7 @@ case "$cmd" in
         shift
         if needs_build; then build; fi
         exec node dev/e2e.mjs "$@" ;;
-      *) echo "test --unit | --e2e [--jobs N] [names|globs...]"; exit 1 ;;
+      *) echo "test --unit | --e2e [--jobs N] [--strict-leaks] [names|globs...]"; exit 1 ;;
     esac ;;
   typecheck)
     exec npx tsc --noEmit -p tsconfig.json ;;
@@ -232,7 +233,7 @@ case "$cmd" in
     echo "$ec" | grep -v '^warnings:\|^  ' | sed 's/^/  /'
     warnings="$(echo "$ec" | sed -n '/^warnings:/,$p')"
     "$0" typecheck && "$0" test --unit >/dev/null && echo "  typecheck, unit ok" || { echo "checks failed"; exit 1; }
-    e2e="$("$0" test --e2e)" || { echo "$e2e"; echo "e2e failed"; exit 1; }
+    e2e="$("$0" test --e2e --strict-leaks)" || { echo "$e2e"; echo "e2e failed"; exit 1; }
     echo "  e2e ok ($(grep -c '^ok' <<<"$e2e") scenarios)"
     "$0" check-install >/dev/null && echo "  check-install ok" || { "$0" check-install; echo "check-install failed"; exit 1; }
     if [[ "$cmp" == "1" ]]; then
