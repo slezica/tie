@@ -61,7 +61,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 
 `ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
 
-- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`frame-input`, `browser`, `sec-browser`).
+- `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`frame-input`, `browser`, `sec-browser-*`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
 - Runs once booted: first `.tab`, and every terminal showing its prompt (or an error; at most 3 s). Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
 - Check count: passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
@@ -137,7 +137,7 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 
 - Instances launched from a Tie terminal are attributed by TCC to the installed app (`com.salezica.tie`, the responsible process is Tie's spawn-helper), from a plain terminal to the dev `Electron.app`.
 - `tie-dev install` re-signs ad hoc: a new cdhash. TCC records for the old one stop matching ("Failed to match existing code requirement" in `log show --predicate 'subsystem == "com.apple.TCC"'`) and macOS prompts again. The prompt may sit behind other windows.
-- `sec-browser`: the guest's `getUserMedia` reaches the system mic check before Tie's permission handler; an unanswered prompt blocks it. The scenario bounds it (5 s) and names the cause. Fix: deny the prompt once (or `tccutil reset Microphone com.salezica.tie`, then deny on the next run).
+- `sec-browser-session`: the guest's `getUserMedia` reaches the system mic check before Tie's permission handler; an unanswered prompt blocks it. The scenario bounds it (5 s) and names the cause. Fix: deny the prompt once (or `tccutil reset Microphone com.salezica.tie`, then deny on the next run).
 - Walks (`doc:walk`) into Documents, Desktop, Downloads, Pictures, Music, Library ask too; a blocked read holds a libuv thread (`2026-10-30-file-picker.md` "Research"). The picker skips those at home's top level unless typed into.
 
 ## Traces (`out/log/`)

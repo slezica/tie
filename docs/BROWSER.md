@@ -14,7 +14,7 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 ## Guest (`main/guest.ts`)
 
-- Attach (`will-attach-webview` on the embedder): only the UI window's page (`isUiContents`: window/offscreen contents showing the UI URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (`sec-browser`).
+- Attach (`will-attach-webview` on the embedder): only the UI window's page (`isUiContents`: window/offscreen contents showing the UI URL). Electron sets up `<webview>` in main frames only: content frames (sandboxed, preload-less, out of process) can't create one (`sec-browser-nav`).
 - Prefs rebuilt from nothing: `sandbox`, `contextIsolation`, no Node (`nodeIntegration*` off), `webviewTag` off, `webSecurity` on, no insecure content, no experimental features, no navigate-on-drop, safe dialogs, partition `persist:browser`. Every attribute but `src` dropped (`preload`, `nodeintegration`, `webpreferences`, `partition`, `allowpopups`, `disablewebsecurity`, `useragent`, `httpreferrer`, blink features; Electron's internal `instanceId` kept). `src`: http(s) or `about:blank` (`guestSrc`), else refused.
 - Navigation (`will-frame-navigate`): main frame http(s) (+ `about:blank`); subframes also `about:`, `data:`, `blob:`. Refused: `file:`, `tie:`, `tie-content:`, `chrome:`, `devtools:`, OS handlers (`mailto:`...: refused v1). Redirects: same rule (`will-redirect`; Chromium itself refuses http → `file:`).
 - UI-started loads (`src`, `loadURL`, back/forward: no `will-frame-navigate`): `did-start-navigation` → refused URL → `stop()` (deferred: stopping inside the event crashes Electron; skipped when `will-frame-navigate` already refused it).
@@ -25,9 +25,9 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 ## Partition (`persist:browser`)
 
 - One for all browser tiles, per instance (`<userData>/Partitions/browser`): cookies, storage, logins survive restarts. Never the UI's session (in memory, no network).
-- Network: direct. The UI session's dead proxy (`noNetwork`) is not applied here (`sec-browser`: `resolveProxy` ui `PROXY 127.0.0.1:1`, browser `DIRECT`).
+- Network: direct. The UI session's dead proxy (`noNetwork`) is not applied here (`sec-browser-session`: `resolveProxy` ui `PROXY 127.0.0.1:1`, browser `DIRECT`).
 - Protocols: none of Tie's (`tie:`, `tie-content:` have no handler on this session: requests fail).
-- Permissions: denied (`harden`, every session, this one included: `sec-browser`).
+- Permissions: denied (`harden`, every session, this one included: `sec-browser-session`).
 - User agent: Electron's own token removed (sites refuse or degrade "Electron").
 - Hovered links (`update-target-url`): shown in the tile's link strip (`Host.hint`, text only).
 - Downloads (`will-download`): every one asks (`guest:download` → UI dialog `.dialog.save-download`: sanitized name, size, site; Save disabled 600 ms; one at a time); Save → `guest:download-ok` → `allowDownload` allows that URL once (60 s) and calls `downloadURL` on the guest; then saved to `~/Downloads` (dev builds: `TIE_DOWNLOADS`; harness instances set it) under a sanitized (`downloadName`: base name, no controls, no leading dots) unique (`uniqueName`: `a (1).txt`) name; no dialog; never opened. The UI session refuses downloads (`noDownloads`).
@@ -62,9 +62,9 @@ Browser tiles show the remote web: a `<webview>` guest in the tile's body. A reg
 
 ## Scenarios
 
-- `browser`: open, title, real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, refused input), pointer shield, tab switch / shelve keep the page, template, `tie add browser [url]`, CLI errors.
-- `sec-browser`: below (`SECURITY.md` rows).
-- `browser-unload`: beforeunload on close (Stay keeps the same page, Leave closes), reload (Stay / Leave), the page's own link (armed, next try passes), quit (Stay aborts, Leave quits).
+- `browser`: open, title, link strip (hovered link's real target), real-click link + activation, back/forward (UI keys, guest keys), reload, plain keys / Esc reach the page, cmd+D from the guest, location bar (cmd+L, typed URL, Enter through main, refused input), pointer shield, tab switch / shelve keep the page, template, `tie add browser [url]`, CLI errors.
+- `sec-browser-nav` (realm, partition, user agent, navigation, redirects, subframes, UI loads, attach, bad src, content frames), `sec-browser-popups` (popups, downloads, Save arming), `sec-browser-session` (permissions, proxy, crash): `SECURITY.md` rows.
+- `browser-unload`: beforeunload on close (Stay keeps the same page, Leave closes), reload (Stay / Leave), the page's own link (armed, next try passes), tab close, quit (Stay aborts, Leave quits); shift+click on the × (no question); one prompt at a time (a prompt while a dialog is open: dropped); a hung handler (3 s) doesn't keep the tile open.
 
 ## Limitations
 
