@@ -85,11 +85,13 @@ export default async (ctx, h) => {
 
     // The UI's own loads (src, location bar, back/forward: browser-initiated) are checked too.
     await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] webview`).loadURL('file:///etc/hosts').catch(() => {}), b2)
+    // Settled: the guard stopped it (logged), or the guest shows file: (no guard).
+    await h.waitFor(ctx, async () => /stopped guest load file:/.test(log()) || (await guests()).some((x) => x.url.startsWith('file:')), 'loadURL(file:) stopped or loaded')
     await h.eventually(ctx, async () => {
-      h.assert(/stopped guest load file:/.test(log()), 'stopped load logged')
       const after = (await guests()).find((x) => x.url.startsWith('file:') || x.url.startsWith(s.url + '/frames'))
       h.assert(after && !after.url.startsWith('file:'), `shell loadURL(file:) stopped: ${after?.url}`)
     })
+    h.assert(/stopped guest load file:/.test(log()), 'stopped load logged')
     await ctx.tie('close', '--tile', b2)
 
     // Attach guard: hostile attributes are dropped, prefs rebuilt.
