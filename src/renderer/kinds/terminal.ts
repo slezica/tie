@@ -123,6 +123,7 @@ async function start(t: Term) {
   const { host, term } = t
   term.open(host.body)
   fixWidthCache(term)
+  fixLinkCache(term)
   t.fit.fit()
   const { cols, rows } = term
   const res = await tie.pty.spawn({ cmd: t.cmd, cwd: host.cwd(), cols, rows, env: { TIE_TILE: host.id } }).catch((e: Error) => ({ error: e.message }))
@@ -179,6 +180,21 @@ function fixWidthCache(term: Terminal) {
     return el.getBoundingClientRect().width / 32
   }
   r.handleCharSizeChanged() // clears the cache, re-derives the row letter-spacing
+}
+
+// xterm 6.0 link cache: the linkifier keeps the links of the line last hovered (`_activeLine`,
+// `_activeProviderReplies`) and reuses them when the pointer comes back to that line, even if its
+// text changed meanwhile (`clear`, a redraw): hover and cmd-click then act on a link no longer on
+// screen. While a link is under the pointer xterm re-reads the line itself (viewport-change
+// listener); otherwise forget the line on every write, so the next hover asks afresh. Private API:
+// if its shape changes this is a no-op, and the `sec-links` scenario (stale link case) fails.
+type Linkifier = { _activeLine?: number; _currentLink?: unknown }
+function fixLinkCache(term: Terminal) {
+  const l = (term as unknown as { _core?: { linkifier?: Linkifier } })._core?.linkifier
+  if (!l || typeof l._activeLine !== 'number') return debug('pty', 'link cache fix: shape changed, skipped')
+  term.onWriteParsed(() => {
+    if (!l._currentLink) l._activeLine = -1
+  })
 }
 
 function fitTerm(t: Term) {

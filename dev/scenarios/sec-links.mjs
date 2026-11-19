@@ -65,9 +65,9 @@ export default async (ctx, h) => {
     await ctx.page.keyboard.type(`clear; ${link(spoof, 'spoof-link')}`)
     await ctx.page.keyboard.press('Enter')
     const sp = await h.waitFor(ctx, async () => !(await h.screen(ctx, t1)).includes('printf') && (await pointOf('spoof-link')), 'spoof link printed')
-    // Pointer off and back: xterm keeps the link it last hovered (web-link, same cells) until the
-    // pointer moves.
-    await ctx.page.mouse.move(sp.x, sp.y + 200)
+    // Stale link: the new link sits on the cells web-link had, a line xterm cached links for when
+    // it was hovered. Straight back to that line: the strip must show the link now on screen
+    // (terminal.ts `fixLinkCache`), not the one that was there.
     await ctx.page.mouse.move(sp.x, sp.y)
     await h.eventually(ctx, async () => h.assert((await strip())?.includes(spoof), `hover shows the spoof link (got ${await strip()})`))
     await ctx.page.keyboard.down('Meta')
