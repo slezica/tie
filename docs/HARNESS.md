@@ -14,13 +14,13 @@
 
 ## Command notes
 
-- Rebuild (`run`, `start`, `drive`, `test --e2e`): when any `src/` file is newer than `out/.build-stamp`. `--hot` (dev server) doesn't write the stamp.
+- Rebuild (`run`, `start`, `drive` without `--attach`, `test --e2e`, `mdpage`): when a file under `src/`, `electron.vite.config.ts`, `package.json` or `package-lock.json` is newer than `out/.build-stamp`. `--hot` (dev server) doesn't write the stamp.
 - Hot (`run --hot`): `electron-vite dev` (UI hot-reloads; main built once, not watched: a restart would kill terminals) plus `dev/viewers.mjs --watch`: a change under `src/viewers/` rebuilds that kind (shared modules: every kind) into `out/viewers/`; main (dev builds) watches that folder and pushes `content:viewer <kind>`; the renderer reloads every file view of that kind (`fileview.ts` `reloadViewers`: new token, same root, scroll restored from the viewer's last `scrolled` report). Style iteration: `tie-dev run --hot`, `tie-dev sample`, edit `src/viewers/markdown.html` (or in a browser: `mdpage`, "Markdown style iteration"). Every instance serves the same `out/viewers/`: a save during `test --e2e` reloads the scenarios' frames too (and their style assertions see the edit), so don't run e2e while iterating.
 - `run`, `start`: free debug port unless `TIE_DEBUG_PORT` set.
-- Electron binary launched directly with `-ApplePersistenceIgnoreState YES` (`2026-10-09-electron-crash-on-quit.md`). `stop`: the UI's `tie.quit()` over the debugging port (`quitInstance`: a visible instance asks on SIGTERM), else SIGTERM to the info-file pid. Fresh instances (background: no question): SIGTERM, then wait for the process to exit before removing its userData.
+- Electron binary launched directly; `start` and fresh instances add `-ApplePersistenceIgnoreState YES` (`2026-10-09-electron-crash-on-quit.md`), `run` doesn't. `stop`: the UI's `tie.quit()` over the debugging port (`quitInstance`: a visible instance asks on SIGTERM), else SIGTERM to the info-file pid. Fresh instances (background: no question): SIGTERM, then wait for the process to exit before removing its userData.
 - `logs`: last 100 lines of the instance log.
 - `layout [cols]`, `screenshot`, `drive --attach`: target `--instance` / `TIE_INSTANCE`.
-- `test --e2e [--jobs N] [names|globs...]` (`dev/e2e.mjs`): each scenario on a fresh instance, N at a time (`--jobs N` / `-j N`, else `TIE_JOBS`, else 4); `release` and `install` get the default. Names or shell globs select scenarios (`test --e2e 'sec-*' shelf* cli-replace`; quote globs that could match files in the cwd); none = all; a pattern matching nothing is an error. A line per scenario as it finishes (`ok   name (12.3s)` / `FAIL name (...) (<trace>/)`), then `N/M passed, Ts, jobs J, ptys leaked K` and `trace:`. `summary.txt` in scenario order, the total last. Exit 1 on any failure; with `--strict-leaks` (passed by `release`) also on any leaked pty (default runs: reported only). `drive` stays one scenario (its `--attach` / `--keep` don't generalize): several = `test --e2e a b c`.
+- `test --e2e [--jobs N] [names|globs...]` (`dev/e2e.mjs`): each scenario on a fresh instance, N at a time (`--jobs N` / `-j N`, else `TIE_JOBS`, else 4); `release` gets the default. Names or shell globs select scenarios (`test --e2e 'sec-*' shelf* cli-replace`; quote globs that could match files in the cwd); none = all; a pattern matching nothing is an error. A line per scenario as it finishes (`ok   name (12.3s)` / `FAIL name (12.3s) (<trace>/)`), then `N/M passed, Ts, jobs J, ptys leaked K` and `trace:`. `summary.txt` in scenario order, the total last. Exit 1 on any failure; with `--strict-leaks` (passed by `release`) also on any leaked pty (default runs: reported only). `drive` stays one scenario (its `--attach` / `--keep` don't generalize): several = `test --e2e a b c`.
 - Scenarios exporting `exclusive = true` run alone, after the others: they change what every instance shares (`viewer-reload` rewrites `out/viewers/markdown.html`, which reloads every instance's markdown frames).
 - pty leak check (per instance, `lib.mjs` `leftovers`): after stop, `drive` lists the instance's processes still alive (`ps eww`: environment `TIE_INSTANCE=<instance>`, which every terminal process inherits) that hold a tty, or are spawn-helpers; their distinct ttys = leaked ptys: `ptys=N` in `drive.log` (plus each process), `ptys leaked: +N` on stderr, `(ptys +N)` on the `test --e2e` line, summed in its total line (`--strict-leaks`: fails). Waits up to 2 s for them to exit first. Other instances (parallel jobs) and other programs don't count. `tie-dev ptys`: live count and spawn-helpers stuck in the kernel (the pty wedge, `docs/2026-10-21-pty-wedge.md`).
 - `tie-dev ptydump [dir]` (`dev/ptydump.sh`): run the moment terminals stop starting, before rebooting. One folder (`out/log/ptydump/<time>/`, `summary.txt` first): stuck processes with `sample` stacks, probes (`stat` of a tty, `openpty`, `script`, `lsof`), sleep/wake log, kernel log (2h, tty-filtered copy), Tie instance files, logs, `tie list`, samples. Every step time-boxed: a probe that hangs is reported as `HUNG` and left behind (unkillable). Then `sudo spindump -notarget 3 -file <dir>/spindump-full.txt` for kernel stacks (printed by the command).
@@ -37,14 +37,15 @@
 | `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere. `hidden` (scenario `hiddenWindow`): real window, never shown |
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
-| `TIE_SETTINGS` | `tmp/<instance>.settings.json` (and its `.bak`), deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell, e.g. `terminal`); a raw string is written as-is |
+| `TIE_SETTINGS` | `tmp/<instance>.settings.json` (and its `.bak`), deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell); a raw string is written as-is |
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
 | `TIE_DEBUG_PORT` | free port |
-| `TIE_LOG`, `TIE_DEBUG=*` | run folder `app.log` |
+| `TIE_LOG`, `TIE_DEBUG` | run folder `app.log`; `TIE_DEBUG` = scenario `env`, else the caller's, else `*` |
 | `TIE_WALK_CAP`, `TIE_WALK_DELAY` | not set by default; scenario `env` (dev builds only, read by main `docs.ts` `startWalk`): picker walk entry cap (partial marker, `picker-partial`; default 50k), ms before each directory read (`sec-walk`: stop / a newer walk land mid-walk) |
 | `BASH_SILENCE_DEPRECATION_WARNING` | `1`: macOS bash's zsh notice off (terminal screens start with the prompt) |
 
-- `TIE_SOCKET` / `TIE_TILE` stripped: a run inside Tie never targets it.
+- `TIE_SOCKET` / `TIE_TILE` / `ELECTRON_RUN_AS_NODE` stripped: a run inside Tie never targets it.
+- No Electron binary (`node_modules/electron/dist`): error naming `npm install` (postinstall downloads it).
 - `connectPage` checks `tie.info().instance`: never drives another Tie on a reused port.
 
 ## Scenarios
@@ -64,7 +65,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 - `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). A hidden real window routes like a visible one. Use it for frame and guest input (`content-input`, `browser`, `sec-browser-*`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
 - Runs once booted: first `.tab`, and every terminal showing its prompt (or an error; at most 3 s). Return value printed (JSON if not string). Throw → exit 1 (`h.assert(cond, msg)`).
-- Check count: passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
+- Check count (`h.checkCount()`): passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
 
 ```sh
@@ -76,19 +77,21 @@ return (await list(ctx)).tiles[0].zoomed
 EOF
 ```
 
-## Helpers (`dev/helpers.mjs`, all take `ctx` first)
+## Helpers (`dev/helpers.mjs`)
+
+All take `ctx` first except `assert`, `alive`, `leafIds`, `tilde`, `pixels`, `fraction` (none) and `recordViolations`, `violations` (a frame).
 
 | Helper | Does |
 |---|---|
 | `list`, `state`, `rectOf(id)` | `tie list` / `tie state` (socket, no `bin/tie` process: cheap to poll), tile rect |
 | `titlePoint(id)`, `sidePoint(id, l\|r\|t\|b\|c)`, `boardCenter` | target points |
 | `drag(from, to, {shift, steps, during})` | low-level drag, `during` hook mid-drag |
-| `dragTitle(id, target, side)` | move tile by title |
+| `dragTitle(id, target, side, opts)` | move tile by title |
 | `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags |
 | `hoverShelf`, `clickShelf`, `shelfItem`, `template`, `boxOf(selector)` | shelf: hover reveal, plain item click (pins; unpins a pinned one) + DOM points |
 | `selectShelf(...ids)`, `selected()` | cmd+click items (selection toggle, each confirmed in `tie state`); selected ids |
 | `resizeWindow(w, h)` | window size (dev socket `window-size`), waits for the re-layout |
-| `clickButton(id, collapse\|zoom\|close)` | title buttons |
+| `clickButton(id, collapse\|zoom\|close, modifiers)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |
 | `assert`, `assertPtySizes(ms)` | checks; pty size == xterm grid (terminal tiles; retries itself: call it directly, not in `eventually`) |
 | `termFit(id)`, `assertTermFit(id, label)`, `waitTermFit(id, label, ms)` | terminal grid vs visible area: screen/body slack, text overrun past rows, full-width rows (`TERMINALS.md` "Size"); `waitTermFit`: waits for the fit after a size change, then asserts |
@@ -108,8 +111,8 @@ EOF
 | `pixels(png)`, `fraction(pix, test)` | decode a Playwright PNG (8-bit RGB/RGBA) → `{w, h, bpp, px, at(x, y) → [r, g, b]}`; share of pixels passing `test([r, g, b])` (paint checks: a guest's red page, no white flash) |
 | `tilde(path)` | a path as Tie titles it (`~` for home): file / html tile titles |
 | `pick(text)`, `pickCancel()`, `nativePickNext(path)` | file picker (`#picker`, after the drop / cmd+O): line replaced by `text` (absolute path: that file opens; or prefix + query), Enter, waits closed; Esc; next answer of the native dialog (`…`; null = cancel) |
-| `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered) |
-| `waitTile(id, pred)`, `waitGone(id)`, `waitActive(id)`, `waitRevealed(id\|null)` | `tie list` entry once `pred` holds; tile closed; active tile; shelf hover reveal (`tie state`) |
+| `eventually(fn, ms)`, `settle()` | retry a block of assertions until it passes (last failure thrown, message intact); two animation frames in the shell page (input handled → rendered), then its running finite animations finished (≤ 2 s) |
+| `waitTile(id, pred, what, ms)`, `waitGone(id)`, `waitActive(id)`, `waitRevealed(id\|null)` | `tie list` entry once `pred` holds; tile closed; active tile; shelf hover reveal (`tie state`) |
 | `waitShell(id)` (fails at once on a tile error; timeout names pid + last lines), `waitText(id, re)`, `children(id)`, `waitChild(id, re)`, `waitNoChild(id)`, `waitRunning(id, re)` | terminal: shell started, prompt drawn; screen matches (`screen` joins rows without newlines: no `^`/`$` per line); shell's child processes (`ps`): a typed command started / ended; a program running in the tile (its own process, as a `--cmd` bash execs a single command, or a child) |
 | `openFresh(root, from, open, what)` | terminal `from` (active) `cd`s between two cwd polls, then `open()`: proves the new tile took the shell's cwd fresh, not main's 2 s poll (retries when too slow); `{t, dir}` |
 | `waitLog(re, n)` | run's app log has n matches |
@@ -135,7 +138,7 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 
 ## macOS permission prompts (TCC)
 
-- Instances launched from a Tie terminal are attributed by TCC to the installed app (`com.salezica.tie`, the responsible process is Tie's spawn-helper), from a plain terminal to the dev `Electron.app`.
+- Shells in Tie terminals spawn disclaimed (`TERMINALS.md` "Spawn"): an instance launched from one has the shell as responsible process, not the installed app (`sec-disclaim`). Which app a real prompt then names: unverified (`PENDING.md` 37). From a plain terminal: the dev `Electron.app`.
 - `tie-dev install` re-signs ad hoc: a new cdhash. TCC records for the old one stop matching ("Failed to match existing code requirement" in `log show --predicate 'subsystem == "com.apple.TCC"'`) and macOS prompts again. The prompt may sit behind other windows.
 - `sec-browser-session`: the guest's `getUserMedia` reaches the system mic check before Tie's permission handler; an unanswered prompt blocks it. The scenario bounds it (5 s) and names the cause. Fix: deny the prompt once (or `tccutil reset Microphone com.salezica.tie`, then deny on the next run).
 - Walks (`doc:walk`) into Documents, Desktop, Downloads, Pictures, Music, Library ask too; a blocked read holds a libuv thread (`2026-10-30-file-picker.md` "Research"). The picker skips those at home's top level unless typed into.
@@ -144,7 +147,7 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 
 - `tie-dev.log`: start/end line per invocation (time, instance, command, exit, duration).
 - `runs/<time>-<name>/` per `drive` run: `drive.log` (output, shot paths, errors, exit), `app.log` (all tags), `electron.log` (stdout/stderr), `shots/<nn>-<label>.png`.
-- `test --e2e`: `runs/<time>-e2e/` with `summary.txt` + one subfolder per scenario.
+- `test --e2e`: `runs/<time>-e2e/` with `summary.txt` + one subfolder per scenario (as above, plus `output.log`: the runner's output).
 - Newest 50 run folders kept. Excluded from packages.
 
 ## Package check (`dev/package-check.mjs`)
@@ -154,4 +157,4 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 
 ## Install check (`dev/install-check.sh`)
 
-- `tie-dev check-install`: install while running, end to end, in `/tmp/tie-ic.*` (`TIE_INSTALL_DIR`, `XDG_CONFIG_HOME`; never `/Applications`, `~/.config/tie`). Cases: `PACKAGING.md` "Install while running". Not part of `release` (packages, launches several copies: ~1 min).
+- `tie-dev check-install`: install while running, end to end, in `/tmp/tie-ic.*` (`TIE_INSTALL_DIR`, `XDG_CONFIG_HOME`; never `/Applications`, `~/.config/tie`). Cases: `PACKAGING.md` "Install while running". Run by `release` (packages, launches several copies: ~1 min).
