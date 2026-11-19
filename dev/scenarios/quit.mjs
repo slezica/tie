@@ -82,6 +82,11 @@ export default async (ctx, h) => {
   await ctx.page.keyboard.press('Escape')
   await h.waitNoDialog(ctx)
 
+  // A command that ignores SIGHUP (the kernel's hangup when Tie's pty masters close at exit): only
+  // main's killAll (SIGKILL after its grace period) ends it, so a quit that skipped it leaves it alive.
+  const hup = (await ctx.tie('add', 'terminal', '--shelved', '--cmd', "trap '' HUP; exec sleep 33")).id
+  await h.waitRunning(ctx, hup, /^sleep 33/)
+
   // Window close (red button) asks the same; Quit quits.
   await rpc(ctx.instance, 'window-close')
   await h.eventually(ctx, async () => {
@@ -94,7 +99,7 @@ export default async (ctx, h) => {
     if (t.term?.pid) pids.push(t.term.pid)
     for (const c of await h.children(ctx, t.id)) pids.push(c.pid)
   }
-  h.assert(pids.length >= 5, `shells + commands found: ${pids}`) // a, b, sh; sleep 30, sleep 32 &
+  h.assert(pids.length >= 6, `shells + commands found: ${pids}`) // a, b, sh, hup; sleep 30, sleep 32 &
   await ctx.page.keyboard.press('Enter').catch(() => {}) // Quit has the focus; the page may be gone before the keyup
   await h.eventually(ctx, async () => h.assert(!alive(), 'Enter quits'))
   const living = () => pids.filter(h.alive)
