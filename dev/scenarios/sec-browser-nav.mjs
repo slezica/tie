@@ -65,6 +65,8 @@ export default async (ctx, h) => {
       const now = (await guests()).map((x) => x.url)
       h.assert(now.every((u) => !/^(file|tie|tie-content):/.test(u)) && (await h.tileOf(ctx, b)).web.url === s.url + '/', `redirect ${r}: ${now}`)
     }
+    // Engine probe (ENGINE.md): fails the day Chromium lets these reach will-redirect (then test our guard here).
+    h.assert(!/blocked guest redirect/.test(log()), 'redirects refused by Chromium before our guard')
     await ctx.tie('close', '--tile', b)
     const b2 = (await ctx.tie('add', s.url + '/frames', '--at', t0, '--side', 'r')).id
     g = await h.guestPage(ctx, b2)

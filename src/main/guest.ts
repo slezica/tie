@@ -10,9 +10,9 @@ import { watchKeys } from './keys'
 import { BROWSER_PARTITION, guestNavAllowed, guestSrc, popupUrl, downloadName, uniqueName } from '../core/guest'
 
 const guests = new Set<WebContents>()
-// SECURITY: device choosers. Web Bluetooth: Electron picks the first device found unless the event
-// is prevented (a page could pair with whatever is nearby after one click). Cancelled here, for
-// guests and the UI window alike. USB / HID / serial go through setDevicePermissionHandler
+// SECURITY: device choosers. Web Bluetooth: with no listener Electron cancels every request; a
+// listener that doesn't prevent the event gets the first device found (docs/ENGINE.md). Cancelled
+// here explicitly (and logged), for guests and the UI window alike. USB / HID / serial go through setDevicePermissionHandler
 // (harden(): denied).
 export function noDeviceChoosers(wc: WebContents) {
   wc.on('select-bluetooth-device', (e, _devices, cb) => {
