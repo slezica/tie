@@ -1,6 +1,6 @@
 # Test suite review
 
-Status: waves 1-3 applied 2026-11-18 (review, scenario fixes, harness, merges / renames). Wave 4 (product side) open.
+Status: closed 2026-11-18. Waves 1-4 and the mutation runs done. Left open on purpose: "Pending".
 
 # Topic
 
@@ -214,7 +214,14 @@ Selection: renames recommended; tags not worth the upkeep; optional `test --e2e 
 
 # Pending
 
-1. Extractions to core for unit tests (L-U1, L-U3, L-U4, S-U1, C-G6, C-G7): product code moves; which are worth it.
+Left open on purpose (not fixed here).
+
+1. Settings Save over a hand-fixed file (`settings-malformed`): the panel opened on defaults, Save writes them over the fixed file. Author to choose: leave / panel reloads when the file becomes readable / Save blocked until reopened.
+2. `browser` "navigated" timeout under load: failed twice in loaded full runs today, passes alone. Same area as the hang in `2026-11-16-configurable-bindings-and-schemes.md` manual check 17.
+3. `sec-html` under load: `frame.evaluate: Execution context was destroyed` at the gesture-rule `window.open` (`sec-html.mjs:197`): the scenario writes `n.md` into the html tile's folder, its live reload lands after `h.htmlFrame` found the old frame (`[content] load … evil.html` in the log). Once in the final full run (`out/log/runs/20261118-231215-e2e/sec-html/`), 3/3 alone. Scenario-only fix: write `n.md` before the html tile opens, or wait for that reload.
+4. X-T2 UI-session download test is a log check only (a real download would open a native Save dialog).
+5. Extractions decided against: float clamp (L-U3), shelf drop slot math (S-U1), hex scroll mapping (C-G6), viewer pure logic (C-G7).
+6. `docs/PENDING.md` still names old scenario names `markdown-keys`, `sec-browser` (file holds the author's uncommitted edits).
 
 # Settled
 
@@ -309,7 +316,7 @@ One mutation at a time in `src/`, the one scenario run (`test --e2e <name>`), th
 - H-V1 | `renderer/driver.ts:103` `bring` skips the expand | `cli` | RED (same assertion)
 - H-V3 | `renderer/kinds/terminal.ts:89` `cwdNow` → undefined (stored cwd) | `cwd-split` | RED (`cmd+D: tile cwd …/fresh0 (want …/fresh1)`)
 - L-R1 | `renderer/ops.ts:285` `refocus` never blurs | `layout-collapse-zoom` | RED (`keys go nowhere, not to a (focus: <a>)`)
-- L-R1b | `renderer/ops.ts:284` `refocus` focuses a collapsed tile | `layout-collapse-zoom` | RED (same assertion; message says "a", focus is on x)
+- L-R1b | `renderer/ops.ts:284` `refocus` focuses a collapsed tile | `layout-collapse-zoom` | RED (same assertion; message said "a", focus was on x: message fixed in wave 4)
 - L-V1 | `renderer/ops.ts:290` `focusNext` least recent (`findLast`) | `keys-swap` | RED (`focus: most recent board tile, b`)
 - L-R3 | `main/keys.ts:61` no suspend in `fields` mode | `keys` | RED (`cmd+D while settings open: not sent, no split (sent 2 …)`)
 - L-R3 | `core/keymap.ts:71` an override keeps the default chord | `keys-bindings` | RED (`cmd+T: default dropped (tabs 2 -> 3)`); ad-hoc copy past it: `cmd+D: default dropped (actions sent: 2)`
@@ -324,10 +331,22 @@ Notes.
 - X-U5: the subframe guard can only be seen through its log (Chromium refuses tie: on the browser partition anyway).
 - X-U6: `webSecurity: false` also lets a guest page read `file:///etc/hosts` and navigate to `chrome://` (seen as `about:blank#blocked`): three cases catch it.
 
-## Wave 4: product-side (serial)
+## Wave 4: product-side (serial): done
 
-1. Security fixes X-N1, X-N2 (orchestrator, not delegated).
-2. Extractions to core + unit tests (Pending 1).
-3. Dev hooks: suspend level on the dev socket (H-H11), cwd poll knob (H-V3).
-4. Guard mutation runs for the `X-U*` fixes (remove guard → red → restore): done ("Mutation runs").
-5. Full e2e.
+1. Security fixes: X-N1, X-N2 (`4e00d36`: bidi / C1 out of download names, page titles, logged untrusted values; `@core/log` `BIDI`). Link dialog from the parsed URL, `@` warning (`d0fbcee`, `@core/links` `externalParts`; X-N5 dialog tail).
+2. Terminal stale link (`f02af1d`): xterm 6.0 link cache, `fixLinkCache`; `sec-links` stale link case.
+3. Extractions to core + unit tests:
+    - L-U4: `decideKey` (`@core/keymap`, `dd3eec6`); `main/keys.ts` `onInput` applies it.
+    - H-G5: `src/core/settings.ts` (`sanitize`, `validateSettings`, `parseCommand`, `f499cdb`); main keeps the file, shell, `resolveExecutable`.
+    - L-U1: focus / swap ranking `@core/focus` `neighbor` (`7d065f1`): logic copied as is, 9 unit cases (each rule, the 1 px center rule, gap clamp for overlapping floats, rounded offsets, MRU, candidate order).
+    - Decided against: Pending 5.
+4. Small fixes, each with a test:
+    - L-U7: `zoomStep` outside the presets clamps to the nearest end (`f1cfc31`; was 0.25 above the max).
+    - L-U8: `chordsOf` follows `resolveKeymap`'s usable rule: a malformed / reserved override keeps the default, so the Quit menu label and cmd+Q agree (`16e3272`).
+    - Content protocol: a path that doesn't resolve is refused as `not found` (missing, dangling symlink; else `unresolved`), no longer as `outside root` (`8c8eebf`). Refusal and the `outside root` log for real escapes unchanged. `sec-content-protocol`: the parser cases' reason now pinned (`not found`), plus a `/missing.svg` case.
+    - `settings-boot`: valid non-default line height (1.2) applied at boot again (`6807277`); the wrong-type number case left to `settings.test.ts`.
+    - `layout-collapse-zoom`: the focus message names the tile that kept it (`1cc545a`).
+5. Trimmed e2e duplicates of unit tests: `keys-bindings` refusals `K` (bare key) and `nope` (unknown action) (`4acac95`: `bindingErrors` unit cases pin both messages; reserved + conflict kept for the save path); `settings-boot` wrong-type line height (above). Kept: `settings-boot` loaded-values loop (tells load from apply), `fontSize` 200 and `shell` 5 (sanitize at boot, with end-to-end effects: 32 px, login shell argv).
+6. Dev hooks: H-H11 done (`5a26335`, `key-mode`, `h.waitKeyMode`). H-V3 cwd poll knob not needed: `h.openFresh` pins the poll phase.
+7. Mutation runs: done ("Mutation runs").
+8. Final: typecheck clean; unit 335 / 23 files; full e2e 86/87, 85 s, jobs 4, ptys leaked 0 (`out/log/runs/20261118-231215-e2e`); the failure: Pending 3 (load flake, passes alone).
