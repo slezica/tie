@@ -1,6 +1,6 @@
 # Test suite review
 
-Status: open. Review (read-only, 5 reviewers by area) 2026-11-18; apply pending.
+Status: waves 1-3 applied 2026-11-18 (review, scenario fixes, harness, merges / renames). Wave 4 (product side) open.
 
 # Topic
 
@@ -214,18 +214,33 @@ Selection: renames recommended; tags not worth the upkeep; optional `test --e2e 
 
 # Pending
 
-1. Renames: the proposed scheme (`layout-*`, `keys-*`, `tabs-*`, `viewer-*`, `content-*`) versus tags (reviewer H).
-2. Extractions to core for unit tests (L-U1, L-U3, L-U4, S-U1, C-G6, C-G7): product code moves; which are worth it.
+1. Extractions to core for unit tests (L-U1, L-U3, L-U4, S-U1, C-G6, C-G7): product code moves; which are worth it.
 
 # Settled
 
-Nothing yet.
+- Renames over tags: one glob selects one feature (`test --e2e 'layout-*'`); tags not worth the upkeep.
+- Scenarios after wave 3 (87), by glob:
+  - `layout-*`: `layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`.
+  - `keys*`: `keys`, `keys-bindings`, `keys-swap`.
+  - `tabs*`: `tabs`, `tabs-drops`, `tabs-overflow`. `templates`.
+  - `shelf*`: `shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`.
+  - Board / app: `lifecycle`, `menu`, `ping`, `close-busy`, `quit`.
+  - `terminal*`: `terminal`, `terminal-errors`, `terminal-fit`.
+  - `cwd-*`: `cwd-links`, `cwd-roots`, `cwd-split`, `cwd-templates`.
+  - `viewer-*`: `viewer-hex`, `viewer-image`, `viewer-open`, `viewer-reload`, `viewer-text`.
+  - `content-*`: `content-input`, `content-paint`, `content-watchdog`.
+  - `markdown*`: `markdown`, `markdown-links`, `markdown-live`, `markdown-mermaid`, `markdown-nav`, `markdown-syntax`.
+  - `html*`: `html`, `html-static`. `browser*`: `browser`, `browser-unload`.
+  - `cli*`: `cli`, `cli-replace`, `cli-tabs`.
+  - `settings*`: `settings`, `settings-bindings`, `settings-boot`, `settings-malformed`.
+  - `picker*`: `picker`, `picker-partial`.
+  - `sec-*` (29): `sec-browser-nav`, `sec-browser-popups`, `sec-browser-session`, `sec-content-escape`, `sec-content-nav`, `sec-content-protocol`, `sec-csp`, `sec-disclaim`, `sec-drop`, `sec-focus`, `sec-html`, `sec-keys`, `sec-keys-capture`, `sec-links`, `sec-links-off`, `sec-log`, `sec-markdown`, `sec-mermaid`, `sec-navigate`, `sec-paste`, `sec-paste-off`, `sec-permissions`, `sec-protocol`, `sec-socket`, `sec-socket-external`, `sec-state`, `sec-storage`, `sec-viewers`, `sec-walk`.
 
 # Plan
 
 Rule for parallel work: one shared tree and one `out/` build. Wave 1 agents change `dev/scenarios/` and unit tests only (no `src/`, no shared harness files), commit by path.
 
-## Wave 1: make checks real, fix flakes, add scenario-only coverage (5 agents, by area)
+## Wave 1: make checks real, fix flakes, add scenario-only coverage (5 agents, by area): done
 
 1. Checks that cannot fail → real assertions (all `*-V*`, `X-U*`).
 2. Flakes (`*-F*`, `L-R*`), stale comments.
@@ -233,21 +248,38 @@ Rule for parallel work: one shared tree and one `out/` build. Wave 1 agents chan
 4. Gaps that need scenario code only, high / medium first.
 5. Unit cases for existing pure functions.
 
-## Wave 2: harness (one agent)
+## Wave 2: harness (one agent): done
 
 1. `waitFor` keeps last error / value (H-H1): done first, before wave 1.
 2. Helpers: `tieAt`, `tieError`, `openSettings`, `waitMd`, `lines`; `pin` → `clickShelf`; `assertPtySizes` direct; `waitShell` fail-fast; `probeFrame` into `contentFrame`.
 3. Leaks in the summary, failing in release (H-H7). Check count guard (H-H14).
 4. `HARNESS.md` helper table.
 
-## Wave 3: merges, removals, renames (one agent, after the author's look)
+## Wave 3: merges, removals, renames (one agent, after the author's look): done
 
-See Pending 1. Doc references updated; `SECURITY.md` stale rows; X-T10 check.
+Doc references updated; `SECURITY.md` stale rows; X-T10 check.
+
+Notes.
+
+- Merged: `splits` → `layout-drop` (edge drops first; one own-tile case: `drag.ts` refuses any own-tile zone alike).
+- Merged: `quit-empty` → `quit` (no-tiles prelude, Esc; the final Quit by Enter keeps "Enter quits").
+- Merged: `toolbar-overflow` + `tab-autoscroll` → `tabs-overflow` (one `openTabs(extra)` loop, called twice; shelved tiles closed before auto-scroll: case b needs the first tab to empty).
+- Merged: `markdown-keys` → `markdown-nav` (now `hiddenWindow`).
+- Merged: `boot-settings` + `settings-invalid` → `settings-boot`: valid theme / font / cellWidth / borderless; `fontSize` 200 (clamped, 32 px), `lineHeight` `'tall'` (wrong type number → default), `shell` 5 (wrong type string → '' → login shell argv). Lost: a valid non-default line height applied at boot (panel save path: `settings` 1.3), theme wrong type (same `str` branch as shell).
+- Split: `cwd-inherit` → `cwd-split` (cmd+D) + `cwd-templates` (template drop); its poll-race proof moved verbatim into `h.openFresh` (helpers).
+- Merged: `cli-focus` → `cli-tabs` (prelude). S-M5: the hidden-tab case moved as `add --at` + `move --tile` in a hidden tab (a `move --tile` across tabs is an error by design: the tile's own tab is the target space).
+- Removed duplicates: L-M2 (`menu` busy dialog), L-M3 / L-V6 (`settings` borderless; `layout-geometry` kept: pty sizes), S-M3 (`shelf` reveal / typing / outside click; item-click pin kept), S-M4, S-M7 (`tabs`), S-M6 (`shelf-select`), C-M1 (`html` storage; reopen kept for the crash case), C-M2 (`html` web confirm: same `followLink` → `openExternal` path as `sec-html`), C-M3 (`viewer-open` terminal drop; `sec-drop` gained "no tile opened"), C-M4 (`viewer-image`, `viewer-hex` template + picker: main's `doc.viewer` decides as for `tie add`; empty file → text kept), C-M6 (`markdown-links` PageDown), C-M7 (`markdown`: one writer, backup rename).
+- Split: `sec-browser` → `sec-browser-nav`, `-popups`, `-session` (each `hiddenWindow`; the mic prompt hang can only stop `-session`).
+- Renamed: `borders`, `center-swap`, `center-displace`, `collapse-zoom`, `float`, `window-layout` → `layout-*`; `swap` → `keys-swap`; `tab-drops` → `tabs-drops`; `template` → `templates`; `markdown-open`, `text`, `image`, `hex` → `viewer-*`; `frame-input` → `content-input`; `root-cwd` → `cwd-roots`; `shell-errors` → `terminal-errors`.
+- Docs: `SECURITY.md` Test column re-verified row by row; `BROWSER.md`, `VIEWERS.md`, `DIRECTORIES.md`, `HARNESS.md` scenario lists; `TABS.md` title rule 3 (not in `tabTitle`) dropped; `extsOf` / `noViewer` dropped from `AGENTS.md`, `MARKDOWN.md`.
+- New unit file `src/core/docs.test.ts`: X-T10 (Test column names existing scenarios; fails on `html-scripts`-style drift), X-T9 (`ipcMain`, Electron `shell` only in `main/security.ts`).
+- Skipped (optional): C-M8, H-M4. Not touched: `PENDING.md` (still names `markdown-keys`, `sec-browser`), `picker.test.ts` fixture paths.
+- Full e2e after wave 3: 87/87 passed, 87 s, jobs 4, ptys leaked 0 (`out/log/runs/20261118-224558-e2e`). Unit 301 / 21 files, typecheck clean.
 
 ## Wave 4: product-side (serial)
 
 1. Security fixes X-N1, X-N2 (orchestrator, not delegated).
-2. Extractions to core + unit tests (Pending 2).
+2. Extractions to core + unit tests (Pending 1).
 3. Dev hooks: suspend level on the dev socket (H-H11), cwd poll knob (H-V3).
 4. Guard mutation runs for the `X-U*` fixes (remove guard → red → restore).
 5. Full e2e.

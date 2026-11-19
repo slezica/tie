@@ -16,7 +16,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 - Every guard has an e2e scenario `sec-*` (red first). Guards get lost in refactors otherwise.
 - Security-relevant code carries a `// SECURITY:` comment saying what matters about it.
 - New IPC: `ipc.on` / `ipc.handle` (`uiIpc`), never `ipcMain` directly.
-- Opening URLs: only `openExternal` in `src/main/security.ts`.
+- Opening URLs: only `openExternal` in `src/main/security.ts`. This rule and the previous one: unit-checked (`core/docs.test.ts`), as is every scenario named below.
 - Pure checks in `src/core/security.ts`, `src/core/content.ts`, `src/core/callers.ts` (main), `src/core/paste.ts`, `src/core/requests.ts`, `src/core/links.ts`, `src/core/kinds.ts` (renderer + main), unit-tested.
 - Content kinds only through the frame host (`TILES.md`): the baseline is not per kind. What differs per kind (page, sandbox, CSP, nav rule, assets, payload, size cap, bootstrap) lives in one table: `src/core/policy.ts` (`TILES.md` "Policy table"), every row pinned by `policy.test.ts`.
 - Never add `tie-content:` to the UI's `script-src`; never post to frames by name or `'*'` except the handshake to the exact `contentWindow`.
