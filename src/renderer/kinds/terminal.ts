@@ -80,7 +80,6 @@ export function terminalKind(host: Host, opts: OpenOpts): Surface {
       if (prefs.terminalTitle === 'directory') return prettyDir(host.cwd())
       if (prefs.terminalTitle === 'auto' && t.oscTitle) return t.oscTitle
       if (t.cmd) return t.cmd
-      if (t.proc && !SHELLS.has(t.proc)) return t.proc
       return t.proc || 'terminal'
     },
     tip: () => (prefs.terminalTitle === 'directory' ? tildePath(host.cwd()) : ''),
