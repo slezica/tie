@@ -33,7 +33,9 @@ export default async (ctx, h) => {
     `sequenceDiagram\n  Alice->>Bob: <img src="${P}/seqimg"> hi\n  link Alice: Evil @ javascript:window.__xss=5\n  link Bob: Web @ ${P}/seqlink`,
   ]
   const doc = '# Diagrams\n\n' + diagrams.map(fence).join('\n')
-  writeFileSync(f, doc)
+  // Opened without diagrams first: the violation listener and the callback must be in place before
+  // Mermaid renders (a listener added after the render saw nothing: the CSP check was vacuous).
+  writeFileSync(f, '# Waiting\n')
   try {
     const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
     const id = (await ctx.tie('add', f, '--at', a, '--side', 'r')).id
@@ -43,6 +45,7 @@ export default async (ctx, h) => {
       window.__v = []
       addEventListener('securitypolicyviolation', (e) => window.__v.push(`${e.violatedDirective} ${e.blockedURI}`))
     })
+    writeFileSync(f, doc)
     const done = (n) => () => fr.evaluate((n) => window.markdown.diagrams.renders + window.markdown.diagrams.errors >= n, n)
     await h.waitFor(ctx, done(diagrams.length), 'diagrams rendered', 15000)
     const st = await fr.evaluate(() => ({ renders: window.markdown.diagrams.renders, errors: window.markdown.diagrams.errors, errs: [...document.querySelectorAll('.diagram-error')].map((e) => e.textContent) }))
@@ -88,9 +91,13 @@ export default async (ctx, h) => {
     h.assert((await fr.evaluate(() => window.__xss)) === undefined, 'clicks ran nothing')
     h.assert(!/external open javascript|external open about/.test(ctx.appLog()), 'no javascript:/about: opened')
 
-    // Remote resources: never requested; no CSP violation even attempted except url()s (blocked).
+    // Remote resources: refused by the frame's CSP `img-src` (own token only: violations for the
+    // url()s and the image shape); nothing else even attempted. The probe can't see a hit either way
+    // (UI session: dead proxy): noNetwork only.
     await p.assertUntouched('remote resources in diagrams')
     const v = await fr.evaluate(() => window.__v)
+    ctx.log('CSP violations:', JSON.stringify(v))
+    for (const path of ['/classfill', '/stylefill', '/imgshape']) h.assert(v.includes(`img-src ${P}${path}`), `CSP img-src refused ${path}: ${v}`)
     h.assert(v.every((x) => /^(img-src|font-src|style-src)/.test(x)), `only resource loads blocked, nothing else: ${v}`)
 
     // Pathological: edge limit → error block; text limit → Mermaid's notice. Tile and terminal fine.
