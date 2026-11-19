@@ -1,4 +1,5 @@
-// Drag terminal template from shelf to board, onto empty board, and onto shelf.
+// Terminal template (toolbar) dragged onto a tile's edge (lands below it), onto the empty board, after
+// a pointer capture loss.
 // A drop next to a tile opens after reading that shell's cwd (lsof, tens of ms; more under load):
 // wait for the tile, never a fixed sleep (the old flake).
 export default async (ctx, h) => {
@@ -6,7 +7,10 @@ export default async (ctx, h) => {
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
   await h.spawnFromTemplate(ctx, a, 'b', { during: () => ctx.shot('template-preview') })
   let l = await tiles(2)
-  h.assert(l.tiles.length === 2 && l.tiles[1].state === 'slotted' && l.active === l.tiles[1].id, 'spawned below, active')
+  const ra = l.tiles.find((t) => t.id === a).rect
+  const nb = l.tiles.find((t) => t.id !== a)
+  h.assert(nb.kind === 'terminal' && nb.state === 'slotted' && l.active === nb.id, `spawned, slotted, active (${JSON.stringify({ kind: nb.kind, state: nb.state, active: l.active })})`)
+  h.assert(nb.rect.y >= ra.y + ra.h && Math.abs(nb.rect.x - ra.x) <= 1 && Math.abs(nb.rect.w - ra.w) <= 1, `spawned below a: a ${JSON.stringify(ra)}, new ${JSON.stringify(nb.rect)}`)
   for (const t of l.tiles) await ctx.tie('close', '--tile', t.id)
   await tiles(0)
   await h.settle(ctx)

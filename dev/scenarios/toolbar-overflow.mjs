@@ -1,5 +1,6 @@
 // Toolbar contest: tabs that don't fit scroll (fades, divider toward the shelf, current tab kept in
-// view); the shelf keeps its width until the tab list hits its floor, then the shelf scrolls.
+// view; a vertical wheel scrolls it sideways); the shelf keeps its width until the tab list hits its
+// floor, then the shelf scrolls.
 export default async (ctx, h) => {
   const box = (sel) => ctx.page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().toJSON(), sel)
   const cls = (sel) => ctx.page.evaluate((sel) => [...document.querySelector(sel).classList], sel)
@@ -51,6 +52,19 @@ export default async (ctx, h) => {
 
   await ctx.shot('overflow-start')
 
+  // A vertical wheel over the list scrolls it sideways (scrollLeft), and back.
+  const tl = await h.boxOf(ctx, '#tab-list')
+  await ctx.page.mouse.move(tl.x, tl.y)
+  await ctx.page.mouse.wheel(0, 120)
+  await h.eventually(ctx, async () => {
+    const s = await scroll('#tab-list')
+    h.assert(s.left > 0, `wheel down: list scrolled right (${s.left})`)
+    h.assert((await cls('#tab-list')).includes('more-left'), 'fade on the left once scrolled')
+  })
+  await ctx.page.mouse.wheel(0, -120)
+  await h.eventually(ctx, async () => h.assert((await scroll('#tab-list')).left === 0, 'wheel up: back to the start'))
+  await ctx.page.mouse.move(400, 300)
+
   // Narrow window, more shelved tiles: the tab list stops at its floor, the shelf scrolls.
   for (let i = 0; i < 5; i++) await ctx.tie('add', 'terminal', '--shelved')
   await h.resizeWindow(ctx, 420, 600)
@@ -64,7 +78,15 @@ export default async (ctx, h) => {
   await ctx.shot('narrow')
 
   await h.resizeWindow(ctx, 1400, 800)
-  h.assert(!(await cls('#tabs')).includes('overflow') || (await scroll('#tab-list')).width > (await scroll('#tab-list')).client, 'overflow state follows the width')
+  // The overflow state follows the width: class and fades as the list's real overflow says.
+  await h.eventually(ctx, async () => {
+    const s = await scroll('#tab-list')
+    const over = s.width > s.client + 1
+    const c = await cls('#tab-list')
+    h.assert((await cls('#tabs')).includes('overflow') === over, `overflow class ${!over ? 'left on' : 'missing'} (${s.width} vs ${s.client})`)
+    h.assert(!over, `1400 px: the tabs fit (${s.width} vs ${s.client})`) // they overflowed 900 px by less than a tab
+    h.assert(!c.includes('more-left') && !c.includes('more-right'), `no fades without overflow: ${c}`)
+  })
   s = await scroll('#shelf')
   h.assert(s.width <= s.client + 1, 'shelf fits again')
   await h.assertPtySizes(ctx)
