@@ -36,10 +36,14 @@ export default async (ctx, h) => {
     const token0 = tok(srcs[0])
     await ctx.shot('wide-root')
 
-    // Link inside the root (another folder): no confirm, same token, root kept.
+    // Link inside the root (another folder): no confirm (B shows without one being answered), same
+    // token (the frame's origin), root kept.
+    const frameTok = async () => tok((await h.contentFrame(ctx, id)).url())
+    const ft0 = await frameTok()
+    h.assert(ft0 === token0, `frame token = the image's: ${ft0} vs ${token0}`)
     await h.clickIn(ctx, await h.contentFrame(ctx, id), 'a >> text=sib')
     await shows(id, 'B')
-    h.assert(!(await ctx.page.isVisible('.dialog')), 'inside the root: no confirm')
+    h.assert((await frameTok()) === ft0, `inside the root: same token (${await frameTok()})`)
     h.assert((await rootOf(id)) === proj, 'root kept')
     // Link outside the root: confirm, then its folder (cwd doesn't hold it): new token.
     await h.clickIn(ctx, await h.contentFrame(ctx, id), 'a >> text=out')

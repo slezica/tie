@@ -2,6 +2,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ROOT } from '../lib.mjs'
 
 export default async (ctx, h) => {
   const R = realpathSync(mkdtempSync(join(tmpdir(), 'tie-picker-')))
@@ -134,6 +135,62 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await L()).tiles.find((x) => x.kind === 'markdown' && x.doc?.path === md), '… → markdown tile')
     h.assert(ctx.appLog().includes('picker (harness)'), 'native dialog asked')
 
+    // Row click: as Enter on that row (here not the selected one).
+    const reopen = async () => {
+      await ctx.tie('focus', '--tile', t)
+      await h.waitActive(ctx, t)
+      await open()
+    }
+    await reopen()
+    await type('rendt') // no `/`: that would re-root the walk
+    u = await until((u) => u.rows.includes('src/renderer/tabs.ts') && u.rows.includes('src/renderer/tile.ts'), 'rendt: both renderer rows')
+    const other = u.selected === 'src/renderer/tabs.ts' ? 'src/renderer/tile.ts' : 'src/renderer/tabs.ts'
+    await ctx.page.click(`.picker-row[data-path="${other}"]`)
+    await gone()
+    await h.waitFor(ctx, async () => (await L()).tiles.find((x) => x.doc?.path === join(R, other)), `row click: ${other} opened`)
+    // Backdrop click, "…" cancelled: nothing opens.
+    const count = async () => (await L()).tiles.length
+    const n0 = await count()
+    await reopen()
+    await until((u) => u.status === '5 files', 'walked')
+    await ctx.page.mouse.click(8, 8) // the backdrop, outside the centered box
+    await gone()
+    await h.settle(ctx)
+    h.assert((await count()) === n0 && (await L()).active === t, 'backdrop click: nothing opened, focus back')
+    await reopen()
+    await h.nativePickNext(ctx, null)
+    await ctx.page.click('#picker-native')
+    await gone()
+    await h.settle(ctx)
+    h.assert((await count()) === n0, '… cancelled: nothing opened')
+
+    // `~` = home (INPUT.md "File picker"): the start line abbreviates a cwd under home; a typed `~/…`
+    // line walks and opens there. Fixture in the repo's tmp/ (under home here; else skipped).
+    const H = join(ROOT, 'tmp', `picker-home-${process.pid}`)
+    if (h.tilde(H) === H) ctx.log('repo not under home: ~ case skipped')
+    else {
+      mkdirSync(join(H, '.git'), { recursive: true }) // own repo: the tmp/ ignore of the outer one doesn't apply
+      writeFileSync(join(H, 'notes.txt'), 'notes\n')
+      try {
+        const th = (await ctx.tie('add', 'terminal', '--cwd', H, '--at', t, '--side', 'b', '--focus')).id
+        await h.waitShell(ctx, th)
+        await h.waitActive(ctx, th)
+        await open()
+        u = await until((u) => u.status === '1 file', 'home fixture walked')
+        h.assert(u.text === h.tilde(H) + '/' && u.text.startsWith('~/'), `start line abbreviated: ${u.text}`)
+        await ctx.page.$eval('#picker-input', (e) => e.select())
+        await ctx.page.keyboard.insertText(`${h.tilde(H)}/no`)
+        u = await until((u) => u.selected === 'notes.txt', '~ line: walked under home')
+        await key('Enter')
+        await gone()
+        const nt = await h.waitFor(ctx, async () => (await L()).tiles.find((x) => x.doc?.path === join(H, 'notes.txt')), '~ line: notes.txt opened (home expanded)')
+        await ctx.tie('close', '--tile', nt.id)
+        await ctx.tie('close', '--tile', th)
+      } finally {
+        rmSync(H, { recursive: true, force: true })
+      }
+    }
+
     // Templates onto a tab start in that tab's active tile's cwd (file: the picker; terminal: its shell).
     const t2 = (await ctx.tie('add', 'terminal', '--cwd', join(R, 'docs'), '--tab', 'new')).id
     const tab2 = (await h.tileOf(ctx, t2)).tab
@@ -141,7 +198,6 @@ export default async (ctx, h) => {
     await h.waitShell(ctx, t2)
     await ctx.tie('focus', '--tile', t)
     await h.waitFor(ctx, async () => (await L()).tab !== tab2, 'back to tab 1')
-    h.assert((await L()).tab !== tab2, 'tab 2 not shown')
     const tabPoint = () => h.boxOf(ctx, `.tab[data-space="${tab2}"]`)
     // Tab titles follow the terminals' cwd (2 s poll): settled first, so no tab moves mid-drag.
     const titles = () => ctx.page.evaluate(() => [...document.querySelectorAll('.tab')].map((e) => e.textContent).join())

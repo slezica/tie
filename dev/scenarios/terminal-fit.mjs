@@ -1,11 +1,12 @@
 // Terminal grid fully visible: last column and last row not cut, across tile sizes (TERMINALS.md "Size").
 export default async (ctx, h) => {
   const [a] = (await h.list(ctx)).tiles.map((t) => t.id)
+  await h.waitShell(ctx, a) // typed text reaches a running shell
   const p = await h.titlePoint(ctx, a)
   await ctx.page.mouse.click(p.x, p.y + 100)
   // Lines of exactly `cols` characters: at narrower sizes they reflow into full rows.
   await ctx.page.keyboard.type("clear; for i in 1 2 3; do printf '%*s' $(tput cols) '' | tr ' ' '#'; done; sleep 60\n")
-  await h.waitFor(ctx, async () => (await h.termFit(ctx, a)).full.length >= 3, 'full-width rows printed (shell ready)', 8000)
+  await h.waitFor(ctx, async () => (await h.termFit(ctx, a)).full.length >= 3, 'full-width rows printed', 8000)
   const wide = await h.waitTermFit(ctx, a, 'slotted')
   h.assert(wide.full.length >= 3, `full-width rows printed: ${JSON.stringify(wide)}`)
   // Glyphs on the cell grid: a full row's text spans exactly its row.

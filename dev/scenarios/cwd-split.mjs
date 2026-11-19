@@ -71,6 +71,19 @@ export default async (ctx, h) => {
     await ctx.page.keyboard.type(`cd ${join(R, 'two')}\n`)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, t.id)).cwd === join(R, 'two'), 'cd: tile cwd follows', 6000)
     await h.waitFor(ctx, async () => (await tabTitle()) === basename(join(R, 'two')), 'cd: tab title follows')
+
+    // Tiles from nothing (cmd+T, `+`): the app cwd (`S.cwd` = TIE_CWD: the repo here), never the
+    // active tile's (DIRECTORIES.md 3; t is active, in two/).
+    for (const how of ['cmd+T', '+']) {
+      await ctx.tie('focus', '--tile', t.id)
+      await h.waitActive(ctx, t.id)
+      const tab = (await h.list(ctx)).tab
+      if (how === 'cmd+T') await h.press(ctx, 'Meta+t')
+      else await ctx.page.click('#tab-add')
+      const n = await h.waitFor(ctx, async () => { const l = await h.list(ctx); return l.tab !== tab && l.tiles.find((x) => x.tab === l.tab) }, `${how}: new tab with a terminal`)
+      h.assert(n.kind === 'terminal' && n.cwd === ROOT, `${how}: app cwd ${ROOT} (got ${n.kind} ${n.cwd})`)
+      await h.waitShell(ctx, n.id)
+    }
   } finally {
     await s.close()
     rmSync(R, { recursive: true, force: true })
