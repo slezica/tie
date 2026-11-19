@@ -11,7 +11,7 @@ Where tiles start, what they inherit, what their titles show, what content frame
 2. A new tile inherits the cwd of its context tile, at open time. Lineage, not tab-wide: tabs have no cwd of their own.
 3. Tiles from nothing (boot, `+` / `cmd+T` new tab) use the app cwd `S.cwd` (`TIE_CWD`, else home).
 4. A tile's cwd changes only by an explicit directory change: a terminal's shell `cd` (polled). File, html and browser tiles keep theirs for life; links switch `root`, never `cwd`.
-5. Root = the context tile's cwd when it holds the file, else the file's folder (`rootFor`, `@core/roots`). Every pathway (every tile has a cwd), every content kind. `tie add --root D`: that, when it holds the file. The user controls the risk: a wide cwd (`~`) is their choice (record 2026-11-13); only `/` asks (rule 7).
+5. Root = the context tile's cwd when it holds the file, else the file's folder (`rootFor`, `@core/roots`). Every pathway (every tile has a cwd), every content kind. `tie add --root D`: that (must hold the file, else `tie add` fails). The user controls the risk: a wide cwd (`~`) is their choice (record 2026-11-13); only `/` asks (rule 7).
 6. Navigation (links, back / forward, reload): the root stays while the target is inside it; outside: rule 5 again for the target. Links outside the root ask first (`confirmFile`, `TILES.md`).
 7. Root `/` (cwd `/`, a file directly in `/`, `--root /`): `.dialog.root-slash` first: Stop (default, Escape: nothing opens, the tile shows "Stopped…"; a navigation stays put), Use file directory (the file's folder; itself `/`: as Stop), Open anyway. `renderer/roots.ts` `resolveRoot`.
 
@@ -24,10 +24,10 @@ Net: `cd` the first terminal of a tab into a project; everything opened from the
   - `slot` at a tile → it; `displace` → the displaced tile.
   - `slot` at null, `float`, `shelf`, none → `S.active` of the target space (`S.current`: `withSpace`).
   - None of those → null (app cwd).
-- `cwdOf(id)` (`ops.ts`): fresh cwd for a tile opened from `id`: `Surface.cwdNow?()` (terminal: `lsof` of the shell, never the 2 s poll), else `Tile.cwd`. User actions only (keys, drops).
+- `cwdOf(id)` (`ops.ts`): fresh cwd for a tile opened from `id`: `Surface.cwdNow?()` (terminal: `lsof` of the shell, never the 2 s poll), else `Tile.cwd`. User actions only (keys, drops, templates).
 - Callers wanting the fresh read (`keys.ts`, `drag.ts`, `files.ts`): `cwdOf(contextOf(p))`, then `openTile(kind, p, {cwd})`. Others pass nothing: `openTile` falls back synchronously.
 - `setCwd(id, dir)` (`ops.ts`): updates `Tile.cwd`, `refreshTitle` → `tile-meta` (tab titles). Kinds report via `Host.setCwd` (terminal: `pty:cwd` poll); read via `Host.cwd()`.
-- Kinds own no directory notion (no `Surface.dir` / `cwd`). Roots stay kind-private (`fileview.ts`, `kinds/html.ts`: `resolveRoot(host.cwd(), path, current, opts.root)` at mount and on navigation; probe: `opts.root`, else its cwd). `tie list --json`: `doc.root` / `page.root`.
+- Kinds own no directory notion (no `Surface.dir` / `cwd`). Roots stay kind-private (`fileview.ts`, `kinds/html.ts`: `resolveRoot(host.cwd(), path, current, explicit)`: at mount with `opts.root`, on navigation with the current root; probe: `opts.root`, else its cwd). `tie list --json`: `doc.root` / `page.root`.
 - The viewer gets the document's path within the root (`src`, `withinRoot`); markdown images and html assets resolve against it.
 - Deleted / missing cwd: a terminal fails to spawn, error tile names the directory (`Directory not found: <dir>`). No fallback.
 
@@ -45,7 +45,7 @@ Net: `cd` the first terminal of a tab into a project; everything opened from the
 | Template → empty board area, shelf | the visible tab's active tile |
 | Template → tab | that tab's active tile |
 | Template → new tab (`+`) | `S.cwd` |
-| OS file drop | tile under / beside the drop, else the active tile; root = the file's folder |
+| OS file drop | tile under / beside the drop, else the active tile (fresh); root by rule 5 |
 | `tie add` / `tie replace`, every kind | `--cwd`, else the caller's cwd (resolved in the CLI process); `tie add --tab new` too. File kinds: root by rule 5 from that cwd, or `--root` |
 | `tie add probe --root D` (dev) | caller's cwd; root `D` (any) |
 | Link in a file view / html, beside | the source tile's |
