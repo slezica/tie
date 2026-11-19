@@ -171,13 +171,8 @@ export default async (ctx, h) => {
   await page.keyboard.press('Escape')
   await away()
 
-  // Drag of a non-selected item (plain press) de-selects; it moves alone.
-  await h.selectShelf(ctx, c)
-  const shelf = await h.boxOf(ctx, '#shelf')
-  await h.drag(ctx, await h.shelfItem(ctx, e), { x: shelf.box.x + 2, y: shelf.y })
-  await expectSel([], 'drag of another item')
   // Drag of a selected item (cmd held from the press): the group moves (shelf-select-drag), de-selected.
-  await away()
+  // (A non-selected item's drag: shelf-select-drag.)
   await h.selectShelf(ctx, c, d)
   await page.keyboard.down('Meta')
   await h.drag(ctx, await h.shelfItem(ctx, c), await h.sidePoint(ctx, a, 'b'))
