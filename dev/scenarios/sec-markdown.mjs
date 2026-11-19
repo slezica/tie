@@ -1,6 +1,7 @@
 // Security: markdown tiles. Raw HTML shown as text, never run (body, footnotes, front matter); DOMPurify on the final HTML; remote
 // images never requested; images outside the file's folder refused; read-only (task boxes inert,
-// write-shaped requests dropped, no doc write API); link requests need the frame focused.
+// write-shaped requests dropped, no doc write API); link requests need the frame focused; middle
+// clicks on links refused.
 // Hidden window: real clicks focus the frame.
 import { mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -139,6 +140,19 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => ctx.appLog().includes(`external open ${p.url}/focused`), 'http(s) goes to the system browser after Open (harness: logged)')
     const log = ctx.appLog()
     h.assert((log.match(/\[security\] refused link t[a-z2-9]+/g) ?? []).length === 5, 'other schemes refused')
+
+    // Middle click on a link: refused by the viewer runtime (auxclick on a link → preventDefault: no
+    // new-window navigation), no request either. A later listener sees the event already prevented.
+    await fr.evaluate(() => {
+      window.__aux = []
+      addEventListener('auxclick', (e) => window.__aux.push(`${e.button}:${e.defaultPrevented}`))
+    })
+    const outBox = await fr.locator('#doc a').filter({ hasText: /^out$/ }).first().boundingBox()
+    await ctx.page.mouse.click(outBox.x + Math.min(5, outBox.width / 2), outBox.y + outBox.height / 2, { button: 'middle' })
+    await h.waitFor(ctx, () => fr.evaluate(() => window.__aux.length), 'middle click reached the viewer')
+    h.assert((await fr.evaluate(() => window.__aux)).join() === '1:true', `middle click prevented by the runtime: ${await fr.evaluate(() => window.__aux)}`)
+    await ctx.sleep(300) // absence: the middle click opens nothing
+    h.assert(!ctx.appLog().includes(`${p.url}/clicked`) && !(await ctx.page.isVisible('.dialog-backdrop')) && !/blocked window\.open/.test(ctx.appLog()), 'middle click opened nothing')
     await p.assertUntouched('links', 300)
     h.assert((await h.list(ctx)).tiles.length === 2, 'no tiles opened')
   } finally {
