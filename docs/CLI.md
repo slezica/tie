@@ -4,8 +4,8 @@
 bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (driver.ts) → ops
 ```
 
-- Main waits for renderer ready. Timeout 10 s per call.
-- Space: tile in `id`, `at` or `caller`, else visible tab; `--tab`: the target tab. `list` runs outside `withSpace`.
+- Main waits for renderer ready. Timeout 10 s per call (`timeout: <method>`).
+- Space: the tab of the first live tile in `id`, `at`, `caller`, else the visible tab; `--tab`: the target tab. `list` runs outside `withSpace`.
 
 ## Help
 
@@ -30,34 +30,35 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie focus [--tile id]` | Switch to its tab; expand + activate, or pin if shelved |
 | `tie ping [--tile id] [--clear]` | Attention mark (`LAYOUT.md`) |
 | `tie set [--tile id] [--title T] [--icon E]` | Custom title / icon (given fields only; `""` = automatic) |
-| `tie state` | Dev: internal state of the targeted space (not in `--help`) |
-| `tie frames` | Dev: window frame tree, answered by main (not in `--help`) |
+| `tie state` | Internal state of the targeted space: `tree`, `floats`, `shelf`, `collapsed`, `zoomed`, `active`, `mru`, `pinned`, `revealed`, `selected` (debugging, not in `--help`; not gated: packaged builds answer too) |
+| `tie frames` | Dev builds: window frame tree, answered by main (not in `--help`) |
 | `tie add probe [--root D]` | Dev builds: probe content tile (harness, `TILES.md`); root `D` (against the caller's cwd), else its cwd |
-| `tie add\|replace ... --id <id>` | Dev builds: the new tile's id (socket param `as`): `t` + `[a-z0-9]`, free; else `bad id` / `id in use`. Packaged: `--id: dev builds only`. Harness only (`lifecycle` closes a tile in the same write as its `add`); not in `--help` |
+| `tie add\|replace ... --id <id>` | Dev builds: the new tile's id (socket param `as`): `t` + 1–31 of `[a-z0-9]`, free; else `bad id: <id> (...)` / `id in use: <id>`. Packaged: `--id: dev builds only`. Harness only (`lifecycle` closes a tile in the same write as its `add`); not in `--help` |
 
 - Aliases: `l a r c m f s p` = `list add replace close move focus set ping` (first letters, unique). Option flags have no single-letter forms (`--tab/--tile/--title` would collide).
-- `add` options: `--cmd C`, `--cwd D` (the tile's cwd, every kind: `DIRECTORIES.md`; relative to caller; default caller's cwd), `--root D` (file tiles: the frame root, must hold the file, else `--root does not hold the file`; other kinds: `--root: file tiles only`; default: `DIRECTORIES.md` 5), `--title T`, `--icon E`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`. `replace`: the same minus placement.
+- `add` options: `--cmd C`, `--cwd D` (the tile's cwd, every kind: `DIRECTORIES.md`; relative to caller; default caller's cwd), `--root D` (file tiles: the frame root, must hold the file, else `--root does not hold the file: <D>`; other kinds: `--root: file tiles only`; default: `DIRECTORIES.md` rule 5), `--title T`, `--icon E`, `--at ID [--side l|r|t|b]`, `--float`, `--shelved`, `--tab T|new`, `--focus`. `replace`: the same minus placement.
 - `add` and `replace` share one parse in `bin/tie` (a `replace` boolean: method, held connection).
-- `add <arg>` (and `replace <arg>`): `http(s)://...` → browser. A registered kind name → that kind (`./terminal` for a file named so; `browser` takes an optional URL after it: refused input → `Not a web address: <url> (http(s) only)`, exit 1). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie add markdown` → error).
+- `add <arg>` (and `replace <arg>`): `http(s)://...` → browser. A registered kind name → that kind (`./terminal` for a file named so; `browser` takes an optional URL after it: refused input → `Not a web address: <url> (http(s) only)`, exit 1). Else a path, resolved against the caller's cwd; main checks it: missing → `No such file: <path>`, folder → `Not a file: <path>`, over the kind's cap → `File too large: <path> (max N MB)` (all exit 1). Kinds showing a file can't open bare (`tie add markdown` → `markdown shows a file: tie add <path>`).
 - `--shelve` = `--shelved` (both commands).
-- `--tile <id>` (`close`, `move`, `focus`, `ping`, `set`): the tile acted on. Default: the caller (`caller`, by lineage). No positional id: a stray argument → `unexpected argument: <arg>`. No `--tile` and no caller tile (external caller, or a stale `TIE_TILE`) → `no current tile: use --tile <id>`; an unknown `--tile` → `no such tile: <id>`.
+- `--tile <id>` (`close`, `move`, `focus`, `ping`, `set`): the tile acted on. Default: the caller (`caller`: by lineage for Tie terminals). No positional id: a stray argument → `unexpected argument: <arg>`. No `--tile` and `caller` names no live tile (external caller without a valid `TIE_TILE`) → `no current tile: use --tile <id>`; an unknown `--tile` → `no such tile: <id>`.
 - `set`: at least one of `--title` / `--icon` (else `set needs --title or --icon`); only the given fields change. `""` restores the automatic value (general rule for properties). Multi-word values need quotes.
-- `--json`: full `TileInfo` instead of the id. Errors: stderr, exit 1.
-- Arguments are checked per command (`SPEC` in `bin/tie`): a positional beyond the command's (`list`, tile commands: none; `add`/`replace`: the thing, plus a URL after `browser`) → `unexpected argument: <x>`; an option the command doesn't take → `unknown option --<x> for <cmd>`. Both exit 1.
-- Unknown command (e.g. `open`, the old name of `add`): `unknown command: <cmd> (commands: ...; see tie --help)`, exit 1.
+- `--json`: full `TileInfo` instead of the id (`close` prints nothing). Errors: `tie: <message>` on stderr, exit 1.
+- Arguments are checked per command (`SPEC` in `bin/tie`): a positional beyond the command's (`list`, tile commands: none; `add`/`replace`: the thing, plus a URL after `browser`) → `unexpected argument: <x>`; an option the command doesn't take → `unknown option --<x> for <cmd> (see tie --help)`; a value option last → `missing value for --<x>`. All exit 1.
+- Unknown command: `unknown command: <cmd> (commands: ...; see tie --help)`, exit 1.
+- Unreachable socket: `cannot reach Tie at <socket> (<code>)`.
 
 ## Placement (`add`, `move`)
 
 1. `--shelve` → shelf, appended.
 2. `--float` → float (keeps rect if already floating, else default).
 3. Slot. Target: `--at`, else first slotted of caller, active, MRU (excluding the moved tile). None → root / first leaf.
-4. Side: `--side`, else target's longer axis (`b` if taller, else `r`).
+4. Side: `--side`, else target's longer axis (`b` if taller, else `r`). Other values → `bad side: <s> (use l|r|t|b)`.
 
 - `--at` not slotted → `not on board: <id>`. `move` needs `--at`, `--float`, `--shelve`, `--tab` or `--swap`.
 
 ### `--tab <tab|new>` (`add`, `move`)
 
-- `<tab>`: a space id (`s4mq8xe`, `list --json`) or a 1-based position (`list`'s TAB column; digits only, so never ambiguous). Else `no such tab: <tab>`. `new`: an empty tab inserted after the visible one, created only once every check passed (driver `addTab`; not `newTab`, which switches).
+- `<tab>`: a space id (`s4mq8xe`, `list --json`) or a 1-based position (`list`'s TAB column; digits only, so never ambiguous). Else `no such tab: <tab>`. `new`: an empty tab inserted after the visible one, not shown, created only once every check passed (driver `addTab`: `newTab({empty, show: false})`).
 - No other placement: with `--at`, `--side`, `--float` or `--shelve` → `--tab takes no other placement (...)`. The tile goes beside the target's active tile (default split rule there; empty tab: root), as a drop onto a tab (`moveToSpace`, `TABS.md`).
 - Visible target: placed, not activated (input stays). Hidden target: active there (the user meets it on switching).
 - `--focus`: switch to the target tab first; the tile takes input (as `tie focus`).
@@ -75,7 +76,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 `tie replace <thing>`: the new tile takes the place of the terminal the command runs in; that terminal closes.
 
 1. Tile callers only (lineage, Callers below). External → `no terminal to replace`.
-2. tie must be a direct child of the tile's pty process (the shell): `parentOf(peer) === pty` (`@core/callers` `replaceBlock`). Else `tie runs under <proc>` (e.g. `vim`, `sh`). Packaged launcher `exec`s Electron; dev `bin/tie` runs via shebang (`env` execs node): both the same pid.
+2. tie must be a direct child of the tile's pty process (the shell): `parentOf(peer) === pty` (`@core/callers` `replaceBlock`). Else `tie runs under <proc>` (e.g. `vim`, `sh`; unknown: `another process`). Packaged launcher `exec`s Electron; dev `bin/tie` runs via shebang (`env` execs node): both the same pid.
 3. Shell idle: busy rule (`TERMINALS.md` "Busy"), tie's own pid ignored (`pty.ts` `busyIgnoring`). `--cmd` terminals: always busy. Else `A process is running: <proc>` (first other child's name, `native/peer` `nameOf`; unknown: `A process is running`).
 4. Any placement (`--at`, `--side`, `--float`, `--shelve`, `--tab`) → `replace takes no placement (...)`. `--focus` ok.
 5. Failure: nothing opened.
@@ -103,12 +104,11 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 
 - `id`, `kind`, `title`, `cwd` (the tile's: `DIRECTORIES.md`), `icon` (custom icon; `""` = automatic), `glyph` (built-in icon name, `icons.ts` `GLYPH`), `state` (`slotted|floating|shelved`), `tab` (space id).
 - `collapsed`, `zoomed`, `active`, `pinned`, `selected` (shelf selection, `SHELF.md` "Selection"), `pinged`: from the tile's own space.
-- Dev `tie state`: also `selected` (ids, current space).
 - `exit`, `error`: or null.
-- `term: {cols, rows, pty: {cols, rows}}`: xterm vs last pty size (terminals).
+- `term: {cols, rows, pty: {cols, rows}, pid}`: xterm vs last size sent to the pty (null before spawn), pty pid (terminals).
 - `doc: {path, root, rev, zoom, missing, history: {index, length}}` (file view kinds; null until open).
-- `page: {path, url, ready, reloads, history: {index, length}}` (html).
-- `web: {url, title, loading, ready, guest, back, forward}` (browser; `guest` = webContents id).
+- `page: {path, root, url, ready, reloads, blocked, zoom, history: {index, length}}` (html; `blocked`: scripts the CSP refused).
+- `web: {url, title, loading, ready, guest, zoom, back, forward}` (browser; `guest` = webContents id).
 - `rect`: window px, rounded; null if not rendered (background tab).
 
 ## Socket protocol
@@ -122,27 +122,27 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 ← {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no such tile: tzzzzzz"}}
 ```
 
-Methods = commands (full names, no aliases). Params: `add` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `root` (file kinds, probe), `title`, `icon`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `replace` {as `add`, no placement}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `set` {`id`, `title?`, `icon?`}; `list`, `state` none. `close` returns `{id}`.
+Methods = commands (full names, no aliases). Params: `add` {`kind`, `path` (absolute), `url`, `cmd`, `cwd`, `root` (file kinds, probe), `title`, `icon`, `as` (dev `--id`), `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `focus`}; `replace` {as `add`, no placement}; `move` {`id`, `at`, `side`, `float`, `shelve`, `shelved`, `tab`, `swap`, `focus`}; `close`, `focus` {`id`}; `ping` {`id`, `clear`}; `set` {`id`, `title?`, `icon?`}; `list`, `state` none. `close` returns `{id}`.
 
 - `id`: `--tile`; absent → `caller`'s tile, else `no current tile: use --tile <id>`.
-- No `title` / `icon` methods (replaced by `set`): `unknown method: title`.
-
-- `replace`: the connection stays open after the reply; its close triggers the swap (`replace` above). No `open` method (old name): `unknown method: open`.
+- Any other method: `unknown method: <m>` (e.g. `open`, `title`).
+- `replace`: the connection stays open after the reply; its close triggers the swap (`replace` above).
 - `replaced` {`old`, `id`, `focus`}: renderer method, called only by main's socket layer on connection close. Refused from clients (`unknown method: replaced`): they must not close arbitrary tiles.
-- `caller` (all methods): fallback for `id`, placement hint. `bin/tie` sends `$TIE_TILE`; for callers in a Tie terminal main replaces it (below).
+- `caller` (all methods): fallback for `id`, placement hint, the space acted in. `bin/tie` sends `$TIE_TILE`; for callers in a Tie terminal main replaces it (below).
+- Dev builds: main answers its own methods before the renderer (`frames`, `input`, `window-close`, `window-size`, `pick`, `guest`, `key-mode`: `HARNESS.md`); packaged: `unknown method`.
 
 ### Callers
 
 - Resolved once per connection (`socket.ts`, `@core/callers`): peer pid + uid from the kernel (`native/peer`: `LOCAL_PEERPID`, `LOCAL_PEERCRED` on the socket fd), then ancestors (`proc_pidinfo` ppid, ≤ 64 hops) up to a tile's pty (`pty.ts` `tiles()`: pid → tile).
 - `tile`: same uid, descends from a pty. `params.caller` forced to that tile; a different claim (spoofed `TIE_TILE`) logged `[security] caller spoof`.
 - `external`: same uid, no pty ancestor (scripts, other apps, the harness). Allowed only with setting `allowExternalControl` (default off), read per request; else error `External control is off (Settings → Security)`, logged `[security] refused external caller <pid>`.
-- `refused`: other uid or unknown peer. Error, connection dropped.
+- `refused`: other uid or unknown peer. Error `Caller refused: <why>`, connection dropped.
 - Same rule for every method, dev ones included. No fd or addon → external (logged). Resolution logged under `rpc`.
 
 ## Env (`bin/tie`)
 
 - `TIE_SOCKET` (set in Tie shells), else `<state>/<TIE_INSTANCE or "default">.sock`. Outside Tie it targets the installed app unless `TIE_INSTANCE` is set. The socket is 0600 in a 0700 dir: the user's processes only; whoever connects can run commands as the user (`SECURITY.md`). Request lines over 1 MB drop the connection.
-- `TIE_TILE`: caller (a hint: main uses the process lineage for callers in Tie terminals). Not a default for `--tile` by itself: an external caller's `TIE_TILE` naming no tile → `no current tile`.
+- `TIE_TILE`: sent as `caller` (a hint: main uses the process lineage for callers in Tie terminals; an external caller's is used as sent, naming no tile → `no current tile`).
 
 ## Limitations
 
