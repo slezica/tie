@@ -567,8 +567,20 @@ export const waitGone = (ctx, id, ms) => waitFor(ctx, async () => !(await tileOf
 export const waitActive = (ctx, id, ms) => waitFor(ctx, async () => (await list(ctx)).active === id, `${id} active`, ms)
 
 // Terminal: shell started and its prompt drawn (pty spawned, text on screen). Returns the tile.
+// Fails at once if the tile shows an error (the shell can't start); a timeout names the tile state
+// and the screen's last lines.
 export async function waitShell(ctx, id, ms = 8000) {
-  await waitFor(ctx, async () => (await tileOf(ctx, id))?.term?.pid && (await screen(ctx, id)).trim(), `${id} shell prompt`, ms)
+  let error = null
+  let seen = ''
+  await waitFor(ctx, async () => {
+    const t = await tileOf(ctx, id)
+    if (t?.error) return (error = t.error)
+    seen = `${t ? `pid ${t.term?.pid ?? 'none'}` : 'no tile'}, screen: ${JSON.stringify((await lines(ctx, id).catch(() => [])).slice(-3))}`
+    return t?.term?.pid && (await screen(ctx, id)).trim()
+  }, `${id} shell prompt`, ms).catch((e) => {
+    throw new Error(`${e.message}; ${seen}`)
+  })
+  if (error) throw new Error(`${id} shell failed: tile error: ${error}`)
   return tileOf(ctx, id)
 }
 // Terminal screen matching `re` (RegExp or substring); returns the screen text.
