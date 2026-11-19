@@ -1,5 +1,5 @@
-// Browser tiles (<webview> guest on a local site): tie add <url>, title from the URL, links
-// (real clicks), back / forward / reload (keys from the UI and from inside the guest), location
+// Browser tiles (<webview> guest on a local site): tie add <url>, title from the URL, link strip
+// (hovered link's real target, drawn by the UI), links (real clicks), back / forward / reload (keys from the UI and from inside the guest), location
 // bar (cmd+L, typed URL, refused input), keys from the guest (cmd+D splits), focus activation,
 // pointer shield during drags, tab switch / shelve keep the page, browser template (empty, location
 // focused), tie add browser [url], CLI errors. Hidden window: real clicks reach the guest.
@@ -49,12 +49,20 @@ export default async (ctx, h) => {
     h.assert((await loc()) === s.url + '/one', 'location shows the URL')
     await ctx.shot('one')
 
+    // Link strip: hovering a link in the guest shows its real target bottom-left of the tile, drawn
+    // by the UI (update-target-url → Host.hint), not by the page; gone when the pointer leaves it.
+    const box = await g.locator('#two').boundingBox()
+    const body = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
+    const strip = () => ctx.page.evaluate((id) => { const e = document.querySelector(`.tile[data-id="${id}"] .link-strip`); return e && !e.hidden ? e.textContent : null }, b)
+    await ctx.page.mouse.move(body.x + box.x + 10, body.y + box.y + box.height / 2)
+    await h.waitFor(ctx, async () => (await strip()) === s.url + '/two', 'hover: link strip shows the target')
+    await ctx.page.mouse.move(body.x + body.width / 2, body.y + body.height - 10)
+    await h.waitFor(ctx, async () => (await strip()) === null, 'pointer off the link: strip hidden')
+
     // Real click on a link (other tile active): navigates; the click activates the tile.
     await ctx.tie('focus', '--tile', t0)
     await h.waitActive(ctx, t0)
     const r = await h.rectOf(ctx, b)
-    const box = await g.locator('#two').boundingBox()
-    const body = await ctx.page.locator(`.tile[data-id="${b}"] webview`).boundingBox()
     await ctx.page.mouse.click(body.x + box.x + 10, body.y + box.y + box.height / 2)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, b)).web.title === 'Page Two', 'link navigates')
     h.assert((await h.list(ctx)).active === b, 'click in the guest activates its tile')
@@ -194,7 +202,7 @@ export default async (ctx, h) => {
     h.assert(e.kind === 'browser' && e.active && e.web.url === 'about:blank', `template: ${JSON.stringify(e)}`)
     await h.waitFor(ctx, () => ctx.page.evaluate((id) => document.activeElement === document.querySelector(`.tile[data-id="${id}"] .location`), e.id), 'template: location focused')
     await ctx.page.keyboard.type(s.url.replace('http://', '') + '/one')
-    await ctx.page.keyboard.press('Enter')
+    await h.press(ctx, 'Enter') // navigating Enter: through main (CDP's can hang, see above)
     await h.waitFor(ctx, async () => (await h.tileOf(ctx, e.id)).web.url.startsWith('https://127.0.0.1'), 'bare host → https')
     await ctx.tie('close', '--tile', e.id)
 
