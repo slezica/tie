@@ -1,15 +1,15 @@
 # Shelf
 
-The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie add --shelved`). It is shown as a strip of icons in the toolbar (`TABS.md`): `#shelf`, one `.item` per shelved tile in `S.shelf` order, growing leftward from the template list. Nothing in code or docs assumes a fixed region of the window for it: `shelfRect()` is the strip's DOM box.
+The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie add --shelved`). Shown as a strip of icons in the toolbar (`TABS.md`): `#shelf`, one `.item` per shelved tile in `S.shelf` order, growing leftward from the template list. No fixed window region: `shelfRect()` is the strip's DOM box.
 
-Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; each a `GLYPH` SVG: prompt, folder, globe), not part of the shelf.
+Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; glyphs `terminal`, `folder`, `browser`), not part of the shelf.
 
 - Template: drag onto board → new tile there (cwd: the tile next to it, else the active one: `DIRECTORIES.md`); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
-- `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker": fuzzy over the start dir's tree, any file; starts in the context tile's cwd: `DIRECTORIES.md`); cancel → no tile. By key: `cmd+O` / `cmd+shift+O` (`INPUT.md`). Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
+- `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker"; starts in the context tile's cwd); cancel → no tile. By key: `cmd+O` / `cmd+shift+O`. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
-- Item: icon only (`displayIcon`, `TERMINALS.md`: built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
+- Item: icon only (`displayIcon`, `TILES.md` "Host": built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
 - Right-click item: tile menu (`INPUT.md`); a selected item: the group menu ("Selection").
-- Look: hover, revealed and pinned items: `--fg-b` fill, text-colored icon. Selected: accent fill + accent icon (`.item.selected`). Pinned has no look of its own: the pinned tile's accent border + `#peak` say it.
+- Look: hover, revealed and pinned items: `--fg-b` fill, text-colored icon. Selected: `--accent-soft` fill + accent icon (`.item.selected`). Pinned has no look of its own: the pinned tile's accent border + `#peak` say it.
 
 ## In and out
 
@@ -48,10 +48,10 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - The document's `pointerleave` runs the same zone check with the event's position; it is not taken as "left the window". The toolbar is a window drag region (`-webkit-app-region: drag`): over it macOS owns the pointer and Chromium reports it as leaving the document, and the strip between the item and the board is such a region. A real exit lands outside the zone (window edges are outside item, reveal and band), so it still dismisses.
 - Click inside a hover reveal = pin (UI realm: delegated `pointerdown`, `main.ts`; frame or guest: window `blur` → `frame.ts`). It then stays when the pointer leaves, like a click on the item.
 - Title bar pin button (`.btn.pin`, `setButtons` in `render.ts`): shown only on a shown shelved tile. Hover reveal → Pin (pins + activates, on click; pointerdown on it doesn't pin); pinned → Unpin. Hidden for slotted / floating tiles.
-- A pin stays until released. Unpin paths: item click, Unpin button, closing the tile, unshelving by drag, `tie move` (`detach`). Unpinning an active shelved tile → `focusNext()`.
+- A pin stays until released. Unpin paths: item click, Unpin button, closing the tile, leaving the shelf (drag, `cmd+S`, swap, `tie move`: `detach`). Unpinning an active shelved tile → `focusNext()`.
 - Nothing else unpins: clicks outside (board tiles, frames, guests: they activate that tile), focus keys, `tie focus` of a board tile, new tiles. The reveal stays on top, unfocused.
 - `tie focus --tile <shelved id>` pins (switches tab first).
-- Hover reveal cleared on drag start and when leaving the tab.
+- Hover reveal cleared on drag start, on a `cmd+click` selection, and when leaving the tab.
 - Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
 - z-order: reveal 2000 (hovered +1), above zoomed (1000) and floating tiles, browser guests included (`<webview>` composites in the DOM).
@@ -67,10 +67,10 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - Invariant: a selection means nothing active. `activate()` clears its space's selection (so every path that hands a tile the keys de-selects: clicks in frames, `tie focus`, pins). CLI placements without `--focus` count a selection as the user's input: they don't activate (`place`).
 - De-select (`clearSelection`): pointerdown anywhere but a `cmd+click` on an item / a selected item / a menu / a modal (capture, `shelf.ts` `initSelection`; the click then acts as usual, e.g. pins); Escape (not when a menu, modal, drag or text field takes it); any shortcut but the group ones; tab switch (the tab left); any drag but one from a selected item (`drag.ts` begin); context menu on anything but a selected item. Hover and scroll keep it. Escape, shortcuts: keys back to the most recent board tile.
 - A tile that closes or leaves the shelf by any path (drag, swap, CLI `move`) leaves the selection (`detach`, `swap`).
-- Group actions; afterwards the selection is cleared and the group's first tile active:
+- Group actions (selection cleared):
   - `cmd+W` (`close-tile`), menu `Close N tiles`: `requestCloseGroup` (`close.ts`): each asks as a single close does (busy, beforeunload), one at a time; a declined tile stays shelved, the rest close. Then nothing active: `focusNext`.
-  - `cmd+S` (`toggle-shelf`), menu `Unshelve N tiles`: `unshelveGroup`: beside the recent board tile (`besidePlacement`) as a group (`placeGroup` → `insertGroup`, `LAYOUT.md` "Group insertion": the area one tile would take there, split evenly along its longer side).
-  - Menu `Move N to tab ▸`: the other tabs (`N · title`) + `New tab`; that tab is shown, the tiles join its board as with `cmd+S` there (`moveGroupToTab` → `moveGroupToSpace`). Same targets as a single tile dropped on a tab.
+  - `cmd+S` (`toggle-shelf`), menu `Unshelve N tiles`: `unshelveGroup`: beside the recent board tile (`besidePlacement`) as a group (`placeGroup` → `insertGroup`, `LAYOUT.md` "Group insertion"); the first tile active.
+  - Menu `Move N to tab ▸`: the other tabs (`N · title`) + `New tab`; that tab is shown, the tiles join its board as with `cmd+S` there, the first active (`moveGroupToTab` → `moveGroupToSpace`). Emptied source tab closes.
 - Drag of a selected item (cmd held or not): the group ("Group drag"). A plain click on a selected item (no movement): de-selects, then its normal click (pin / unpin); `initSelection` leaves that press to the item.
 - `tie list`: `selected` (`CLI.md`).
 
@@ -93,5 +93,9 @@ A drag starting on a selected item drags the selection (`drag.ts`: `DragSource` 
 
 ## Activity
 
-- `noteActivity()` on pty data (terminals) or file changes (markdown): dot on shelved tiles not revealed or pinned.
+- `noteActivity()` (`Host.activity`) on pty data (terminals), file changes (file views), live reloads (html): dot on shelved tiles not revealed or pinned.
 - Cleared by hover, pin, re-shelve.
+
+## Scenarios
+
+`shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`, `templates`.
