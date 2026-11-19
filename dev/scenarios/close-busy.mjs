@@ -71,11 +71,17 @@ export default async (ctx, h) => {
   h.assert(!(await dialog()), 'shift+click ×: no dialog')
 
   // --cmd tile: busy while the command lives, not after it exited (the tile stays to show it).
-  const e = (await ctx.tie('add', 'terminal', '--cmd', 'sleep 2', '--focus')).id
+  // `read` ends when a line is typed into it: the scenario decides when (no timing window).
+  const e = (await ctx.tie('add', 'terminal', '--cmd', 'read line', '--focus')).id
   await h.waitTile(ctx, e, (t) => t.term?.pid, 'cmd tile spawned')
   await k('Meta+w')
-  await h.eventually(ctx, async () => h.assert(await dialog() && /sleep 2 is running\./.test(await text()), `cmd tile: dialog: ${await text()}`))
+  await h.eventually(ctx, async () => h.assert(await dialog() && /read line is running\./.test(await text()), `cmd tile: dialog: ${await text()}`))
   await key('Escape')
+  await h.eventually(ctx, async () => {
+    h.assert(!(await dialog()) && (await has(e)), 'Esc keeps the cmd tile')
+    h.assert((await ctx.page.evaluate(() => document.activeElement?.closest('.tile')?.dataset.id)) === e, 'keys back to it')
+  })
+  await key('Enter') // read returns: the command ends
   await h.waitFor(ctx, async () => (await h.tileOf(ctx, e))?.exit === 0, 'cmd exited')
   await ctx.tie('focus', '--tile', e)
   await k('Meta+w')
@@ -89,7 +95,8 @@ export default async (ctx, h) => {
   await ctx.sleep(300) // absence: no dialog follows the scripted close
   h.assert(!(await dialog()) && !(await has(f)), 'tie close: no dialog')
 
-  // Tab close with a busy tile (and a shelved idle one): lists it; Esc keeps; Enter closes all.
+  // Tab close with a busy tile (and a shelved idle one): lists the busy one only; Esc keeps (tab ×,
+  // cmd+shift+W); Enter closes the tab with all its tiles, the busy command killed.
   const a = (await L()).tiles[0].id
   await k('Meta+t')
   await h.waitFor(ctx, async () => (await L()).tabs.length === 2, 'new tab')
@@ -108,10 +115,29 @@ export default async (ctx, h) => {
   await k('Meta+Shift+w')
   await h.eventually(ctx, async () => h.assert(await dialog(), 'cmd+shift+W: dialog'))
   await key('Escape')
-  await h.eventually(ctx, async () => h.assert(!(await dialog()), 'Esc again'))
-  await ctx.page.click('.tab.current .tab-close', { modifiers: ['Shift'] }) // shift+click on the tab ×: no question
+  await h.eventually(ctx, async () => h.assert(!(await dialog()) && (await L()).tabs.length === 2, 'Esc again'))
+  const sleeper = (await h.children(ctx, g)).find((c) => /sleep/.test(c.command)).pid
+  await k('Meta+Shift+w')
+  await h.waitDialog(ctx, '.dialog.close-busy')
+  await key('Enter')
   await h.eventually(ctx, async () => {
     const l = await L()
-    h.assert(l.tabs.length === 1 && !l.tiles.some((t) => t.id === g || t.id === s) && l.tiles.some((t) => t.id === a), 'tab closed with all its tiles')
+    h.assert(!(await dialog()) && l.tabs.length === 1 && !l.tiles.some((t) => t.id === g || t.id === s) && l.tiles.some((t) => t.id === a), 'Enter: tab closed with all its tiles')
   })
+  const gone = (pid) => { try { process.kill(pid, 0); return false } catch { return true } }
+  await h.waitFor(ctx, () => gone(sleeper), `busy command (pid ${sleeper}) killed with its tab`)
+
+  // Shift+click on the tab ×: busy, closes without asking.
+  await k('Meta+t')
+  await h.waitFor(ctx, async () => (await L()).tabs.length === 2, 'new tab')
+  const g2 = (await L()).active
+  await h.waitShell(ctx, g2)
+  await run(g2, 'sleep 30\n', /sleep/)
+  await ctx.page.click('.tab.current .tab-close', { modifiers: ['Shift'] })
+  await h.eventually(ctx, async () => {
+    const l = await L()
+    h.assert(l.tabs.length === 1 && !l.tiles.some((t) => t.id === g2) && l.tiles.some((t) => t.id === a), 'shift+click on the tab ×: closed')
+  })
+  await ctx.sleep(300) // absence: no dialog follows the forced close
+  h.assert(!(await dialog()), 'shift+click tab ×: no dialog')
 }
