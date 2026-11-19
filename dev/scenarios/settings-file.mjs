@@ -35,6 +35,8 @@ export default async (ctx, h) => {
 
   // Open, edit the draft (previews), cancel: nothing written.
   await h.openSettings(ctx)
+  const st = await ctx.page.evaluate(() => { const e = document.querySelector('.settings .status'); return { text: e.textContent, title: e.title } })
+  h.assert(st.text.startsWith('~/') && st.title.startsWith('/') && st.title.endsWith(st.text.slice(1)), `status line: ~ path, full path in the tooltip: ${JSON.stringify(st)}`)
   h.assert(!(await banner()), 'no banner on a fresh start')
   await ctx.page.selectOption('#set-theme', 'nord')
   await ctx.page.fill('#set-font-size', '20')

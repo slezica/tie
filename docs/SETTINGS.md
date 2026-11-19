@@ -51,6 +51,7 @@
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
 - Only the Save button saves. Enter in a text / number field or a select: done with it, focus to the panel itself (`.settings`, keeps Escape); value kept. On a focused button Enter presses that button; capture fields: their own Enter (accept). Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
+- Status line (`.status`, bottom left): the settings file path, or what blocks Save. Paths shown with `~` (as the banner and the startup dialog); the full path is the tooltip.
 
 ## Bindings page (`src/renderer/bindings.ts`)
 

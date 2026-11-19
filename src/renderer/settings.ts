@@ -157,7 +157,7 @@ function build(info: SettingsInfo) {
           <label class="check"><input id="set-confirm-external" type="checkbox" /> Confirm before opening links in the browser <span class="scope">files, html pages, terminals</span></label>
         </section>
         <div class="actions">
-          <span class="status" title="${esc(path)}">${esc(path)}</span>
+          <span class="status" title="${esc(path)}">${esc(tildePath(path))}</span>
           <button class="cancel">Cancel</button>
           <button class="save">Save</button>
         </div>
@@ -259,7 +259,7 @@ function build(info: SettingsInfo) {
   const fields: Record<string, HTMLElement> = { shell, terminalTitle, bindings: $('.bind-table') }
   const pageOf: Record<string, string> = { shell: 'terminal', terminalTitle: 'terminal', bindings: 'bindings' }
   const clearErrors = () => {
-    status.textContent = path
+    status.textContent = tildePath(path)
     status.classList.remove('error')
     for (const f of Object.values(fields)) f.classList.remove('invalid')
   }
@@ -267,7 +267,7 @@ function build(info: SettingsInfo) {
 
   const showErrors = (errors: { field: string; message: string }[]) => {
     clearErrors()
-    status.textContent = errors.map((e) => e.message).join(' · ')
+    status.textContent = errors.map((e) => e.message.replaceAll(path, tildePath(path))).join(' · ') // main's messages name the full path
     status.classList.add('error')
     for (const e of errors) fields[e.field]?.classList.add('invalid')
     const first = errors[0]?.field
