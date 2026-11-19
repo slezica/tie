@@ -61,11 +61,20 @@ export default async (ctx, h) => {
   const c = l.active
   await k('Meta+1')
 
-  // A board tile over its own tab: no target, nothing happens.
+  // A board tile over its own tab: no target, nothing happens (layout, active tile, tabs).
+  const own0 = await h.state(ctx)
+  const tabs0 = (await L()).tabs.map((t) => t.id).join()
   await h.drag(ctx, await h.titlePoint(ctx, b), await tabPoint(t1), {
-    during: async () => h.assert((await marks()).tabs.length === 0, 'own tab: no highlight'),
+    during: async () => {
+      const m = await marks()
+      h.assert(m.tabs.length === 0 && !m.add, `own tab: no highlight (${JSON.stringify(m)})`)
+      h.assert(!(await ctx.page.isVisible('#preview')), 'own tab: no drop preview')
+    },
   })
-  h.assert((await tabOf(b)) === t1 && (await L()).tab === t1, 'dropped on its own tab: unchanged')
+  const own1 = await h.state(ctx)
+  l = await L()
+  h.assert((await tabOf(b)) === t1 && l.tab === t1 && l.tabs.map((t) => t.id).join() === tabs0, 'dropped on its own tab: same tab, tabs unchanged')
+  h.assert(JSON.stringify(own1.tree) === JSON.stringify(own0.tree) && own1.floats.length === 0 && own1.shelf.length === 0 && own1.active === own0.active, `own tab: layout and active unchanged: ${JSON.stringify(own0)} -> ${JSON.stringify(own1)}`)
 
   // Board tile onto tab 2: joins it, tab 2 shown, b active there; tab 1 keeps a.
   await h.drag(ctx, await h.titlePoint(ctx, b), await tabPoint(t2), {
