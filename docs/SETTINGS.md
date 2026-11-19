@@ -47,7 +47,7 @@
 ## Panel (`src/renderer/settings.ts`)
 
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
-- Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) (last one remembered).
+- Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) | `About` (last, under a separator; read-only: Tie version, instance, Electron / Chromium / Node versions, settings and log paths with `~`, full path in the tooltip; from `settings:get` `about`) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
 - Only the Save button saves. Enter in a text / number field or a select: done with it, focus to the panel itself (`.settings`, keeps Escape); value kept. On a focused button Enter presses that button; capture fields: their own Enter (accept). Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.

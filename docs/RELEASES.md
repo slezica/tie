@@ -30,4 +30,5 @@ Known, not fixed:
 
 ## Unreleased
 
+- Settings panel: About page (versions, instance, settings and log paths).
 - Settings panel: `~` path on the status line (full path in its tooltip).

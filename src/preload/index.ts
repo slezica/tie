@@ -29,6 +29,7 @@ export interface SettingsInfo {
   error: string | null
   changed: boolean
   loadError: { kind: 'syntax' | 'unreadable'; message: string } | null
+  about: { version: string; instance: string; electron: string; chrome: string; node: string; log: string } // About page
 }
 
 type DataCb = (id: number, data: string) => void

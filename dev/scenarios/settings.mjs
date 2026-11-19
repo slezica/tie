@@ -1,4 +1,6 @@
 // Settings: nav pages, theme + line height (live preview, cancel reverts), shell command, Files page.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 export default async (ctx, h) => {
   const [a, b] = await h.threeWaySplit(ctx)
   await ctx.tie('move', '--tile', b, '--shelve')
@@ -107,6 +109,7 @@ export default async (ctx, h) => {
 
   await terminalTitle(ctx, h)
   await securityPage(ctx, h)
+  await aboutPage(ctx, h)
   await filesPage(ctx, h)
 }
 
@@ -171,7 +174,7 @@ async function securityPage(ctx, h) {
 async function filesPage(ctx, h) {
   await h.openSettings(ctx)
   const pages = await ctx.page.$$eval('.settings nav button', (bs) => bs.map((b) => b.dataset.page))
-  h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'bindings', 'terminal', 'files', 'security']), `pages: ${pages}`)
+  h.assert(JSON.stringify(pages) === JSON.stringify(['appearance', 'bindings', 'terminal', 'files', 'security', 'about']), `pages: ${pages}`)
   await ctx.page.locator('nav button[data-page="files"]').click()
   h.assert(await ctx.page.isChecked('#set-gitignore'), 'gitignore on by default')
   await ctx.shot('files-page')
@@ -182,4 +185,20 @@ async function filesPage(ctx, h) {
   await h.openSettings(ctx, 'files')
   h.assert(!(await ctx.page.isChecked('#set-gitignore')), 'gitignore off persisted')
   await ctx.page.keyboard.press('Escape')
+}
+
+// About page (last, after a separator): read-only versions and paths; Escape still closes from it.
+async function aboutPage(ctx, h) {
+  await h.openSettings(ctx, 'about')
+  const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'))
+  const row = (k) => ctx.page.locator(`dd[data-about="${k}"]`)
+  h.assert((await row('tie').textContent()) === pkg.version, `Tie version: ${await row('tie').textContent()}`)
+  h.assert((await row('electron').textContent()) === pkg.devDependencies.electron, `Electron version: ${await row('electron').textContent()}`)
+  h.assert(/^\d+\./.test(await row('chromium').textContent()) && /^\d+\./.test(await row('node').textContent()), 'Chromium and Node versions')
+  h.assert((await row('instance').textContent()) === ctx.instance, `instance: ${await row('instance').textContent()}`)
+  h.assert((await row('log').getAttribute('title')).endsWith('.log') && (await row('settings').getAttribute('title')).endsWith('settings.json'), 'log and settings paths')
+  h.assert(await ctx.page.evaluate(() => document.querySelector('.settings nav button[data-page="about"]').previousElementSibling.tagName === 'HR'), 'separator above About')
+  await ctx.shot('about-page')
+  await ctx.page.keyboard.press('Escape')
+  await ctx.page.waitForSelector('.settings', { state: 'detached' })
 }

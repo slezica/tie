@@ -121,7 +121,8 @@ ipc.handle('pty:busy', (_e, ids: unknown) => {
 ipc.handle('app:info', () => ({ instance, socket: socketPath, home: app.getPath('home'), cwd: process.env.TIE_CWD || app.getPath('home'), debugTags, dev }))
 // Settings (SETTINGS.md "File"): `changed` read fresh from disk at each call; `error`: why Save is
 // blocked (unparseable file at startup); `loadError`: the startup failure (dialog).
-const settingsInfo = () => ({ settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, backup: backupPath, error: loadRefusal(), changed: fileChanged(), loadError: loadError() })
+const about = () => ({ version: app.getVersion(), instance, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, log: logPath })
+const settingsInfo = () => ({ about: about(), settings: getSettings(), defaults: { shell: defaultShell() }, path: settingsPath, backup: backupPath, error: loadRefusal(), changed: fileChanged(), loadError: loadError() })
 ipc.handle('settings:get', () => settingsInfo())
 ipc.handle('settings:set', (_e, patch) => {
   // SECURITY / data: refused while the file is unparseable (kept for the user to fix) or changed on

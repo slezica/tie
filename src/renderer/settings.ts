@@ -1,5 +1,5 @@
 // Settings panel: modal with left nav, opened from app menu (cmd+,).
-// Pages: Appearance (app-wide look) | Bindings (keys: bindings.ts) | Terminal | Files (picker) | Security (socket callers, links out).
+// Pages: Appearance (app-wide look) | Bindings (keys: bindings.ts) | Terminal | Files (picker) | Security (socket callers, links out) | About (versions, paths; read-only).
 import { S, tie } from './state'
 import { refreshTitle } from './tile'
 import type { Settings, SettingsInfo } from '../preload'
@@ -72,8 +72,12 @@ export async function toggleSettings() {
   if (!panel) build(info)
 }
 
+// About rows: values are Tie's own (versions, its paths); escaped anyway. Paths: `~` shown, full in the tooltip.
+const aboutRows = (rows: [string, string][], paths = false) =>
+  rows.map(([k, v]) => `<dt>${k}</dt><dd data-about="${k.toLowerCase()}"${paths ? ` title="${esc(v)}"` : ''}>${esc(paths ? tildePath(v) : v)}</dd>`).join('')
+
 function build(info: SettingsInfo) {
-  const { settings, defaults, path, error } = info
+  const { settings, defaults, path, error, about } = info
   const saved = appearance()
 
   panel = document.createElement('div')
@@ -93,6 +97,8 @@ function build(info: SettingsInfo) {
         <button data-page="terminal">Terminal</button>
         <button data-page="files">Files</button>
         <button data-page="security">Security</button>
+        <hr />
+        <button data-page="about">About</button>
       </nav>
       <div class="pages">
         <section data-page="appearance">
@@ -155,6 +161,13 @@ function build(info: SettingsInfo) {
           <label class="check"><input id="set-allow-external" type="checkbox" /> Allow external programs to control Tie <span class="scope">processes not started in a Tie terminal: scripts, other apps</span></label>
           <h3>Links</h3>
           <label class="check"><input id="set-confirm-external" type="checkbox" /> Confirm before opening links in the browser <span class="scope">files, html pages, terminals</span></label>
+        </section>
+        <section data-page="about" tabindex="-1">
+          <h2>About</h2>
+          <h3>Versions</h3>
+          <dl class="about">${aboutRows([['Tie', about.version], ['Instance', about.instance], ['Electron', about.electron], ['Chromium', about.chrome], ['Node', about.node]])}</dl>
+          <h3>Files</h3>
+          <dl class="about">${aboutRows([['Settings', path], ['Log', about.log]], true)}</dl>
         </section>
         <div class="actions">
           <span class="status" title="${esc(path)}">${esc(tildePath(path))}</span>
@@ -244,6 +257,7 @@ function build(info: SettingsInfo) {
     page = p
     panel!.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => el.classList.toggle('current', el.dataset.page === p))
     if (p === 'bindings') return bindings.focus()
+    if (p === 'about') return $('section[data-page="about"]').focus() // nothing to edit: keys stay in the panel
     ;(p === 'terminal' ? shell : p === 'files' ? gitignore : p === 'security' ? allowExternal : themeSel).focus()
   }
   panel.querySelectorAll<HTMLElement>('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.page!)))

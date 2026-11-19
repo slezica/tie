@@ -1277,6 +1277,23 @@ body.empty #empty-hint {
   text-transform: none;
   color: var(--faint);
 }
+.settings dl.about {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 12.5px;
+}
+.settings dl.about dt {
+  color: var(--muted);
+}
+.settings dl.about dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.settings section[data-page='about']:focus {
+  outline: none;
+}
 .settings .row {
   display: flex;
   gap: 16px;

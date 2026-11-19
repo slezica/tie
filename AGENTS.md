@@ -126,7 +126,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
   - `shelf.ts`: shelf strip, template list, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, overflow, tab drops.
   - `menu.ts`: context menus (`showTileMenu`, `showMetaMenu`, `showListMenu`). `dialog.ts`: `infoDialog`, `confirmDialog`, `choiceDialog`.
-  - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
+  - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security, About), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus direction (ranking `@core/focus`). `capture.ts`: `captureField` (input taking key presses as a chord name; `INPUT.md` "Capture fields"). `quit.ts`: `askQuit`.
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseGroup`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: `initDriver`: socket methods → ops.
