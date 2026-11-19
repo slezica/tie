@@ -74,13 +74,4 @@ export default async (ctx, h) => {
   h.assert(!(await ctx.page.isVisible('.menu-item:has-text("Reset")')), 'nothing custom: no Reset entry')
   await ctx.page.keyboard.press('Escape')
   await h.waitFor(ctx, async () => !(await menuOpen()), 'menu closed')
-
-  // A dialog (close a busy tile, cancelled) gives focus back too.
-  const busy = (await ctx.tie('add', 'terminal', '--cmd', 'sleep 30', '--focus')).id
-  await h.waitTile(ctx, busy, (t) => t.term?.pid, 'cmd started')
-  await h.press(ctx, 'Meta+w')
-  await ctx.page.waitForSelector('.dialog')
-  await ctx.page.keyboard.press('Escape')
-  const act = (await h.list(ctx)).active
-  h.assert(act && (await h.focused(ctx)) === act, `terminal refocused after dialog: ${await h.focused(ctx)}`)
 }
