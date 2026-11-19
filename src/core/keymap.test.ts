@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chord, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, captured, capturePasses, type Bindings, type KeyInput } from './keymap'
+import { chord, chordsOf, actionFor, DEFAULT_KEYMAP, ACTIONS, isAction, parseChord, validBinding, resolveKeymap, conflicts, bindingErrors, cleanBindings, accelerator, captured, capturePasses, type Bindings, type KeyInput } from './keymap'
 
 const k = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean }> = {}) => ({ key, meta: false, control: false, alt: false, shift: false, ...mods })
 
@@ -11,6 +11,20 @@ describe('chord', () => {
     expect(chord(k('ArrowDown', { meta: true, shift: true }))).toBe('Cmd+Shift+Down')
     expect(chord(k('Tab', { control: true, shift: true }))).toBe('Ctrl+Shift+Tab')
     expect(chord(k('1', { meta: true }))).toBe('Cmd+1')
+  })
+  it('names space', () => expect(chord(k(' ', { control: true }))).toBe('Ctrl+Space'))
+})
+
+describe('chordsOf', () => {
+  it('defaults: the chord, then its aliases', () => {
+    expect(chordsOf('split-right')).toEqual(['Cmd+D'])
+    expect(chordsOf('zoom-in')).toEqual(['Cmd+=', 'Cmd+Shift++', 'Cmd++'])
+    expect(chordsOf('quit', {})).toEqual(['Cmd+Q'])
+  })
+  it('override: only it (aliases dropped); null: none; others keep their defaults', () => {
+    expect(chordsOf('zoom-in', { 'zoom-in': 'Cmd+K' })).toEqual(['Cmd+K'])
+    expect(chordsOf('quit', { quit: null })).toEqual([])
+    expect(chordsOf('split-right', { quit: null, 'zoom-in': 'Cmd+K' })).toEqual(['Cmd+D'])
   })
 })
 
@@ -70,10 +84,6 @@ describe('ACTIONS', () => {
     expect(isAction('toString')).toBe(false)
     expect(isAction(3)).toBe(false)
   })
-})
-
-describe('chord', () => {
-  it('names space', () => expect(chord(k(' ', { control: true }))).toBe('Ctrl+Space'))
 })
 
 describe('parseChord', () => {

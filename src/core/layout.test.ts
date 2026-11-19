@@ -367,6 +367,38 @@ describe('resize', () => {
     const c = resize(t, [], 0, 100, 100, 10) as any
     expect(c.sizes[0]).toBeCloseTo(0.9)
   })
+
+  // compute's border (`path`, `index`, `length`) fed back to resize: the border moves by exactly
+  // the dragged px, whatever the nesting, gaps and collapsed siblings (drag.ts attachBorder).
+  it('round-trips compute borders: nested, gaps, collapsed', () => {
+    // row[a, col[b, c, d]], d collapsed, gap 10.
+    let t: Node = insert(leaf('a'), 'a', 'r', 'b')
+    t = insert(t, 'b', 'b', 'c')
+    t = insert(t, 'c', 'b', 'd')
+    const board = { x: 0, y: 0, w: 1000, h: 600 }
+    const o = { gap: 10, bar: 10, collapsed: new Set(['d']) }
+    const l = compute(t, board, o)
+    // Borders only between non-collapsed siblings: a | col, b / c; none at d.
+    expect(l.borders.map((b) => [b.path.join('.'), b.index, b.dir])).toEqual([['', 0, 'row'], ['1', 0, 'col']])
+    const [row, col] = l.borders
+    // length: px per size fraction (gaps and collapsed bars excluded).
+    expect(row.length).toBeCloseTo(990)
+    expect(col.length).toBeCloseTo((600 - 20 - 10) / (1 - 0.25))
+    expect(row.rect).toMatchObject({ x: l.tiles.get('a')!.w, w: 10, h: 600 })
+    expect(col.rect.y).toBeCloseTo(l.tiles.get('b')!.y + l.tiles.get('b')!.h)
+
+    for (const [br, before, after, axis] of [[row, 'a', 'b', 'w'], [col, 'b', 'c', 'h']] as const) {
+      for (const d of [37, -52]) {
+        const m = compute(resize(t, br.path, br.index, d, br.length, 80), board, o)
+        expect(m.tiles.get(before)![axis]).toBeCloseTo(l.tiles.get(before)![axis] + d)
+        expect(m.tiles.get(after)![axis]).toBeCloseTo(l.tiles.get(after)![axis] - d)
+        expect(m.tiles.get('d')!.h).toBe(10) // the collapsed bar keeps its thickness
+      }
+    }
+    // Clamped at min px on both sides (here b / c: 80 px minimum).
+    const far = compute(resize(t, col.path, col.index, 10000, col.length, 80), board, o)
+    expect(far.tiles.get('c')!.h).toBeCloseTo(80)
+  })
 })
 
 describe('equalize', () => {
@@ -471,5 +503,32 @@ describe('insertGroup', () => {
     const t = insert(insert(leaf('a'), 'a', 'r', 'g1'), 'a', 'b', 'b')
     const g = insertGroup(t, 'b', 'b', ['g1', 'g2'], board, o)!
     expect(leaves(g).filter((x) => x === 'g1')).toHaveLength(1)
+    // g1 left its slot (a over b now fills the board); the group below b: 1000 x 150, side by side.
+    expect(leaves(g)).toEqual(['a', 'b', 'g1', 'g2'])
+    const r = rects(g)
+    expect(r.get('g1')).toMatchObject({ x: 0, y: 450, w: 500, h: 150 })
+    expect(r.get('g2')).toMatchObject({ x: 500, y: 450, w: 500, h: 150 })
+  })
+
+  it('zoom ignored: the area is measured as the unzoomed board', () => {
+    const t = insert(leaf('a'), 'a', 'b', 'b')
+    // Zoomed a: b would be a squashed bar; the group still takes b's lower half, side by side.
+    expect(insertGroup(t, 'b', 'b', ['g1', 'g2'], board, { ...o, zoomed: 'a' })).toEqual(insertGroup(t, 'b', 'b', ['g1', 'g2'], board, o))
+  })
+
+  it('collapsed siblings count; a moved collapsed first id does not', () => {
+    // a over b, b collapsed: right of a is 500 x 590 (tall: stacked); expanded b, 500 x 300 (wide).
+    const t = insert(leaf('a'), 'a', 'b', 'b')
+    const bar = insertGroup(t, 'a', 'r', ['g1', 'g2'], board, { ...o, collapsed: new Set(['b']) }) as any
+    expect(bar.children[0].children[1]).toMatchObject({ dir: 'col' })
+    const open = insertGroup(t, 'a', 'r', ['g1', 'g2'], board, o) as any
+    expect(open.children[0]).toMatchObject({ dir: 'row' })
+    expect(leaves(open.children[0])).toEqual(['a', 'g1', 'g2'])
+    // g1 collapsed where it was (under a): measured expanded at its new place (500 x 300 on a
+    // 1000 x 300 board: side by side), not as a 10 px strip (stacked).
+    const wide = { x: 0, y: 0, w: 1000, h: 300 }
+    const moved = insertGroup(insert(leaf('a'), 'a', 'b', 'g1'), 'a', 'r', ['g1', 'g2'], wide, { ...o, collapsed: new Set(['g1']) })
+    expect(moved).toMatchObject({ dir: 'row' })
+    expect(leaves(moved)).toEqual(['a', 'g1', 'g2'])
   })
 })
