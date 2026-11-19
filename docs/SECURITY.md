@@ -90,7 +90,7 @@ Onboarding explainer (processes, realms, doors per tile, layers, threats, storie
 | `pty:busy`: only booleans + foreground name, only for Tie's own ptys (other pids: not busy), ≤ 256 per call; child pids from the kernel (`native/peer` `childrenOf`), never returned | `main/index.ts`, `pty.ts` `busy` | `close-busy` |
 | UI on `tie://app/` (not `file://`), traversal-safe | `serveShell`, `resolveInside` | `sec-protocol` (each case named by the layer that refuses it; traversal: `resolveInside`, logged; the host check sits behind the UI CSP: not reachable from the page), unit |
 | UI CSP: scripts from app only; frames only `tie-content:`; no objects, workers, forms, `<base>`. Inline styles allowed (xterm needs them) | `renderer/index.html` | `sec-csp`, `sec-content-nav` |
-| Fuses (below) | `electron-builder.yml` | `check-package` |
+| Fuses (below) | `electron-builder.yml` | `tie-dev check-package` |
 
 ## Fuses
 
