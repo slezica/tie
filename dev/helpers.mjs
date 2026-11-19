@@ -331,12 +331,33 @@ export async function mdState(ctx, id) {
 // that navigated away) can't hang the scenario.
 export async function waitFor(ctx, fn, what, ms = 4000) {
   const end = Date.now() + ms
+  // What the last try gave: an exception inside fn (a typo, an evaluate error) or a falsy value.
+  let last = ''
+  const run = async () => {
+    try {
+      const v = await fn()
+      if (!v) last = `last value: ${brief(v)}`
+      return v
+    } catch (e) {
+      last = `last error: ${brief(e?.message ?? e)}`
+      return null
+    }
+  }
   do {
-    const v = await Promise.race([fn().catch(() => null), ctx.sleep(Math.max(0, end - Date.now())).then(() => null)])
+    const v = await Promise.race([run(), ctx.sleep(Math.max(0, end - Date.now())).then(() => null)])
     if (v) return v
     await ctx.sleep(50)
   } while (Date.now() < end)
-  throw new Error(`timed out: ${what}`)
+  throw new Error(`timed out: ${what}${last ? ` (${last})` : ''}`)
+}
+
+function brief(v) {
+  let s
+  try {
+    s = typeof v === 'string' ? v : JSON.stringify(v)
+  } catch {}
+  s = String(s ?? v).split('\n')[0]
+  return s.length > 200 ? s.slice(0, 200) + '…' : s
 }
 
 // `tie list --json` entry of a tile.
