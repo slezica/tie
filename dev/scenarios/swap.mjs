@@ -2,7 +2,9 @@
 export default async (ctx, h) => {
   const k = (chord) => h.press(ctx, chord)
   const leafIds = (n) => (!n ? [] : n.type === 'leaf' ? [n.id] : n.children.flatMap(leafIds))
-  const state = () => ctx.tie('state')
+  const state = () => h.state(ctx)
+  // Split holding a leaf (parent), or null.
+  const parentOf = (n, id) => (n?.type !== 'split' ? null : n.children.some((c) => c.type === 'leaf' && c.id === id) ? n : n.children.map((c) => parentOf(c, id)).find(Boolean) ?? null)
   const [a, b, c] = await h.threeWaySplit(ctx) // a | b over c, c active
   let s = await state()
   h.assert(leafIds(s.tree).join() === [a, b, c].join() && s.active === c, 'start: a | b over c, c active')
@@ -18,11 +20,17 @@ export default async (ctx, h) => {
   })
   await ctx.shot('swapped-left')
 
-  // No target: no-op.
-  const before = JSON.stringify(await state())
+  // No target: no-op. Keys run in order (main → UI, one channel): once a later key's effect shows,
+  // the no-op key has been handled. Right: b (b and a tie, b more recent), then back left to c.
+  s = await state()
+  const before = JSON.stringify([s.tree, s.floats, s.shelf])
   await k('Meta+Shift+ArrowLeft')
-  await ctx.sleep(250) // absence: no change
-  h.assert(JSON.stringify(await state()) === before, 'nothing left of c: no change')
+  await k('Meta+ArrowRight')
+  await h.eventually(ctx, async () => h.assert((await state()).active === b, 'focus right: b'))
+  s = await state()
+  h.assert(JSON.stringify([s.tree, s.floats, s.shelf]) === before, 'nothing left of c: no change')
+  await k('Meta+ArrowLeft')
+  await h.eventually(ctx, async () => h.assert((await state()).active === c, 'focus back: c'))
 
   // Slot ↔ float: the centered float is c's right neighbor; c takes its rect, f takes c's slot.
   const f = (await ctx.tie('add', 'terminal', '--float')).id
@@ -43,19 +51,25 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => {
     s = await state()
     h.assert(s.shelf.includes(c) && !s.floats.some((x) => x.id === c), 'cmd+S: c shelved')
-    h.assert(s.active && s.active !== c, `focus off c (active ${s.active})`)
+    h.assert(s.active === b, `focus: most recent board tile, b (active ${s.active})`)
   })
 
-  // cmd+S on a pinned shelved tile: back on the board beside the active tile, active, unpinned.
+  // cmd+S on a pinned shelved tile: back on the board beside the most recent board tile (b; the
+  // pinned c is active), along b's longer side; active, unpinned.
   await h.pin(ctx, c)
   s = await state()
   h.assert(s.pinned === c && s.active === c, 'c pinned + active')
+  const rb = await h.rectOf(ctx, b)
+  const dir = rb.h > rb.w ? 'col' : 'row'
   await ctx.page.mouse.move(400, 400)
   await k('Meta+s')
   await h.eventually(ctx, async () => {
     s = await state()
     const t = await h.tileOf(ctx, c)
     h.assert(t.state === 'slotted' && s.active === c && s.pinned === null && !s.shelf.includes(c), `cmd+S unshelves c (state ${t.state})`)
+    const p = parentOf(s.tree, c)
+    const ids = p?.children.map((x) => x.id)
+    h.assert(p?.dir === dir && ids.indexOf(c) === ids.indexOf(b) + 1, `c just after b, ${dir} (got ${JSON.stringify(s.tree)})`)
     await h.assertPtySizes(ctx)
   })
   await ctx.shot('unshelved')
