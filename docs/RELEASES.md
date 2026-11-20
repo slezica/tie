@@ -30,6 +30,10 @@ Known, not fixed:
 
 ## Unreleased
 
+- Toolbars: four bars (top, bottom, left, right); tabs, shelf and templates each in any bar, at either end, in any order. Set with `bars` in the settings file for now (editor pending). `toolbar` is migrated.
+- Title strip (traffic lights) holds no Tie UI: a top bar sits below it.
+- Vertical bars: tab list with titles, shelf and templates as lists (icons only when narrow), reveals open sideways.
+- Shelf overflow: fades and auto-scroll while dragging, as tabs.
 - Settings panel: Save disabled when nothing differs from the active settings.
 - Settings panel: About page (versions, instance, settings and log paths).
 - Settings panel: `~` path on the status line (full path in its tooltip).
