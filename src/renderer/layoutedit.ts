@@ -14,8 +14,6 @@ import { closeMenu } from './menu'
 type Target = { bar: Bar; gravity: Gravity; index: number }
 
 interface Session {
-  root: HTMLElement
-  done: (result: Bars | null) => void
   cleanup: () => void
   cancelDrag: (() => void) | null
 }
@@ -58,7 +56,8 @@ function geometry() {
 
 const place = (el: HTMLElement, r: BarRect) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` })
 
-// Enter the mode with `start` applied (the panel's draft). `done`: the layout on Done, null on Cancel.
+// Enter the mode on the applied layout (the panel's draft, previewed). `done`: the mode's layout on
+// Done; null on Cancel / Escape (the caller re-applies what it had: the layout as the mode opened).
 export function editLayout(done: (result: Bars | null) => void) {
   if (session) return
   closeMenu()
@@ -81,6 +80,8 @@ export function editLayout(done: (result: Bars | null) => void) {
   document.documentElement.classList.add('layout-editing') // bars stop being window drag regions (style.css)
   const $ = <T extends HTMLElement>(sel: string) => root.querySelector(sel) as T
   const box = $('.le-box')
+  const cancelBtn = $<HTMLButtonElement>('.le-cancel')
+  const doneBtn = $<HTMLButtonElement>('.le-done')
   const preview = $('.le-preview')
 
   // Indicators, component boxes, labels: re-placed on every change of the window, the bars or a
@@ -138,8 +139,8 @@ export function editLayout(done: (result: Bars | null) => void) {
   root.addEventListener('contextmenu', (e) => e.preventDefault())
   root.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
   for (const c of COMPONENTS) $(`.le-comp[data-c="${c}"]`).addEventListener('pointerdown', (e) => pressComponent(e, c))
-  $('.le-cancel').addEventListener('click', () => finish(null))
-  $('.le-done').addEventListener('click', () => finish(bars()))
+  cancelBtn.addEventListener('click', () => finish(null))
+  doneBtn.addEventListener('click', () => finish(bars()))
 
   // Keys: Escape cancels a drag, else the mode (S29); everything else stays in the box (its buttons:
   // Tab, Enter, Space). A dialog over the mode (Quit) keeps its own keys.
@@ -152,7 +153,14 @@ export function editLayout(done: (result: Bars | null) => void) {
       if (e.type === 'keydown') s.cancelDrag ? s.cancelDrag() : finish(null)
       return
     }
-    if (t && box.contains(t)) return
+    if (t && box.contains(t)) {
+      // Tab stays between the box's two buttons (focus never leaves for what lies under the mode).
+      if (e.key === 'Tab' && e.type === 'keydown') {
+        e.preventDefault()
+        ;(t === cancelBtn ? doneBtn : cancelBtn).focus()
+      }
+      return
+    }
     e.preventDefault()
     e.stopImmediatePropagation()
   }
@@ -258,8 +266,6 @@ export function editLayout(done: (result: Bars | null) => void) {
   }
 
   const s: Session = {
-    root,
-    done,
     cancelDrag: null,
     cleanup: () => {
       window.removeEventListener('keydown', onKey, true)
@@ -268,13 +274,12 @@ export function editLayout(done: (result: Bars | null) => void) {
       ro.disconnect()
       root.remove()
       document.documentElement.classList.remove('layout-editing')
-      // Cancel: the layout as when the mode opened (the panel re-applies its draft too).
     },
   }
   session = s
   debug('layout', 'edit mode', start)
   layout()
-  $<HTMLButtonElement>('.le-done').focus()
+  doneBtn.focus()
 }
 
 // Leave the mode as Cancel (the panel closing or rebuilding under it): no callback.

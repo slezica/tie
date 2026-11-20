@@ -72,6 +72,8 @@ export default async (ctx, h) => {
   await h.drag(ctx, title, { x: title.x + 200, y: title.y + 300 }, { shift: true }) // would float it
   // Keys: typing reaches no tile; shortcuts are suspended (main: fields mode).
   await h.waitKeyMode(ctx, 'fields')
+  // Focus pulled into the terminal (as refocus() after a dialog over the mode would): keys still blocked.
+  await ctx.page.evaluate((id) => document.querySelector(`.tile[data-id="${id}"] .xterm-helper-textarea`).focus(), a)
   await ctx.page.keyboard.type('echo typed-in-mode')
   await h.press(ctx, 'Meta+t')
   await ctx.sleep(400) // absence: nothing of the above takes effect meanwhile
@@ -84,6 +86,13 @@ export default async (ctx, h) => {
   h.assert(same(st.tree, st0.tree) && !st.floats.length, 'tile drag did not start')
   h.assert(!(await h.screen(ctx, a)).includes('typed-in-mode'), 'typing reached no terminal')
   h.assert(await inMode(), 'still in the mode')
+  // Focus stays in the box: Tab goes between Cancel and Done.
+  const focusedIs = (cls) => ctx.page.evaluate((cls) => document.activeElement?.classList.contains(cls), cls)
+  await ctx.page.focus('#layout-edit .le-done')
+  await ctx.page.keyboard.press('Tab')
+  h.assert(await focusedIs('le-cancel'), 'Tab: Cancel')
+  await ctx.page.keyboard.press('Tab')
+  h.assert(await focusedIs('le-done'), 'Tab: back to Done')
 
   // Window resize: indicators, box follow.
   await h.resizeWindow(ctx, 1100, 700)
