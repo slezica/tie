@@ -51,6 +51,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/2026-11-18-terminal-color-schemes.md`: custom terminal color schemes: open questions, not started.
 - `docs/2026-11-18-test-suite-review.md`: test suite review (5 areas): findings, waves (checks made real, harness helpers, merges / renames by feature glob), final scenario list.
 - `docs/2026-11-19-configurable-toolbars.md`: four bars, movable tabs / shelf / templates, edit layout mode, bar resize: settled design, code survey, phased plan.
+- `docs/2026-11-20-content-did-not-load.md`: "Content did not load" on files opened by agents: `ready` waited on rAF (none while not painting); timer fallback; what to check if it repeats.
 - `docs/RELEASES.md`: release notes, newest first: changes, pending manual testing, known issues.
 - `docs/PENDING.md`: backlog, open questions.
 
