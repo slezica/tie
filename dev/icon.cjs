@@ -13,7 +13,6 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" 
     <rect x="560" y="525" width="264" height="265" rx="18"/>
   </g>
   <circle cx="240" cy="270" r="14" fill="#a6cdfa"/>
-  <text x="235" y="420" font-family="Menlo, monospace" font-size="120" font-weight="700" fill="#dbded8">&gt;_</text>
   <circle cx="600" cy="565" r="14" fill="#f9eb77"/>
 </svg>`
 
