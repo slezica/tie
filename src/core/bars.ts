@@ -105,3 +105,82 @@ export function dropComponent(spans: Span[], p: number): { c: Component; inside:
   }
   return best && { c: best.c, inside: false }
 }
+
+// Structural equality: same components in the same bars, gravities and order (order matters: never
+// compare as sets; key order of the objects does not).
+export const sameBars = (a: Bars, b: Bars) =>
+  BARS.every((bar) => GRAVITIES.every((g) => a[bar][g].length === b[bar][g].length && a[bar][g].every((c, i) => b[bar][g][i] === c)))
+
+// Edit mode drop (S33 to S36): `c` moves to `bar`'s `gravity` list at `index`, counted in that list
+// without `c` (clamped). A new layout; `bars` is untouched. A bar left empty is just empty (hidden, S4).
+export function moveComponent(bars: Bars, c: Component, bar: Bar, gravity: Gravity, index: number): Bars {
+  const next = {} as Bars
+  for (const b of BARS) next[b] = { start: bars[b].start.filter((x) => x !== c), end: bars[b].end.filter((x) => x !== c) }
+  const list = next[bar][gravity]
+  list.splice(Math.max(0, Math.min(list.length, index)), 0, c)
+  return next
+}
+
+export const COMPONENT_LABELS: Record<Component, string> = { tabs: 'Tabs', shelf: 'Shelf', templates: 'Templates' }
+const BAR_LABELS: Record<Bar, string> = { top: 'Top', bottom: 'Bottom', left: 'Left', right: 'Right' }
+
+// Settings row summary: per bar that holds something, its components in visual order.
+// "Bottom: Tabs, Shelf, Templates"; "Top: Tabs · Left: Shelf, Templates".
+export const barsSummary = (bars: Bars) =>
+  BARS.filter((b) => !barEmpty(bars, b))
+    .map((b) => `${BAR_LABELS[b]}: ${barItems(bars, b).map((c) => COMPONENT_LABELS[c]).join(', ')}`)
+    .join(' · ')
+
+export interface BarRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+// Where each bar is, or would be if it held something (S9): top / bottom span the window's width
+// (top below the title strip), left / right fit between the top and bottom bars that exist.
+// `shown`: whether a bar exists now; `hbar` / `vbar`: thickness of top / bottom, left / right.
+export function barRects(w: number, h: number, strip: number, hbar: number, vbar: number, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
+  const top = strip + (shown('top') ? hbar : 0)
+  const bottom = h - (shown('bottom') ? hbar : 0)
+  return {
+    top: { x: 0, y: strip, w, h: hbar },
+    bottom: { x: 0, y: h - hbar, w, h: hbar },
+    left: { x: 0, y: top, w: vbar, h: bottom - top },
+    right: { x: w - vbar, y: top, w: vbar, h: bottom - top },
+  }
+}
+
+// Edit mode zones (S31): where each bar is indicated and takes a component drag. An existing bar:
+// its rect. A potential one: its edge, less what other bars hold, so zones never overlap: top /
+// bottom between the side bars that exist, left / right between the top / bottom zones.
+export function barZones(w: number, h: number, strip: number, hbar: number, vbar: number, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
+  const r = barRects(w, h, strip, hbar, vbar, shown)
+  const zones = { ...r }
+  const x0 = shown('left') ? vbar : 0
+  const x1 = w - (shown('right') ? vbar : 0)
+  for (const b of ['top', 'bottom'] as const) if (!shown(b)) zones[b] = { ...r[b], x: x0, w: x1 - x0 }
+  for (const b of ['left', 'right'] as const) if (!shown(b)) zones[b] = { ...r[b], y: strip + hbar, h: h - hbar - (strip + hbar) }
+  return zones
+}
+
+// Target bar of a component drag at (x, y) (S34): the bar zone holding the point; an existing bar
+// wins over a potential one (they meet at corners), then the zone whose window edge is nearest.
+// null: over no zone (the board): a drop there changes nothing.
+export function barAt(zones: { bar: Bar; rect: BarRect; exists: boolean }[], x: number, y: number): Bar | null {
+  const edge = (z: { bar: Bar; rect: BarRect }) =>
+    z.bar === 'top' ? y - z.rect.y : z.bar === 'bottom' ? z.rect.y + z.rect.h - y : z.bar === 'left' ? x - z.rect.x : z.rect.x + z.rect.w - x
+  const hits = zones.filter((z) => x >= z.rect.x && x <= z.rect.x + z.rect.w && y >= z.rect.y && y <= z.rect.y + z.rect.h)
+  hits.sort((a, b) => Number(b.exists) - Number(a.exists) || edge(a) - edge(b))
+  return hits[0]?.bar ?? null
+}
+
+// Gravity by the pointer's half of the bar along its axis (S35): before the midpoint, start.
+export function gravityAt(bar: Bar, rect: BarRect, x: number, y: number): Gravity {
+  return isVertical(bar) ? (y < rect.y + rect.h / 2 ? 'start' : 'end') : x < rect.x + rect.w / 2 ? 'start' : 'end'
+}
+
+// Index in a gravity list (S36): how many of its other components have their midpoint (along the
+// axis) before the pointer's position `p`.
+export const indexAt = (mids: number[], p: number) => mids.filter((m) => m < p).length
