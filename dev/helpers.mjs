@@ -53,8 +53,22 @@ export async function setBars(ctx, bars, extra = {}) {
   return applied
 }
 
-// Which bar a component (tabs, shelf, templates) is mounted in, and its gravity group.
-export const barOf = (ctx, c) => ctx.page.evaluate((c) => { const el = document.getElementById(c); return { bar: el.closest('.bar')?.dataset.bar, gravity: el.closest('.group')?.classList.contains('end') ? 'end' : 'start' } }, c)
+// Which bar a component (tabs, shelf, templates) is mounted in, its gravity group, and whether the
+// bar is vertical (left / right: the component's axis is y).
+export const barOf = (ctx, c) => ctx.page.evaluate((c) => { const el = document.getElementById(c); const bar = el.closest('.bar')?.dataset.bar; return { bar, gravity: el.closest('.group')?.classList.contains('end') ? 'end' : 'start', vertical: bar === 'left' || bar === 'right' } }, c)
+
+// Vertical bar width (`--vbar`, CSS: both side bars) overridden on the UI root, until bars are
+// resized by drag (phase 3): narrow vs list form of shelf and templates. null: back to the stylesheet's.
+// Re-lays out the board (a window resize event) and waits for it.
+export async function setBarSize(ctx, px) {
+  await ctx.page.evaluate((px) => {
+    const root = document.documentElement.style
+    if (px === null) root.removeProperty('--vbar')
+    else root.setProperty('--vbar', `${px}px`)
+    window.dispatchEvent(new Event('resize'))
+  }, px)
+  await settle(ctx)
+}
 
 // CSS custom property of the UI page's root (settings → tokens, SETTINGS.md), trimmed.
 export const cssVar = (ctx, name) => ctx.page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
@@ -128,10 +142,11 @@ export async function boxOf(ctx, selector) {
 export const shelfItem = (ctx, id) => boxOf(ctx, `.item[data-id="${id}"]`)
 export const template = (ctx, kind = 'terminal') => boxOf(ctx, `.template[data-kind="${kind}"]`)
 
-// Drop a tile onto the shelf (after existing items: its right end).
+// Drop a tile onto the shelf (after existing items: its end along its bar).
 export async function shelve(ctx, id, opts) {
   const shelf = await ctx.page.locator('#shelf').boundingBox()
-  await drag(ctx, await titlePoint(ctx, id), { x: shelf.x + shelf.width - 4, y: shelf.y + shelf.height / 2 }, opts)
+  const end = (await barOf(ctx, 'shelf')).vertical ? { x: shelf.x + shelf.width / 2, y: shelf.y + shelf.height - 4 } : { x: shelf.x + shelf.width - 4, y: shelf.y + shelf.height / 2 }
+  await drag(ctx, await titlePoint(ctx, id), end, opts)
 }
 
 export async function unshelve(ctx, id, targetId, side, opts) {

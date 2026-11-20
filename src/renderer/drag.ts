@@ -1,11 +1,12 @@
 // Mouse interactions: tile/template/shelf-item drag & drop, border resize, floating resize.
 import { compute, dropZone, nearestEdge, equalize, insert, insertGroup, move, resize, contains, type Border, type Rect, type Side, type TileId } from '@core/layout'
-import { S, GAP, TITLE, MIN, SLOT, SLOT_GAP, tie, boardRect, shelfRect, layoutOpts, location, spaceOf, debug, withSpace, type Kind } from './state'
+import { S, GAP, TITLE, MIN, SLOT_GAP, tie, boardRect, shelfRect, layoutOpts, location, spaceOf, debug, withSpace, type Kind } from './state'
 import { place, placeGroup, floatGroup, shelveGroup, selection, swap, activate, clearSelection, openTile, displaceTile, setFloatRect, defaultFloatRect, clampFloat, cwdOf, contextOf, besidePlacement, type Placement } from './ops'
 import type { OpenOpts } from './kinds'
-import { tabDropAt, markTabDrop, newTab, moveToTab, moveGroupToTab, switchTab, edgeScroll } from './tabs'
+import { tabDropAt, markTabDrop, newTab, moveToTab, moveGroupToTab, switchTab } from './tabs'
+import { edgeScroll } from './overflow'
 import { render } from './render'
-import { barDropAt } from './bars'
+import { barDropAt, verticalComponent } from './bars'
 import { setShelfGhost, clearShelfGhost, hideShelfItems } from './shelf'
 import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
@@ -92,15 +93,21 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   const bar = barDropAt(x, y)
   if (bar === null) return null
   if (bar?.c === 'shelf') {
-    // Slot under the pointer, by pitch from the strip's left edge (the strip holds the "+" hint or
-    // the ghost as one more slot, so its width is stable while dragging); bar space before the
-    // strip: slot 0, after it: the end. The dragged item is hidden: the slot counts the items shown;
-    // the index is into S.shelf (place() detaches first). A group: its items hidden, its ghosts
-    // from the slot on (one per tile); the index is among the other items (shelveGroup).
-    // Phase 1b: along y in a vertical bar.
+    // Slot under the pointer, by pitch from the strip's start along its bar's axis (x in a top /
+    // bottom bar, y in a left / right one; the strip holds the "+" hint or the ghost as one more
+    // slot, so its size is stable while dragging); bar space before the strip: slot 0, after it: the
+    // end. Pitch: an item's size along the axis (scaled in a narrow bar) + --slot-gap. The dragged
+    // item is hidden: the slot counts the items shown; the index is into S.shelf (place() detaches
+    // first). A group: its items hidden, its ghosts from the slot on (one per tile); the index is
+    // among the other items (shelveGroup).
     const list = document.getElementById('shelf')!
+    const v = verticalComponent('shelf')
     const shown = S.shelf.filter((id) => !moving.includes(id))
-    const slot = x < sr.x ? 0 : x > sr.x + sr.w ? shown.length : Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
+    const p = v ? y - sr.y : x - sr.x
+    const one = list.querySelector<HTMLElement>('.item:not(.drag-source)')
+    const pitch = (one ? (v ? one.offsetHeight : one.offsetWidth) : 0) + SLOT_GAP
+    const at = Math.floor((p + (v ? list.scrollTop : list.scrollLeft)) / pitch)
+    const slot = p < 0 ? 0 : p > (v ? sr.h : sr.w) ? shown.length : Math.max(0, Math.min(shown.length, at))
     if (group) return { drop: { type: 'shelf', index: slot }, previews: [], slot }
     const srcIdx = srcId ? S.shelf.indexOf(srcId) : -1
     const index = srcIdx >= 0 && slot > srcIdx ? slot + 1 : slot
@@ -110,7 +117,7 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   // Tabs: join the tab under the pointer, or a new one (+, the rest of the tabs, bar space nearest
   // them). A board tile over its own tab: nothing to do.
   if (bar?.c === 'tabs') {
-    const tab = bar.inside ? tabDropAt(x) : null
+    const tab = bar.inside ? tabDropAt(x, y) : null
     if (tab && srcId && tab === spaceOf(srcId)?.id && location(srcId) !== 'shelved') return null
     return { drop: { type: 'tab', space: tab }, previews: [] }
   }
@@ -279,7 +286,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
   let lx = sx
   let ly = sy
   let target: Target | null = null
-  let edge: ReturnType<typeof edgeScroll> | null = null // tab list auto-scroll, while started
+  let edges: ReturnType<typeof edgeScroll>[] = [] // tab list and shelf auto-scroll, while started
   const ghost = document.getElementById('ghost')!
   const iconOf = (id: TileId) => iconHtml(displayIcon(S.tiles.get(id)!))
   const icons = () =>
@@ -297,7 +304,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     // Beside the pointer, kept inside the window (dragging along a bar at the window's edge).
     ghost.style.left = `${Math.min(lx + 12, window.innerWidth - ghost.offsetWidth - 4)}px`
     ghost.style.top = `${Math.min(ly + 12, window.innerHeight - ghost.offsetHeight - 4)}px`
-    edge?.at(lx, ly)
+    for (const e of edges) e.at(lx, ly)
   }
 
   const begin = () => {
@@ -314,8 +321,10 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     const label = src.type === 'group' ? `${n} tile${n === 1 ? '' : 's'}` : src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
     ghost.innerHTML = `${icons()[0] ?? ''}<span>${label.replace(/</g, '&lt;')}</span>` // a group: the first's icon, "N tiles"
     ghost.style.display = 'flex'
-    // Near the tab list's ends it scrolls; each step moves tabs under the pointer: target again.
-    edge = edgeScroll({ past: false, step: update })
+    // Near the tab list's or the strip's ends they scroll; each step moves tabs or slots under the
+    // pointer: target again.
+    const scroller = (el: string, c: 'tabs' | 'shelf') => edgeScroll(document.getElementById(el)!, verticalComponent(c), { past: false, step: update })
+    edges = [scroller('tab-list', 'tabs'), scroller('shelf', 'shelf')]
     debug('layout', 'drag start', src)
   }
 
@@ -341,8 +350,8 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
   }
   const finish = () => {
     stopTracking()
-    edge?.stop()
-    edge = null
+    for (const e of edges) e.stop()
+    edges = []
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keyup', onKey, true)
     showPreviews([], false)

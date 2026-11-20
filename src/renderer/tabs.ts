@@ -8,12 +8,14 @@ import { iconHtml } from './icons'
 import { ICON } from './icons'
 import { track } from './drag'
 import { verticalComponent } from './bars'
+import { edgeScroll, edgeHolding, scrollSize, showChild, sideWheel, syncFades } from './overflow'
 
 let home = ''
 export const setHome = (h: string) => (home = h)
 export const homeDir = () => home
 
 const space = (id: string) => S.spaces.find((x) => x.id === id)
+const tabsVertical = () => verticalComponent('tabs')
 
 // Basename, `~` for home.
 export function prettyDir(dir: string): string {
@@ -129,18 +131,21 @@ export function setTabMeta(id: string, meta: { title?: string | null; icon?: str
 
 const tabEls = new Map<string, HTMLElement>()
 
-// Drag a tab sideways to reorder; order updates live under the pointer. Near the list's ends it
-// auto-scrolls (edgeScroll); past them counts as deepest. The order follows each scroll step.
+// Drag a tab along the list to reorder; order updates live under the pointer. Near the list's ends
+// it auto-scrolls (edgeScroll); past them counts as deepest. The order follows each scroll step.
+// Along the bar's axis: x in a top / bottom bar, y in a left / right one.
 function dragTab(e: PointerEvent, id: string) {
-  const x0 = e.clientX
-  let x = x0
+  const v = tabsVertical()
+  const along = (ev: PointerEvent) => (v ? ev.clientY : ev.clientX)
+  const p0 = along(e)
+  let p = p0
   let started = false
   const reorder = () => {
     const others = S.spaces.filter((sp) => sp.id !== id)
     let index = others.length
     for (let i = 0; i < others.length; i++) {
       const r = tabEls.get(others[i].id)!.getBoundingClientRect()
-      if (x < r.left + r.width / 2) {
+      if (p < (v ? r.top + r.height / 2 : r.left + r.width / 2)) {
         index = i
         break
       }
@@ -153,76 +158,23 @@ function dragTab(e: PointerEvent, id: string) {
       renderTabs()
     }
   }
-  const edge = edgeScroll({ past: true, step: reorder })
+  const edge = edgeScroll(document.getElementById('tab-list')!, v, { past: true, step: reorder })
   const end = () => {
     edge.stop()
     document.body.classList.remove('dragging-tab')
   }
   track(e, {
     move: (ev) => {
-      if (!started && Math.abs(ev.clientX - x0) < 4) return
+      if (!started && Math.abs(along(ev) - p0) < 4) return
       if (!started) document.body.classList.add('dragging-tab')
       started = true
-      x = ev.clientX
+      p = along(ev)
       reorder()
       edge.at(ev.clientX, ev.clientY)
     },
     up: end,
     cancel: end,
   })
-}
-
-// Auto-scroll of the tab list while a drag's pointer is near one of its ends (only while it can
-// scroll that way): a tab reorder (dragTab) or a tile / template over the tab area (drag.ts).
-// Zone: EDGE px inside each end, as wide as the fades (style.css `.more-left` / `.more-right`).
-// Speed by depth into the zone, one step per frame while the pointer stays (no moves needed);
-// `step` runs after each step (tabs moved under the pointer: recompute the target). `past`: beyond
-// the list's ends counts as deepest (tab drags); else the pointer must be on the list (tile drags:
-// `+` and the rest of #tabs are a target of their own). Callers `stop()` when the drag ends.
-const EDGE = 24
-const SPEED = { min: 2, max: 12 } // px per frame
-let holding = 0 // auto-scrolling drags running: renderTabs leaves the scroll alone
-
-export function edgeScroll(o: { past: boolean; step: () => void }) {
-  const list = document.getElementById('tab-list')!
-  let x = 0
-  let y = 0
-  let raf = 0
-  let done = false
-  holding++
-  const speed = (depth: number) => SPEED.min + (SPEED.max - SPEED.min) * Math.min(1, Math.max(0, depth) / EDGE)
-  const velocity = () => {
-    const r = list.getBoundingClientRect()
-    if (!o.past) {
-      const t = document.getElementById('tabs')!.getBoundingClientRect()
-      if (x < r.left || x > r.right || y < t.top || y > t.bottom) return 0
-    }
-    if (x < r.left + EDGE && list.scrollLeft > 0) return -speed(r.left + EDGE - x)
-    if (x > r.right - EDGE && list.scrollLeft + list.clientWidth < list.scrollWidth - 1) return speed(x - (r.right - EDGE))
-    return 0
-  }
-  const tick = () => {
-    const v = velocity()
-    const before = list.scrollLeft
-    if (v) list.scrollLeft += v
-    if (!v || list.scrollLeft === before) return void (raf = 0)
-    raf = requestAnimationFrame(tick) // before step: its `at()` sees the loop running
-    o.step()
-  }
-  return {
-    at(nx: number, ny: number) {
-      x = nx
-      y = ny
-      if (!done && !raf && velocity()) raf = requestAnimationFrame(tick)
-    },
-    stop() {
-      if (done) return
-      done = true
-      holding--
-      cancelAnimationFrame(raf)
-      raf = 0
-    },
-  }
 }
 
 function createTabEl(id: string): HTMLElement {
@@ -249,8 +201,8 @@ function createTabEl(id: string): HTMLElement {
   return el
 }
 
-let shownCurrent = '' // last tab scrolled into view, and the list's content width then
-let shownWidth = 0
+let shownCurrent = '' // last tab scrolled into view, and the list's content size (along its axis) then
+let shownSize = 0
 
 // Keyed reconcile, like the shelf.
 export function renderTabs() {
@@ -278,46 +230,37 @@ export function renderTabs() {
   // Keep the current tab in view when it changes or tabs resize (titles); a user scroll stays, and
   // so does a drag's auto-scroll (checked again on the first render after it).
   const list = document.getElementById('tab-list')!
-  if (!holding && (shownCurrent !== S.visible || shownWidth !== list.scrollWidth)) {
+  const v = tabsVertical()
+  if (!edgeHolding() && (shownCurrent !== S.visible || shownSize !== scrollSize(list, v))) {
     shownCurrent = S.visible
-    shownWidth = list.scrollWidth
-    showTab(S.visible)
+    shownSize = scrollSize(list, v)
+    const el = tabEls.get(S.visible)
+    if (el) showChild(list, el, v)
   }
   syncOverflow()
 }
 
-// Scroll the list so the tab is fully visible (never scrolls anything else).
-function showTab(id: string) {
-  const el = tabEls.get(id)
-  const list = document.getElementById('tab-list')!
-  if (!el) return
-  const left = el.offsetLeft
-  const right = left + el.offsetWidth
-  if (left < list.scrollLeft) list.scrollLeft = left
-  else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth
-}
-
-// Overflow state: `#tabs.overflow` (divider toward the shelf), fades on the sides with more tabs.
+// Overflow state: `#tabs.overflow` (divider toward what follows), fades on the ends with more tabs.
 function syncOverflow() {
-  const tabs = document.getElementById('tabs')!
-  const list = document.getElementById('tab-list')!
-  const over = list.scrollWidth > list.clientWidth + 1
-  tabs.classList.toggle('overflow', over)
-  list.classList.toggle('more-left', over && list.scrollLeft > 1)
-  list.classList.toggle('more-right', over && list.scrollLeft + list.clientWidth < list.scrollWidth - 1)
+  const over = syncFades(document.getElementById('tab-list')!, tabsVertical())
+  document.getElementById('tabs')!.classList.toggle('overflow', over)
 }
 
-// Tile / template drags over the tabs component (drag.ts, bars.ts): a tab under x (gaps: the
-// nearest one) → its space; the rest (the + button, empty space, the overflow edge) → null: a new
-// tab. Phase 1b: along y in a vertical bar.
-export function tabDropAt(x: number): string | null {
+// Tile / template drags over the tabs component (drag.ts, bars.ts): the tab at the pointer along the
+// bar's axis (gaps: the nearest one) → its space; the rest (the + button, empty space, the overflow
+// edge) → null: a new tab.
+export function tabDropAt(x: number, y: number): string | null {
+  const v = tabsVertical()
+  const p = v ? y : x
   const list = document.getElementById('tab-list')!.getBoundingClientRect()
-  if (x < list.left || x > list.right) return null
+  if (p < (v ? list.top : list.left) || p > (v ? list.bottom : list.right)) return null
   let best: string | null = null
   let dist = Infinity
   for (const [id, el] of tabEls) {
     const b = el.getBoundingClientRect()
-    const d = x < b.left ? b.left - x : x > b.right ? x - b.right : 0
+    const lo = v ? b.top : b.left
+    const hi = v ? b.bottom : b.right
+    const d = p < lo ? lo - p : p > hi ? p - hi : 0
     if (d < dist) (dist = d), (best = id)
   }
   return best
@@ -339,13 +282,7 @@ export function initTabs() {
   document.getElementById('tab-add')!.addEventListener('click', () => newTab())
   const list = document.getElementById('tab-list')!
   list.addEventListener('scroll', syncOverflow)
-  // A vertical wheel scrolls the list sideways (trackpads scroll sideways already). In a vertical
-  // bar the list scrolls natively (S18).
-  list.addEventListener('wheel', (e) => {
-    if (verticalComponent('tabs') || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
-    list.scrollLeft += e.deltaY
-    e.preventDefault()
-  })
+  sideWheel(list, tabsVertical)
   // Titles derive from tile metadata (cwd, process): refresh on changes.
   document.addEventListener('tile-meta', () => renderTabs())
 }

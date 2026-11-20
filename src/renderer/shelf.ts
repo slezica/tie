@@ -1,4 +1,5 @@
-// Shelf strip and template list, each in its bar (bars.ts): one icon per shelved tile; templates to spawn from.
+// Shelf strip and template list, each in its bar (bars.ts): one icon per shelved tile; templates to
+// spawn from. In a vertical bar: one per row, icons scaled (narrow) or with titles (list; style.css).
 import { inRevealZone, type TileId } from '@core/layout'
 import { S, location, debug } from './state'
 import { displayIcon, displayTitle } from './tile'
@@ -10,6 +11,8 @@ import { showTileMenu, showListMenu, menuOpen, type MenuEntry } from './menu'
 import { requestCloseGroup } from './close'
 import { moveGroupToTab, tabTitle } from './tabs'
 import { TEMPLATES } from './kinds'
+import { verticalComponent } from './bars'
+import { sideWheel, syncFades } from './overflow'
 
 const items = new Map<TileId, HTMLElement>()
 
@@ -26,7 +29,8 @@ export function initShelf() {
     el.className = 'template'
     el.dataset.kind = t.id
     el.title = t.label
-    el.innerHTML = `<div class="ico">${iconHtml({ glyph: t.icon })}</div>`
+    el.innerHTML = `<div class="ico">${iconHtml({ glyph: t.icon })}</div><span class="lbl"></span>`
+    el.querySelector('.lbl')!.textContent = t.label // list form (vertical bars)
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
       startDrag(e, { type: 'template', template: t.id, label: t.label })
@@ -47,6 +51,11 @@ export function initShelf() {
   document.documentElement.addEventListener('pointerleave', (e) => keepReveal(e.clientX, e.clientY))
 
   initSelection()
+
+  // Overflow (SHELF.md "Space"): fades at the cut ends; a vertical wheel scrolls a horizontal strip.
+  const strip = document.getElementById('shelf')!
+  strip.addEventListener('scroll', syncShelfFades)
+  sideWheel(strip, () => verticalComponent('shelf'))
 
   document.addEventListener('tile-meta', (e) => {
     const id = (e as CustomEvent).detail as TileId
@@ -75,12 +84,16 @@ export function setShelfGhost(slot: number, icons: string[]) {
     before = g
   }
   list.classList.add('landing')
+  syncShelfFades()
 }
 
 export function clearShelfGhost() {
   for (const g of ghosts) g.remove()
   document.getElementById('shelf')!.classList.remove('landing')
+  syncShelfFades()
 }
+
+const syncShelfFades = () => void syncFades(document.getElementById('shelf')!, verticalComponent('shelf'))
 
 // Shelf items being dragged are hidden: the ghosts (or the "+" hint, as wide) stand for them.
 export function hideShelfItems(ids: TileId[]) {
@@ -173,7 +186,7 @@ function createItem(id: TileId): HTMLElement {
   const el = document.createElement('div')
   el.className = 'item'
   el.dataset.id = id
-  el.innerHTML = `<div class="ico"></div><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
+  el.innerHTML = `<div class="ico"></div><span class="lbl"></span><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
   el.addEventListener('pointerenter', (e) => {
     if (isDragging() || e.metaKey) return // cmd held: selecting, not looking
     S.revealed = id
@@ -209,7 +222,9 @@ function updateItem(id: TileId) {
   const title = displayTitle(t)
   const ico = el.querySelector('.ico') as HTMLElement
   if (ico.dataset.icon !== icon) (ico.innerHTML = icon), (ico.dataset.icon = icon)
-  el.title = title // icon-only: the title is the tooltip
+  el.title = title // icon-only (horizontal, narrow): the title is the tooltip
+  const lbl = el.querySelector('.lbl') as HTMLElement
+  if (lbl.textContent !== title) lbl.textContent = title // list form (vertical bars)
   el.classList.toggle('activity', t.activity)
   el.classList.toggle('pinged', t.pinged)
   el.classList.toggle('pinned', S.pinned === id)
@@ -236,6 +251,7 @@ export function syncShelf() {
     if (kids[i] !== el) list.insertBefore(el, kids[i] ?? null)
     updateItem(id)
   })
+  syncShelfFades()
 }
 
 // Mark activity on shelved, hidden tiles; only re-render on flip.

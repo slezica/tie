@@ -30,8 +30,7 @@ export function squashed(id: TileId): boolean {
 
 export let TITLE = 30 // --title-h: title bar height; also collapsed bar thickness
 export let PEAK = 8 // --peak: reveal arrow size
-export let SLOT = 28 // --slot: shelf item / template square
-export let SLOT_GAP = 2 // --slot-gap: between slots
+export let SLOT_GAP = 2 // --slot-gap: between shelf slots (drop slot pitch: an item's size + this)
 export const MIN = 80 // min slotted tile size along split axis
 export const REVEAL = { w: 0.3, h: 0.5 } // max fraction of board
 
@@ -49,7 +48,6 @@ export function readGeometry() {
   GAP = px('--gap', GAP)
   TITLE = px('--title-h', TITLE)
   PEAK = px('--peak', PEAK)
-  SLOT = px('--slot', SLOT)
   SLOT_GAP = px('--slot-gap', SLOT_GAP)
 }
 

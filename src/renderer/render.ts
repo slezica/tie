@@ -96,20 +96,23 @@ function renderVisible() {
     setButtons(S.tiles.get(f.id)!, { collapse: true, zoom: true })
   })
 
-  // Shelf strip, then reveals next to their items, toward the board: below the item (shelf in the
-  // top bar) or above it (bottom), horizontally centered on the item, clamped into the board.
-  // Left / right bars: as bottom for now (sideways reveal: phase 1b).
+  // Shelf strip, then reveals next to their items, toward the board, by the shelf's bar: below the
+  // item (top bar), above it (bottom), right of it (left bar), left of it (right bar). Centred on the
+  // item along the bar, clamped into the board; against the board edge by the bar, --peak + 2 px in.
   syncShelf()
   const size = revealSize()
-  const below = barOfComponent('shelf') === 'top'
+  const side = barOfComponent('shelf')
+  const v = side === 'left' || side === 'right'
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(n, hi))
   const peak = document.getElementById('peak')!
   peak.style.display = 'none'
   for (const id of S.shelf) {
     const item = shelfItemEl(id)
     const ir = item?.getBoundingClientRect()
     const cx = ir ? ir.left + ir.width / 2 : b.x + b.w / 2
-    const x = Math.max(b.x, Math.min(cx - size.w / 2, b.x + b.w - size.w))
-    const y = below ? b.y + PEAK + 2 : b.y + b.h - PEAK - size.h - 2
+    const cy = ir ? ir.top + ir.height / 2 : b.y + b.h / 2
+    const x = v ? (side === 'left' ? b.x + PEAK + 2 : b.x + b.w - PEAK - size.w - 2) : clamp(cx - size.w / 2, b.x, b.x + b.w - size.w)
+    const y = v ? clamp(cy - size.h / 2, b.y, b.y + b.h - size.h) : side === 'top' ? b.y + PEAK + 2 : b.y + b.h - PEAK - size.h - 2
     const pinned = S.pinned === id
     const shown = pinned || S.revealed === id
     place(id, { x, y, ...size }, Z.reveal + (S.revealed === id ? 1 : 0), {
@@ -120,14 +123,20 @@ function renderVisible() {
     })
     setButtons(S.tiles.get(id)!, { collapse: false, zoom: false, pin: pinned ? 'unpin' : shown ? 'pin' : undefined })
     if (shown && (S.revealed === id || !S.revealed)) {
-      peak.style.display = 'block'
-      peak.style.left = `${cx - PEAK}px`
-      peak.style.top = `${below ? y - PEAK : y + size.h}px` // sticks out of the reveal's edge facing the item
-      peak.style.width = `${PEAK * 2}px`
-      peak.style.height = `${PEAK}px`
-      peak.style.zIndex = String(Z.reveal + 2)
+      // Sticks out of the reveal's edge facing the item, level with it (kept on the reveal's edge).
+      const at = v ? clamp(cy, y + PEAK, y + size.h - PEAK) : clamp(cx, x + PEAK, x + size.w - PEAK)
+      Object.assign(peak.style, {
+        display: 'block',
+        left: `${v ? (side === 'left' ? x - PEAK : x + size.w) : at - PEAK}px`,
+        top: `${v ? at - PEAK : side === 'top' ? y - PEAK : y + size.h}px`,
+        width: `${v ? PEAK : PEAK * 2}px`,
+        height: `${v ? PEAK * 2 : PEAK}px`,
+        zIndex: String(Z.reveal + 2),
+      })
       peak.classList.toggle('pinned', pinned)
-      peak.classList.toggle('up', below)
+      peak.classList.toggle('up', side === 'top')
+      peak.classList.toggle('left', side === 'left')
+      peak.classList.toggle('right', side === 'right')
     }
   }
 

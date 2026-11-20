@@ -163,12 +163,30 @@ body {
   height: 100%;
   padding: 5px 0;
 }
-/* Tabs that don't fit scroll (no bar); fades show there is more; the divider toward the shelf
-   appears only then. */
+/* Lists that don't fit scroll along their bar (no scrollbar): the tab list, the shelf strip
+   (overflow.ts). Fades at the ends with more (`.more-start` / `.more-end`, as deep as the drag
+   auto-scroll zone, EDGE); along x, or y in a vertical bar. */
+#tab-list,
+#shelf {
+  --fade-dir: to right;
+  --fade-s: 0px;
+  --fade-e: 0px;
+  scrollbar-width: none;
+  mask-image: linear-gradient(var(--fade-dir), transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent);
+}
+#tab-list::-webkit-scrollbar,
+#shelf::-webkit-scrollbar {
+  display: none;
+}
+.more-start {
+  --fade-s: 24px;
+}
+.more-end {
+  --fade-e: 24px;
+}
+/* The divider toward what follows the tabs appears only on overflow. */
 #tab-list {
-  --fade-l: 0px;
-  --fade-r: 0px;
-  position: relative; /* tabs' offsetLeft relative to the list */
+  position: relative; /* tabs' offsets relative to the list (keep-in-view) */
   flex: 0 1 auto;
   min-width: 0;
   display: flex;
@@ -177,17 +195,6 @@ body {
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none;
-  mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
-}
-#tab-list::-webkit-scrollbar {
-  display: none;
-}
-#tab-list.more-left {
-  --fade-l: 24px;
-}
-#tab-list.more-right {
-  --fade-r: 24px;
 }
 #tabs.overflow {
   padding-right: 6px;
@@ -884,6 +891,12 @@ body.tile-drag #tab-add.drop {
 #peak.up {
   clip-path: polygon(50% 0, 100% 100%, 0 100%); /* shelf in the top bar: "^" */
 }
+#peak.left {
+  clip-path: polygon(0 50%, 100% 0, 100% 100%); /* shelf in the left bar: "<" */
+}
+#peak.right {
+  clip-path: polygon(0 0, 100% 50%, 0 100%); /* shelf in the right bar: ">" */
+}
 #peak.pinned {
   background: var(--accent);
 }
@@ -1003,15 +1016,12 @@ body.os-drag #shelf:not(.landing)::before {
   display: none;
 }
 #shelf {
+  position: relative; /* items' offsets relative to the strip */
   flex: 0 1 auto;
   min-width: var(--slot); /* an empty shelf still takes a drop */
   min-height: var(--slot);
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none;
-}
-#shelf::-webkit-scrollbar {
-  display: none;
 }
 /* Divider only beside the shelf in the same group (bars.ts), on the side facing it. */
 #templates.after-shelf {
@@ -1024,61 +1034,176 @@ body.os-drag #shelf:not(.landing)::before {
   padding-right: 6px;
   border-right: 1px solid var(--fg-c);
 }
-/* Vertical bars (left / right): components in a column. Basic only: vertical tab drag, overflow
-   fades, shelf slots and reveal sideways are phase 1b (2026-11-19-configurable-toolbars.md). */
+/* Vertical bars (left / right): components in a column, full width less --pad each side, one tab /
+   item / template per row. The bar is a size container: shelf and templates take their form from
+   its width (S14, S15; "Forms" below). */
+.bar.v {
+  align-items: stretch;
+  container: bar / inline-size;
+}
+.bar.v > .group > * {
+  margin-left: var(--pad);
+  margin-right: var(--pad);
+}
 .bar.v #brand {
-  margin: 0;
+  padding-left: 8px; /* in line with the tab titles */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bar.v #tabs {
   flex-direction: column;
-  align-self: stretch;
+  align-items: stretch;
   height: auto;
   min-width: 0;
-  min-height: var(--tabs-min);
-  padding: 0 var(--pad);
+  min-height: calc-size(max-content, min(size, var(--tabs-min)));
+  padding: 0;
   gap: 2px;
 }
 .bar.v #tab-list {
+  --fade-dir: to bottom;
   flex-direction: column;
   align-items: stretch;
-  width: 100%;
   height: auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  mask-image: none;
 }
+/* A row per tab: the title takes the width (truncated), the close button only on hover (the title
+   keeps its room in a narrow bar). */
 .bar.v .tab {
   height: 28px;
   max-width: none;
+  padding-left: 8px;
+}
+.bar.v .tab-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bar.v .tab-close {
+  display: none;
+}
+.bar.v .tab:hover .tab-close {
+  display: grid;
 }
 .bar.v #tab-add {
   width: 100%;
   height: 26px;
 }
+body.tile-drag .bar.v #tab-add {
+  width: 100%;
+  height: var(--slot);
+  margin: var(--slot-gap) 0 0;
+}
 .bar.v #tabs.overflow {
-  padding-right: var(--pad);
+  padding: 0 0 6px;
   border-right: 0;
+  border-bottom: 1px solid var(--fg-c);
+}
+.bar.v .group.end > #tabs.overflow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 .bar.v #shelf {
+  --fade-dir: to bottom;
   flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  min-height: var(--item);
   overflow-x: hidden;
   overflow-y: auto;
 }
 .bar.v #templates {
   flex-direction: column;
+  align-items: stretch;
 }
 .bar.v #templates.after-shelf {
-  margin: 4px 0 0;
+  margin-top: 4px;
+  margin-left: var(--pad);
   padding: 6px 0 0;
   border-left: 0;
   border-top: 1px solid var(--fg-c);
 }
 .bar.v #templates.before-shelf {
-  margin: 0 0 4px;
+  margin-bottom: 4px;
+  margin-right: var(--pad);
   padding: 0 0 6px;
   border-right: 0;
   border-bottom: 1px solid var(--fg-c);
+}
+/* Forms in a vertical bar (S14, S15). List (wider than the narrow form's widest): rows of the
+   default-size icon + the title (shelf: the tile's display title; templates: their label). */
+#shelf,
+#templates {
+  --item: var(--slot); /* an item's size along the strip (drag.ts measures it: drop slot pitch) */
+}
+.lbl {
+  display: none;
+}
+.bar.v .item,
+.bar.v .template {
+  width: auto;
+  height: var(--slot);
+  grid-template-columns: var(--slot) minmax(0, 1fr);
+  justify-items: start;
+}
+.bar.v .item .ico,
+.bar.v .template .ico {
+  justify-self: center;
+}
+.bar.v .item .dot,
+.bar.v .item .ping {
+  top: calc(50% - 3.5px); /* list form: at the row's end, clear of the title */
+  right: 6px;
+}
+.bar.v .lbl {
+  display: block;
+  max-width: 100%;
+  padding-right: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.bar.v #shelf::before {
+  width: auto;
+  height: calc(var(--item) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
+}
+/* Narrow: icons only, centred, scaled with the bar's width (less --pad each side) from the default
+   size up to 1.5x. The query can't read variables: 54px = 1.5 × --slot (28) + 2 × --pad (6). */
+@container bar (width <= 54px) {
+  .bar.v #shelf,
+  .bar.v #templates {
+    --item: clamp(var(--slot), calc(100cqi - 2 * var(--pad)), calc(var(--slot) * 1.5));
+    align-items: center;
+  }
+  .bar.v .item,
+  .bar.v .template {
+    width: var(--item);
+    height: var(--item);
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .bar.v .lbl {
+    display: none;
+  }
+  .bar.v .item .dot,
+  .bar.v .item .ping {
+    top: 3px;
+    right: 3px;
+  }
+  .bar.v #shelf::before {
+    width: var(--item);
+  }
+  .bar.v .item .ico,
+  .bar.v .template .ico {
+    font-size: calc(var(--item) * 15 / 28); /* custom icons: 15px at the default size */
+  }
+  .bar.v .item .glyph svg,
+  .bar.v .template .glyph svg {
+    width: calc(var(--item) * 16 / 28); /* 16px at the default size */
+    height: calc(var(--item) * 16 / 28);
+  }
 }
 .template,
 .item {

@@ -1,19 +1,30 @@
-// Toolbar contest: tabs that don't fit scroll (fades, divider toward the shelf, current tab kept in
-// view; a vertical wheel scrolls it sideways); the shelf keeps its width until the tab list hits its
-// floor, then the shelf scrolls. Auto-scroll while dragging near the list's ends: a tab reorder (right
-// end: the order follows the scroll), a tile over the tabs (the drop highlight follows, onto a tab that
-// was out of view), the left end. No loop left running after a drop.
+// Bar contest, both axes (bottom bar, then a left bar): tabs that don't fit scroll along the bar (fades at the cut ends, divider toward the shelf, current tab kept in view; a vertical wheel scrolls a horizontal list sideways, a vertical list natively); the shelf keeps its size until the tab list hits its floor, then the shelf scrolls. Auto-scroll while dragging near the list's ends: a tab reorder (the order follows the scroll), a tile over the tabs (the drop highlight follows, onto a tab that was out of view), the start end. No loop left running after a drop.
+const E = () => ({ start: [], end: [] })
+
+// Along the list's axis: x (bottom bar) or y (left bar).
+const AXES = {
+  h: { name: 'bottom', v: false, pos: 'scrollLeft', size: 'scrollWidth', client: 'clientWidth', lo: 'x', ext: 'width', pt: (along, across) => ({ x: along, y: across }) },
+  v: { name: 'left', v: true, pos: 'scrollTop', size: 'scrollHeight', client: 'clientHeight', lo: 'y', ext: 'height', pt: (along, across) => ({ x: across, y: along }) },
+}
+const crossLo = (ax) => (ax.v ? 'x' : 'y')
+const crossExt = (ax) => (ax.v ? 'width' : 'height')
+
 export default async (ctx, h) => {
   const box = (sel) => ctx.page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().toJSON(), sel)
   const cls = (sel) => ctx.page.evaluate((sel) => [...document.querySelector(sel).classList], sel)
-  const scroll = (sel) => ctx.page.evaluate((sel) => {
+  const scroll = (sel, ax) => ctx.page.evaluate(([sel, ax]) => {
     const el = document.querySelector(sel)
-    return { left: el.scrollLeft, width: el.scrollWidth, client: el.clientWidth, max: el.scrollWidth - el.clientWidth }
-  }, sel)
-  const currentVisible = async () => {
+    return { pos: el[ax.pos], size: el[ax.size], client: el[ax.client], max: el[ax.size] - el[ax.client] }
+  }, [sel, { pos: ax.pos, size: ax.size, client: ax.client }])
+  const currentVisible = async (ax) => {
     const list = await box('#tab-list')
     const cur = await box('.tab.current')
-    return cur.left >= list.left - 1 && cur.right <= list.right + 1
+    const lo = ax.lo
+    return cur[lo] >= list[lo] - 1 && cur[lo] + cur[ax.ext] <= list[lo] + list[ax.ext] + 1
+  }
+  const fades = async (sel, start, end, what) => {
+    const c = await cls(sel)
+    h.assert(c.includes('more-start') === start && c.includes('more-end') === end, `${what}: fades ${start ? 'start' : ''}${start && end ? ' + ' : ''}${end ? 'end' : ''}${!start && !end ? 'none' : ''} (${c})`)
   }
   const tabCount = () => ctx.page.$$eval('.tab', (els) => els.length)
 
@@ -35,6 +46,7 @@ export default async (ctx, h) => {
     }
   }
 
+  const H = AXES.h
   const shelved = [(await ctx.tie('add', 'terminal', '--shelved')).id]
   await h.resizeWindow(ctx, 900, 600)
   const shelf0 = await box('#shelf')
@@ -44,20 +56,19 @@ export default async (ctx, h) => {
   const n = await tabCount()
   h.assert(n > 1 && (await h.list(ctx)).tabs.length === n, `${n} tabs`)
   h.assert((await cls('#tabs')).includes('overflow'), 'tabs overflow: divider state')
-  let s = await scroll('#tab-list')
-  h.assert(s.width > s.client, `tab list scrolls (${s.width} > ${s.client})`)
-  h.assert(await currentVisible(), 'new (last) tab scrolled into view')
-  h.assert((await cls('#tab-list')).includes('more-left') && !(await cls('#tab-list')).includes('more-right'), 'fade on the left only')
+  let s = await scroll('#tab-list', H)
+  h.assert(s.size > s.client, `tab list scrolls (${s.size} > ${s.client})`)
+  h.assert(await currentVisible(H), 'new (last) tab scrolled into view')
+  await fades('#tab-list', true, false, 'at the end')
   const shelf1 = await box('#shelf')
   h.assert(Math.abs(shelf1.width - shelf0.width) < 1 && shelf1.right <= (await box('#templates')).left, 'shelf keeps its width, before the templates')
   await ctx.shot('overflow-end')
 
   await h.press(ctx, 'Meta+1')
   await h.eventually(ctx, async () => {
-    h.assert(await currentVisible(), 'first tab scrolled into view')
-    h.assert((await cls('#tab-list')).includes('more-right') && !(await cls('#tab-list')).includes('more-left'), 'fade on the right only')
+    h.assert(await currentVisible(H), 'first tab scrolled into view')
+    await fades('#tab-list', false, true, 'at the start')
   })
-
   await ctx.shot('overflow-start')
 
   // A vertical wheel over the list scrolls it sideways (scrollLeft), and back.
@@ -65,22 +76,26 @@ export default async (ctx, h) => {
   await ctx.page.mouse.move(tl.x, tl.y)
   await ctx.page.mouse.wheel(0, 120)
   await h.eventually(ctx, async () => {
-    const s = await scroll('#tab-list')
-    h.assert(s.left > 0, `wheel down: list scrolled right (${s.left})`)
-    h.assert((await cls('#tab-list')).includes('more-left'), 'fade on the left once scrolled')
+    const s = await scroll('#tab-list', H)
+    h.assert(s.pos > 0, `wheel down: list scrolled right (${s.pos})`)
+    h.assert((await cls('#tab-list')).includes('more-start'), 'start fade once scrolled')
   })
   await ctx.page.mouse.wheel(0, -120)
-  await h.eventually(ctx, async () => h.assert((await scroll('#tab-list')).left === 0, 'wheel up: back to the start'))
-  await ctx.page.mouse.move(400, 300)
+  await h.eventually(ctx, async () => h.assert((await scroll('#tab-list', H)).pos === 0, 'wheel up: back to the start'))
+  const away = async () => {
+    const { board } = await h.list(ctx)
+    await ctx.page.mouse.move(board.x + board.w / 2, board.y + board.h / 2)
+  }
+  await away()
 
   // Narrow window, more shelved tiles: the tab list stops at its floor, the shelf scrolls.
   for (let i = 0; i < 5; i++) shelved.push((await ctx.tie('add', 'terminal', '--shelved')).id)
   await h.resizeWindow(ctx, 420, 600)
-  const tabs = await box('#tabs')
   const floor = await ctx.page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tabs-min')))
+  const tabs = await box('#tabs')
   h.assert(tabs.width >= floor - 1 && tabs.width < floor + 20, `tab list at its floor (${tabs.width} vs ${floor})`)
-  s = await scroll('#shelf')
-  h.assert(s.width > s.client + 10, `shelf scrolls (${s.width} > ${s.client})`)
+  s = await scroll('#shelf', H)
+  h.assert(s.size > s.client + 10, `shelf scrolls (${s.size} > ${s.client})`)
   const tpl = await box('#templates')
   h.assert(tpl.right <= 420 && tpl.left > (await box('#shelf')).right - 1, 'templates stay at the edge')
   await ctx.shot('narrow')
@@ -88,81 +103,133 @@ export default async (ctx, h) => {
   await h.resizeWindow(ctx, 1400, 800)
   // The overflow state follows the width: class and fades as the list's real overflow says.
   await h.eventually(ctx, async () => {
-    const s = await scroll('#tab-list')
-    const over = s.width > s.client + 1
-    const c = await cls('#tab-list')
-    h.assert((await cls('#tabs')).includes('overflow') === over, `overflow class ${!over ? 'left on' : 'missing'} (${s.width} vs ${s.client})`)
-    h.assert(!over, `1400 px: the tabs fit (${s.width} vs ${s.client})`) // they overflowed 900 px by less than a tab
-    h.assert(!c.includes('more-left') && !c.includes('more-right'), `no fades without overflow: ${c}`)
+    const s = await scroll('#tab-list', H)
+    const over = s.size > s.client + 1
+    h.assert((await cls('#tabs')).includes('overflow') === over, `overflow class ${!over ? 'left on' : 'missing'} (${s.size} vs ${s.client})`)
+    h.assert(!over, `1400 px: the tabs fit (${s.size} vs ${s.client})`) // they overflowed 900 px by less than a tab
+    await fades('#tab-list', false, false, 'no overflow')
   })
-  s = await scroll('#shelf')
-  h.assert(s.width <= s.client + 1, 'shelf fits again')
+  s = await scroll('#shelf', H)
+  h.assert(s.size <= s.client + 1, 'shelf fits again')
   await h.assertPtySizes(ctx)
 
   // Auto-scroll. The first tab holds only its board tile again (case b empties it), and 4 more tabs past
   // the overflow at 900 px: room to scroll.
-  for (const id of shelved) await ctx.tie('close', '--tile', id)
+  for (const id of shelved.splice(0)) await ctx.tie('close', '--tile', id)
   await h.waitFor(ctx, async () => !(await h.state(ctx)).shelf.length, 'shelf empty')
   await h.resizeWindow(ctx, 900, 600)
   await openTabs(4)
   h.assert((await cls('#tabs')).includes('overflow'), 'tabs overflow')
-  await autoscroll(ctx, h)
+  await autoscroll(ctx, h, H)
+
+  // Left bar, everything in it: the same along y. A vertical list scrolls natively under the wheel.
+  const V = AXES.v
+  await h.setBars(ctx, { top: E(), bottom: E(), right: E(), left: { start: ['tabs'], end: ['shelf', 'templates'] } })
+  await h.resizeWindow(ctx, 900, 500)
+  await h.press(ctx, 'Meta+9')
+  await h.eventually(ctx, async () => {
+    h.assert((await cls('#tabs')).includes('overflow'), 'left bar: tabs overflow')
+    h.assert(await currentVisible(V), 'left bar: last tab scrolled into view')
+    await fades('#tab-list', true, false, 'left bar, at the end')
+  })
+  const tabsV = await box('#tabs')
+  h.assert(Math.abs(tabsV.bottom - (await box('#tab-add')).bottom) <= 7, 'left bar: + at the bottom of the tabs')
+  await ctx.shot('vertical-overflow-end')
+  await h.press(ctx, 'Meta+1')
+  await h.eventually(ctx, async () => {
+    h.assert(await currentVisible(V), 'left bar: first tab scrolled into view')
+    await fades('#tab-list', false, true, 'left bar, at the start')
+  })
+  await ctx.shot('vertical-overflow-start')
+  const tv = await h.boxOf(ctx, '#tab-list')
+  await ctx.page.mouse.move(tv.x, tv.y)
+  await ctx.page.mouse.wheel(0, 120)
+  await h.eventually(ctx, async () => {
+    const s = await scroll('#tab-list', V)
+    h.assert(s.pos > 0 && (await scroll('#tab-list', H)).pos === 0, `left bar, wheel down: list scrolled down natively (${s.pos})`)
+    await fades('#tab-list', true, s.pos < s.max - 1, 'left bar, scrolled')
+  })
+  await away()
+
+  // Contest along y: shelved tiles until the shelf fills the bar; the tabs at their floor, the
+  // shelf scrolls, templates whole.
+  for (let i = 0; i < 10; i++) shelved.push((await ctx.tie('add', 'terminal', '--shelved')).id)
+  await h.eventually(ctx, async () => {
+    const t = await box('#tabs')
+    h.assert(t.height >= floor - 1 && t.height < floor + 20, `left bar: tab list at its floor (${t.height} vs ${floor})`)
+    const s = await scroll('#shelf', V)
+    h.assert(s.size > s.client + 10, `left bar: shelf scrolls (${s.size} > ${s.client})`)
+    const tp = await box('#templates')
+    h.assert(Math.round(tp.height) >= 3 * 28 && tp.top >= (await box('#shelf')).bottom - 1, `left bar: templates whole, after the shelf (${tp.height})`)
+  })
+  await ctx.shot('vertical-contest')
+  for (const id of shelved.splice(0)) await ctx.tie('close', '--tile', id)
+  await h.waitFor(ctx, async () => !(await h.state(ctx)).shelf.length, 'shelf empty')
+  await h.settle(ctx)
+  await autoscroll(ctx, h, V)
 }
 
-async function autoscroll(ctx, h) {
-  const scroll = () => ctx.page.evaluate(() => {
+async function autoscroll(ctx, h, ax) {
+  const scroll = () => ctx.page.evaluate((ax) => {
     const el = document.getElementById('tab-list')
-    return { left: el.scrollLeft, max: el.scrollWidth - el.clientWidth }
-  })
-  const setScroll = (x) => ctx.page.evaluate((x) => (document.getElementById('tab-list').scrollLeft = x), x)
+    return { pos: el[ax.pos], max: el[ax.size] - el[ax.client] }
+  }, { pos: ax.pos, size: ax.size, client: ax.client })
+  const setScroll = (n) => ctx.page.evaluate(([n, p]) => (document.getElementById('tab-list')[p] = n), [n, ax.pos])
   const listBox = async () => (await h.boxOf(ctx, '#tab-list')).box
   const tabBoxes = () => ctx.page.evaluate(() =>
     Object.fromEntries([...document.querySelectorAll('.tab')].map((t) => [t.dataset.space, t.getBoundingClientRect().toJSON()])))
   const order = async () => (await h.list(ctx)).tabs.map((t) => t.id)
   const dropMark = () => ctx.page.evaluate(() => [...document.querySelectorAll('.tab.drop')].map((e) => e.dataset.space))
+  const mid = (b) => b[ax.lo] + b[ax.ext] / 2
   const m = ctx.page.mouse
+  const at = (along, across) => {
+    const p = ax.pt(along, across)
+    return m.move(p.x, p.y, { steps: 12 })
+  }
+  const what = (s) => `${ax.name} bar: ${s}`
   // A loop left running would keep scrolling: the position holds after a drop, also from mid-list.
-  const stays = async (what) => {
+  const stays = async (w) => {
     await h.settle(ctx)
-    const s0 = (await scroll()).left
+    const s0 = (await scroll()).pos
     await ctx.sleep(300) // absence: no scrolling meanwhile
-    h.assert((await scroll()).left === s0, `${what}: scroll stays after the drop (${s0})`)
-    const mid = Math.round((await scroll()).max / 2)
-    await setScroll(mid)
+    h.assert((await scroll()).pos === s0, what(`${w}: scroll stays after the drop (${s0})`))
+    const half = Math.round((await scroll()).max / 2)
+    await setScroll(half)
     await ctx.sleep(300) // absence: no scrolling meanwhile
-    h.assert((await scroll()).left === mid, `${what}: no scrolling after the drop (mid ${mid})`)
+    h.assert((await scroll()).pos === half, what(`${w}: no scrolling after the drop (mid ${half})`))
   }
 
   await h.press(ctx, 'Meta+1')
-  await h.eventually(ctx, async () => h.assert((await scroll()).left === 0, 'first tab shown: scrolled to the start'))
+  await setScroll(0) // the first tab may already be current, the list scrolled by hand
+  await h.eventually(ctx, async () => h.assert((await scroll()).pos === 0, what('first tab shown: scrolled to the start')))
 
-  // (a) The first tab dragged into the right zone, held: the list scrolls, the tab moves on with it.
+  // (a) The first tab dragged into the end zone, held: the list scrolls, the tab moves on with it.
   let list = await listBox()
-  const y = list.y + list.height / 2
-  const xr = list.x + list.width - 8
+  const across = list[crossLo(ax)] + list[crossExt(ax)] / 2
+  const zEnd = list[ax.lo] + list[ax.ext] - 8
   let ids = await order()
   const first = ids[0]
   let boxes = await tabBoxes()
-  const idx0 = ids.slice(1).filter((id) => boxes[id].x + boxes[id].width / 2 < xr).length // index if nothing scrolled
-  await m.move(boxes[first].x + boxes[first].width / 2, y)
+  const idx0 = ids.slice(1).filter((id) => mid(boxes[id]) < zEnd).length // index if nothing scrolled
+  await m.move(...Object.values(ax.pt(mid(boxes[first]), across)))
   await m.down()
-  await m.move(xr, y, { steps: 12 })
+  await at(zEnd, across)
   let s
   let idx
   await h.eventually(ctx, async () => {
     s = await scroll()
     idx = (await order()).indexOf(first)
-    h.assert(s.left > 0, `tab drag at the right end: list scrolled (${s.left})`)
-    h.assert(idx > idx0, `dragged tab moved on with the scroll (index ${idx} > ${idx0})`)
+    h.assert(s.pos > 0, what(`tab drag at the end: list scrolled (${s.pos})`))
+    h.assert(idx > idx0, what(`dragged tab moved on with the scroll (index ${idx} > ${idx0})`))
   })
-  await ctx.shot('tab-drag-right')
+  await ctx.shot(`${ax.name}-tab-drag-end`)
   await m.up()
   await stays('tab drag')
 
-  // (b) A board tile's title bar into the right zone: scrolls, highlight on a tab that was out of view;
+  // (b) A board tile's title bar into the end zone: scrolls, highlight on a tab that was out of view;
   // dropped there, the tile joins it.
   await h.press(ctx, 'Meta+1')
-  await h.eventually(ctx, async () => h.assert((await scroll()).left === 0, 'back at the start'))
+  await h.eventually(ctx, async () => h.assert((await scroll()).pos === 0, what('back at the start')))
   let l = await h.list(ctx)
   const tile = l.active
   const src = l.tab
@@ -170,46 +237,46 @@ async function autoscroll(ctx, h) {
   boxes = await tabBoxes()
   await m.move(...Object.values(await h.titlePoint(ctx, tile)))
   await m.down()
-  await m.move(xr, y, { steps: 12 })
+  await at(zEnd, across)
   await h.waitFor(ctx, async () => {
     const s = await scroll()
-    return s.left >= 300 || s.left >= s.max - 1 // the end (fractional scroll positions)
-  }, 'tile drag scrolled')
+    return s.pos >= 300 || s.pos >= s.max - 1 // the end (fractional scroll positions)
+  }, what('tile drag scrolled'))
   let mark
   await h.eventually(ctx, async () => {
     mark = await dropMark()
-    h.assert(mark.length === 1 && mark[0] !== src, `one tab highlighted (${mark})`)
-    h.assert(boxes[mark[0]].x >= list.x + list.width - 1, `highlighted tab was out of view (left ${boxes[mark[0]].x}, list right ${list.x + list.width})`)
+    h.assert(mark.length === 1 && mark[0] !== src, what(`one tab highlighted (${mark})`))
+    h.assert(boxes[mark[0]][ax.lo] >= list[ax.lo] + list[ax.ext] - 1, what(`highlighted tab was out of view (${boxes[mark[0]][ax.lo]}, list end ${list[ax.lo] + list[ax.ext]})`))
   })
-  await ctx.shot('tile-drag-right')
+  await ctx.shot(`${ax.name}-tile-drag-end`)
   await m.up()
   await h.eventually(ctx, async () => {
     l = await h.list(ctx)
-    h.assert((await h.tileOf(ctx, tile)).tab === mark[0] && l.tab === mark[0] && l.active === tile, `tile joined the highlighted tab, shown (${l.tab})`)
-    h.assert(!l.tabs.some((t) => t.id === src), 'emptied source tab closed')
+    h.assert((await h.tileOf(ctx, tile)).tab === mark[0] && l.tab === mark[0] && l.active === tile, what(`tile joined the highlighted tab, shown (${l.tab})`))
+    h.assert(!l.tabs.some((t) => t.id === src), what('emptied source tab closed'))
   })
   await stays('tile drag')
 
-  // (c) Left end, from the end of the list: the last tab dragged into the left zone.
+  // (c) Start end, from the end of the list: the last tab dragged into the start zone.
   await setScroll((await scroll()).max)
   await h.settle(ctx)
-  const s0 = (await scroll()).left
+  const s0 = (await scroll()).pos
   ids = await order()
   const last = ids[ids.length - 1]
   boxes = await tabBoxes()
   list = await listBox()
-  await m.move(boxes[last].x + boxes[last].width / 2, y)
+  const zStart = list[ax.lo] + 8
+  await m.move(...Object.values(ax.pt(mid(boxes[last]), across)))
   await m.down()
-  await m.move(list.x + 8, y, { steps: 12 })
-  const visibleLeft = ids.filter((id) => boxes[id].x + boxes[id].width / 2 < list.x + 8).length
+  await at(zStart, across)
+  const before = ids.filter((id) => mid(boxes[id]) < zStart).length
   await h.eventually(ctx, async () => {
     s = await scroll()
     idx = (await order()).indexOf(last)
-    h.assert(s.left < s0, `tab drag at the left end: list scrolled back (${s.left} < ${s0})`)
-    h.assert(idx < visibleLeft, `dragged tab moved back with the scroll (index ${idx} < ${visibleLeft})`)
+    h.assert(s.pos < s0, what(`tab drag at the start: list scrolled back (${s.pos} < ${s0})`))
+    h.assert(idx < before, what(`dragged tab moved back with the scroll (index ${idx} < ${before})`))
   })
-
-  await ctx.shot('tab-drag-left')
+  await ctx.shot(`${ax.name}-tab-drag-start`)
   await m.up()
-  await stays('left drag')
+  await stays('start drag')
 }

@@ -298,6 +298,37 @@ describe('inRevealZone', () => {
     expect(inRevealZone(300, 90, below, above)).toBe(false) // above the reveal
     expect(inRevealZone(510, 410, below, above)).toBe(false) // band y, right of both
   })
+  // Shelf in a left bar: the item at the bar's top, the reveal right of it, clamped to the board's top
+  // (it starts level with the item's top and reaches far below it), a 16 px gap between.
+  const leftItem = { x: 10, y: 40, w: 140, h: 28 }
+  const rightReveal = { x: 166, y: 40, w: 400, h: 300 }
+  it('left bar: covers item, reveal and the band between', () => {
+    expect(inRevealZone(80, 54, leftItem, rightReveal)).toBe(true) // item
+    expect(inRevealZone(158, 54, leftItem, rightReveal)).toBe(true) // gap, level with the item
+    expect(inRevealZone(158, 300, leftItem, rightReveal)).toBe(true) // gap, level with the reveal's lower part
+    expect(inRevealZone(400, 330, leftItem, rightReveal)).toBe(true) // reveal, far below the item
+  })
+  it('left bar: excludes the rest', () => {
+    expect(inRevealZone(80, 100, leftItem, rightReveal)).toBe(false) // the bar below the item (next items)
+    expect(inRevealZone(80, 30, leftItem, rightReveal)).toBe(false) // the bar above the item
+    expect(inRevealZone(158, 350, leftItem, rightReveal)).toBe(false) // band x, below both
+    expect(inRevealZone(580, 200, leftItem, rightReveal)).toBe(false) // right of the reveal
+  })
+  // Shelf in a right bar: the reveal left of the item, centred on it (the item level with its middle).
+  const rightItem = { x: 1000, y: 386, w: 28, h: 28 }
+  const leftReveal = { x: 584, y: 250, w: 400, h: 300 }
+  it('right bar: covers item, reveal and the band between', () => {
+    expect(inRevealZone(1014, 400, rightItem, leftReveal)).toBe(true) // item
+    expect(inRevealZone(992, 400, rightItem, leftReveal)).toBe(true) // gap, level with the item
+    expect(inRevealZone(992, 260, rightItem, leftReveal)).toBe(true) // gap, diagonal toward the reveal's top
+    expect(inRevealZone(600, 540, rightItem, leftReveal)).toBe(true) // reveal
+  })
+  it('right bar: excludes the rest', () => {
+    expect(inRevealZone(1014, 440, rightItem, leftReveal)).toBe(false) // the bar below the item
+    expect(inRevealZone(1014, 360, rightItem, leftReveal)).toBe(false) // the bar above the item
+    expect(inRevealZone(992, 560, rightItem, leftReveal)).toBe(false) // band x, below both
+    expect(inRevealZone(570, 400, rightItem, leftReveal)).toBe(false) // left of the reveal
+  })
 })
 
 describe('compute', () => {
