@@ -1,4 +1,4 @@
-// Shelf and templates in a left / right bar (tabs top / bottom): list form (rows: icon + title), shelve by drop at a slot along y, reorder, reveal beside the item toward the board (centred on it, clamped; peak sideways), reveal zone travel, group drag (strip, board), template drag; narrow form (icons only, scaled with the bar's width up to 1.5x; drop slots by the scaled pitch).
+// Shelf and templates in a left / right bar (tabs top / bottom): list form (rows: icon + title), shelve by drop at a slot along y, reorder, reveal beside the item toward the board (centred on it, clamped; peak sideways), reveal zone travel, group drag (strip, board), template drag; narrow form (icons only, scaled with the bar's width from 0.875x to 1.5x; drop slots by the scaled pitch).
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const PAD = 6
@@ -138,9 +138,9 @@ export default async (ctx, h) => {
     await h.drag(ctx, await h.template(ctx), await h.sidePoint(ctx, a, 'r'))
     await h.waitFor(ctx, async () => (await L()).tiles.length === n + 1, `${side}: template spawned a tile`)
 
-    // Narrow form: icons only, square, centred, scaled with the bar's width (less --pad each side)
-    // up to 1.5x; then back to the list form.
-    for (const [w, size] of [[48, 36], [54, 42]]) {
+    // Narrow form: icons only, square, centred, scaled as a horizontal bar's (0.875x at 48 px, +1/40
+    // per px, 1.5x from 73 px); then back to the list form.
+    for (const [w, size] of [[48, 24.5], [54, 28.7], [73, 42]]) {
       await h.setBarSize(ctx, side, w)
       const nb = (await h.boxOf(ctx, `#bar-${side}`)).box
       near(nb.width, w, `${side}: bar ${w} px`)

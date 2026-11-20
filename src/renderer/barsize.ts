@@ -1,9 +1,9 @@
 // Bar sizes (LAYOUT.md "Bar sizes"; design S19 to S24): each bar's stored size (main keeps it in the
 // UI state file; handed over at boot), the size it is shown at (window limits), the CSS that follows
-// (root `--size-<bar>`; per bar `--k`, the content scale, and `.narrow`, a vertical bar's form), and
+// (root `--size-<bar>`; per bar `--k`, the content scale; a vertical bar's form `.narrow` and its scale `--kn`), and
 // the resize: drag a bar's board-side edge (`.bar-edge`), double-click for the default size.
 import { BARS, isVertical, type Bar } from '@core/bars'
-import { defaultSizes, defaultSize, shownSize, minSize, maxSize, barScale, barForm, type BarSizes } from '@core/barsize'
+import { defaultSizes, defaultSize, shownSize, minSize, maxSize, barScale, barForm, narrowScale, type BarSizes } from '@core/barsize'
 import { tie, debug } from './state'
 import { track } from './drag'
 import { render } from './render'
@@ -21,7 +21,8 @@ export function initSizes(s: BarSizes) {
 }
 
 // Shown sizes → CSS: root `--size-<bar>` (the inset vars follow: style.css `has-<bar>`), each bar's
-// `--k` (horizontal content scale, S19) and `.narrow` (vertical narrow form, S14). Only on change.
+// `--k` (horizontal content scale, S19); a vertical bar's `.narrow` (form, S14) and `--kn` (its
+// shelf and templates' scale in that form, narrowScale). Only on change.
 export function applySizes() {
   const shown = shownSizes()
   const key = BARS.map((b) => shown[b]).join()
@@ -32,7 +33,9 @@ export function applySizes() {
     root.setProperty(`--size-${bar}`, `${shown[bar]}px`)
     const el = document.getElementById(`bar-${bar}`)!
     el.style.setProperty('--k', String(barScale(bar, shown[bar])))
-    if (isVertical(bar)) el.classList.toggle('narrow', barForm(shown[bar]) === 'narrow')
+    if (!isVertical(bar)) continue
+    el.classList.toggle('narrow', barForm(shown[bar]) === 'narrow')
+    el.style.setProperty('--kn', String(narrowScale(shown[bar])))
   }
 }
 

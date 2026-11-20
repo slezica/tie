@@ -1257,11 +1257,15 @@ body.tile-drag .bar.v #tab-add {
   height: calc(var(--item) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
 }
 /* Narrow (`.bar.v.narrow`, barsize.ts: width under LIST_MIN, core/barsize.ts): icons only, centred,
-   scaled with the bar's width (less --pad each side) from the default size up to 1.5x (at 54 px),
-   then kept at 1.5x, centred, up to the list form. The threshold lives in JS only (no literal here). */
+   scaled as a horizontal bar's: `--k` here is the bar's `--kn` (narrowScale: 0.875x at 48 px, as a
+   32 px horizontal bar, 1.5x from 73 px on), so slots, glyphs, dots, radii, the hint and ghosts
+   follow it. Threshold and scale live in JS only (no literal here). */
 .bar.v.narrow #shelf,
 .bar.v.narrow #templates {
-  --item: clamp(var(--slot), calc(100cqi - 2 * var(--pad)), calc(var(--slot) * 1.5));
+  --k: var(--kn, 1);
+  --kt: max(1, var(--k));
+  --slot: calc(var(--slot-base) * var(--k));
+  --item: var(--slot);
   align-items: center;
 }
 .bar.v.narrow .item,
@@ -1276,20 +1280,11 @@ body.tile-drag .bar.v #tab-add {
 }
 .bar.v.narrow .item .dot,
 .bar.v.narrow .item .ping {
-  top: 3px;
-  right: 3px;
+  top: calc(3px * var(--k));
+  right: calc(3px * var(--k));
 }
 .bar.v.narrow #shelf::before {
   width: var(--item);
-}
-.bar.v.narrow .item .ico,
-.bar.v.narrow .template .ico {
-  font-size: calc(var(--item) * 15 / 28); /* custom icons: 15px at the default size */
-}
-.bar.v.narrow .item .glyph svg,
-.bar.v.narrow .template .glyph svg {
-  width: calc(var(--item) * 16 / 28); /* 16px at the default size */
-  height: calc(var(--item) * 16 / 28);
 }
 .template,
 .item {

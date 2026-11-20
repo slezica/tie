@@ -1,6 +1,6 @@
 // Bar content by size (LAYOUT.md "Bar sizes"): horizontal bars scale tabs, brand, shelf items and
 // templates with the thickness (32 / 40 / 60 px: heights, glyphs, centring; drop at a slot, reveal next
-// to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow up to 1.5x
+// to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow from 0.875x to 1.5x
 // then centred, list from LIST_MIN), narrow tabs keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
@@ -130,8 +130,9 @@ export default async (ctx, h) => {
       })
       return { bar: bar.toJSON(), narrow: document.getElementById('bar-left').classList.contains('narrow'), rows }
     })
-  // width → item size (narrow: width less --pad each side, up to 1.5 × 28; list: rows 28 tall).
-  for (const [w, size] of [[48, 36], [54, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
+  // width → item size (narrow: 28 × narrowScale: 0.875x at 48, as a 32 px horizontal bar, +1/40 per
+  // px, 1.5x from 73; list: rows 28 tall).
+  for (const [w, size] of [[48, 24.5], [54, 28.7], [60, 32.9], [73, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
     await h.setBarSize(ctx, 'left', w)
     const f = await forms()
     near(f.bar.width, w, `left ${w}: width`)

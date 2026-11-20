@@ -32,11 +32,16 @@ export const shownSize = (bar: Bar, stored: number, windowW: number) => Math.rou
 export const SCALE_MIN = 0.875
 export const barScale = (bar: Bar, size: number) => (isVertical(bar) ? 1 : Math.round(clamp(size / HBAR.def, SCALE_MIN, HBAR.max / HBAR.def) * 1000) / 1000)
 
-// Vertical bar forms (S14, S15; SHELF.md "Forms"), by width. Narrow: icons only, scaled with the
-// width up to 1.5x (reached at 1.5 × slot + 2 × pad = 54 px), then kept at 1.5x, centred, up to
-// LIST_MIN. List: default icons with titles, from LIST_MIN on (a title of ~6 letters there).
+// Vertical bar forms (S14, S15; SHELF.md "Forms"), by width. Narrow: icons only, scaled by
+// narrowScale, centred, up to LIST_MIN. List: default icons with titles, from LIST_MIN on (a title of
+// ~6 letters there).
 export const LIST_MIN = 100
 export const barForm = (size: number): 'narrow' | 'list' => (size < LIST_MIN ? 'narrow' : 'list')
+
+// Content scale of a narrow vertical bar's shelf and templates (feel round 1): at the minimum width
+// the same as a horizontal bar at its minimum (SCALE_MIN), then growing with the width at a
+// horizontal bar's rate (1 / 40 per px), capped at 1.5x (reached at 73 px; centred after that).
+export const narrowScale = (size: number) => Math.round(clamp(SCALE_MIN + (size - VBAR.min) / HBAR.def, SCALE_MIN, HBAR.max / HBAR.def) * 1000) / 1000
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
