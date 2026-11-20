@@ -44,6 +44,19 @@
 - During drags: `body.dragging` → tile content and reveals `pointer-events: none`. From pointerdown (`body.tracking`): content frames and browser guests too.
 - Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).
 
+## Edit layout drag (`layoutedit.ts`)
+
+In the edit mode only (`LAYOUT.md` "Edit mode"). No modifier key.
+
+- Press anywhere on a component's box (`.le-comp`: items, empty area, the brand with the tabs), drag past 4 px (`track()`); else a click: nothing.
+- Target bar (`barAt`, `core/bars.ts`): the zone holding the pointer (existing or potential bar); an existing one wins, then the nearest window edge. Over no zone (the board): no target, a drop changes nothing.
+- Gravity (`gravityAt`, S35): the pointer's half of the bar along its axis: before the middle `start`, else `end`.
+- Index (`indexAt`, S36): how many other components of that list have their midpoint before the pointer.
+- Preview (S38): `.le-preview`, accent box at the landing place: after the component before it (start) or before the one after it (end), roughly the component's size there (its length in its bar; in the other orientation capped at 30% of the bar). Moves with a 140 ms transition (also across the bar's middle); the first placement jumps. The target bar: `.le-bar.target`; an absent bar shows its future rect (its own preview, S34) with the box in it.
+- The dragged component dims in place (`.le-dragging`).
+- Drop: `moveComponent` (`core/bars.ts`) → applied live. Same place: nothing. A bar left empty hides (still indicated, as a potential zone).
+- Escape: cancels the drag (the mode stays).
+
 ## Keyboard (`ACTIONS` in `core/keymap.ts`; `main/keys.ts`, `renderer/keys.ts`)
 
 Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
@@ -138,4 +151,4 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 
 ## Scenarios
 
-`layout-drop`, `templates`, `keys`, `keys-swap`, `keys-bindings`, `sec-keys`, `sec-keys-capture`, `settings-bindings`, `picker`, `picker-partial`, `menu`, `close-busy`, `quit`, `sec-drop`.
+`layout-drop`, `templates`, `keys`, `keys-swap`, `keys-bindings`, `sec-keys`, `sec-keys-capture`, `settings-bindings`, `settings-layout`, `settings-layout-drag`, `picker`, `picker-partial`, `menu`, `close-busy`, `quit`, `sec-drop`.

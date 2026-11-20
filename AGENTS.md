@@ -85,7 +85,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `ids.ts`: `randomId` (prefix + 6 chars, base32 minus `0 1 l o`, live uniqueness check) (renderer).
   - `picker.ts`: file picker scorer: `score` (fzf v1 window, path bonuses, smart case, NFC, AND terms), `rank` (top-K), `merge` (streamed chunks), `parseLine` (line → prefix, dir, query), `joinPath`, `descendOf` (renderer).
   - `keymap.ts`: `ACTIONS` (id, label, default chord, aliases), `Bindings` (sparse overrides), `resolveKeymap`, `conflicts`, `validBinding`, `bindingErrors` / `cleanBindings`, `accelerator` (menu label), `chord`, `actionFor`; `decideKey` (`KeyMode`: every real key → pass / block / action / capture) (main + renderer).
-  - `bars.ts`: bars layout: `Bars` (bar → `start` / `end` component lists), `defaultBars`, `validBars`, `cleanBars`, `migrateToolbar` (old `toolbar` key), `placeOf` / `barOf` / `barItems` / `barEmpty`, `isVertical`, `dropComponent` (nearest-component drop rule) (core settings + renderer).
+  - `bars.ts`: bars layout: `Bars` (bar → `start` / `end` component lists), `defaultBars`, `validBars`, `cleanBars`, `migrateToolbar` (old `toolbar` key), `placeOf` / `barOf` / `barItems` / `barEmpty`, `isVertical`, `dropComponent` (nearest-component drop rule); edit mode: `sameBars` (structural), `moveComponent`, `barsSummary` (panel row), `barRects` / `barZones` (bar rects, non-overlapping zones), `barAt` / `gravityAt` / `indexAt` (drag target) (core settings + renderer).
   - `settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings, `toolbar` migrated), `fileChanged`, `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main).
   - `zoom.ts`: page zoom `ZOOM_STEPS`, `zoomStep(factor, dir)`, `zoomLabel` (renderer).
   - `cli.test.ts`: `bin/tie` argument errors (subprocess, no socket), help sections.
@@ -127,10 +127,11 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `paste.ts`: guarded paste (`pasteInto`), paste / drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
   - `bars.ts`: the four bars: `applyBars` (components into their groups, empty bars hidden, `has-<bar>` classes, templates divider), `barDropAt` (which component takes a tile drop over a bar), `bars()`, `barOfComponent`, `verticalComponent`.
+  - `layoutedit.ts`: edit layout mode (`editLayout(done)`, `abortLayoutEdit`): dim layer, bar indicators, component boxes, labels, floating box, component drag + preview, keys (`LAYOUT.md` "Edit mode").
   - `shelf.ts`: shelf strip (items: icon + `.lbl` title for the list form), template list, overflow wiring, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, reorder (`dragTab`), overflow, tab drops (`tabDropAt(x, y)`); along the bar's axis.
   - `overflow.ts`: scrolling lists in bars (tab list, shelf strip), axis per bar: `syncFades` (`.more-start` / `.more-end`), `showChild` (keep in view), `sideWheel`, `edgeScroll` (drag auto-scroll), `edgeHolding`.
   - `menu.ts`: context menus (`showTileMenu`, `showMetaMenu`, `showListMenu`). `dialog.ts`: `infoDialog`, `confirmDialog`, `choiceDialog`.
-  - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security, About), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
+  - `settings.ts`: settings panel (Appearance (with the Layout row: Reset, Modify → edit mode), Bindings, Terminal, Files, Security, About), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus direction (ranking `@core/focus`). `capture.ts`: `captureField` (input taking key presses as a chord name; `INPUT.md` "Capture fields"). `quit.ts`: `askQuit`.
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseGroup`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: `initDriver`: socket methods → ops.

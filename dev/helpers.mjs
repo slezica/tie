@@ -34,7 +34,7 @@ export async function openSettings(ctx, page) {
   await ctx.page.waitForSelector(`section[data-page="${page}"].current`)
 }
 
-// Bars layout (`bars` setting, core/bars.ts) changed as a user does it until the panel edits it:
+// Bars layout (`bars` setting, core/bars.ts) changed by hand edit (the panel's edit mode: editLayout):
 // the settings file edited (`bars`, plus `extra` keys), the panel opened (banner: changed on disk),
 // Reload, the panel closed. `bars` may be invalid on purpose (→ the default layout). Waits until the
 // layout Tie applied is mounted (each component in its bar) and rendered. Returns that layout.

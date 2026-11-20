@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 next.
+Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 done 2026-11-20; phase 3 next.
 
 # Topic
 
@@ -218,6 +218,22 @@ Still horizontal-only or open after 1b:
 - Keep-in-view for the shelf (a new item appended out of view stays there): none, as before.
 - W2 (drag regions on side bars and the reveal): manual check still pending.
 
+## Phase 2, as built (2026-11-20)
+
+- Files: `renderer/layoutedit.ts` (the mode), panel row in `settings.ts`, pure parts in `core/bars.ts` (`sameBars`, `moveComponent`, `barsSummary`, `barRects`, `barZones`, `barAt`, `gravityAt`, `indexAt`; unit tests).
+- Summary text: per bar in use, `Bottom: Tabs, Shelf, Templates`; `Top: Tabs · Left: Shelf, Templates`. Choice: grouped by bar (shorter than S28's "Tabs bottom, Shelf bottom, Templates bottom" once components share a bar); no gravity shown.
+- Changeset: `draft()` carries `bars`; preview applies it (the 1a rule "preview keeps the active layout" is gone); `dirty()` compares it with `sameBars`.
+- Input blocking: one transparent root over the window below the title strip (z 6500) takes every pointer event; components are drag handles drawn over it (`.le-comp`). Rejected: capture-phase listeners stopping clicks per component (hover reveals, wheels, menus each need a case).
+- Keys: a window capture listener blocks every key outside the box (a tile focused by `refocus()` after a dialog gets nothing); Escape: drag, else mode; Tab trapped between the box's buttons. Shortcuts: suspended as with the panel open (`modalOpen` also counts `#layout-edit`).
+- Zones: potential bars drawn as zones that never overlap (`barZones`): a potential side bar between the top / bottom zones, a potential top / bottom between existing side bars. The targeted absent bar shows its real future rect (S9). Hit test = the zones.
+- Preview box: rough size. Length = its length in its current bar; into the other orientation capped at 30% of the bar (45% same orientation). Placed after the previous component (start) or before the next (end); may overlap the components it lands between (they don't move during the drag). 140 ms transition.
+- Labels: accent pills on the board side of the bar, centred on the component, clamped inside the four zones (over the board only: a label never covers a bar or a potential zone), side bar labels clear the top / bottom label bands, swept apart along the bar.
+- Dim: `--bg` 60% (the dialog backdrop's). Terminals are mostly `--bg`: they barely show behind it.
+- Banner / Reload in the mode: the panel is hidden, so Reload can't be pressed; the banner updates and shows on return. Choice: no special handling.
+- Menu toggle (`cmd+,`) in the mode: the mode's Cancel (`abortLayoutEdit`, from the panel's `remove()`), then the panel's Cancel (reverts to the saved layout). Same for a Reload rebuild.
+- Persistence check: the file and `settings.get()` after Save (no restart in the scenario: the file is what a restart reads).
+- Not verified offscreen (manual): bars and the root not acting as window drag regions during the mode (W2 family); the title strip still dragging the window.
+
 ## Scenarios affected
 
 - Rewritten: `layout-geometry` (entirely top / bottom), `tabs-overflow` (entirely horizontal), `tabs-drops` (midpoint rule).
@@ -243,12 +259,12 @@ Still horizontal-only or open after 1b:
   2. Done. Shelf + templates: vertical strip, slots, reveal side and peak (B1), overflow as tabs in both directions (S17); forms by bar width (S14, S15).
   3. Done. Scenarios: `tabs-vertical`, `shelf-vertical`, `shelf-overflow` (both axes); `tabs-overflow` covers both axes; `layout-geometry` mixed layout + reveal per bar.
 
-## Phase 2: edit mode
+## Phase 2: edit mode (done)
 
-1. Panel row (S28), layout in the draft, Save state.
-2. Mode: dim layer, floating box, bar indicators, labels.
-3. Component drag: bar previews, gravity by midpoint, reorder, animation.
-4. Scenarios: drag to each bar, gravity, reorder, cancel, reset, panel Save / Cancel.
+1. Done. Panel row (S28), layout in the draft, Save state.
+2. Done. Mode: dim layer, floating box, bar indicators, labels.
+3. Done. Component drag: bar previews, gravity by midpoint, reorder, animation.
+4. Done. Scenarios: `settings-layout` (row, mode, blocked input, Done / Cancel / Escape, Save, Reset, panel Cancel, menu toggle, resize), `settings-layout-drag` (each component to each bar, gravity, reorder, previews, emptied bar, light theme).
 
 ## Phase 3: size
 

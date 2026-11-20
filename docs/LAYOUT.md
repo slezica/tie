@@ -118,6 +118,22 @@ Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design
 - Templates, a bar holding only templates: no drop.
 - Tabs and shelf in different bars: each bar only sees its own components.
 
+### Edit mode (`renderer/layoutedit.ts`)
+
+The layout edited by drag (design S28 to S38). Entered from the settings panel's Layout row (`Modify`, `SETTINGS.md` "Layout row"); `editLayout(done)`.
+
+- Root `#layout-edit`: covers the window below the title strip, transparent, z 6500 (menus 6000 < it < settings 7000 < dialogs 7500). Nothing under it takes the pointer: no tab switch, reveal, pin, spawn, context menu, wheel, tile drag.
+- Not a window drag region (`no-drag`); bars neither while it runs (root class `layout-editing`). The title strip still drags the window.
+- `.le-dim`: the board area between the bars that exist (`--top-h` etc.), the dialog backdrop's color. Tiles keep running behind it; they re-lay out as bars come and go.
+- `.le-bar[data-bar]` (S31), one per bar: an existing bar outlined (`.exists`, its rect); an absent one a dashed zone at its edge. Zones never overlap (`barZones`, `core/bars.ts`): potential top / bottom between the side bars that exist; potential left / right between the top / bottom zones.
+- `.le-comp[data-c]`: one box per component (tabs: with the brand), the drag handle. Outlined; hover highlights.
+- `.le-label[data-c]` (S37): "Tabs", "Shelf", "Templates", beside the component on the board side of its bar. Window-positioned (push nothing); kept inside the four zones; side bar labels clear the top / bottom label bands; pushed apart along the bar.
+- `.le-box`: centred on the board. One line ("Drag Tabs, Shelf and Templates to any edge"), `Cancel`, `Done`. A pill, no title: not a dialog.
+- Re-placed on window resize, any bar or component size change (`ResizeObserver`), each drop.
+- Keys (window, capture): Escape cancels a drag, else the mode. Tab moves between the box's buttons. Every other key is blocked (a tile focused meanwhile gets nothing). Shortcuts stay suspended (main: `fields`, as with the panel open). A dialog over the mode (Quit) keeps its keys.
+- Done: `done(layout)`; Cancel / Escape: `done(null)`. `abortLayoutEdit()`: ends it as Cancel, no callback (panel closing or rebuilding).
+- Component drag: `INPUT.md` "Edit layout drag". Each drop is applied live (`applyAppearance` with the new `bars`): later drags start from it.
+
 ## Geometry
 
 CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
@@ -139,9 +155,9 @@ board = { x: left, y: top, w: W - left - right, h: H - top - bottom }
 ## Rendering
 
 - `S.rects`: last rendered rects of the visible space (used by keys, driver, drag). Other spaces' tiles: `display: none`.
-- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, settings 7000, dialog 7500.
+- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, layout edit 6500, settings 7000, dialog 7500.
 - Layout is not persisted across restarts.
 
 ## Scenarios
 
-`layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`, `keys-swap`, `ping`.
+`layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`, `keys-swap`, `ping`. Edit mode: `settings-layout`, `settings-layout-drag`.

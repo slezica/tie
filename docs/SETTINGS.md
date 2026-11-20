@@ -22,7 +22,7 @@
 |---|---|---|---|
 | `theme` | `tie-dark` | app | theme id |
 | `borderless` | false | app | hide window controls |
-| `bars` | bottom: tabs \| shelf, templates | app | layout of the bars ("Window options"); file only for now |
+| `bars` | bottom: tabs \| shelf, templates | app | layout of the bars ("Window options"); panel: Appearance, Layout row |
 | `fontFamily` | `''` | all tiles | `''` = default stack |
 | `fontSize` | 12 | all tiles | 8–32 px (markdown: base text size) |
 | `lineHeight` | 1.15 | all tiles | 1–2 |
@@ -49,10 +49,27 @@
 - Open: menu / cmd+,; harness: `document.dispatchEvent(new CustomEvent('tie:settings'))` (toggles).
 - Pages `Appearance` | `Bindings` (below) | `Terminal` (shell, terminal title, paste confirms) | `Files` (Respect .gitignore) | `Security` (external control, link confirm) | `About` (last, under a separator; read-only: Tie version, instance, Electron / Chromium / Node versions, settings and log paths with `~`, full path in the tooltip; from `settings:get` `about`) (last one remembered).
 - Live preview (`applyAppearance(draft())`, `previewBorderless`). Cancel / Escape / backdrop reverts.
-- Save is enabled only with something to save: a panel value differs from the active settings (compared on every `input` / `change` and binding edit; a value put back disables it again), or after Ignore in this panel (the file differs: Save overwrites it). Always disabled under the banner.
+- The draft (`draft()`, `patch()`): every field, plus `bars` (Layout row, below) and `bindings` (Bindings page).
+- Save is enabled only with something to save: a panel value differs from the active settings (compared on every `input` / `change`, binding edit and layout change; a value put back disables it again), or after Ignore in this panel (the file differs: Save overwrites it). Always disabled under the banner.
+    - Compared: bindings as a map (key order ignored); `bars` structurally (`sameBars`: order within a list matters); the rest by value.
 - Only the Save button saves. Enter in a text / number field or a select: done with it, focus to the panel itself (`.settings`, keeps Escape); value kept. On a focused button Enter presses that button; capture fields: their own Enter (accept). Errors: status line (else file path), field `.invalid`, jump to its page.
 - Font list async (`queryLocalFonts`, else candidates), monospace only; fields don't wait for it.
 - Status line (`.status`, bottom left): the settings file path, or what blocks Save. Paths shown with `~` (as the banner and the startup dialog); the full path is the tooltip.
+
+## Layout row (Appearance > Window)
+
+- `.layout-row`: title "Layout", summary below (`#set-layout-summary`), buttons `Reset` (`#set-layout-reset`), `Modify` (`#set-layout-modify`).
+- Summary (`barsSummary`, `core/bars.ts`): each bar in use, its components in visual order: `Bottom: Tabs, Shelf, Templates`; `Top: Tabs · Left: Shelf, Templates`. From the draft.
+- The layout is a draft value like the theme: previewed live, in `patch()`, compared in `dirty()`, persisted by Save, reverted by Cancel.
+- `Reset`: draft layout := `defaultBars()`, previewed. Disabled when the draft already is the default.
+- `Modify`: the edit layout mode (`LAYOUT.md` "Edit mode"). The panel hides (`.settings-backdrop.away`; draft and fields kept) and returns on:
+    - `Done`: the mode's layout becomes the draft (previewed, summary and Save state refreshed).
+    - `Cancel` / Escape: the draft unchanged, re-applied (the layout as when the mode opened).
+    - Focus back on `Modify`.
+- The mode never writes the file. Only Save does.
+- While the mode runs:
+    - Banner (file changed on disk): updates in the hidden panel; seen on return (Save disabled under it). Reload can't be reached meanwhile.
+    - Panel closed or rebuilt under it (menu `cmd+,` toggles the panel: its Cancel; Reload rebuild): the mode ends first as Cancel (`abortLayoutEdit`), then the panel acts (Cancel reverts to the saved layout).
 
 ## Bindings page (`src/renderer/bindings.ts`)
 
@@ -107,5 +124,5 @@
   ```
   - Each of `tabs`, `shelf`, `templates` exactly once; order within a list matters. An empty bar is hidden.
   - Invalid (missing, twice, unknown name, wrong shape, extra keys): the whole layout falls back to the default (`sanitize` → `cleanBars`). `validateSettings`: an error on `bars` for a save.
-  - Not in the panel yet (edit mode: phase 2): edit the file, then the panel's Reload. The panel's preview keeps the active layout; `dirty()` ignores it.
+  - Panel: Layout row ("Layout row" above): Reset, Modify (the edit mode). Hand edits: the file, then the panel's Reload.
 - Old `toolbar` key: `"top"` with no `bars` → the default layout on the top bar (`migrateToolbar`, in `parseSettings`). Otherwise ignored. `sanitize` drops it: gone from the file at the next Save.
