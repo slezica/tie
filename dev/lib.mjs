@@ -181,7 +181,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     // Scenario settings win (seed first); a raw string is written as-is (no seed).
     const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ ...SEED, ...opts.settings })
     writeFileSync(env.TIE_SETTINGS, seeded)
-    rmSync(uiStatePath(instance), { force: true })
+    rmSync(uiStatePath(instance), { recursive: true, force: true }) // a directory: layout-bars-state (unreadable case)
     if (opts.uiState !== undefined) writeFileSync(uiStatePath(instance), typeof opts.uiState === 'string' ? opts.uiState : JSON.stringify(opts.uiState))
   }
   const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
@@ -225,7 +225,7 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
     rmSync(env.TIE_SETTINGS, { force: true })
     rmSync(`${env.TIE_SETTINGS}.bak`, { force: true })
     rmSync(env.TIE_DOWNLOADS, { recursive: true, force: true })
-    rmSync(uiStatePath(instance), { force: true })
+    rmSync(uiStatePath(instance), { recursive: true, force: true }) // a directory: layout-bars-state (unreadable case)
     rmSync(userDataPath(instance), { recursive: true, force: true })
   }
   return { instance, stop }
