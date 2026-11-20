@@ -1122,11 +1122,34 @@ body.os-drag #shelf:not(.landing)::before {
   border-right: 1px solid var(--fg-c);
 }
 /* Vertical bars (left / right): components in a column, full width less --pad each side, one tab /
-   item / template per row. The bar is a size container: shelf and templates take their form from
-   its width (S14, S15; "Forms" below). */
+   item / template per row. Shelf and templates take their form from its width (S14, S15; "Forms"
+   below: `.narrow` and `--kn`, set by barsize.ts). */
 .bar.v {
   align-items: stretch;
-  container: bar / inline-size;
+}
+/* Junctions: where a side bar ends against a shown top / bottom bar, a 1 px divider across it (the
+   tile border's colour, as the templates divider), inset by --pad like the bar's rows. Level with
+   the board's own edge: a tile there has its 1 px border on the same pixel row. */
+.bar.v::before,
+.bar.v::after {
+  content: '';
+  display: none;
+  position: absolute;
+  left: var(--pad);
+  right: var(--pad);
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.bar.v::before {
+  top: 0;
+}
+.bar.v::after {
+  bottom: 0;
+}
+:root.has-top .bar.v::before,
+:root.has-bottom .bar.v::after {
+  display: block;
 }
 .bar.v > .group > * {
   margin-left: var(--pad);
