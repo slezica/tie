@@ -194,7 +194,7 @@ Horizontal-only code left for 1b (line numbers as of the 1a commits):
 - `tabs.ts:345` wheel: skipped in a vertical bar (native scroll, B3 avoided); no fades there yet.
 - `drag.ts:103` shelf slot from x and `scrollLeft`.
 - `render.ts:104-124` reveal: left / right bars placed as bottom (B1); peak up / down only.
-- `style.css:184` `#tab-list` mask `to right` (off in vertical bars); `style.css:981` `#shelf::before` hint sized for a row.
+- `style.css:181` `#tab-list` mask `to right` (off in vertical bars); `style.css:978` `#shelf::before` hint sized for a row.
 - Vertical bar CSS is basic: tabs stretched full width, `+` full width, shelf / templates centred columns.
 
 ## Scenarios affected
