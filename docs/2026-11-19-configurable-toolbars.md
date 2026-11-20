@@ -37,6 +37,11 @@ Status: brainstorming. Nothing implemented.
 - S17. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end.
 - S18. Components in the same bar and gravity can be reordered.
 - S19. A reset to the default layout exists.
+- S20. The layout is one more value in the panel's changeset (decided 2026-11-20, was P1).
+  - The mode never writes the file. `Done`: back to the panel, layout in the draft, previewed live. `Cancel`: back, layout as when the mode opened.
+  - The panel's Save persists it; the panel's Cancel reverts it, as for theme or font.
+  - Rejected: "Edit layout" disabled while the panel has changes, with its own Save. Reason: a second write path, and no real difference from any other field.
+  - Known cost: one more step for a layout-only change; `Done` may be mistaken for saved.
 
 ## Dropped ideas
 
@@ -49,13 +54,10 @@ Each has my pick first. Uncertain ones are marked.
 
 ## Edit mode
 
-- P1. Unsaved panel edits when entering the mode.
-  - a. "Edit layout" disabled while the panel has changes (pick).
-  - b. Layout joins the panel draft: the mode ends with Done / Discard, back to the panel, one Save.
-- P2. Buttons in the floating box: `Discard`, `Defaults`, `Save` (pick). `Defaults` changes the draft only.
-- P3. The mode's Save writes the settings file (explicit action, so the file rule in `SETTINGS.md` holds). Confirm.
+- P2. Buttons in the floating box: `Cancel`, `Defaults`, `Done` (pick). `Defaults` changes the mode's draft only.
+- P3. Panel row for the value: "Layout" + `Edit…` button, with a short summary ("Tabs bottom, Shelf right") (pick), or the button alone.
 - P4. Preview look: abstract accent-tinted box, as tile drop previews (pick), or a ghost of the component.
-- P5. Leaving the mode by Escape = Discard? (pick: yes.)
+- P5. Escape in the mode = Cancel (back to the panel)? (pick: yes.)
 
 ## Labels
 
@@ -192,8 +194,8 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 
 1. Entry from the panel, dim layer, floating box, bar indicators, labels.
 2. Component drag: bar previews, gravity by midpoint, reorder, animation.
-3. Discard / Defaults / Save.
-4. Scenarios: drag to each bar, gravity, reorder, discard, reset.
+3. Cancel / Defaults / Done; layout in the panel draft, Save state.
+4. Scenarios: drag to each bar, gravity, reorder, cancel, reset, panel Save / Cancel.
 
 ## Phase 3: size
 
