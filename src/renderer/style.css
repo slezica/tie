@@ -178,10 +178,12 @@ body {
 #shelf::-webkit-scrollbar {
   display: none;
 }
-.more-start {
+#tab-list.more-start,
+#shelf.more-start {
   --fade-s: 24px;
 }
-.more-end {
+#tab-list.more-end,
+#shelf.more-end {
   --fade-e: 24px;
 }
 /* The divider toward what follows the tabs appears only on overflow. */

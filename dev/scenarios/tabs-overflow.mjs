@@ -24,6 +24,8 @@ export default async (ctx, h) => {
   }
   const fades = async (sel, start, end, what) => {
     const c = await cls(sel)
+    const depth = await ctx.page.evaluate((sel) => { const cs = getComputedStyle(document.querySelector(sel)); return [cs.getPropertyValue('--fade-s').trim(), cs.getPropertyValue('--fade-e').trim()] }, sel)
+    h.assert((depth[0] === '24px') === start && (depth[1] === '24px') === end, `${what}: mask depths (${depth})`)
     h.assert(c.includes('more-start') === start && c.includes('more-end') === end, `${what}: fades ${start ? 'start' : ''}${start && end ? ' + ' : ''}${end ? 'end' : ''}${!start && !end ? 'none' : ''} (${c})`)
   }
   const tabCount = () => ctx.page.$$eval('.tab', (els) => els.length)
@@ -182,6 +184,7 @@ async function autoscroll(ctx, h, ax) {
   const dropMark = () => ctx.page.evaluate(() => [...document.querySelectorAll('.tab.drop')].map((e) => e.dataset.space))
   const mid = (b) => b[ax.lo] + b[ax.ext] / 2
   const m = ctx.page.mouse
+  const go = (p, o) => m.move(p.x, p.y, o) // a point's x, y only (Playwright reads x, y from the options too)
   const at = (along, across) => {
     const p = ax.pt(along, across)
     return m.move(p.x, p.y, { steps: 12 })
@@ -211,7 +214,7 @@ async function autoscroll(ctx, h, ax) {
   const first = ids[0]
   let boxes = await tabBoxes()
   const idx0 = ids.slice(1).filter((id) => mid(boxes[id]) < zEnd).length // index if nothing scrolled
-  await m.move(...Object.values(ax.pt(mid(boxes[first]), across)))
+  await go(ax.pt(mid(boxes[first]), across))
   await m.down()
   await at(zEnd, across)
   let s
@@ -235,7 +238,7 @@ async function autoscroll(ctx, h, ax) {
   const src = l.tab
   list = await listBox()
   boxes = await tabBoxes()
-  await m.move(...Object.values(await h.titlePoint(ctx, tile)))
+  await go(await h.titlePoint(ctx, tile))
   await m.down()
   await at(zEnd, across)
   await h.waitFor(ctx, async () => {
@@ -266,7 +269,7 @@ async function autoscroll(ctx, h, ax) {
   boxes = await tabBoxes()
   list = await listBox()
   const zStart = list[ax.lo] + 8
-  await m.move(...Object.values(ax.pt(mid(boxes[last]), across)))
+  await go(ax.pt(mid(boxes[last]), across))
   await m.down()
   await at(zStart, across)
   const before = ids.filter((id) => mid(boxes[id]) < zStart).length
