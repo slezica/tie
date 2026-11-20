@@ -39,14 +39,19 @@
   --radius: 0; /* tiles and drop preview: square */
   /* Spacing (px). Layout code reads these too: tweak freely. */
   --strip-h: 28px; /* title strip: the traffic lights only (0 when borderless) */
-  --hbar: 40px; /* top / bottom bar height */
-  --vbar: 160px; /* left / right bar width */
-  --tabs-min: 140px; /* the tab list never shrinks below this: one tab and + */
+  /* Each bar's size as shown (top / bottom: height; left / right: width): set by barsize.ts from the
+     UI state file, within the window's limits. These are the defaults (core/barsize.ts). */
+  --size-top: 40px;
+  --size-bottom: 40px;
+  --size-left: 160px;
+  --size-right: 160px;
+  --tabs-min: 140px; /* the tab list never shrinks below this: one tab and + (× --k in a horizontal bar) */
   --pad: 6px; /* board edge padding */
   --gap: 6px; /* between tiles */
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
   --nav-h: 24px; /* nav bar under the title bar (kinds that navigate) */
-  --slot: 28px; /* shelf item / template: square icon button */
+  --slot-base: 28px; /* shelf item / template: square icon button, at the default bar size */
+  --slot: var(--slot-base); /* × --k in a bar (.bar) */
   --slot-gap: 2px; /* between slots (layout code reads it: drop slot by pitch) */
   --peak: 8px; /* shelf reveal arrow */
   --tile-pad: 4px 0 0 6px; /* inside tile content: top right bottom left */
@@ -72,16 +77,16 @@ body {
   --strip-h: 0px; /* no traffic lights: no strip */
 }
 :root.has-top {
-  --bar-top: var(--hbar);
+  --bar-top: var(--size-top);
 }
 :root.has-bottom {
-  --bar-bottom: var(--hbar);
+  --bar-bottom: var(--size-bottom);
 }
 :root.has-left {
-  --bar-left: var(--vbar);
+  --bar-left: var(--size-left);
 }
 :root.has-right {
-  --bar-right: var(--vbar);
+  --bar-right: var(--size-right);
 }
 /* Title strip: the system's traffic lights, never Tie UI (S10). Drags the window. */
 #titlebar {
@@ -96,11 +101,17 @@ body {
    are the bar's flex items). Empty space drags the window; components don't (no-drag below).
    Contest along the bar: the tab list shrinks first (and scrolls) down to --tabs-min, then the
    shelf (and scrolls); templates never. Top / bottom span the width, left / right fit between. */
+/* Content scale (S19): `--k` per bar (barsize.ts): a horizontal bar's thickness / 40 px, 0.8 to 1.5;
+   vertical bars 1 (their shelf and templates scale by width: "Forms"). Sizes in a bar are written
+   × --k; text × --kt (never below its default size: a thin bar keeps readable text). */
 .bar {
+  --k: 1;
+  --kt: max(1, var(--k));
+  --slot: calc(var(--slot-base) * var(--k));
   position: absolute;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6px * var(--k));
   overflow: hidden;
   -webkit-app-region: drag;
 }
@@ -144,9 +155,9 @@ body {
 }
 #brand {
   flex: none;
-  margin-right: 6px;
+  margin-right: calc(6px * var(--k));
   color: var(--faint);
-  font-size: 11px;
+  font-size: calc(11px * var(--kt));
   font-weight: 600;
 }
 #brand:empty {
@@ -157,11 +168,11 @@ body {
    (calc-size: no blank space between the brand and the tabs). */
 #tabs {
   flex: 0 1000000 auto;
-  min-width: calc-size(max-content, min(size, var(--tabs-min)));
+  min-width: calc-size(max-content, min(size, var(--tabs-min) * var(--k)));
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 5px 0;
+  padding: calc(5px * var(--k)) 0;
 }
 /* Lists that don't fit scroll along their bar (no scrollbar): the tab list, the shelf strip
    (overflow.ts). Fades at the ends with more (`.more-start` / `.more-end`, as deep as the drag
@@ -216,13 +227,13 @@ body {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6px * var(--k));
   height: 100%;
-  max-width: 200px;
-  padding: 0 4px 0 12px;
-  border-radius: 6px;
+  max-width: calc(200px * var(--kt));
+  padding: 0 calc(4px * var(--k)) 0 calc(12px * var(--k));
+  border-radius: calc(6px * var(--k));
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--kt));
   font-weight: 600;
   cursor: default;
 }
@@ -246,11 +257,11 @@ body {
   flex: none;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: calc(18px * var(--k));
+  height: calc(18px * var(--k));
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--k));
   background: transparent;
   color: inherit;
   opacity: 0;
@@ -265,8 +276,8 @@ body {
   background: var(--fg-b);
 }
 .tab-close svg {
-  width: 11px;
-  height: 11px;
+  width: calc(11px * var(--k));
+  height: calc(11px * var(--k));
 }
 body.dragging-tab,
 body.dragging-tab .tab {
@@ -274,13 +285,13 @@ body.dragging-tab .tab {
 }
 #tab-add {
   flex: none;
-  width: 26px;
+  width: calc(26px * var(--k));
   height: 100%;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--k));
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
+  font-size: calc(16px * var(--kt));
   cursor: pointer;
 }
 #tab-add:hover {
@@ -903,6 +914,66 @@ body.tile-drag #tab-add.drop {
   background: var(--accent);
 }
 
+/* Bar edges (barsize.ts): a strip on each shown bar's board-side edge, 4 px inside the bar and 2 px
+   over the board (tile borders and float handles keep the rest). Drag: resize; double-click: the
+   default size. Carved out of the bar's window drag region (no-drag; after the bars in the DOM). At
+   the corners the top / bottom edges win (above). None in the edit layout mode. */
+.bar-edge {
+  position: absolute;
+  display: none;
+  z-index: 1500;
+  -webkit-app-region: no-drag;
+}
+.bar-edge.h {
+  z-index: 1501;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+.bar-edge.v {
+  top: var(--top-h);
+  bottom: var(--bottom-h);
+  width: 6px;
+  cursor: col-resize;
+}
+.bar-edge[data-bar='top'] {
+  top: calc(var(--top-h) - 4px);
+}
+.bar-edge[data-bar='bottom'] {
+  bottom: calc(var(--bottom-h) - 4px);
+}
+.bar-edge[data-bar='left'] {
+  left: calc(var(--left-w) - 4px);
+}
+.bar-edge[data-bar='right'] {
+  right: calc(var(--right-w) - 4px);
+}
+:root.has-top .bar-edge[data-bar='top'],
+:root.has-bottom .bar-edge[data-bar='bottom'],
+:root.has-left .bar-edge[data-bar='left'],
+:root.has-right .bar-edge[data-bar='right'] {
+  display: block;
+}
+:root.layout-editing .bar-edge[data-bar] {
+  display: none;
+}
+/* The edge itself lit on hover and while dragged, as tile borders. */
+.bar-edge::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+  opacity: 0;
+}
+.bar-edge:hover::after,
+.bar-edge.active::after {
+  opacity: 0.6;
+}
+.bar-edge[data-bar='top']::after { left: 0; right: 0; top: 3px; height: 2px; }
+.bar-edge[data-bar='bottom']::after { left: 0; right: 0; bottom: 3px; height: 2px; }
+.bar-edge[data-bar='left']::after { top: 0; bottom: 0; left: 3px; width: 2px; }
+.bar-edge[data-bar='right']::after { top: 0; bottom: 0; right: 3px; width: 2px; }
+
 /* Borders between slotted tiles */
 #borders > .border {
   position: absolute;
@@ -1000,9 +1071,9 @@ body.resizing-col { cursor: row-resize; }
   height: var(--slot);
   place-items: center;
   border: 1px dashed var(--accent);
-  border-radius: 6px;
+  border-radius: calc(6px * var(--k));
   color: var(--accent);
-  font-size: 16px;
+  font-size: calc(16px * var(--k));
 }
 body.tile-drag #shelf:not(.landing)::before,
 body.os-drag #shelf:not(.landing)::before {
@@ -1088,6 +1159,17 @@ body.os-drag #shelf:not(.landing)::before {
 .bar.v .tab:hover .tab-close {
   display: grid;
 }
+/* Narrow bar: no close button even on hover (it would take the title's few letters); middle-click
+   and the context menu still close. Tighter padding: ~3 letters and an ellipsis at 48 px (S22). */
+.bar.v.narrow .tab:hover .tab-close {
+  display: none;
+}
+.bar.v.narrow .tab {
+  padding: 0 4px;
+}
+.bar.v.narrow #brand {
+  padding-left: 4px;
+}
 .bar.v #tab-add {
   width: 100%;
   height: 26px;
@@ -1133,7 +1215,7 @@ body.tile-drag .bar.v #tab-add {
   border-right: 0;
   border-bottom: 1px solid var(--fg-c);
 }
-/* Forms in a vertical bar (S14, S15). List (wider than the narrow form's widest): rows of the
+/* Forms in a vertical bar (S14, S15). List (the default; from LIST_MIN wide): rows of the
    default-size icon + the title (shelf: the tile's display title; templates: their label). */
 #shelf,
 #templates {
@@ -1174,41 +1256,40 @@ body.tile-drag .bar.v #tab-add {
   width: auto;
   height: calc(var(--item) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
 }
-/* Narrow: icons only, centred, scaled with the bar's width (less --pad each side) from the default
-   size up to 1.5x. The query can't read variables: 54px = 1.5 × --slot (28) + 2 × --pad (6). */
-@container bar (width <= 54px) {
-  .bar.v #shelf,
-  .bar.v #templates {
-    --item: clamp(var(--slot), calc(100cqi - 2 * var(--pad)), calc(var(--slot) * 1.5));
-    align-items: center;
-  }
-  .bar.v .item,
-  .bar.v .template {
-    width: var(--item);
-    height: var(--item);
-    grid-template-columns: 1fr;
-    justify-items: center;
-  }
-  .bar.v .lbl {
-    display: none;
-  }
-  .bar.v .item .dot,
-  .bar.v .item .ping {
-    top: 3px;
-    right: 3px;
-  }
-  .bar.v #shelf::before {
-    width: var(--item);
-  }
-  .bar.v .item .ico,
-  .bar.v .template .ico {
-    font-size: calc(var(--item) * 15 / 28); /* custom icons: 15px at the default size */
-  }
-  .bar.v .item .glyph svg,
-  .bar.v .template .glyph svg {
-    width: calc(var(--item) * 16 / 28); /* 16px at the default size */
-    height: calc(var(--item) * 16 / 28);
-  }
+/* Narrow (`.bar.v.narrow`, barsize.ts: width under LIST_MIN, core/barsize.ts): icons only, centred,
+   scaled with the bar's width (less --pad each side) from the default size up to 1.5x (at 54 px),
+   then kept at 1.5x, centred, up to the list form. The threshold lives in JS only (no literal here). */
+.bar.v.narrow #shelf,
+.bar.v.narrow #templates {
+  --item: clamp(var(--slot), calc(100cqi - 2 * var(--pad)), calc(var(--slot) * 1.5));
+  align-items: center;
+}
+.bar.v.narrow .item,
+.bar.v.narrow .template {
+  width: var(--item);
+  height: var(--item);
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+.bar.v.narrow .lbl {
+  display: none;
+}
+.bar.v.narrow .item .dot,
+.bar.v.narrow .item .ping {
+  top: 3px;
+  right: 3px;
+}
+.bar.v.narrow #shelf::before {
+  width: var(--item);
+}
+.bar.v.narrow .item .ico,
+.bar.v.narrow .template .ico {
+  font-size: calc(var(--item) * 15 / 28); /* custom icons: 15px at the default size */
+}
+.bar.v.narrow .item .glyph svg,
+.bar.v.narrow .template .glyph svg {
+  width: calc(var(--item) * 16 / 28); /* 16px at the default size */
+  height: calc(var(--item) * 16 / 28);
 }
 .template,
 .item {
@@ -1218,7 +1299,7 @@ body.tile-drag .bar.v #tab-add {
   height: var(--slot);
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--k));
   color: var(--muted);
   cursor: grab;
 }
@@ -1237,7 +1318,7 @@ body.tile-drag .bar.v #tab-add {
 }
 .template .ico,
 .item .ico {
-  font-size: 15px;
+  font-size: calc(15px * var(--k));
   display: flex;
   align-items: center;
 }
@@ -1247,16 +1328,16 @@ body.tile-drag .bar.v #tab-add {
 }
 .template .glyph svg,
 .item .glyph svg {
-  width: 16px;
-  height: 16px;
+  width: calc(16px * var(--k));
+  height: calc(16px * var(--k));
 }
 .item .dot {
   display: none;
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 6px;
-  height: 6px;
+  top: calc(3px * var(--k));
+  right: calc(3px * var(--k));
+  width: calc(6px * var(--k));
+  height: calc(6px * var(--k));
   border-radius: 50%;
   background: var(--accent);
 }
@@ -1266,8 +1347,8 @@ body.tile-drag .bar.v #tab-add {
 .item .exit {
   position: absolute;
   top: 0;
-  left: 3px;
-  font-size: 9px;
+  left: calc(3px * var(--k));
+  font-size: calc(9px * var(--kt));
   font-weight: 700;
 }
 .item .exit.ok {
@@ -1942,8 +2023,8 @@ body.empty #empty-hint {
 .tab-ping {
   display: none;
   flex: none;
-  width: 7px;
-  height: 7px;
+  width: calc(7px * var(--k));
+  height: calc(7px * var(--k));
   border-radius: 50%;
   background: var(--yellow);
   box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
@@ -1968,10 +2049,10 @@ body.empty #empty-hint {
 .item .ping {
   display: none;
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
+  top: calc(3px * var(--k));
+  right: calc(3px * var(--k));
+  width: calc(7px * var(--k));
+  height: calc(7px * var(--k));
   border-radius: 50%;
   background: var(--yellow);
   box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);

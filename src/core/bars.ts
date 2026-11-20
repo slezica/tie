@@ -140,28 +140,28 @@ export interface BarRect {
 
 // Where each bar is, or would be if it held something (S9): top / bottom span the window's width
 // (top below the title strip), left / right fit between the top and bottom bars that exist.
-// `shown`: whether a bar exists now; `hbar` / `vbar`: thickness of top / bottom, left / right.
-export function barRects(w: number, h: number, strip: number, hbar: number, vbar: number, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
-  const top = strip + (shown('top') ? hbar : 0)
-  const bottom = h - (shown('bottom') ? hbar : 0)
+// `shown`: whether a bar exists now; `size`: each bar's thickness (shown or not: its own size).
+export function barRects(w: number, h: number, strip: number, size: Record<Bar, number>, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
+  const top = strip + (shown('top') ? size.top : 0)
+  const bottom = h - (shown('bottom') ? size.bottom : 0)
   return {
-    top: { x: 0, y: strip, w, h: hbar },
-    bottom: { x: 0, y: h - hbar, w, h: hbar },
-    left: { x: 0, y: top, w: vbar, h: bottom - top },
-    right: { x: w - vbar, y: top, w: vbar, h: bottom - top },
+    top: { x: 0, y: strip, w, h: size.top },
+    bottom: { x: 0, y: h - size.bottom, w, h: size.bottom },
+    left: { x: 0, y: top, w: size.left, h: bottom - top },
+    right: { x: w - size.right, y: top, w: size.right, h: bottom - top },
   }
 }
 
 // Edit mode zones (S31): where each bar is indicated and takes a component drag. An existing bar:
 // its rect. A potential one: its edge, less what other bars hold, so zones never overlap: top /
 // bottom between the side bars that exist, left / right between the top / bottom zones.
-export function barZones(w: number, h: number, strip: number, hbar: number, vbar: number, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
-  const r = barRects(w, h, strip, hbar, vbar, shown)
+export function barZones(w: number, h: number, strip: number, size: Record<Bar, number>, shown: (b: Bar) => boolean): Record<Bar, BarRect> {
+  const r = barRects(w, h, strip, size, shown)
   const zones = { ...r }
-  const x0 = shown('left') ? vbar : 0
-  const x1 = w - (shown('right') ? vbar : 0)
+  const x0 = shown('left') ? size.left : 0
+  const x1 = w - (shown('right') ? size.right : 0)
   for (const b of ['top', 'bottom'] as const) if (!shown(b)) zones[b] = { ...r[b], x: x0, w: x1 - x0 }
-  for (const b of ['left', 'right'] as const) if (!shown(b)) zones[b] = { ...r[b], y: strip + hbar, h: h - hbar - (strip + hbar) }
+  for (const b of ['left', 'right'] as const) if (!shown(b)) zones[b] = { ...r[b], y: strip + size.top, h: h - size.bottom - (strip + size.top) }
   return zones
 }
 

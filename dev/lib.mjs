@@ -19,6 +19,9 @@ export const plainLog = (text) => text.replaceAll('<untrusted>', '').replaceAll(
 
 export const stateDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tie')
 export const infoPath = (instance) => join(stateDir, `${instance}.json`)
+// UI state file of an instance (main/uistate.ts: bar sizes). Fresh harness instances remove theirs
+// at launch and on stop: never the dev or installed instance's.
+export const uiStatePath = (instance) => join(stateDir, `${instance}.ui.json`)
 // Electron profile of an instance (main: app userData = <appData>/tie-<instance>). Fresh harness
 // instances remove theirs on stop.
 export const userDataPath = (instance) => join(homedir(), 'Library/Application Support', `tie-${instance}`)
@@ -141,8 +144,12 @@ function freePort() {
 // e.g. malformed JSON, written as-is).
 // opts.hiddenWindow: never-shown real window instead of offscreen (input reaches content frames).
 // opts.env: extra environment (scenario `export const env`).
+// opts.uiState: pre-seed the instance's UI state file (object as JSON, or a raw string as-is).
+// opts.restart: the same instance again (ctx.restart): settings and UI state files kept as they are,
+// the Electron log appended.
 export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   rmSync(infoPath(instance), { force: true })
+  if (instance === 'default' || instance === 'dev') throw new Error(`launch: refusing instance ${instance} (fresh instances only)`)
   // Own settings file: tests never see (or touch) the user's settings.
   const env = {
     ...process.env,
@@ -167,14 +174,18 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   delete env.TIE_TILE
   delete env.ELECTRON_RUN_AS_NODE
   mkdirSync(join(ROOT, 'tmp'), { recursive: true })
-  rmSync(env.TIE_SETTINGS, { force: true })
-  rmSync(`${env.TIE_SETTINGS}.bak`, { force: true }) // "Recreate with defaults" backup (settings-malformed-recreate)
-  // The harness drives Tie from outside (not from a Tie terminal): external control seeded on.
-  // Scenario settings win (seed first); a raw string is written as-is (no seed).
-  const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ ...SEED, ...opts.settings })
-  writeFileSync(env.TIE_SETTINGS, seeded)
+  if (!opts.restart) {
+    rmSync(env.TIE_SETTINGS, { force: true })
+    rmSync(`${env.TIE_SETTINGS}.bak`, { force: true }) // "Recreate with defaults" backup (settings-malformed-recreate)
+    // The harness drives Tie from outside (not from a Tie terminal): external control seeded on.
+    // Scenario settings win (seed first); a raw string is written as-is (no seed).
+    const seeded = typeof opts.settings === 'string' ? opts.settings : JSON.stringify({ ...SEED, ...opts.settings })
+    writeFileSync(env.TIE_SETTINGS, seeded)
+    rmSync(uiStatePath(instance), { force: true })
+    if (opts.uiState !== undefined) writeFileSync(uiStatePath(instance), typeof opts.uiState === 'string' ? opts.uiState : JSON.stringify(opts.uiState))
+  }
   const errFile = runDir ? join(runDir, 'electron.log') : join(ROOT, 'tmp', `${instance}.stderr`)
-  const err = openSync(errFile, 'w')
+  const err = openSync(errFile, opts.restart ? 'a' : 'w')
   const bin = join(ROOT, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron')
   // Electron's binary is downloaded by `install-electron` (our postinstall), not by its package.
   if (!existsSync(bin)) throw new Error(`no Electron binary at ${bin}: run npm install (postinstall downloads it)`)
@@ -195,7 +206,8 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
   }
   // Kill Electron itself (pid from info file), not the npm wrapper.
   const pid = info().pid
-  const stop = async () => {
+  // keep: the instance's files stay (settings, UI state, profile): a restart follows (ctx.restart).
+  const stop = async ({ keep = false } = {}) => {
     try {
       process.kill(pid, 'SIGTERM')
     } catch {}
@@ -208,10 +220,12 @@ export async function launch(instance = `drive-${process.pid}`, opts = {}) {
       }
     }
     for (let i = 0; i < 50 && alive(); i++) await sleep(100)
+    if (keep) return
     if (!runDir) rmSync(errFile, { force: true })
     rmSync(env.TIE_SETTINGS, { force: true })
     rmSync(`${env.TIE_SETTINGS}.bak`, { force: true })
     rmSync(env.TIE_DOWNLOADS, { recursive: true, force: true })
+    rmSync(uiStatePath(instance), { force: true })
     rmSync(userDataPath(instance), { recursive: true, force: true })
   }
   return { instance, stop }

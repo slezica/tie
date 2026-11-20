@@ -7,6 +7,9 @@ import { displayTitle } from './tile'
 import { contains as holds } from '@core/roots'
 import { kindSpec } from './kinds'
 import { locationUrl } from '@core/guest'
+import { BARS, type Bar } from '@core/bars'
+import { defaultSize } from '@core/barsize'
+import { setBarSize, storedSizes, shownSizes } from './barsize'
 
 interface Params {
   id?: TileId
@@ -30,6 +33,8 @@ interface Params {
   swap?: TileId // move: exchange places with this tile (same tab)
   old?: TileId // replaced (main only, socket.ts): the tile to replace
   clear?: boolean
+  bar?: string // dev `bar-size`: which bar
+  px?: number | null // dev `bar-size`: its size (null: the default)
 }
 
 const SIDES = new Set(['l', 'r', 't', 'b'])
@@ -235,7 +240,16 @@ const methods: Record<string, (p: Params) => unknown> = {
     pinned: S.pinned,
     revealed: S.revealed,
     selected: [...S.selected],
+    barSizes: { stored: storedSizes(), shown: shownSizes() },
   }),
+  // Harness (dev builds only): a bar's size set as a resize ending would (clamped to today's limits,
+  // applied, persisted to the UI state file). px null: the default (as a double-click).
+  'bar-size': (p) => {
+    if (!BARS.includes(p.bar as Bar)) throw new Error(`unknown bar: ${String(p.bar)}`)
+    const bar = p.bar as Bar
+    setBarSize(bar, typeof p.px === 'number' ? p.px : defaultSize(bar))
+    return { stored: storedSizes(), shown: shownSizes() }
+  },
 }
 
 // `tie add|replace <arg>`: a known kind name opens that kind (today's behavior). An http(s) URL (`url`,
@@ -265,13 +279,16 @@ async function resolveOpen(p: Params) {
   p.kind = v.kind
 }
 
+// Harness methods, refused outside dev builds.
+const DEV_ONLY = new Set(['state', 'bar-size'])
+
 export function initDriver(o: { dev: boolean }) {
   devBuild = o.dev
   tie.rpc.onRequest(async (reqId, method, params) => {
     debug('rpc', method, params)
     try {
       const fn = methods[method]
-      if (!fn || (method === 'state' && !devBuild)) throw new Error(`unknown method: ${method}`)
+      if (!fn || (DEV_ONLY.has(method) && !devBuild)) throw new Error(`unknown method: ${method}`)
       const p = (params ?? {}) as Params
       if (method === 'add' || method === 'replace') await resolveOpen(p) // async: before choosing the space
       // Act in the tab of the tile concerned (or the caller's terminal), else the visible tab.

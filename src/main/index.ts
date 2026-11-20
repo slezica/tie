@@ -13,6 +13,7 @@ import { fileViewer, openDoc, closeDoc, clearDocs, pickFile, setNextPick, startW
 import { initBrowserSession, noDownloads, guestMethod, allowDownload, onPopup, onPreventUnload, unloadGuest, leaveGuest } from './guest'
 import { getSettings, setSettings, defaultShell, settingsPath, validateSettings, saveRefusal, loadRefusal, fileChanged, loadError, ignoreSettingsFile, reloadSettings, recreateSettings, backupPath, watchSettings } from './settings'
 import { applyStaged } from './update'
+import { uiState, setBarSizes } from './uistate'
 
 const dev = !app.isPackaged
 // A staged update (tie-dev install while Tie ran) swaps in first, then relaunches: update.ts.
@@ -148,6 +149,9 @@ ipc.handle('settings:recreate', () => {
   if (r.ok) applySettings()
   return r
 })
+// UI state (uistate.ts): bar sizes at boot; a resize's end (main validates the payload).
+ipc.handle('ui:get', () => uiState())
+ipc.handle('ui:bar-sizes', (_e, sizes: unknown) => setBarSizes(sizes))
 ipc.handle('content:open', (_e, root: unknown, kind: unknown, page: unknown) => openContent(root, kind, page))
 ipc.on('content:close', (_e, token: unknown) => closeContent(token))
 ipc.on('content:kill', (_e, token: unknown) => killContent(token, win?.webContents.mainFrame ?? null))

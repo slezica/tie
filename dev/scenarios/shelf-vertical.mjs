@@ -141,7 +141,7 @@ export default async (ctx, h) => {
     // Narrow form: icons only, square, centred, scaled with the bar's width (less --pad each side)
     // up to 1.5x; then back to the list form.
     for (const [w, size] of [[48, 36], [54, 42]]) {
-      await h.setBarSize(ctx, w)
+      await h.setBarSize(ctx, side, w)
       const nb = (await h.boxOf(ctx, `#bar-${side}`)).box
       near(nb.width, w, `${side}: bar ${w} px`)
       for (const r of [...(await rows('#shelf .item')), ...(await rows('#templates .template'))]) {
@@ -162,9 +162,9 @@ export default async (ctx, h) => {
     h.assert((await peak()).cls.includes(side), `${side} narrow: reveal with the peak`)
     await ctx.shot(`${side}-narrow-reveal`)
     await away()
-    await h.setBarSize(ctx, 64)
-    h.assert((await rows('#shelf .item')).every((r) => r.lblShown && Math.abs(r.height - SLOT) <= 1), `${side} 64: list form again`)
-    await h.setBarSize(ctx, null)
+    await h.setBarSize(ctx, side, 120)
+    h.assert((await rows('#shelf .item')).every((r) => r.lblShown && Math.abs(r.height - SLOT) <= 1), `${side} 120: list form again`)
+    await h.setBarSize(ctx, side, null)
 
     // Clean up for the next side: the board tile a only.
     for (const t of (await L()).tiles.filter((t) => t.id !== a)) await ctx.tie('close', '--tile', t.id)

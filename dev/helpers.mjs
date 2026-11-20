@@ -99,17 +99,30 @@ export async function dragComponent(ctx, component, bar, gravity, { index, durin
   await drag(ctx, { x: from.x, y: from.y }, to, { steps, during })
 }
 
-// Vertical bar width (`--vbar`, CSS: both side bars) overridden on the UI root, until bars are
-// resized by drag (phase 3): narrow vs list form of shelf and templates. null: back to the stylesheet's.
-// Re-lays out the board (a window resize event) and waits for it.
-export async function setBarSize(ctx, px) {
-  await ctx.page.evaluate((px) => {
-    const root = document.documentElement.style
-    if (px === null) root.removeProperty('--vbar')
-    else root.setProperty('--vbar', `${px}px`)
-    window.dispatchEvent(new Event('resize'))
-  }, px)
+// A bar's size (LAYOUT.md "Bar sizes") set as a resize ending would: dev socket `bar-size` (clamped to
+// today's limits, applied, written to the UI state file); px null: the bar's default (as a double-click
+// on its edge). Works on a hidden bar too (its size when it shows). Waits for the re-layout. Returns
+// `{stored, shown}` (all four bars).
+export async function setBarSize(ctx, bar, px) {
+  const r = await rpc(ctx.instance, 'bar-size', { bar, px })
   await settle(ctx)
+  return r
+}
+
+// Sizes of all four bars: `{stored, shown}` (`tie state` `barSizes`; shown = within the window's limits).
+export const barSizes = async (ctx) => (await state(ctx)).barSizes
+
+// Middle of a shown bar's edge strip (`.bar-edge`: its board-side edge; drag resizes it).
+export const barEdge = (ctx, bar) => boxOf(ctx, `.bar-edge[data-bar="${bar}"]`)
+
+// Drag a shown bar's edge so it would be `px` thick (the result is clamped: min, max); `during`: hook
+// before the release (live checks: the file isn't written yet). Returns the sizes after.
+export async function resizeBar(ctx, bar, px, { steps = 8, during } = {}) {
+  const from = await barEdge(ctx, bar)
+  const d = px - (await barSizes(ctx)).shown[bar]
+  const to = bar === 'left' ? { x: from.x + d, y: from.y } : bar === 'right' ? { x: from.x - d, y: from.y } : bar === 'top' ? { x: from.x, y: from.y + d } : { x: from.x, y: from.y - d }
+  await drag(ctx, { x: from.x, y: from.y }, to, { steps, during })
+  return barSizes(ctx)
 }
 
 // CSS custom property of the UI page's root (settings → tokens, SETTINGS.md), trimmed.

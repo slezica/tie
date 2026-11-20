@@ -20,6 +20,7 @@ import { applyPrefs } from './prefs'
 import { initKeys } from './keys'
 import { initTabs, setHome } from './tabs'
 import { initPaste, dropOnTile } from './paste'
+import { initSizes, initBarEdges } from './barsize'
 
 // SECURITY: native drops (from Finder, browsers) are no-ops. Unclaimed, the browser navigates the
 // window to a dropped link/file (and the preload would follow), and dropped text lands in xterm's
@@ -97,6 +98,7 @@ async function boot() {
   const info = await tie.info()
   const settingsInfo = await tie.settings.get()
   const { settings } = settingsInfo
+  initSizes((await tie.ui.get()).bars) // bar sizes: main's UI state file
   applyAppearance(settings)
   applyPrefs(settings)
   S.cwd = info.cwd
@@ -109,6 +111,7 @@ async function boot() {
   initGuests()
   if (info.dev) registerKind({ kind: 'probe', factory: probeKind, opens: 'bare' })
   initShelf()
+  initBarEdges()
   initMenu()
   initPaste()
   initDriver({ dev: !!info.dev })

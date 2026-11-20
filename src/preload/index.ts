@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { WalkChunk } from '../main/walk'
 import type { Bindings } from '../core/keymap'
 import type { Bars } from '../core/bars'
+import type { BarSizes } from '../core/barsize'
 export type { WalkChunk }
 
 export interface Settings {
@@ -71,6 +72,13 @@ const api = {
     onOpen: (cb: () => void) => {
       ipcRenderer.on('settings:open', () => cb())
     },
+  },
+  // UI state kept by main across restarts (main/uistate.ts): bar sizes. `setBarSizes`: a resize
+  // ended (one bar or more); main cleans the payload (known bars, finite numbers, clamped), writes
+  // the file and answers the sizes in force.
+  ui: {
+    get: (): Promise<{ bars: BarSizes }> => ipcRenderer.invoke('ui:get'),
+    setBarSizes: (sizes: Partial<BarSizes>): Promise<BarSizes> => ipcRenderer.invoke('ui:bar-sizes', sizes),
   },
   // Content tiles (sandboxed frames): main registers `root` under a fresh token, returns the frame URL.
   content: {

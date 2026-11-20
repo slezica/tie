@@ -7,6 +7,7 @@ import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
 import { syncShelf, shelfItemEl } from './shelf'
 import { attachBorder, setBorder } from './drag'
+import { applySizes } from './barsize'
 
 // Tiles of background spaces: display:none (their terminals skip fitting while hidden).
 function hideOtherSpaces() {
@@ -53,6 +54,7 @@ export function render() {
 }
 
 function renderVisible() {
+  applySizes() // bar sizes within the window's limits (a resize may clamp a vertical bar): before the geometry
   readGeometry()
   hideOtherSpaces()
   renderTabs()

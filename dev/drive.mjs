@@ -56,7 +56,7 @@ for (const k of ['log', 'error']) {
 }
 let fresh = null
 try {
-  fresh = attach ? null : await launch(undefined, { settings: mod.settings, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
+  fresh = attach ? null : await launch(undefined, { settings: mod.settings, uiState: mod.uiState, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
 } catch (e) {
   console.error(e.stack || e.message)
   appendFileSync(join(runDir, 'drive.log'), 'exit=1\n')
@@ -98,7 +98,7 @@ try {
     tieRaw: (args, opts) => tieRaw(instance, args, opts),
     shot: async (label) => {
       const p = join(shotDir, `${String(++n).padStart(2, '0')}-${label}.png`)
-      await page.screenshot({ path: p, scale: 'css' })
+      await ctx.page.screenshot({ path: p, scale: 'css' })
       console.log(p)
       return p
     },
@@ -107,6 +107,18 @@ try {
     // The app log as a human reads it (<untrusted> markers removed, escapes undone: core/log.ts); rawLog: the file.
     appLog: () => plainLog(existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
     rawLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
+    // The same instance quit and started again (fresh instances only): its settings and UI state
+    // files kept, as a user's restart. ctx.page is a new page after it (re-read it, never keep the old).
+    restart: async () => {
+      if (!fresh) throw new Error('restart: fresh instances only (not --attach)')
+      await browser.close().catch(() => {})
+      await fresh.stop({ keep: true })
+      fresh = await launch(instance, { restart: true, hiddenWindow: mod.hiddenWindow, env: mod.env, runDir })
+      const c = await connectPage(instance)
+      browser = c.browser
+      ctx.page = c.page
+      await ctx.page.waitForSelector('.tab')
+    },
   }
   // A scenario stuck on a promise that never settles fails (instance stopped below), never hangs.
   const limit = Number(process.env.TIE_SCENARIO_TIMEOUT || 180) * 1000

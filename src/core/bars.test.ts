@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { defaultBars, validBars, cleanBars, migrateToolbar, placeOf, barOf, barItems, barEmpty, isVertical, dropComponent, sameBars, moveComponent, barsSummary, barRects, barZones, barAt, gravityAt, indexAt, type Bars } from './bars'
 
+const sz = (h: number, v: number) => ({ top: h, bottom: h, left: v, right: v })
 const layout = (patch: Partial<Bars>): Bars => ({ top: { start: [], end: [] }, bottom: { start: [], end: [] }, left: { start: [], end: [] }, right: { start: [], end: [] }, ...patch })
 
 describe('default and validity', () => {
@@ -113,15 +114,15 @@ describe('edit mode (S33 to S36)', () => {
     expect(barsSummary(layout({ top: { start: [], end: ['tabs'] }, left: { start: ['templates'], end: ['shelf'] } }))).toBe('Top: Tabs · Left: Templates, Shelf')
   })
   it('barRects: top / bottom full width, sides between the bars that exist (S9)', () => {
-    const r = barRects(1000, 700, 28, 40, 160, (b) => b === 'bottom')
+    const r = barRects(1000, 700, 28, sz(40, 160), (b) => b === 'bottom')
     expect(r.top).toEqual({ x: 0, y: 28, w: 1000, h: 40 })
     expect(r.bottom).toEqual({ x: 0, y: 660, w: 1000, h: 40 })
     expect(r.left).toEqual({ x: 0, y: 28, w: 160, h: 632 })
     expect(r.right).toEqual({ x: 840, y: 28, w: 160, h: 632 })
-    expect(barRects(1000, 700, 0, 40, 160, (b) => b === 'top').left).toEqual({ x: 0, y: 40, w: 160, h: 660 })
+    expect(barRects(1000, 700, 0, sz(40, 160), (b) => b === 'top').left).toEqual({ x: 0, y: 40, w: 160, h: 660 })
   })
   it('barAt: inside a zone; existing first at corners, then the nearest edge; else null', () => {
-    const r = barRects(1000, 700, 28, 40, 160, (b) => b === 'bottom')
+    const r = barRects(1000, 700, 28, sz(40, 160), (b) => b === 'bottom')
     const zones = (['top', 'bottom', 'left', 'right'] as const).map((bar) => ({ bar, rect: r[bar], exists: bar === 'bottom' }))
     expect(barAt(zones, 500, 680)).toBe('bottom')
     expect(barAt(zones, 500, 40)).toBe('top')
@@ -133,14 +134,25 @@ describe('edit mode (S33 to S36)', () => {
     expect(barAt(zones, 30, 32)).toBe('top')
   })
   it('barZones: existing bars as they are; potential edges never overlap them or each other', () => {
-    const z = barZones(1000, 700, 28, 40, 160, (b) => b === 'bottom' || b === 'left')
+    const z = barZones(1000, 700, 28, sz(40, 160), (b) => b === 'bottom' || b === 'left')
     expect(z.bottom).toEqual({ x: 0, y: 660, w: 1000, h: 40 })
     expect(z.left).toEqual({ x: 0, y: 28, w: 160, h: 632 })
     expect(z.top).toEqual({ x: 160, y: 28, w: 840, h: 40 })
     expect(z.right).toEqual({ x: 840, y: 68, w: 160, h: 592 })
-    const none = barZones(1000, 700, 28, 40, 160, (b) => b === 'top')
+    const none = barZones(1000, 700, 28, sz(40, 160), (b) => b === 'top')
     expect(none.bottom).toEqual({ x: 0, y: 660, w: 1000, h: 40 })
     expect(none.left).toEqual({ x: 0, y: 68, w: 160, h: 592 })
+  })
+  it('barRects / barZones: each bar its own size', () => {
+    const size = { top: 60, bottom: 32, left: 48, right: 300 }
+    const r = barRects(1000, 700, 28, size, (b) => b !== 'right')
+    expect(r.top).toEqual({ x: 0, y: 28, w: 1000, h: 60 })
+    expect(r.bottom).toEqual({ x: 0, y: 668, w: 1000, h: 32 })
+    expect(r.left).toEqual({ x: 0, y: 88, w: 48, h: 580 })
+    expect(r.right).toEqual({ x: 700, y: 88, w: 300, h: 580 })
+    const z = barZones(1000, 700, 28, size, (b) => b === 'left')
+    expect(z.top).toEqual({ x: 48, y: 28, w: 952, h: 60 })
+    expect(z.right).toEqual({ x: 700, y: 88, w: 300, h: 580 })
   })
   it('gravityAt: the half of the bar along its axis (S35)', () => {
     expect(gravityAt('bottom', { x: 0, y: 660, w: 1000, h: 40 }, 499, 680)).toBe('start')

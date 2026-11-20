@@ -5,6 +5,7 @@
 // (its draft), Cancel / Escape hand back nothing (the panel re-applies its draft). Never writes.
 import { BARS, COMPONENTS, COMPONENT_LABELS, barAt, barEmpty, barRects, barZones, gravityAt, indexAt, isVertical, moveComponent, placeOf, sameBars, type Bar, type BarRect, type Bars, type Component, type Gravity } from '@core/bars'
 import { bars } from './bars'
+import { shownSizes } from './barsize'
 import { appearance, applyAppearance } from './appearance'
 import { track } from './drag'
 import { S, debug } from './state'
@@ -44,13 +45,13 @@ const lo = (r: BarRect, v: boolean) => (v ? r.y : r.x)
 const len = (r: BarRect, v: boolean) => (v ? r.h : r.w)
 const mid = (r: BarRect, v: boolean) => lo(r, v) + len(r, v) / 2
 
-// Geometry from the stylesheet (thicknesses, title strip) and the applied layout.
+// Geometry: the title strip (stylesheet), each bar's size (shown, barsize.ts), the applied layout.
 function geometry() {
   const cs = getComputedStyle(document.documentElement)
   const px = (n: string) => parseFloat(cs.getPropertyValue(n)) || 0
   const layout = bars()
   const shown = (b: Bar) => !barEmpty(layout, b)
-  const args = [innerWidth, innerHeight, px('--strip-h'), px('--hbar'), px('--vbar'), shown] as const
+  const args = [innerWidth, innerHeight, px('--strip-h'), shownSizes(), shown] as const
   return { layout, shown, rects: barRects(...args), zones: barZones(...args), pad: px('--pad') }
 }
 
