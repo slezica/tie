@@ -19,7 +19,7 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 
 ## Tab list
 
-The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (the tab list `#tab-list` + `#tab-add`), in the bar the `bars` setting names (`LAYOUT.md` "Bars"). `#tabs` is content-sized: it shrinks first in its bar (floor `--tabs-min`), the shelf after; templates never. At a bar's end, its content packs toward the end.
+The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (the tab list `#tab-list` + `#tab-add`), in the bar the `bars` setting names (`LAYOUT.md` "Bars"). `#tabs` is content-sized: it shrinks first in its bar (floor: `--tabs-min`, or its content when narrower), the shelf after; templates never.
 
 - Tab: ping dot, custom icon, title, close button. `+` adds a tab.
 - Pointerdown switches; drag sideways reorders (live, 4 px threshold). Near the list's ends it auto-scrolls ("Overflow"); the order follows.
@@ -30,7 +30,7 @@ The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (
 - Tabs never shrink (`flex: none`, `max-width: 200px`). When they don't fit, `#tab-list` scrolls sideways (no scrollbar): trackpad, or a vertical wheel mapped to `scrollLeft` (not in a vertical bar: native scroll there).
 - `#tabs.overflow` (list `scrollWidth > clientWidth`): divider on its right (none when last in a bar's end group). Fades (`mask-image`) at the list's ends where more tabs are: `.more-left` / `.more-right`, synced on scroll and every `renderTabs()`.
 - The current tab is scrolled into view (`showTab`, list-only scroll) when it changes or when the list's content width changes (titles, new tabs); a user's scroll otherwise stays.
-- Floor: `#tabs` `min-width: var(--tabs-min)` (140 px: one tab and `+`). Below it the shelf gives way (`SHELF.md` "Space").
+- Floor: `#tabs` `min-width: calc-size(max-content, min(size, var(--tabs-min)))` (140 px: one tab and `+`; less when its content is narrower). Below it the shelf gives way (`SHELF.md` "Space").
 - Auto-scroll while dragging (`edgeScroll`, `tabs.ts`): a tab reorder (`dragTab`) or a tile / template over the list (`startDrag`). Zone: 24 px inside each end (the fades' width), only while the list can scroll that way. Speed by depth: 2 to 12 px per frame (`requestAnimationFrame`, no pointer moves needed). After each step the target is computed again under the still pointer (reorder index; `tabDropAt` + `markTabDrop`). Tab reorder: past the ends = deepest. Tile drag: only over the list itself (`+` and the rest of `#tabs` are the new-tab target). Stops on leaving the zone, drop, Escape, cancel. While it runs, `renderTabs` leaves the scroll alone (no snap back to the current tab); the next render after the drag catches up.
 
 Title (`tabTitle`), first match:

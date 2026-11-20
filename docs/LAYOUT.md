@@ -103,7 +103,7 @@ Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design
 - Layout: setting `bars` (`SETTINGS.md`): per bar, `start` and `end` lists of components, in order. Each component in exactly one bar. Default: bottom, `start: [tabs]`, `end: [shelf, templates]`.
 - `applyBars(bars)` (from `applyAppearance`): moves components into their groups (only what changed: a move resets scroll); hides an empty bar (`hidden`, no space); root class `has-<bar>` sets its inset var.
 - Templates divider: only when beside the shelf in the same group, on the side facing it (`.after-shelf` / `.before-shelf`).
-- Contest along a bar: `#tabs` content-sized, shrinks first (`flex-shrink` 1e6) down to `--tabs-min`, then the shelf; templates never. Free space: `.bar-space`, between the groups. `#tabs` at the end: its content packs toward the end.
+- Contest along a bar: `#tabs` content-sized, shrinks first (`flex-shrink` 1e6) down to `min(content, --tabs-min)` (`calc-size`), then the shelf; templates never. Free space: `.bar-space`, between the groups.
 - Window drag: bars are `-webkit-app-region: drag`; tabs, `+`, `#shelf`, `#templates` are `no-drag`.
 - Vertical bars: components in a column (basic CSS). Not yet (phase 1b): tab reorder / drop / overflow along y, shelf slots along y, sideways reveal.
 - Lookups: `bars()` (layout applied), `barOfComponent(c)`, `verticalComponent(c)`.

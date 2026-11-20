@@ -153,18 +153,15 @@ body {
   display: none;
 }
 /* Content-sized (the bar's space sits between its groups, so gravity holds); shrinks long before
-   the shelf does (the contest above), never below --tabs-min. */
+   the shelf does (the contest above), never below --tabs-min, or its content when narrower
+   (calc-size: no blank space between the brand and the tabs). */
 #tabs {
   flex: 0 1000000 auto;
-  min-width: var(--tabs-min);
+  min-width: calc-size(max-content, min(size, var(--tabs-min)));
   display: flex;
   align-items: center;
   height: 100%;
   padding: 5px 0;
-}
-/* At the bar's end: the tab list and + pack toward it (#tabs is never narrower than --tabs-min). */
-.group.end > #tabs {
-  justify-content: flex-end;
 }
 /* Tabs that don't fit scroll (no bar); fades show there is more; the divider toward the shelf
    appears only then. */

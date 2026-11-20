@@ -175,8 +175,7 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 
 - Custom properties keep `calc()` unresolved in `getComputedStyle`: `readGeometry` reads the parts (`--strip-h`, `--bar-<side>`) and adds them. `--top-h` etc. stay for CSS only.
 - Bar = `[.group.start][.bar-space][.group.end]`; groups `display: contents`. Rejected: `margin-left: auto` on the end group's first child: the brand is first there with tabs at the end, and `display: none` when the instance is `default`.
-- `#tabs` content-sized (`flex: 0 1000000 auto`, floor `--tabs-min`), not `flex: 1`. With `flex: 1` the tabs would push the components after them in their group to the far end: gravity breaks. Choice: S12 read as "the tab list gives way first", the free space is `.bar-space`. Shelf width change during a tabs overflow: sub-pixel (`tabs-overflow` checks < 1 px).
-- `#tabs` in an end group: content packs to the end (`justify-content: flex-end`).
+- `#tabs` content-sized (`flex: 0 1000000 auto`, floor `calc-size(max-content, min(size, --tabs-min))`), not `flex: 1`. A plain `min-width: --tabs-min` left a gap between the brand and short tabs at a bar's end (screenshot check). With `flex: 1` the tabs would push the components after them in their group to the far end: gravity breaks. Choice: S12 read as "the tab list gives way first", the free space is `.bar-space`. Shelf width change during a tabs overflow: sub-pixel (`tabs-overflow` checks < 1 px).
 - Brand: bar space for drops (nearest: the tabs → new tab). Was no drop. Choice: no special case.
 - Drop rule: the component's span along the bar's axis only (cross axis ignored, as before: the bar's height).
 - Shelf drop from bar space: before the strip → slot 0, after → end. S26 "near end" read this way.

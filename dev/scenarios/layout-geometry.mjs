@@ -115,7 +115,9 @@ export default async (ctx, h) => {
   const tabs2 = await box('#tabs')
   near(shelf.x, PAD, 'shelf at the start')
   near(tabs2.right, W - PAD, 'tabs at the end')
-  h.assert(tpl.right < (await box('#brand')).x + 1 && tpl.right <= tabs2.x && shelf.right < tpl.x, 'order: shelf | templates, brand + tabs')
+  const brand = await box('#brand')
+  h.assert(tpl.right < brand.x + 1 && tpl.right <= tabs2.x && shelf.right < tpl.x, 'order: shelf | templates, brand + tabs')
+  h.assert(tabs2.x - brand.right <= 13, `brand right beside the tabs (${brand.right} → ${tabs2.x})`)
   h.assert(!(await page.$eval('#templates', (e) => e.className)), 'no templates divider away from the shelf')
   await ctx.shot('all-top-gravity')
 
