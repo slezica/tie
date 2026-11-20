@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3). Not released. Open: manual checks (`RELEASES.md`), feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel round 1 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -81,7 +81,7 @@ Status: implemented 2026-11-20 (phases 1 to 3). Not released. Open: manual check
 - S34. Drag to an edge with no bar: a bar preview appears there. (user)
 - S35. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end. (user)
 - S36. Components in the same bar and gravity can be reordered. (user)
-- S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user)
+- S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user) Feel round 1: inside their component (user).
 - S38. Preview look: abstract accent-tinted box at the landing place, as tile drop previews; the dragged component dims in place. To iterate by feel. (agent)
 
 ## Persistence
@@ -253,6 +253,25 @@ Still horizontal-only or open after 1b:
 - Harness: `ctx.restart()` (same instance, files kept), scenario `uiState` seed, `h.setBarSize(ctx, bar, px)` (dev socket), `h.resizeBar`, `h.barEdge`, `h.barSizes`, `tie state` `barSizes`. `launch()` refuses `dev` / `default`; fresh instances remove their UI state file at launch and stop.
 - Scenarios: `layout-bars-size` (edges on four sides, live insets, clamps, window resize, double-click, corners, edit mode, layout Reset, file at drag end only, 0600, restart), `layout-bars-scale` (32 / 40 / 50 / 60 bottom and top: heights, text, glyphs, centring; slot drop, reveal, overflow at 60; side forms across widths; narrow tabs; mixed layout), `layout-bars-state` (garbage, mixed bad values, wrong shape, unreadable, failed write), `sec-state` (payload, file). `shelf-vertical` on the new helper.
 - Not verified offscreen (manual, W4): edges as no-drag islands in the bars' drag regions; the resize cursor over them in a real window.
+
+## Feel round 1, as built (2026-11-20)
+
+The user's six changes after trying it. Users' words in quotes.
+
+1. "Floating labels inside component": labels inside the component's box, centred (not anchored at the start: centred also covers a component shorter than its label). Window-positioned, push nothing.
+   - Components dimmed in the mode (0.45; dragged 0.15, was 0.3): the accent pill reads over their content.
+   - Side bar too narrow for a label across its component: rotated (`writing-mode: vertical-rl`, top to bottom). One orientation per bar (at 73 px "Shelf" fits across, "Templates" doesn't: mixed looked wrong).
+   - Shorter component (a one-item shelf): the label overhangs it along the bar, centred, swept apart from its neighbours, kept inside the bar.
+   - Checks: `h.checkLabels` (in `settings-layout`, `settings-layout-drag`), `settings-layout-labels` (bottom 32 / 40 / 60, left 48 / 73 / 100 / 160, one item, light).
+2. "Shelf placeholder bigger in axis": an empty shelf is 3 slots + 2 gaps long, every form (`#shelf.empty`). At rest: nothing drawn (as before: there was no rest visual, only blank space). During a drag the "+" hint fills it.
+   - Ghost on an empty shelf: at the end the first item lands at (start group: start; end group: end, `justify-content: flex-end`), so it doesn't move at the drop.
+   - Cost: in a start group, components after the shelf move two slots at the first drop (and back when it empties). A tab whose shelf is empty shows a longer shelf than one holding an item (`tabs-overflow` adjusted).
+3. "Placeholder has no/insufficient padding": the ghost was the bare icon in an `.item` (no `.ico` / `.lbl`): in the list form its icon sat flush left. Ghosts now use the item's markup (`ITEM_HTML`, `fillItem`): same box, radius, icon place, title box.
+4. "Title disappears from placeholder": ghosts carry the title: a tile's display title, a group's each own, a reordered item's own, a template's label (natural: the new tile's title isn't known before it starts).
+   - Checks: `shelf-ghost`: ghost vs the item after the drop (box, radius, icon, glyph, title) for a board tile, a reorder, a template, a group; bottom 32 / 40 / 60, a top start group, left list 160, left narrow 48 / 73; the empty shelf.
+5. "Vertical min width icons larger than horizontal min height": `narrowScale` (`core/barsize.ts`, unit tests): 0.875x at 48 px, + 1/40 per px, 1.5x from 73 px. The bar's `--kn` is the `--k` of its shelf and templates (CSS); the `100cqi` clamp and the size container are gone. Min width 48 and list form from 100 unchanged; dead band now 73 to 99.
+6. "Divider when vertical and horizontal bars meet": `.bar.v::before` / `::after`, 1 px `--border`, inset by `--pad`, only with `has-top` / `has-bottom`. On the board edge's pixel row, so it continues a tile's top / bottom border line (no double line). Checked: geometry, colour = tile border, visible against the bar in dark and light (`layout-bars-dividers`).
+   - Choice: inset by `--pad` (aligned with the bar's rows, as the templates divider spans only its component). Full width (window edge to the board) not tried.
 
 ## Scenarios affected
 

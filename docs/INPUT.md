@@ -55,7 +55,7 @@ In the edit mode only (`LAYOUT.md` "Edit mode"). No modifier key.
 - Gravity (`gravityAt`, S35): the pointer's half of the bar along its axis: before the middle `start`, else `end`.
 - Index (`indexAt`, S36): how many other components of that list have their midpoint before the pointer.
 - Preview (S38): `.le-preview`, accent box at the landing place: after the component before it (start) or before the one after it (end), roughly the component's size there (its length in its bar; in the other orientation capped at 30% of the bar). Moves with a 140 ms transition (also across the bar's middle); the first placement jumps. The target bar: `.le-bar.target`; an absent bar shows its future rect (its own preview, S34) with the box in it.
-- The dragged component dims in place (`.le-dragging`).
+- The dragged component dims in place (`.le-dragging`, below the other components' mode dim).
 - Drop: `moveComponent` (`core/bars.ts`) → applied live. Same place: nothing. A bar left empty hides (still indicated, as a potential zone).
 - Escape: cancels the drag (the mode stays).
 
