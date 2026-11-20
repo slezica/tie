@@ -46,12 +46,12 @@ Status: design settled 2026-11-20. Phase 1 in progress.
 
 ## Horizontal bars, resized
 
-- S19. Thicker bar: content (tabs text, icons) scales with the thickness, up to 1.5x; beyond that, content stays at 1.5x, centred. (agent)
+- S19. Thicker bar: content (tabs text, icons) scales with the thickness, up to 1.5x, where the bar's size limit is (S21). (agent)
 
 ## Bar sizes
 
 - S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. Not in edit mode. (user)
-- S21. Limits: vertical bars up to 30% of the window width; horizontal up to 20% of the window height. (user)
+- S21. Limits: vertical bars up to 30% of the window width; horizontal bars up to 1.5x the default thickness (60 px), the point where scaling stops. (user, 2026-11-20; was 20% of the window height, which left empty space)
 - S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune)
 - S23. Double-click on the edge: back to the default size. (agent)
 - S24. Sizes are UI state, not settings: stored in `<stateDir>/<instance>.ui.json` (0600), written when a resize ends, read at start, clamped. (agent)
@@ -109,7 +109,6 @@ Status: design settled 2026-11-20. Phase 1 in progress.
 # Pending
 
 - None blocking. To watch while building:
-  - W1. S19 leaves empty space in a horizontal bar thicker than 1.5x needs (S21 allows 20% of the height). Maybe cap the thickness at the 1.5x point instead.
   - W2. Drag regions on side bars and the reveal (`shelf.ts` pointerleave note): manual check, the offscreen harness cannot test it.
   - W3. S24 (sizes in a state file): the first persisted UI state outside settings.
 
