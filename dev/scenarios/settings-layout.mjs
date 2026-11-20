@@ -1,4 +1,4 @@
-// Settings Layout row and edit mode: summary, Modify (panel hidden, dim, indicators, labels, box),
+// Settings Layout row and edit mode: summary, Modify (panel hidden, dim, indicators, labels in their components, box),
 // input blocked in the mode, Done → draft (Save state, Save persists), Cancel / Escape / menu toggle,
 // panel Cancel reverts, Reset, put back → Save disabled, window resize.
 import { readFileSync } from 'node:fs'
@@ -36,18 +36,11 @@ export default async (ctx, h) => {
   const bars = await ctx.page.$$eval('#layout-edit .le-bar', (els) => els.map((e) => ({ bar: e.dataset.bar, exists: e.classList.contains('exists'), r: e.getBoundingClientRect().toJSON() })))
   h.assert(bars.length === 4 && bars.every((x) => x.r.width > 0 && x.r.height > 0), `four indicators: ${JSON.stringify(bars)}`)
   h.assert(bars.filter((x) => x.exists).map((x) => x.bar).join() === 'bottom', 'only the bottom bar exists')
-  const W = await ctx.page.evaluate(() => innerWidth)
-  const H = await ctx.page.evaluate(() => innerHeight)
   const ov = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom
   for (let i = 0; i < bars.length; i++) for (let j = i + 1; j < bars.length; j++) h.assert(!ov(bars[i].r, bars[j].r), `zones ${bars[i].bar} / ${bars[j].bar} don't overlap`)
-  const labels = await ctx.page.$$eval('#layout-edit .le-label', (els) => els.map((e) => ({ c: e.dataset.c, text: e.textContent, r: e.getBoundingClientRect().toJSON() })))
-  const comps = await ctx.page.$$eval('#layout-edit .le-comp', (els) => els.map((e) => e.getBoundingClientRect().toJSON()))
+  // Labels: inside their components (the shelf holds one item: its label overhangs it), apart.
+  const labels = await h.checkLabels(ctx, 'mode')
   h.assert(labels.map((x) => x.text).join() === 'Tabs,Shelf,Templates', `labels: ${labels.map((x) => x.text)}`)
-  for (const x of labels) {
-    h.assert(x.r.left >= 0 && x.r.top >= 0 && x.r.right <= W && x.r.bottom <= H, `label ${x.text} inside the window`)
-    h.assert(!comps.some((c) => ov(c, x.r)), `label ${x.text} covers no component`)
-  }
-  h.assert(!ov(labels[1].r, labels[2].r) && !ov(labels[0].r, labels[1].r), 'labels apart')
   const box = await ctx.page.$eval('#layout-edit .le-box', (e) => ({ text: e.textContent.replace(/\s+/g, ' ').trim(), r: e.getBoundingClientRect().toJSON() }))
   h.assert(/Drag Tabs, Shelf and Templates to any edge/.test(box.text) && /Cancel/.test(box.text) && /Done/.test(box.text), `box: ${box.text}`)
   const { board } = await h.list(ctx)

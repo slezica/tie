@@ -21,22 +21,8 @@ export default async (ctx, h) => {
       const exists = await ctx.page.$eval(`#layout-edit .le-bar[data-bar="${bar}"]`, (e) => e.classList.contains('exists'))
       h.assert(hidden === empty && exists === !empty, `${what}: bar ${bar} empty=${empty} hidden=${hidden} indicated existing=${exists}`)
     }
-    // Labels: inside the window, over no bar and no component, apart from each other.
-    await h.settle(ctx)
-    const boxes = await ctx.page.evaluate(() => {
-      const r = (e) => e.getBoundingClientRect().toJSON()
-      return {
-        labels: [...document.querySelectorAll('#layout-edit .le-label')].map((e) => ({ c: e.dataset.c, r: r(e) })),
-        solid: [...document.querySelectorAll('.bar:not([hidden]), #layout-edit .le-bar')].map(r), // bars and potential zones
-        win: { w: innerWidth, h: innerHeight },
-      }
-    })
-    const ov = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom
-    for (const [i, l] of boxes.labels.entries()) {
-      h.assert(l.r.left >= 0 && l.r.top >= 0 && l.r.right <= boxes.win.w && l.r.bottom <= boxes.win.h, `${what}: label ${l.c} inside the window`)
-      h.assert(!boxes.solid.some((b) => ov(b, l.r)), `${what}: label ${l.c} over no bar or zone`)
-      for (const k of boxes.labels.slice(i + 1)) h.assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
-    }
+    // Labels: inside their components, never past their bar, apart.
+    await h.checkLabels(ctx, what)
     return m
   }
 
@@ -94,14 +80,14 @@ export default async (ctx, h) => {
       h.assert(bar.left === 0 && bar.width === W && bar.bottom === H && bar.height === 40, `bottom bar preview at its future rect: ${JSON.stringify(bar)}`)
       box = await rect('#layout-edit .le-preview.shown')
       h.assert(box.left >= bar.left && box.right <= bar.right && box.top >= bar.top && box.bottom <= bar.bottom, 'box inside the bar preview')
-      const op = await ctx.page.$eval('#shelf', (e) => getComputedStyle(e).opacity)
-      h.assert(Number(op) < 0.5, `dragged shelf dimmed (${op})`)
+      const op = await Promise.all(['#shelf', '#tabs'].map((sel) => ctx.page.$eval(sel, (e) => Number(getComputedStyle(e).opacity))))
+      h.assert(op[0] < op[1] && op[1] < 1, `components dimmed under their labels, the dragged shelf more (${op})`)
       await ctx.shot('drag-absent-bar')
     },
   })
   const shelfNow = await rect('#shelf')
   h.assert(Math.abs(shelfNow.left - box.left) <= 8 && Math.abs(shelfNow.top - box.top) <= 8, `box at the landing place: box ${JSON.stringify(box)}, shelf ${JSON.stringify(shelfNow)}`)
-  h.assert(!(await ctx.page.$('#layout-edit .le-preview.shown')) && (await ctx.page.$eval('#shelf', (e) => getComputedStyle(e).opacity)) === '1', 'after the drop: no preview, not dimmed')
+  h.assert(!(await ctx.page.$('#layout-edit .le-preview.shown')) && (await ctx.page.$eval('#shelf', (e) => getComputedStyle(e).opacity)) === (await ctx.page.$eval('#tabs', (e) => getComputedStyle(e).opacity)), 'after the drop: no preview, dimmed as the others')
   await ctx.shot('after-drop')
 
   // Over an existing bar: the box moves (animated) from one end to the other as the pointer

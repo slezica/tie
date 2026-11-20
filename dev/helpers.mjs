@@ -99,6 +99,44 @@ export async function dragComponent(ctx, component, bar, gravity, { index, durin
   await drag(ctx, { x: from.x, y: from.y }, to, { steps, during })
 }
 
+// Edit mode labels (LAYOUT.md "Edit mode"), checked: one per component, each inside the window and
+// inside its component's bar (never past it); over its component, centred on it across the bar;
+// fully inside the component's box when it fits along the bar; rotated exactly in a vertical bar
+// too narrow for it across; apart from each other. `what` prefixes messages. Returns the labels
+// `{c, bar, rotated, r, comp}` (rects as plain objects).
+export async function checkLabels(ctx, what) {
+  await settle(ctx)
+  const labels = await ctx.page.evaluate(() => {
+    const r = (e) => e.getBoundingClientRect().toJSON()
+    return [...document.querySelectorAll('#layout-edit .le-label')].map((e) => {
+      const c = e.dataset.c
+      const bar = document.getElementById(c).closest('.bar')
+      const comp = r(document.querySelector(`#layout-edit .le-comp[data-c="${c}"]`))
+      const rotated = e.classList.contains('rotated')
+      e.classList.remove('rotated')
+      const across = e.offsetWidth // unrotated width: would it fit across a vertical bar?
+      e.classList.toggle('rotated', rotated)
+      return { c, text: e.textContent, bar: bar.dataset.bar, barRect: r(bar), rotated, across, r: r(e), comp, win: { w: innerWidth, h: innerHeight } }
+    })
+  })
+  const ov = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom
+  const inside = (p, q, d = 0.5) => p.left >= q.left - d && p.top >= q.top - d && p.right <= q.right + d && p.bottom <= q.bottom + d
+  for (const [i, l] of labels.entries()) {
+    const v = l.bar === 'left' || l.bar === 'right'
+    const at = `${what}: label ${l.c} (${l.bar})`
+    assert(l.r.left >= 0 && l.r.top >= 0 && l.r.right <= l.win.w && l.r.bottom <= l.win.h, `${at} inside the window`)
+    assert(inside(l.r, l.barRect), `${at} inside its bar: ${JSON.stringify(l.r)} in ${JSON.stringify(l.barRect)}`)
+    assert(ov(l.r, l.comp), `${at} over its component`)
+    const mid = (r, x) => (x ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2)
+    assert(Math.abs(mid(l.r, v) - mid(l.comp, v)) <= 1, `${at} centred across the bar: ${mid(l.r, v)} vs ${mid(l.comp, v)}`)
+    const fits = v ? l.r.height <= l.comp.height : l.r.width <= l.comp.width
+    if (fits) assert(inside(l.r, l.comp), `${at} inside its component: ${JSON.stringify(l.r)} in ${JSON.stringify(l.comp)}`)
+    assert(l.rotated === (v && l.across > l.comp.width - 4), `${at} rotated=${l.rotated} (width ${l.across}, component ${l.comp.width})`)
+    for (const k of labels.slice(i + 1)) assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
+  }
+  return labels
+}
+
 // A bar's size (LAYOUT.md "Bar sizes") set as a resize ending would: dev socket `bar-size` (clamped to
 // today's limits, applied, written to the UI state file); px null: the bar's default (as a double-click
 // on its edge). Works on a hidden bar too (its size when it shows). Waits for the re-layout. Returns

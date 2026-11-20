@@ -24,8 +24,8 @@ export const editingLayout = () => !!session
 
 const THRESHOLD = 4
 const GAP = 6 // between components in a bar (style.css .bar gap)
-const LABEL_GAP = 6 // label off its bar's board-side edge
-const MARGIN = 4 // labels kept this far inside the board, and apart
+const MARGIN = 4 // labels kept this far inside their bar's ends, and apart
+const INSET = 2 // a label across a vertical bar fits its component with this much room each side
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
@@ -97,30 +97,31 @@ export function editLayout(done: (result: Bars | null) => void) {
     for (const c of COMPONENTS) place($(`.le-comp[data-c="${c}"]`), compRect(c))
     placeLabels(g)
   }
-  // Labels: beside their component, on the board side of its bar, outside the layout flow. Kept
-  // inside the four zones (never over a bar or a potential one): along the bar within that inner
-  // area; a side bar's labels also clear the top / bottom bars' label bands (no clash at the
-  // corners). Pushed apart along the bar so they never overlap each other.
+  // Labels: inside their component's outline, centred on it, over its content; window-positioned
+  // (they push nothing). In a vertical bar too narrow for a label across it: rotated (reads top to
+  // bottom). A label longer than its component (a shelf of one item) overhangs it along the bar,
+  // still centred; labels pushed apart along the bar, kept inside it (never past its ends).
   const placeLabels = (g: ReturnType<typeof geometry>) => {
-    const z = g.zones
-    const board = { left: z.left.x + z.left.w, right: z.right.x, top: z.top.y + z.top.h, bottom: z.bottom.y }
-    const band = $('.le-label').offsetHeight + LABEL_GAP
     for (const b of BARS) {
       const v = isVertical(b)
       const r = g.rects[b]
       const items = [...g.layout[b].start, ...g.layout[b].end].map((c) => {
         const el = $(`.le-label[data-c="${c}"]`)
+        const comp = compRect(c)
+        el.classList.remove('rotated')
+        if (v && el.offsetWidth > comp.w - 2 * INSET) el.classList.add('rotated')
         const size = v ? el.offsetHeight : el.offsetWidth
-        return { el, size, at: mid(compRect(c), v) - size / 2 }
+        return { el, comp, size, at: mid(comp, v) - size / 2 }
       })
       items.sort((a, b) => a.at - b.at)
-      const min = (v ? board.top + (g.shown('top') ? band : 0) : board.left) + MARGIN
-      const max = (v ? board.bottom - (g.shown('bottom') ? band : 0) : board.right) - MARGIN
+      const min = lo(r, v) + MARGIN
+      const max = lo(r, v) + len(r, v) - MARGIN
       for (let i = 0; i < items.length; i++) items[i].at = Math.max(items[i].at, i ? items[i - 1].at + items[i - 1].size + MARGIN : min)
       for (let i = items.length - 1; i >= 0; i--) items[i].at = Math.min(items[i].at, i < items.length - 1 ? items[i + 1].at - items[i].size - MARGIN : max - items[i].size)
-      for (const { el, at } of items) {
+      for (const { el, comp, at } of items) {
+        // Across the bar: centred on the component (it spans the bar's thickness less padding).
         const cross = v ? el.offsetWidth : el.offsetHeight
-        const off = b === 'top' ? r.y + r.h + LABEL_GAP : b === 'bottom' ? r.y - LABEL_GAP - cross : b === 'left' ? r.x + r.w + LABEL_GAP : r.x - LABEL_GAP - cross
+        const off = Math.max(lo(r, !v), Math.min(mid(comp, !v) - cross / 2, lo(r, !v) + len(r, !v) - cross))
         el.style.left = `${v ? off : at}px`
         el.style.top = `${v ? at : off}px`
       }
