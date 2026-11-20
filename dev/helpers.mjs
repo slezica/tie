@@ -570,6 +570,22 @@ export async function pickCancel(ctx, ms) {
   await ctx.page.waitForSelector('#picker', { state: 'detached', timeout: ms ?? 4000 })
 }
 
+// Hide the window as the real app's is when hidden or covered (dev socket `window-hide`), and
+// detach Playwright (attached, it keeps the page visible and painting): returns once the page is
+// `hidden` with no animation frames (main's view, `window-state`). Needs `hiddenWindow` and
+// `env = { TIE_THROTTLE: '1' }` (throttling on). After it: socket only (ctx.tie); ctx.attach() to
+// look at the page again (visible again from then on).
+export async function hideWindow(ctx) {
+  await rpc(ctx.instance, 'window-hide')
+  await ctx.detach()
+  let state
+  for (let i = 0; i < 5; i++) {
+    state = await rpc(ctx.instance, 'window-state')
+    if (state.visibility === 'hidden' && state.frames === 0) break
+  }
+  assert(state.visibility === 'hidden' && state.frames === 0, `window hidden, no animation frames: ${JSON.stringify(state)}`)
+}
+
 // Resize the window (dev socket `window-size`); waits for the renderer to re-layout.
 export async function resizeWindow(ctx, w, h) {
   await rpc(ctx.instance, 'window-size', { w, h })

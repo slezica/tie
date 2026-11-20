@@ -198,7 +198,10 @@ function createWindow(ses: Electron.Session) {
       contextIsolation: true,
       // Harness: TIE_SCALE sets the offscreen device scale (default 1x; real Macs are 2x).
       offscreen: offscreen ? { deviceScaleFactor: Number(process.env.TIE_SCALE) || 1 } : false,
-      backgroundThrottling: !background,
+      // Harness instances never throttle. TIE_THROTTLE=1 (harness, with TIE_BACKGROUND=hidden):
+      // throttling on as in the real app, so a hidden window (dev socket `window-hide`) gets no
+      // rAF and slow timers (`content-hidden-window`).
+      backgroundThrottling: !background || !!process.env.TIE_THROTTLE,
       webviewTag: true, // browser tiles: guests attach only through attachGuest (guest.ts)
     },
   })
@@ -253,6 +256,21 @@ const devMethods: Record<string, (params: unknown) => unknown> = {
     const { w, h } = params as { w: number; h: number }
     win?.setSize(Math.round(w), Math.round(h))
   },
+  // Hidden as the real app's window is when hidden or covered (page `hidden`, no rAF; with
+  // TIE_THROTTLE). A never-shown window counts as visible: shown once (transparent, inactive: nothing
+  // on screen, no focus taken), then hidden.
+  'window-hide': async () => {
+    win?.setOpacity(0)
+    win?.showInactive()
+    await new Promise((done) => setTimeout(done, 300)) // hidden in the same turn: the page never notices either
+    win?.hide()
+  },
+  // The UI page as Chromium sees it, over 1 s: visibility state, animation frames run. Asked from
+  // main: an attached debugger (Playwright) keeps a hidden window's page visible and painting.
+  'window-state': () =>
+    win?.webContents.executeJavaScript(
+      `new Promise((done) => { let frames = 0; const tick = () => (frames++, requestAnimationFrame(tick)); requestAnimationFrame(tick); setTimeout(() => done({ visibility: document.visibilityState, frames }), 1000) })`,
+    ),
   input: (params) => win?.webContents.sendInputEvent(params as Electron.KeyboardInputEvent),
   pick: (params) => setNextPick((params as { path?: unknown } | null)?.path),
   guest: (params) => guestMethod(params, shellSession), // browser guests (guest.ts)

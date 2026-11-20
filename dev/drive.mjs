@@ -107,6 +107,17 @@ try {
     // The app log as a human reads it (<untrusted> markers removed, escapes undone: core/log.ts); rawLog: the file.
     appLog: () => plainLog(existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
     rawLog: () => (existsSync(join(runDir, 'app.log')) ? readFileSync(join(runDir, 'app.log'), 'utf8') : ''),
+    // Playwright off the instance and on again. An attached debugger keeps a hidden window's page
+    // visible and painting: a scenario about a hidden window (h.hideWindow) works detached (socket
+    // only: ctx.tie, rpc), then attaches to look. ctx.page is a new page after attach.
+    detach: async () => {
+      await browser.close().catch(() => {})
+    },
+    attach: async () => {
+      const c = await connectPage(instance)
+      browser = c.browser
+      ctx.page = c.page
+    },
     // The same instance quit and started again (fresh instances only): its settings and UI state
     // files kept, as a user's restart. ctx.page is a new page after it (re-read it, never keep the old).
     restart: async () => {

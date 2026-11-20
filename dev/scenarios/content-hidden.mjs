@@ -3,7 +3,7 @@
 // html bootstrap). Before: "Content did not load" after 5 s (docs/2026-11-20-content-did-not-load.md).
 // Hidden at the worst time: on the frame's `load` (the host posts the handshake in that event), as
 // a tab switch landing there would (display:none, render.ts). A real switch can't be timed.
-// Not covered: a hidden or covered window (harness instances run with backgroundThrottling off).
+// A hidden window: `content-hidden-window`.
 import { join } from 'node:path'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
