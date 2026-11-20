@@ -8,6 +8,7 @@
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; click into it selects all, type to replace, cmd+C copies, drag selects a range; Enter loads, Escape restores; refused input → dialog). A click there activates the tile without handing the keys to its content.
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
+- Bar edge (`.bar-edge`, a shown bar's board-side edge): drag resizes the bar; double-click: its default size (`LAYOUT.md` "Bar sizes"). Not in the edit layout mode.
 - Shelf: `SHELF.md` (`cmd+click` on an item: selection; a pointerdown elsewhere de-selects, then acts as usual: "Selection"). Tabs: `TABS.md`.
 - Wheel over the tab list or the shelf strip (S18): in a top / bottom bar a vertical wheel scrolls it sideways; in a left / right bar it scrolls natively (`overflow.ts` `sideWheel`).
 - Bars: every rule runs along the bar's axis (x in top / bottom bars, y in left / right ones): tab reorder, drop targets, shelf slots, auto-scroll.
@@ -43,6 +44,7 @@
 - `track()`: window capture listeners + pointer capture. Release seen even if capture lost; a move with no button held = missed release.
 - During drags: `body.dragging` → tile content and reveals `pointer-events: none`. From pointerdown (`body.tracking`): content frames and browser guests too.
 - Border resize: from tree at drag start + pointer delta. Aborts if the tree changes or the tab switches mid-drag (never writes a stale tree).
+- Bar edge resize (`barsize.ts`): `track()` from the bar's shown size at pointerdown + the pointer delta across the bar (toward the board grows it); clamped to the bar's limits at each move; render at each move (board, tiles re-laid out: as a border drag; terminals refit only when their grid changes). Cursor `col-resize` (side bars) / `row-resize` (top / bottom), the edge lit while dragged. The UI state file is written once, at the release (if the size changed).
 
 ## Edit layout drag (`layoutedit.ts`)
 
@@ -151,4 +153,4 @@ Defaults below; setting `bindings` overrides them per action (`SETTINGS.md`).
 
 ## Scenarios
 
-`layout-drop`, `templates`, `keys`, `keys-swap`, `keys-bindings`, `sec-keys`, `sec-keys-capture`, `settings-bindings`, `settings-layout`, `settings-layout-drag`, `picker`, `picker-partial`, `menu`, `close-busy`, `quit`, `sec-drop`.
+`layout-drop`, `layout-bars-size`, `templates`, `keys`, `keys-swap`, `keys-bindings`, `sec-keys`, `sec-keys-capture`, `settings-bindings`, `settings-layout`, `settings-layout-drag`, `picker`, `picker-partial`, `menu`, `close-busy`, `quit`, `sec-drop`.

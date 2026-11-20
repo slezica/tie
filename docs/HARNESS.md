@@ -28,6 +28,7 @@
 - `sample [name]`: opens `dev/samples/<name>.md` (default `markdown`: every syntax the viewer renders) in the instance, for iterating viewer styles (`tie-dev run --hot` beside it: viewer edits rebuild and the tile reloads, "Hot" above). Fixtures for other kinds go beside it.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
 - Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next answer of the native file dialog, the picker's `…`; harness instances never show it), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)), `key-mode` (main's key suspend level `off | fields | capture`, `keys.ts`; read-only: `h.waitKeyMode`). Gate: main's `devMethods` answer only when `!app.isPackaged`; a packaged app passes every method to the renderer, which has none of these. `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by the renderer (`driver.ts` `DEV_ONLY`, refused unless a dev build): `state` (`tie state`: internal dump, with `barSizes`), `bar-size {bar, px}` (a bar's size as a resize's end: `h.setBarSize`).
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
 
@@ -39,6 +40,7 @@
 | `TIE_CWD` | repo root |
 | `TIE_SETTINGS` | `tmp/<instance>.settings.json` (and its `.bak`), deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell); a raw string is written as-is |
 | `TIE_DOWNLOADS` | `tmp/<instance>.downloads` (browser downloads; dev builds only), deleted on stop. Never the user's `~/Downloads` |
+| (UI state) | not an env: `<state>/<instance>.ui.json` (bar sizes, `lib.mjs` `uiStatePath`) removed at launch and on stop (a directory too); scenario `uiState` seeds it. Never `dev.ui.json` / `default.ui.json`: `launch()` refuses the instances `dev` and `default` |
 | `TIE_DEBUG_PORT` | free port |
 | `TIE_LOG`, `TIE_DEBUG` | run folder `app.log`; `TIE_DEBUG` = scenario `env`, else the caller's, else `*` |
 | `TIE_WALK_CAP`, `TIE_WALK_DELAY` | not set by default; scenario `env` (dev builds only, read by main `docs.ts` `startWalk`): picker walk entry cap (partial marker, `picker-partial`; default 50k), ms before each directory read (`sec-walk`: stop / a newer walk land mid-walk) |
@@ -57,10 +59,11 @@ export const settings = { theme: 'nord' }   // optional pre-seed (object over th
 export const hiddenWindow = true            // optional: real never-shown window, not offscreen
 export const env = { TIE_DEBUG: 'guest' }   // optional: extra environment for the instance
 export const exclusive = true              // optional: test --e2e runs it alone (changes shared files)
+export const uiState = { bars: { top: 50 } } // optional: UI state file seed (object as JSON, or a raw string)
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
-`ctx`: `page` (Playwright, CDP), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
+`ctx`: `page` (Playwright, CDP; a new one after `restart`: re-read `ctx.page`, never keep the old), `restart()` (the same instance quit and launched again, its settings and UI state files kept: what a user's restart reads; fresh instances only; the app log continues), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
 
 - `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). Harness assumptions on Playwright / CDP: `ENGINE.md` "Harness". A hidden real window routes like a visible one. Use it for frame and guest input (`content-input`, `browser`, `sec-browser-*`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
@@ -110,7 +113,8 @@ All take `ctx` first except `assert`, `alive`, `leafIds`, `tilde`, `pixels`, `fr
 | `tieError(...args)`, `leafIds(tree)` | `tie <args>` expected to fail: its message, or null if it succeeded; leaf ids of a slot tree (`tie state` tree), in order |
 | `setBars(bars, extra?)`, `barOf(component)`, `mountedBars()` | bars layout by hand edit: settings file edited (`bars`, plus `extra` keys), panel Reload, panel closed; waits until mounted (may be invalid on purpose: the default then); which bar and gravity group a component is in, `vertical` (left / right: its axis is y); the layout as mounted (DOM order of each group) |
 | `editLayout()`, `layoutPoint(component, bar, gravity, index?)`, `dragComponent(component, bar, gravity, {index, during, steps})` | edit layout mode: panel opened on Appearance if closed, Modify, waits for `#layout-edit`; a pointer point targeting that bar / gravity / index (default: start → first, end → last; in the zone, the right half, between the other components' midpoints); a component dragged there (`bar` null: released on the board, no change), `during` before the release |
-| `setBarSize(px\|null)` | vertical bars' width until bars resize by drag (phase 3): `--vbar` set on the UI root's style (null: removed), a window `resize` event (board re-laid out), settled. Shows the narrow form (≤ 54 px) of shelf and templates (`SHELF.md` "Forms") |
+| `setBarSize(bar, px\|null)`, `barSizes()` | a bar's size set as a resize's end would (dev socket `bar-size`, renderer `driver.ts`: clamped to today's limits, applied, written to the UI state file; null: the default, as a double-click), any bar, shown or not; returns `{stored, shown}`. `barSizes`: `{stored, shown}` of the four bars (`tie state` `barSizes`) |
+| `barEdge(bar)`, `resizeBar(bar, px, {steps, during})` | a shown bar's edge strip (`.bar-edge`: point + box); its edge dragged so the bar would be `px` thick (clamped by Tie), `during` before the release (live checks: the file isn't written yet); returns `barSizes()` |
 | `openSettings(page?)`, `cssVar(name)` | settings panel open (`tie:settings`), optionally on a page (`appearance`, `bindings`, `terminal`, `files`, `security`); CSS custom property of the UI root |
 | `focused()`, `linkStrip(id)`, `alive(pid)` | where keys go in the UI (focused element's tile id, else its tag); a tile's link strip text, null while hidden; process alive (signal 0) |
 | `keyMode()`, `waitKeyMode(mode)` | main's key suspend level (dev socket `key-mode`: `off`, `fields`, `capture`); wait for it before keys that depend on it (focus reaches main asynchronously) |

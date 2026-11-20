@@ -7,7 +7,7 @@ The template list `#templates` (the `templates` component; default: right of the
 - Template: drag onto board → new tile there (cwd: the tile next to it, else the active one: `DIRECTORIES.md`); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
 - `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker"; starts in the context tile's cwd); cancel → no tile. By key: `cmd+O` / `cmd+shift+O`. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
-- Item: icon (`displayIcon`, `TILES.md` "Host": built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px). The title also as text (`.lbl`) in a vertical bar's list form ("Forms").
+- Item: icon (`displayIcon`, `TILES.md` "Host": built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px at the default bar size; × the bar's scale in a resized top / bottom bar: "Forms"). The title also as text (`.lbl`) in a vertical bar's list form ("Forms").
 - Right-click item: tile menu (`INPUT.md`); a selected item: the group menu ("Selection").
 - Look: hover, revealed and pinned items: `--fg-b` fill, text-colored icon. Selected: `--accent-soft` fill + accent icon (`.item.selected`). Pinned has no look of its own: the pinned tile's accent border + `#peak` say it.
 
@@ -42,14 +42,15 @@ Overflow (S17), as the tab list (`overflow.ts`, `TABS.md` "Overflow"):
 - Auto-scroll while a tile, template, shelf item or group is dragged near its ends (`edgeScroll`, from `startDrag`): 24 px zones, only over the strip along its axis and on its bar across it. The ghost slot follows each step.
 - No keep-in-view: a new item appended out of view stays there.
 
-## Forms (vertical bars)
+## Forms (by bar size)
 
-Shelf and templates in a left / right bar: one item per row, never side by side (S14, S15). The form follows the bar's width (container query on `.bar.v`, `container: bar`; nothing in JS: a resize only changes the width).
+Horizontal bars (top / bottom, S19): icons only, one row. Items, templates, glyphs and dots scale with the bar's height: 1x at 40 px, 1.5x at 60 px, a floor of 0.875x from 35 px down (`--k`, `LAYOUT.md` "Bar sizes").
 
-- Narrow (width ≤ 54 px = 1.5 × `--slot` + 2 × `--pad`): icons only, centred. Size `--item` = the width less `--pad` each side, clamped to `--slot` .. 1.5 × `--slot`. Glyphs and custom icons scale with it (16 / 15 px at the default size).
-- List (wider): rows full width less `--pad`, `--slot` tall: the icon at the default size, then the title (`.lbl`, truncated): the tile's display title; templates: their label. Activity and ping dots at the row's end.
-- The current vertical size is fixed at 160 px (`--vbar`): the list form shows. Narrow form: phase 3 (resize). Harness: `h.setBarSize(px)` (`HARNESS.md`).
-- Horizontal bars: icons only, as before (thickness scaling: phase 3).
+Vertical bars (left / right, S14, S15): one item per row, never side by side. The form follows the bar's width: `.narrow` on the bar under `LIST_MIN` (100 px, `core/barsize.ts`; set by `barsize.ts` with the size: the threshold lives in JS only), else the list form.
+
+- Narrow (48 to 99 px): icons only, centred. Size `--item` = the width less `--pad` each side (`100cqi`: the bar is a size container), clamped to `--slot` .. 1.5 × `--slot`: 36 px at 48, 42 px (1.5x) from 54 px on, then kept at 1.5x, centred, up to 99 px. Glyphs and custom icons scale with it (16 / 15 px at the default size). Choice: a dead band (54 to 99) of centred 1.5x icons rather than a list whose titles show a letter or two; at 100 px a title shows ~6 letters.
+- List (100 px and wider): rows full width less `--pad`, `--slot` tall: the icon at the default size, then the title (`.lbl`, truncated): the tile's display title; templates: their label. Activity and ping dots at the row's end.
+- Default width 160: the list form. Harness: `h.setBarSize(ctx, bar, px)` (`HARNESS.md`).
 
 ## Reveal and pin
 

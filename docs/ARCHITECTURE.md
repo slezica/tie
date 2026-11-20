@@ -18,7 +18,7 @@
 
 ## IPC (`window.tie`, `src/preload/index.ts`)
 
-- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind, page?)` → `{token, url}` or `{error}`, `doc:viewer(path, kind?)` → `{kind, path}` or `{error}`, `doc:open(path, kind)` → `{id, kind, rev, text? | bytes?}` (payload per policy) or `{error}`, `doc:pick(defaultPath)` → path or null (`doc:*` read-only: no writes), `doc:walk(dir, {gen, gitignore})` → `{ok: true}` or `{error}` (picker walk: absolute normalized existing dir; one per window, a new one stops the previous; `main/walk.ts`), `settings:get|set|ignore|reload|recreate` (`SETTINGS.md` "File"), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd, `pty:busy(pids)` → `{[pid]: {busy, proc}}` (≤ 256 pids; `TERMINALS.md` "Busy"), `guest:unload(id)` → `'closed'|'blocked'|'gone'` (`BROWSER.md` "Leaving a page").
+- Invoke (returns): `app:info` → `{instance, socket, home, cwd, debugTags, dev}`, `content:open(root, kind, page?)` → `{token, url}` or `{error}`, `doc:viewer(path, kind?)` → `{kind, path}` or `{error}`, `doc:open(path, kind)` → `{id, kind, rev, text? | bytes?}` (payload per policy) or `{error}`, `doc:pick(defaultPath)` → path or null (`doc:*` read-only: no writes), `doc:walk(dir, {gen, gitignore})` → `{ok: true}` or `{error}` (picker walk: absolute normalized existing dir; one per window, a new one stops the previous; `main/walk.ts`), `settings:get|set|ignore|reload|recreate` (`SETTINGS.md` "File"), `ui:get` → `{bars}` (bar sizes from the UI state file, at boot), `ui:bar-sizes(patch)` → the sizes in force (a resize ended; main cleans the payload and writes the file: `LAYOUT.md` "Bar sizes"), `pty:spawn` → pid or `{error}`, `pty:cwd` → fresh `lsof` cwd, `pty:busy(pids)` → `{[pid]: {busy, proc}}` (≤ 256 pids; `TERMINALS.md` "Busy"), `guest:unload(id)` → `'closed'|'blocked'|'gone'` (`BROWSER.md` "Leaving a page").
 - Main → renderer: `app:ask-quit` (quit requested: ask), `pty:data|exit|process|cwd`, `doc:changed(id, {rev, text? | bytes?} | {missing})`, `doc:walk-chunk(gen, {paths, done, partial?, waiting?, errors?})` (≤ 1024 paths or every 16 ms; last `done`), `content:navigated|navfailed|changed|viewer` (`viewer`: dev rebuild), `guest:unresponsive|download|popup|prevent-unload`, `settings:open`, `settings:file {changed, path}`, `keys:action` (shortcuts, `INPUT.md`), `keys:capture {chord, complete}` (capture fields), `rpc:request` (socket calls, `CLI.md`).
 - Renderer → main (send): `pty:write|resize|kill`, `content:close|kill`, `doc:close`, `doc:walk-stop(gen)` (that gen's walk only; window close and UI reload stop all), `guest:download-ok|leave`, `keys:suspend`, `window:borderless-preview`, `external:open`, `renderer:ready`, `app:quit`, `rpc:reply`, `log`.
 - Adding one: handler in `main/index.ts` via `ipc.on|handle` (sender-checked, `SECURITY.md`) + method in preload (type flows to renderer via `TieApi`).
@@ -34,6 +34,7 @@
 | Info file | `<state>/<instance>.json`: `{pid, instance, socket, debugPort, log}` |
 | Log | `<state>/log/<instance>.log` (`TIE_LOG` overrides) |
 | Settings | `<state>/settings.json` (`default`), `<state>/settings.<instance>.json` (others); `TIE_SETTINGS` overrides |
+| UI state | `<state>/<instance>.ui.json`: `{bars: {top, bottom, left, right}}` (bar sizes). Main only (`main/uistate.ts`): read at start, written at a resize's end; not settings (no panel, banner, Save); a bad file → defaults, no dialog. Harness instances remove theirs at launch and stop |
 | Debug port | dev builds only: `TIE_DEBUG_PORT`, else `9300 + hash(instance) % 600` (can collide; `tie-dev` passes a free one) |
 | userData | `<appData>/tie-<instance>` (own single-instance lock; `Partitions/browser`: browser tiles) |
 
@@ -49,7 +50,7 @@ Other env (main):
 1. Main (packaged): staged update (`tie-dev install` while Tie ran) swaps in, then relaunches (`main/update.ts`, `PACKAGING.md` "Install while running").
 2. Main: name, userData, debug port; single-instance lock (held → exit 1).
 3. `whenReady`: menu (+ keymap from settings `bindings`), `tie://` and `tie-content://` protocols, window (shown on `ready-to-show` unless background), settings file watch, socket.
-4. Renderer `boot()`: info + settings, appearance, init modules, open one terminal, `ready()`; then the settings load dialog if the file didn't load (`SETTINGS.md` "File").
+4. Renderer `boot()`: info + settings, UI state (bar sizes), appearance, init modules, open one terminal, `ready()`; then the settings load dialog if the file didn't load (`SETTINGS.md` "File").
 5. Main writes the info file only after `ready()`. Socket calls wait for it. So harness/CLI never race startup.
 
 ## Quit

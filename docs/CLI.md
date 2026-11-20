@@ -30,7 +30,7 @@ bin/tie → unix socket → main (socket.ts) → rpc:request → renderer (drive
 | `tie focus [--tile id]` | Switch to its tab; expand + activate, or pin if shelved |
 | `tie ping [--tile id] [--clear]` | Attention mark (`LAYOUT.md`) |
 | `tie set [--tile id] [--title T] [--icon E]` | Custom title / icon (given fields only; `""` = automatic) |
-| `tie state` | Internal state of the targeted space: `tree`, `floats`, `shelf`, `collapsed`, `zoomed`, `active`, `mru`, `pinned`, `revealed`, `selected` (dev builds only: a packaged build answers `unknown method`; not in `--help`) |
+| `tie state` | Internal state of the targeted space: `tree`, `floats`, `shelf`, `collapsed`, `zoomed`, `active`, `mru`, `pinned`, `revealed`, `selected`, `barSizes` (`{stored, shown}`: bar sizes, `LAYOUT.md` "Bar sizes") (dev builds only: a packaged build answers `unknown method`; not in `--help`). Dev socket only (no CLI command): `bar-size {bar, px}` (`HARNESS.md`) |
 | `tie frames` | Dev builds: window frame tree, answered by main (not in `--help`) |
 | `tie add probe [--root D]` | Dev builds: probe content tile (harness, `TILES.md`); root `D` (against the caller's cwd), else its cwd |
 | `tie add\|replace ... --id <id>` | Dev builds: the new tile's id (socket param `as`): `t` + 1–31 of `[a-z0-9]`, free; else `bad id: <id> (...)` / `id in use: <id>`. Packaged: `--id: dev builds only`. Harness only (`lifecycle` closes a tile in the same write as its `add`); not in `--help` |

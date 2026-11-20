@@ -98,7 +98,7 @@ Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design
 - Four bars `#bar-top`, `#bar-bottom`, `#bar-left`, `#bar-right` (`.bar.h` / `.bar.v`).
   - Top / bottom: full width; top sits below the strip. Left / right: between them (S9).
   - Each: `.group.start`, `.bar-space`, `.group.end`. Groups are `display: contents`: components are the bar's flex items.
-  - Sizes fixed for now: `--hbar` 40 px (top / bottom), `--vbar` 160 px (left / right). Resize: phase 3.
+  - Each its own size ("Bar sizes" below): top / bottom 40 px high by default, left / right 160 px wide.
 - Components: `tabs` (`#tabs`, with `#brand` always just before it), `shelf` (`#shelf`), `templates` (`#templates`).
 - Layout: setting `bars` (`SETTINGS.md`): per bar, `start` and `end` lists of components, in order. Each component in exactly one bar. Default: bottom, `start: [tabs]`, `end: [shelf, templates]`.
 - `applyBars(bars)` (from `applyAppearance`): moves components into their groups (only what changed: a move resets scroll); hides an empty bar (`hidden`, no space); root class `has-<bar>` sets its inset var.
@@ -108,6 +108,29 @@ Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design
 - Vertical bars (`.bar.v`): a column; components stretch to the bar's width less `--pad` each side. Everything along y: tab rows (`TABS.md` "In a vertical bar"), shelf / template rows and their forms by width (`SHELF.md` "Forms"; the bar is a size container `bar`), drop slots, overflow, auto-scroll; reveal beside the item (`SHELF.md`). Dividers: templates on the side facing the shelf (top / bottom border); tabs overflow divider below the tabs.
 - Scrolling lists (tab list, shelf strip): `overflow.ts`, axis per the component's bar (`TABS.md` "Overflow").
 - Lookups: `bars()` (layout applied), `barOfComponent(c)`, `verticalComponent(c)`.
+
+### Bar sizes (`renderer/barsize.ts`, rules `core/barsize.ts`, file `main/uistate.ts`)
+
+Design S19 to S24.
+
+- Each bar has its own size (top / bottom: height; left / right: width), kept while the bar is empty (it shows at that size).
+- Limits (static: a stored size; `HBAR`, `VBAR`):
+
+| Bars | Default | Min | Max |
+|---|---|---|---|
+| Top, bottom | 40 | 32 | 60 (1.5x) |
+| Left, right | 160 | 48 | 30% of the window width (stored: up to 1200) |
+
+- Shown size (`shownSize`): the stored one within today's limits. A window narrowed below a side bar's 30%: shown clamped, stored kept (back when the window grows). Choice: the user's size is not lost to a temporary small window.
+- Resize: drag the bar's edge (`.bar-edge`, `INPUT.md`). Live: the bar, the board insets and every tile follow at each move. Double-click: the default size. Not in the edit mode (edges hidden, `layout-editing`).
+- Edge strip: 6 px, 4 inside the bar and 2 over the board (tile borders, float handles keep the rest); z 1500 (above floats and a zoomed float, below reveals, previews, menus); `no-drag` (carved out of the bar's window drag region: after the bars in the DOM). Corners: top / bottom edges span the width and win (z 1501); side edges run between them. Hover / drag: the edge lit (accent, as tile borders).
+- CSS (`applySizes`, at each render, only on change): root `--size-<bar>` (shown px; `has-<bar>` maps it to `--bar-<bar>`), per bar `--k` (content scale) and `.narrow` (a side bar's form).
+- Horizontal scale (S19, `barScale`): `--k` = size / 40, 1x at 40 to 1.5x at 60; below 40 down to a floor of 0.875 (reached at 35 px). Scaled (× `--k`): `--slot` (shelf items, templates, the "+" hint and ghost slots, `+` in a drag), glyphs, custom icons, dots, tab height (via the tab list's padding), paddings, radii, gaps, `+`, close button, tab list floor. Text (tabs, brand, `+`) × `--kt` = max(1, `--k`): never below its default size (a 32 px bar keeps 12 px tab text). JS measures (drop pitch, reveal, overflow fades, ghost slots): no constant to change.
+- Side bars: `--k` 1; their shelf and templates scale by width (`SHELF.md` "Forms"), tabs never.
+- Persistence (S24): UI state, not settings. File `<stateDir>/<instance>.ui.json` (0600, `ARCHITECTURE.md` "Instances"): `{ "bars": { "top": 40, "bottom": 40, "left": 160, "right": 160 } }`.
+  - Main owns it: read once at start (`parseUiState`: missing, unparseable, wrong shape → defaults; per field: known bars with finite numbers, clamped to the static limits, else the default; problems logged `[app]`, never a dialog); handed to the renderer at boot (`ui:get`).
+  - Written at a resize's end only (drag release, double-click): the renderer sends that bar's size (`ui:bar-sizes`); main cleans it again (`cleanSizes`: a plain object of known bars → finite numbers, clamped; else dropped, logged `[security]`; not an object: refused), writes the whole file if anything changed. Never during a drag, never at load.
+  - Not touched by the settings panel (its layout Reset included), nor by `bars` changes.
 
 ### Drops on bars (`barDropAt`, used by `drag.ts` `computeTarget`)
 
@@ -138,10 +161,10 @@ The layout edited by drag (design S28 to S38). Entered from the settings panel's
 
 CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
 
-- Insets: `TOP` = `--strip-h` + `--bar-top`; `BOTTOM` = `--bar-bottom`; `LEFT` = `--bar-left`; `RIGHT` = `--bar-right`. A bar var is 0 when the bar is empty, else `--hbar` / `--vbar` (`:root.has-<bar>`).
+- Insets: `TOP` = `--strip-h` + `--bar-top`; `BOTTOM` = `--bar-bottom`; `LEFT` = `--bar-left`; `RIGHT` = `--bar-right`. A bar var is 0 when the bar is empty, else its shown size `--size-<bar>` (`:root.has-<bar>`; set by `barsize.ts` `applySizes`, "Bar sizes").
 - `--top-h`, `--bottom-h`, `--left-w`, `--right-w`: the same insets for CSS (`calc`, so layout code adds the parts itself).
 - `--pad` (window edge, 6), `--gap` (between tiles, 6), `--title-h` (title bar, collapsed thickness, 30), `--peak` (reveal arrow, 8), `--slot-gap` (between shelf slots, 2).
-- CSS only: `--hbar`, `--vbar`, `--tabs-min` (tab list floor, 140), `--slot` (shelf item / template square, 28; drop slot pitch is measured from an item), `--item` (an item's size along the strip: `--slot`, scaled in a narrow vertical bar), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
+- CSS only: `--size-<bar>` (set by JS), `--tabs-min` (tab list floor, 140; × `--k`), `--slot-base` (28) and `--slot` (shelf item / template square: `--slot-base` × `--k` in a bar; drop slot pitch is measured from an item), `--k` / `--kt` (per bar: content / text scale), `--item` (an item's size along the strip: `--slot`, scaled in a narrow vertical bar), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
 
 ```
 top  = max(TOP, pad);   bottom = max(BOTTOM, pad)
@@ -155,9 +178,9 @@ board = { x: left, y: top, w: W - left - right, h: H - top - bottom }
 ## Rendering
 
 - `S.rects`: last rendered rects of the visible space (used by keys, driver, drag). Other spaces' tiles: `display: none`.
-- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, layout edit 6500, settings 7000, dialog 7500.
+- z-index: slotted 1, borders 5, floating 10+i, zoomed 1000, bar edges 1500 (top / bottom 1501), reveal 2000 (hovered +1, peak +2), preview 5000, ghost 5001, menu 6000, layout edit 6500, settings 7000, dialog 7500.
 - Layout is not persisted across restarts.
 
 ## Scenarios
 
-`layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`, `keys-swap`, `ping`. Edit mode: `settings-layout`, `settings-layout-drag`.
+`layout-borders`, `layout-collapse-zoom`, `layout-displace`, `layout-drop`, `layout-float`, `layout-geometry`, `keys-swap`, `ping`. Edit mode: `settings-layout`, `settings-layout-drag`. Bar sizes: `layout-bars-size` (edges, clamps, reset, restart), `layout-bars-scale` (scaling, forms), `layout-bars-state` (bad files), `sec-state` (file mode, IPC payload).

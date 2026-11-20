@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 done 2026-11-20; phase 3 next.
+Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 done 2026-11-20; phase 3 done 2026-11-20.
 
 # Topic
 
@@ -110,7 +110,8 @@ Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20;
 
 - None blocking. To watch while building:
   - W2. Drag regions on side bars and the reveal (`shelf.ts` pointerleave note): manual check, the offscreen harness cannot test it.
-  - W3. S24 (sizes in a state file): the first persisted UI state outside settings.
+  - W3. S24 (sizes in a state file): the first persisted UI state outside settings. Built (phase 3): `main/uistate.ts`.
+  - W4. Bar edges in a visible window: `no-drag` carved out of the bars' drag regions, cursors, the lit edge. Manual check (offscreen: no drag regions).
 
 # Research
 
@@ -234,6 +235,25 @@ Still horizontal-only or open after 1b:
 - Persistence check: the file and `settings.get()` after Save (no restart in the scenario: the file is what a restart reads).
 - Not verified offscreen (manual): bars and the root not acting as window drag regions during the mode (W2 family); the title strip still dragging the window.
 
+## Phase 3, as built (2026-11-20)
+
+- Files: `core/barsize.ts` (limits, clamp, scale, forms, file parse; unit tests), `main/uistate.ts` (the file), `renderer/barsize.ts` (sizes, CSS, edges). `barRects` / `barZones` take a size per bar.
+- Sizes per bar (S21, S22): top / bottom 32..60 (40); left / right 48..30% of the window width (160), static cap 1200 for stored values. Whole px.
+- Window narrowed (S21): a side bar wider than 30% is shown clamped; the stored size stays and returns with the window. Choice: as the brief suggested; nothing found wrong with it.
+- Edge (S20): `.bar-edge` per bar, 6 px: 4 inside the bar, 2 over the board. z 1500 (above floats and a zoomed float; below reveals and menus). Top / bottom edges win at corners (z 1501, full width). `no-drag`, after the bars in the DOM (Electron subtracts later no-drag regions). Hidden in the edit mode. Live: render at each move, as a border drag (terminals refit only when their grid changes; no debounce there either).
+- Double-click (S23): the default. Dev socket `bar-size` sets a size as a resize's end (harness).
+- File (S24): written at a resize's end only, only on change; main cleans the payload (`cleanSizes`) and logs dropped fields `[security]`; not an object: refused. Read at start with the same cleaning, per field; problems logged `[app]`, never a dialog. The renderer gets the sizes before the first render (`ui:get`).
+- Scale (S19): one unitless `--k` per bar, set by JS (`barScale`); CSS multiplies (`calc(Npx * var(--k))`). Rejected: CSS typed division (`100% / 40px`): not relied on in this Chromium.
+  - Below 40: shrink to a floor of 0.875x (reached at 35 px): icons 14 px, slot 24.5. Rejected: 0.8x at 32 (icons 12.8 px: too small to read).
+  - Text never below its default (`--kt` = max(1, `--k`)): 12 px tab text in a 32 px bar. Choice: legibility first; only paddings and icons shrink.
+- Forms by width (S14, S15): `.narrow` set by JS under `LIST_MIN` = 100 px. The container query and its 54 literal are gone (the threshold lives in `core/barsize.ts`; `100cqi` still sizes `--item`).
+  - Narrow scales 48 → 54 px (36 → 42 px icons), then a dead band to 99 px: 1.5x icons, centred.
+  - List from 100 px: titles show ~6 letters ("~/pro…"). Judged by screenshots at 48, 54, 64, 72, 80, 84, 96, 99, 100, 110, 120, 160, 240: at 72 to 96 a list title would show 1 to 4 letters.
+- Narrow tabs: no close button on hover (`.narrow`); padding 4 px. At 48 px: 2 or 3 letters + ellipsis ("no…" for node_modules; 3 letters need ~33 px, the row gives 28). Choice: keep `--pad` margins (rows aligned with the icons below) over S22's "about 3 letters". Added: Close in the tab menu and middle-click close (neither existed).
+- Harness: `ctx.restart()` (same instance, files kept), scenario `uiState` seed, `h.setBarSize(ctx, bar, px)` (dev socket), `h.resizeBar`, `h.barEdge`, `h.barSizes`, `tie state` `barSizes`. `launch()` refuses `dev` / `default`; fresh instances remove their UI state file at launch and stop.
+- Scenarios: `layout-bars-size` (edges on four sides, live insets, clamps, window resize, double-click, corners, edit mode, layout Reset, file at drag end only, 0600, restart), `layout-bars-scale` (32 / 40 / 50 / 60 bottom and top: heights, text, glyphs, centring; slot drop, reveal, overflow at 60; side forms across widths; narrow tabs; mixed layout), `layout-bars-state` (garbage, mixed bad values, wrong shape, unreadable, failed write), `sec-state` (payload, file). `shelf-vertical` on the new helper.
+- Not verified offscreen (manual, W4): edges as no-drag islands in the bars' drag regions; the resize cursor over them in a real window.
+
 ## Scenarios affected
 
 - Rewritten: `layout-geometry` (entirely top / bottom), `tabs-overflow` (entirely horizontal), `tabs-drops` (midpoint rule).
@@ -266,12 +286,12 @@ Still horizontal-only or open after 1b:
 3. Done. Component drag: bar previews, gravity by midpoint, reorder, animation.
 4. Done. Scenarios: `settings-layout` (row, mode, blocked input, Done / Cancel / Escape, Save, Reset, panel Cancel, menu toggle, resize), `settings-layout-drag` (each component to each bar, gravity, reorder, previews, emptied bar, light theme).
 
-## Phase 3: size
+## Phase 3: size (done)
 
-1. Edge drag in normal use, clamps, double-click reset (S20 to S23).
-2. State file (S24).
-3. Scaling rules (S14, S15, S19).
-4. Scenarios.
+1. Done. Edge drag in normal use, clamps, double-click reset (S20 to S23).
+2. Done. State file (S24).
+3. Done. Scaling rules (S14, S15, S19).
+4. Done. Scenarios: `layout-bars-size`, `layout-bars-scale`, `layout-bars-state`, `sec-state`.
 
 ## After each phase
 

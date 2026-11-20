@@ -86,6 +86,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `picker.ts`: file picker scorer: `score` (fzf v1 window, path bonuses, smart case, NFC, AND terms), `rank` (top-K), `merge` (streamed chunks), `parseLine` (line → prefix, dir, query), `joinPath`, `descendOf` (renderer).
   - `keymap.ts`: `ACTIONS` (id, label, default chord, aliases), `Bindings` (sparse overrides), `resolveKeymap`, `conflicts`, `validBinding`, `bindingErrors` / `cleanBindings`, `accelerator` (menu label), `chord`, `actionFor`; `decideKey` (`KeyMode`: every real key → pass / block / action / capture) (main + renderer).
   - `bars.ts`: bars layout: `Bars` (bar → `start` / `end` component lists), `defaultBars`, `validBars`, `cleanBars`, `migrateToolbar` (old `toolbar` key), `placeOf` / `barOf` / `barItems` / `barEmpty`, `isVertical`, `dropComponent` (nearest-component drop rule); edit mode: `sameBars` (structural), `moveComponent`, `barsSummary` (panel row), `barRects` / `barZones` (bar rects, non-overlapping zones), `barAt` / `gravityAt` / `indexAt` (drag target) (core settings + renderer).
+  - `barsize.ts`: bar sizes: `BarSizes`, limits `HBAR` / `VBAR`, `defaultSizes`, `clampStored` (static), `shownSize` / `maxSize` (window: side bars ≤ 30%), `barScale` (horizontal content scale, floor `SCALE_MIN`), `barForm` / `LIST_MIN` (side bar narrow / list), `cleanSizes` (untrusted payload), `parseUiState` / `uiStateText` (the UI state file) (main + renderer).
   - `settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings, `toolbar` migrated), `fileChanged`, `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main).
   - `zoom.ts`: page zoom `ZOOM_STEPS`, `zoomStep(factor, dir)`, `zoomLabel` (renderer).
   - `cli.test.ts`: `bin/tie` argument errors (subprocess, no socket), help sections.
@@ -102,6 +103,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `pty.ts`: `initPty`: pty host, polling, `tiles()` (pid → tile), `busy` / `busyIgnoring`.
   - `socket.ts`: `startSocket`: JSON-RPC server, caller gate, `replace` checks + `replaced` on connection close.
   - `settings.ts`: settings file: load at start, baseline, `watchSettings`, writes only on Save / Recreate (`SETTINGS.md` "File"), Reload / Ignore, load errors; `shellArgv`, `resolveExecutable`.
+  - `uistate.ts`: UI state file `<state>/<instance>.ui.json` (bar sizes): read at start, `uiState`, `setBarSizes` (IPC payload cleaned, file 0600) (`LAYOUT.md` "Bar sizes").
   - `env.ts`: instance, paths (`stateDir`, `socketPath`, `logPath`), `debugPort`, `log()`.
   - `update.ts`: `applyStaged`: staged update swap at launch, packaged only (`PACKAGING.md` "Install while running").
 - `src/preload/index.ts`: `window.tie` bridge (`TieApi`).
@@ -127,6 +129,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `paste.ts`: guarded paste (`pasteInto`), paste / drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
   - `bars.ts`: the four bars: `applyBars` (components into their groups, empty bars hidden, `has-<bar>` classes, templates divider), `barDropAt` (which component takes a tile drop over a bar), `bars()`, `barOfComponent`, `verticalComponent`.
+  - `barsize.ts`: bar sizes: stored (from main at boot, `initSizes`), shown (`shownSizes`), `applySizes` (CSS: `--size-<bar>`, per bar `--k`, `.narrow`; each render), edge drag + double-click (`initBarEdges`), `setBarSize` (persists).
   - `layoutedit.ts`: edit layout mode (`editLayout(done)`, `abortLayoutEdit`): dim layer, bar indicators, component boxes, labels, floating box, component drag + preview, keys (`LAYOUT.md` "Edit mode").
   - `shelf.ts`: shelf strip (items: icon + `.lbl` title for the list form), template list, overflow wiring, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, reorder (`dragTab`), overflow, tab drops (`tabDropAt(x, y)`); along the bar's axis.
   - `overflow.ts`: scrolling lists in bars (tab list, shelf strip), axis per bar: `syncFades` (`.more-start` / `.more-end`), `showChild` (keep in view), `sideWheel`, `edgeScroll` (drag auto-scroll), `edgeHolding`.
@@ -141,9 +144,9 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
 - `bin/tie`: product CLI. `bin/tie-dev`: dev toolkit.
 - `dev/` (`HARNESS.md`):
-  - `lib.mjs`: `launch` (fresh instance), `connectPage` (CDP), `tie` / `tieAt` / `tieRaw`, `rpc` (socket), `quitInstance`, `leftovers` (per-instance pty leak check).
+  - `lib.mjs`: `launch` (fresh instance; `restart` option: same instance, files kept), `uiStatePath`, `connectPage` (CDP), `tie` / `tieAt` / `tieRaw`, `rpc` (socket), `quitInstance`, `leftovers` (per-instance pty leak check).
   - `helpers.mjs`: scenario helpers (`h`; table in `HARNESS.md`), check counter `checkCount`.
-  - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
+  - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check; `ctx.restart()`: same instance again). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
   - `scenarios/*.mjs`: e2e, named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`; plus `close-busy`, `engine` (engine assumption probes, `ENGINE.md`), `lifecycle`, `menu`, `ping`, `quit`.
   - `viewers.mjs` (+ `viewers.d.mts`): viewer build, `--watch` for hot mode. `mdpage.mjs`: standalone markdown page. `samples/`: viewer fixtures (`markdown.md`).
   - `frames.mjs`, `layout.mjs`, `screenshot.mjs`: `tie-dev frames | layout | screenshot`. `ptydump.sh`: pty wedge snapshot.
@@ -160,7 +163,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered), `selected: Set` (shelf selection, cmd+click; non-empty: nothing active; `SHELF.md` "Selection").
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
-- Window chrome (`LAYOUT.md` "Bars"): `#titlebar` (traffic lights only; none when borderless), then bars `#bar-top|bottom|left|right` (`.group.start`, `.bar-space`, `.group.end`; empty: hidden). Components placed by the `bars` setting: tabs = `#brand` + `#tabs` (`#tab-list` scroller + `#tab-add`), shelf = `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), templates = `#templates`. The shelf is a concept located in a bar, not a layout region. Left / right bars (`.bar.v`): everything along y; shelf and templates take a form by the bar's width (narrow: scaled icons; list: icon + title; CSS container query, `SHELF.md` "Forms").
+- Window chrome (`LAYOUT.md` "Bars"): `#titlebar` (traffic lights only; none when borderless), then bars `#bar-top|bottom|left|right` (`.group.start`, `.bar-space`, `.group.end`; empty: hidden). Components placed by the `bars` setting: tabs = `#brand` + `#tabs` (`#tab-list` scroller + `#tab-add`), shelf = `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), templates = `#templates`. The shelf is a concept located in a bar, not a layout region. Left / right bars (`.bar.v`): everything along y; shelf and templates take a form by the bar's width (narrow: scaled icons; list: icon + title; `.narrow` from JS, `SHELF.md` "Forms").
+- Bar sizes (`LAYOUT.md` "Bar sizes"): per bar, stored (`renderer/barsize.ts`; main's UI state file `<instance>.ui.json`, not settings) and shown (window limits). Top / bottom 32..60 (40), content × `--k`; left / right 48..30% of the window (160).
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`) unless it is the only one; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space, window coords). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
@@ -195,6 +199,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save; a settings file that doesn't load raises a dialog at start (Tie on defaults, file untouched).
 - Settings file: read at start only, never auto-reloaded (edits: panel banner, Ignore / Reload); written only by explicit user actions (Save, Recreate) (`SETTINGS.md` "File").
+- UI state (bar sizes): main's `uistate.ts` only, written at an action's end (a resize released), never during a drag; payload cleaned in main (`@core/barsize`); a bad file = defaults, no dialog. Sizes in a bar's CSS: × `--k` (text × `--kt`), never a fixed px a scaled bar would outgrow.
 - Never throw inside node-pty callbacks (aborts the process). Calls into node-pty from IPC (`write`, `resize`, `kill`) are caught in `main/pty.ts`.
 - Uncaught exceptions / rejections in main: logged `[error]` (always on) with the stack; dialog except in background instances. The scenario runner fails any run whose `app.log` has an `[error]` line: read it there, never wait for a dialog.
 - Browser tiles: only via `browserKind` + main `attachGuest`/`guardGuest`; URL rules only in `core/guest.ts`.
