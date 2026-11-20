@@ -1,111 +1,117 @@
 # Configurable toolbars
 
-Status: brainstorming. Nothing implemented.
+Status: design settled 2026-11-20. Phase 1 in progress.
 
 # Topic
 
-- Today: one toolbar, top or bottom (`toolbar` setting), holding brand, tabs, shelf, templates in a fixed order.
+- Before: one toolbar, top or bottom (`toolbar` setting), holding brand, tabs, shelf, templates in a fixed order.
 - Goal: four bars (top, bottom, left, right). The user places Tabs, Shelf and Templates in any bar, at either end, in any order.
-- Placement is edited in an "Edit layout" mode, by drag, without modifier keys.
+- Placement is edited in an "Edit layout" mode, by drag, without modifier keys. Bar sizes are changed in normal use, by dragging the bar's edge.
 
 # Settled
 
+"(user)": decided by the user. "(agent)": decided by the agent under "full autonomy for the rest"; open to revision.
+
 ## Model
 
-- S1. Four bars: `top`, `bottom`, `left`, `right`.
-- S2. Three components: `tabs`, `shelf`, `templates`. Each is in exactly one bar.
-- S3. Gravity has two values: `start`, `end`. Each bar has a `start` list and an `end` list (order matters).
-- S4. A bar with no component is hidden.
-- S5. Brand (instance name) is not a component. It always sits just before the tabs.
-- S6. Templates move separately from the shelf.
-- S7. The `toolbar: top | bottom` setting goes away, migrated to the new layout.
+- S1. Four bars: `top`, `bottom`, `left`, `right`. (user)
+- S2. Three components: `tabs`, `shelf`, `templates`. Each is in exactly one bar. (user)
+- S3. Gravity has two values: `start`, `end`. Each bar has a `start` list and an `end` list; order matters. (user)
+- S4. A bar with no component is hidden (takes no space). (user)
+- S5. Brand (instance name) is not a component. It always sits just before the tabs: left of them in a horizontal bar, above them in a vertical one. (user)
+- S6. Templates move separately from the shelf. (user)
+- S7. The `toolbar: top | bottom` setting is removed, migrated to the layout. (user)
+
+## Geometry
+
+- S8. Bars switch direction with flexbox; components lay out their children along the bar. (user)
+- S9. Corners: top / bottom bars span the full width; left / right fit between them. (user)
+- S10. The system title strip (traffic lights) holds no Tie UI, ever. Tie's bars are inside the window, below it. Borderless window: no strip. (user, 2026-11-20: "tired of making exceptions")
+  - Consequence: a top bar no longer shares the strip; windows with traffic lights and a top bar get 28 px taller chrome than before.
+  - The 84 px traffic-light padding and `trafficLightPosition` tuning for the toolbar go away.
+- S11. Bars remain window drag regions on their empty space, components `no-drag`, as today. (agent: least change; a borderless window needs something to drag.)
+- S12. Two growing components in one bar: tabs take the free space and scroll; shelf shrinks after the tabs reach their floor; templates never shrink. As today, along the bar's axis. (user)
 
 ## Vertical bars
 
-- S8. Bars switch direction with flexbox; components lay out their children along the bar.
-- S9. Vertical tab list: icon plus truncated title.
-- S10. Vertical shelf: a reveal opens beside its item, toward the board.
+- S13. Tabs: title only, truncated with an ellipsis. No icon unless the user set one (as today). (user; icon set → `PENDING.md`)
+- S14. Shelf, by bar width: (user)
+  - Narrow: icons, one per row, scaled up with the width, up to 1.5x the default size.
+  - Wider than 1.5x needs: icons back to the default size, each with the tile title beside it (a list).
+  - Never a grid: items do not stack sideways.
+- S15. Templates: one per row; same scaling rule as shelf icons, titles (labels) in the wide form. (agent)
+- S16. A reveal opens beside its item, toward the board; peak points sideways. (user)
+- S17. Shelf overflow, both directions: as tabs. Scroll, fades at the cut ends, auto-scroll while dragging. (user)
+- S18. Wheel: horizontal lists map vertical wheel delta to sideways scroll (as tabs today, now shelf too); vertical lists scroll natively. (agent)
+
+## Horizontal bars, resized
+
+- S19. Thicker bar: content (tabs text, icons) scales with the thickness, up to 1.5x; beyond that, content stays at 1.5x, centred. (agent)
+
+## Bar sizes
+
+- S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. Not in edit mode. (user)
+- S21. Limits: vertical bars up to 30% of the window width; horizontal up to 20% of the window height. (user)
+- S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune)
+- S23. Double-click on the edge: back to the default size. (agent)
+- S24. Sizes are UI state, not settings: stored in `<stateDir>/<instance>.ui.json` (0600), written when a resize ends, read at start, clamped. (agent)
+  - Reason: a resize happens outside the settings panel. The settings file is written only by Save / Recreate (`SETTINGS.md` "File"), and a write there would meet the "changed on disk" logic.
+  - Rejected: sizes in `bars` in the settings file, written on drag end.
+  - Consequence: the panel's layout Reset does not touch sizes.
+
+## Tile drops on bars
+
+- S25. Over Tabs: on a tab → move there; `+` or the component's empty space → new tab. Over Shelf: shelve at the slot. Over Templates: nothing. (user: as today)
+- S26. Empty bar space: goes to the nearest drop-taking component (tabs or shelf) in that bar, along the bar's axis. Tabs → new tab; shelf → shelve at the near end. A bar holding only templates: nothing. (user: "fling to drop" kept; agent: generalization of today's midpoint rule)
+- S27. OS file drops: shelf yes, tabs never, as today. (user)
 
 ## Edit layout mode
 
-- S11. Entered from the settings panel ("Edit layout"). The panel hides.
-- S12. The board is dimmed (like dialog backdrops). Bars stay interactive.
-- S13. All four bars are indicated, existing or potential.
-- S14. A floating box in the center holds the buttons. It is not a dialog and does not look like one.
-- S15. Components are dragged without a modifier key.
-- S16. Drag to an edge with no bar: a bar preview appears there.
-- S17. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end.
-- S18. Components in the same bar and gravity can be reordered.
-- S19. A reset to the default layout exists.
-- S20. The layout is one more value in the panel's changeset (decided 2026-11-20, was P1).
-  - The mode never writes the file. `Done`: back to the panel, layout in the draft, previewed live. `Cancel`: back, layout as when the mode opened.
+- S28. Settings panel row "Layout": title, a summary line below it ("Current: Tabs bottom, Shelf bottom, Templates bottom"), buttons `Reset` and `Modify`. (user)
+  - `Reset`: the draft layout becomes the default. `Modify`: enters the mode.
+- S29. The layout is one more value in the panel's changeset (was P1). (user)
+  - The mode never writes the file. `Done`: back to the panel, layout in the draft, previewed live. `Cancel` / Escape: back, layout as when the mode opened.
   - The panel's Save persists it; the panel's Cancel reverts it, as for theme or font.
   - Rejected: "Edit layout" disabled while the panel has changes, with its own Save. Reason: a second write path, and no real difference from any other field.
   - Known cost: one more step for a layout-only change; `Done` may be mistaken for saved.
+- S30. In the mode: the panel hides; the board is dimmed (like dialog backdrops) and takes no input; bars stay interactive. (user)
+- S31. All four bars are indicated, existing or potential. (user)
+- S32. A floating box in the center holds `Cancel` and `Done`. It is not a dialog and does not look like one. (user)
+- S33. Components are dragged without a modifier key. (user)
+- S34. Drag to an edge with no bar: a bar preview appears there. (user)
+- S35. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end. (user)
+- S36. Components in the same bar and gravity can be reordered. (user)
+- S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user)
+- S38. Preview look: abstract accent-tinted box at the landing place, as tile drop previews; the dragged component dims in place. To iterate by feel. (agent)
+
+## Persistence
+
+- S39. Settings shape: (agent)
+  ```json
+  "bars": {
+    "top":    { "start": [], "end": [] },
+    "bottom": { "start": ["tabs"], "end": ["shelf", "templates"] },
+    "left":   { "start": [], "end": [] },
+    "right":  { "start": [], "end": [] }
+  }
+  ```
+  - That is also the default (today's look).
+  - Invalid (a component missing or twice, unknown name, wrong shape): the whole layout falls back to the default.
+- S40. Migration: a file with `toolbar: "top"` and no `bars` → the default layout on the top bar. `toolbar` is ignored otherwise and dropped at the next Save. (agent)
 
 ## Dropped ideas
 
 - D1. Cmd+hover / Cmd+drag in normal use. Reason: Cmd is held for every shortcut, the highlight would flicker; a permanent gesture for a rare action.
 - D2. Shelf multi-select moving from Cmd to Shift. No longer needed: Cmd+click stays (`2026-11-17-shelf-multi-select.md`).
+- D3. Resize only in edit mode (agent's pick; the user chose normal use, S20).
+- D4. Default tab glyph / first letter for vertical tabs. Deferred to the icon set (`PENDING.md`).
 
 # Pending
 
-Each has my pick first. Uncertain ones are marked.
-
-## Edit mode
-
-- P2. Buttons in the floating box: `Cancel`, `Defaults`, `Done` (pick). `Defaults` changes the mode's draft only.
-- P3. Panel row for the value: "Layout" + `Edit…` button, with a short summary ("Tabs bottom, Shelf right") (pick), or the button alone.
-- P4. Preview look: abstract accent-tinted box, as tile drop previews (pick), or a ghost of the component.
-- P5. Escape in the mode = Cancel (back to the panel)? (pick: yes.)
-
-## Labels
-
-- P6. "Tabs", "Shelf", "Templates" labels above components.
-  - a. Only in edit mode; an empty shelf keeps a faint placeholder in normal use (pick).
-  - b. Always visible; bars get taller.
-  - c. Always on vertical bars, edit mode only on horizontal.
-
-## Size
-
-- P7. Bars resizable, content scales. What scales on vertical bars? (uncertain)
-  - a. Horizontal: thickness scales content. Vertical: width gives room for titles, icons only below a threshold, no scaling (pick).
-  - b. One separate "toolbar scale" setting; width only on vertical bars.
-- P8. Resize only in edit mode (pick), or always.
-- P9. Clamps: 28 to 64 px thick, 120 to 320 px wide (pick; numbers to tune).
-
-## Geometry
-
-- P10. Corners: top / bottom span the full width, left / right fit between them (pick).
-- P11. Window with traffic lights (not borderless): a top bar shares the title strip as today; a left bar starts below it (pick).
-- P12. Two growing components in one bar: tabs take the free space and scroll, shelf capped, as today (pick).
-
-## Tile drops on bars
-
-- P13. Over Tabs = new tab / move to tab; over Shelf = shelve; empty bar space = nothing (pick). Today: left of the bar midpoint = new tab, right = shelf.
-- P14. Over Templates = nothing (pick).
-
-## From the survey
-
-- P17. Default tab glyph for vertical tabs (B6): a generic tab icon when none is set (pick), or title only.
-- P18. Tabs in a narrow vertical bar (icons only): tabs without a custom icon all look the same. Accept, or show the first letter of the title (pick: first letter).
-- P19. Shelf overflow in a vertical bar: native wheel scroll only, as today (pick), or add fades and drag auto-scroll like tabs.
-- P20. Traffic lights with a resized top bar: re-centre them to the bar (pick), or leave fixed.
-- P21. OS file drops on Tabs: still never (pick).
-
-## Persistence
-
-- P15. Settings shape (pick):
-  ```json
-  "bars": {
-    "top":    { "size": 40,  "start": [], "end": [] },
-    "bottom": { "size": 40,  "start": ["tabs"], "end": ["shelf", "templates"] },
-    "left":   { "size": 200, "start": [], "end": [] },
-    "right":  { "size": 200, "start": [], "end": [] }
-  }
-  ```
-  - Invalid (component missing or twice, unknown name): whole layout falls back to the default, as `sanitize` does for other fields.
-- P16. Migration: `toolbar: "top"` in an old file → default layout on the top bar. The old key is dropped at the next Save.
+- None blocking. To watch while building:
+  - W1. S19 leaves empty space in a horizontal bar thicker than 1.5x needs (S21 allows 20% of the height). Maybe cap the thickness at the 1.5x point instead.
+  - W2. Drag regions on side bars and the reveal (`shelf.ts` pointerleave note): manual check, the offscreen harness cannot test it.
+  - W3. S24 (sizes in a state file): the first persisted UI state outside settings.
 
 # Research
 
@@ -175,33 +181,35 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 
 # Plan
 
-## Phase 0: read and close questions
+## Phase 0: read and close questions (done)
 
-1. Done: code survey (Research).
-2. Close Pending items with the user.
-3. Update this record: Settled, final plan.
+## Phase 1: model and rendering (no editor, no resize)
 
-## Phase 1: model and rendering (no editor)
-
-1. `core/`: bar layout type, default, `sanitize`, migration of `toolbar`. Unit tests.
-2. DOM: four bar containers; components mounted per layout; brand with tabs.
-3. Geometry: board insets on four sides.
-4. Vertical variants: tab list, shelf strip + reveal side, templates, overflow.
-5. Tile drops per component (P13).
-6. Scenarios: layouts set through the settings file; tabs / shelf / templates in each bar.
+- 1a. Core + horizontal:
+  1. `core/`: bars type, default, `sanitize`, migration of `toolbar` (S39, S40). Unit tests.
+  2. DOM: title strip (system only, S10) + four bar containers; components mounted per layout; brand with tabs.
+  3. Geometry: board insets on four sides (`state.ts`), CSS vars.
+  4. Tile drops per component and nearest-component rule (S25 to S27).
+  5. Panel: `#set-toolbar` select removed (layout by file until phase 2).
+  6. Scenarios: `layout-geometry`, `tabs-drops` rewritten; any top / bottom arrangement works.
+- 1b. Vertical:
+  1. Tabs: axis-generic drag, reorder, overflow, drop target, wheel (B2 to B4).
+  2. Shelf + templates: vertical strip, slots, reveal side and peak (B1), overflow as tabs in both directions (S17).
+  3. Scenarios: tabs / shelf / templates in left and right bars; `tabs-overflow` covers both axes.
 
 ## Phase 2: edit mode
 
-1. Entry from the panel, dim layer, floating box, bar indicators, labels.
-2. Component drag: bar previews, gravity by midpoint, reorder, animation.
-3. Cancel / Defaults / Done; layout in the panel draft, Save state.
+1. Panel row (S28), layout in the draft, Save state.
+2. Mode: dim layer, floating box, bar indicators, labels.
+3. Component drag: bar previews, gravity by midpoint, reorder, animation.
 4. Scenarios: drag to each bar, gravity, reorder, cancel, reset, panel Save / Cancel.
 
 ## Phase 3: size
 
-1. Resize handles in edit mode, clamps.
-2. Scaling rule (P7).
-3. Scenarios.
+1. Edge drag in normal use, clamps, double-click reset (S20 to S23).
+2. State file (S24).
+3. Scaling rules (S14, S15, S19).
+4. Scenarios.
 
 ## After each phase
 

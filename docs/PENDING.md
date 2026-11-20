@@ -8,6 +8,7 @@
 40. Bindings on non-US layouts: untested (key names come from Electron's `input.key`: letters, `+` as its own key, dead keys). Not pressing.
 4. Exit dialog checkbox: restore tabs + layout on next launch. Variants and trade-offs to analyze first (terminal state, content tiles, scrollback).
 5. Review feature, binding and menu discoverability.
+42. Icon set for tabs: a default glyph per tab (none today unless the user sets one). Needed for icon-only tabs in narrow vertical bars (`2026-11-19-configurable-toolbars.md` D4).
 
 ## Alerts
 
