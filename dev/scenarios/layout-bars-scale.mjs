@@ -1,7 +1,7 @@
 // Bar content by size (LAYOUT.md "Bar sizes"): horizontal bars scale tabs, brand, shelf items and
 // templates with the thickness (32 / 40 / 60 px: heights, glyphs, centring; drop at a slot, reveal next
 // to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow up to 1.5x
-// then centred, list from LIST_MIN), narrow tabs keep their title on hover; a mixed layout.
+// then centred, list from LIST_MIN), narrow tabs keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
 import { join } from 'node:path'
 import { ROOT } from '../lib.mjs'
 
@@ -169,17 +169,22 @@ export default async (ctx, h) => {
   const t1 = await title()
   h.assert(t1.close === 'none' && Math.abs(t1.w - t0.w) < 1, `48, hover: title kept, no close button (${JSON.stringify(t1)})`)
   await ctx.shot('left-48-tab-hover')
-  // Middle-click still closes a tab: not tried here (would close the tab); its menu still opens.
-  await m.click(tb.x, tb.y, { button: 'right' })
-  await page.waitForSelector('.menu')
-  await h.press(ctx, 'Escape')
-  await page.waitForSelector('.menu', { state: 'detached' })
   // From the list form on, hover shows the close button again.
   await h.setBarSize(ctx, 'left', 160)
   const tb2 = await h.boxOf(ctx, `.tab[data-space="${nm.id}"]`)
   await m.move(tb2.x + 2, tb2.y, { steps: 3 })
   await h.settle(ctx)
   h.assert((await title()).close !== 'none', '160, hover: close button')
+  // Narrow again: the tab's menu has Close; a middle-click closes it.
+  await h.setBarSize(ctx, 'left', 48)
+  const tb3 = await h.boxOf(ctx, `.tab[data-space="${nm.id}"]`)
+  await m.click(tb3.x, tb3.y, { button: 'right' })
+  await page.waitForSelector('.menu')
+  h.assert((await page.$$eval('.menu .menu-item', (els) => els.map((e) => e.textContent))).includes('Close'), 'tab menu: Close')
+  await h.press(ctx, 'Escape')
+  await page.waitForSelector('.menu', { state: 'detached' })
+  await m.click(tb3.x, tb3.y, { button: 'middle' })
+  await h.waitFor(ctx, async () => !(await L()).tabs.some((t) => t.id === nm.id), 'middle-click closed the tab')
   await away()
 
   // A mixed layout, a size per side.

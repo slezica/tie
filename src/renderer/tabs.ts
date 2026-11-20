@@ -188,12 +188,14 @@ function createTabEl(id: string): HTMLElement {
     dragTab(e, id)
   })
   el.querySelector('.tab-close')!.addEventListener('click', (e) => void requestCloseTab(id, { force: (e as MouseEvent).shiftKey }))
+  // Middle-click and the menu close too (a narrow side bar shows no close button: TABS.md).
+  el.addEventListener('auxclick', (e) => e.button === 1 && void requestCloseTab(id, { force: e.shiftKey }))
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault()
     const sp = space(id)
     if (!sp) return
     showMetaMenu(
-      { customTitle: sp.customTitle, customIcon: sp.customIcon, title: tabTitle(sp), set: (m) => setTabMeta(id, m) },
+      { customTitle: sp.customTitle, customIcon: sp.customIcon, title: tabTitle(sp), set: (m) => setTabMeta(id, m), close: () => void requestCloseTab(id) },
       e.clientX,
       e.clientY,
     )
