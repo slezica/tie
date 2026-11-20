@@ -27,7 +27,7 @@
 - `scenarios`: name + first-line description of each scenario.
 - `sample [name]`: opens `dev/samples/<name>.md` (default `markdown`: every syntax the viewer renders) in the instance, for iterating viewer styles (`tie-dev run --hot` beside it: viewer edits rebuild and the tile reloads, "Hot" above). Fixtures for other kinds go beside it.
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
-- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next answer of the native file dialog, the picker's `…`; harness instances never show it), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)), `key-mode` (main's key suspend level `off | fields | capture`, `keys.ts`; read-only: `h.waitKeyMode`). Gate: main's `devMethods` answer only when `!app.isPackaged`; a packaged app passes every method to the renderer, which has none of these. `lib.mjs` `rpc()` calls them.
+- Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next answer of the native file dialog, the picker's `…`; harness instances never show it), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)), `window-hide` (the window hidden as a hidden or covered real one: shown once transparent and inactive, then hidden; `h.hideWindow`), `window-state` (the UI page over 1 s, asked from main: `{visibility, frames}`), `key-mode` (main's key suspend level `off | fields | capture`, `keys.ts`; read-only: `h.waitKeyMode`). Gate: main's `devMethods` answer only when `!app.isPackaged`; a packaged app passes every method to the renderer, which has none of these. `lib.mjs` `rpc()` calls them.
 - Dev socket methods answered by the renderer (`driver.ts` `DEV_ONLY`, refused unless a dev build): `state` (`tie state`: internal dump, with `barSizes`), `bar-size {bar, px}` (a bar's size as a resize's end: `h.setBarSize`).
 
 ## Fresh instance (`launch()`, `dev/lib.mjs`)
@@ -36,6 +36,7 @@
 |---|---|
 | `TIE_INSTANCE` | `drive-<pid>` |
 | `TIE_BACKGROUND` | `1`: offscreen, no window/dock icon/focus stealing; real input can't interfere. `hidden` (scenario `hiddenWindow`): real window, never shown |
+| `TIE_THROTTLE` | unset: harness instances never throttle. `1` (scenario `env`, with `hiddenWindow`): `backgroundThrottling` on as in the real app: a hidden window gets no rAF, slow timers (`content-hidden-window`) |
 | `TIE_SCALE` | `2` (retina-like); `TIE_SCALE=1 tie-dev drive ...` for 1x |
 | `TIE_CWD` | repo root |
 | `TIE_SETTINGS` | `tmp/<instance>.settings.json` (and its `.bak`), deleted on stop. Seeded `{allowExternalControl: true, shell: '/bin/bash --noprofile --norc'}` (the harness is an external socket caller; terminals never run the user's profile: speed, and rc output can't break scenarios; prompt `bash-3.2$ `); scenario `settings` merge over it (`{shell: ''}`: the login shell); a raw string is written as-is |
@@ -63,7 +64,7 @@ export const uiState = { bars: { top: 50 } } // optional: UI state file seed (ob
 export default async (ctx, h) => { ... }    // h = helpers
 ```
 
-`ctx`: `page` (Playwright, CDP; a new one after `restart`: re-read `ctx.page`, never keep the old), `restart()` (the same instance quit and launched again, its settings and UI state files kept: what a user's restart reads; fresh instances only; the app log continues), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
+`ctx`: `page` (Playwright, CDP; a new one after `restart`: re-read `ctx.page`, never keep the old), `detach()` / `attach()` (Playwright off the instance and on again, `ctx.page` new after: hidden-window scenarios, `h.hideWindow`), `restart()` (the same instance quit and launched again, its settings and UI state files kept: what a user's restart reads; fresh instances only; the app log continues), `tie(...args)` (`bin/tie ... --json`, parsed), `tieAt(dir, ...args)` (same, run from `dir`: relative paths, a caller's cwd), `tieRaw(args, {cwd})` (`bin/tie` as a user runs it, no `--json` added: `{code, out, err}`, never rejects), `shot(label)`, `sleep(ms)`, `log(...)`, `instance`, `runDir`, `appLog()` (run's app log text, `<untrusted>` markers stripped and escapes undone), `rawLog()` (the file as written).
 
 - `hiddenWindow`: offscreen rendering never routes input into content frames (CDP clicks/keys land on the shell). Harness assumptions on Playwright / CDP: `ENGINE.md` "Harness". A hidden real window routes like a visible one. Use it for frame and guest input (`content-input`, `browser`, `sec-browser-*`).
 - Timeout: a scenario still running after `TIE_SCENARIO_TIMEOUT` s (default 180) fails; SIGINT / SIGTERM stop the fresh instance first. `waitFor` / `eventually` race each try against the time left (a promise that never settles can't hang them).
@@ -95,6 +96,7 @@ All take `ctx` first except `assert`, `alive`, `leafIds`, `tilde`, `pixels`, `fr
 | `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags (`shelve`: the strip's end along its bar) |
 | `hoverShelf`, `clickShelf`, `shelfItem`, `template`, `boxOf(selector)` | shelf: hover reveal, plain item click (pins; unpins a pinned one) + DOM points |
 | `selectShelf(...ids)`, `selected()` | cmd+click items (selection toggle, each confirmed in `tie state`); selected ids |
+| `hideWindow()` | window hidden as the real app's when hidden or covered, Playwright detached (attached, it keeps the page painting); returns once the page is `hidden` with no animation frames. Needs `hiddenWindow` + `env = { TIE_THROTTLE: '1' }`. After: socket only (`ctx.tie`), then `ctx.attach()` to look |
 | `resizeWindow(w, h)` | window size (dev socket `window-size`), waits for the re-layout |
 | `clickButton(id, collapse\|zoom\|close, modifiers)` | title buttons |
 | `threeWaySplit` | `a \| b over c`, returns ids |

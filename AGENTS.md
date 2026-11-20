@@ -147,7 +147,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `dev/` (`HARNESS.md`):
   - `lib.mjs`: `launch` (fresh instance; `restart` option: same instance, files kept), `uiStatePath`, `connectPage` (CDP), `tie` / `tieAt` / `tieRaw`, `rpc` (socket), `quitInstance`, `leftovers` (per-instance pty leak check).
   - `helpers.mjs`: scenario helpers (`h`; table in `HARNESS.md`), check counter `checkCount`.
-  - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check; `ctx.restart()`: same instance again). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
+  - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check; `ctx.restart()`: same instance again; `ctx.detach()` / `attach()`: Playwright off / on, hidden-window scenarios). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
   - `scenarios/*.mjs`: e2e, named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`; plus `close-busy`, `engine` (engine assumption probes, `ENGINE.md`), `lifecycle`, `menu`, `ping`, `quit`.
   - `viewers.mjs` (+ `viewers.d.mts`): viewer build, `--watch` for hot mode. `mdpage.mjs`: standalone markdown page. `samples/`: viewer fixtures (`markdown.md`).
   - `frames.mjs`, `layout.mjs`, `screenshot.mjs`: `tie-dev frames | layout | screenshot`. `ptydump.sh`: pty wedge snapshot.

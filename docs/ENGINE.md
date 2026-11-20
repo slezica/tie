@@ -139,6 +139,7 @@ Security rows with their own guard and test live in `SECURITY.md` "Guards"; here
 | `sendInputEvent` keys pass `before-input-event`; CDP keys skip it | `h.press` / `keyDown` / `keyUp` vs `ctx.page.keyboard` | scenario `keys`, `sec-keys` (positive control) | Shortcut scenarios fail | Electron, Playwright |
 | Offscreen rendering never routes input into content frames | `hiddenWindow` scenarios | by hand | — | Electron major |
 | Playwright auto-attaches to `<webview>` guests and answers their dialogs (crash) | `browser-unload` no-op `dialog` listener | by hand | — | Playwright any |
+| A hidden window's page: `hidden`, no rAF, timers still run (with `backgroundThrottling`); a never-shown window counts as visible; an attached Playwright keeps a hidden page visible and painting | viewers' `ready` timer (`runtime.ts`), `h.hideWindow` (detaches) | scenario `content-hidden-window` (asserts hidden + 0 frames, from main) | Hidden-window scenario fails at its premise | Electron major, Playwright any |
 | CDP `Page.crash` on a frame's own target kills that renderer | `content-watchdog` | scenario `content-watchdog` | — | Playwright, Electron |
 
 ## Worth a probe scenario
