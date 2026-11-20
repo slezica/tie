@@ -24,14 +24,23 @@
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --shadow: rgba(0, 0, 0, 0.6);
   --web-canvas: #fff; /* browser tiles: the web's default page background (not themed: pages expect it) */
-  /* Effective strip heights (derived from settings classes; layout code reads these). */
-  --top-h: var(--toolbar-h);
-  --bottom-h: 0px;
+  /* Bar thickness per side: 0 when the bar is empty (hidden), else the bar's size (root classes
+     has-<bar>, bars.ts). Layout code reads these and --strip-h (state.ts readGeometry). */
+  --bar-top: 0px;
+  --bar-bottom: 0px;
+  --bar-left: 0px;
+  --bar-right: 0px;
+  /* Board insets, for CSS only (custom properties keep calc() unresolved: layout code adds them). */
+  --top-h: calc(var(--strip-h) + var(--bar-top));
+  --bottom-h: var(--bar-bottom);
+  --left-w: var(--bar-left);
+  --right-w: var(--bar-right);
   --app-bg: color-mix(in srgb, var(--bg) 80%, black); /* behind tiles: 20% darker */
   --radius: 0; /* tiles and drop preview: square */
   /* Spacing (px). Layout code reads these too: tweak freely. */
-  --toolbar-h: 40px; /* the toolbar: tabs, shelf, templates (top or bottom) */
-  --titlebar-h: 28px; /* top strip left for the traffic lights when the toolbar is at the bottom */
+  --strip-h: 28px; /* title strip: the traffic lights only (0 when borderless) */
+  --hbar: 40px; /* top / bottom bar height */
+  --vbar: 160px; /* left / right bar width */
   --tabs-min: 140px; /* the tab list never shrinks below this: one tab and + */
   --pad: 6px; /* board edge padding */
   --gap: 6px; /* between tiles */
@@ -59,49 +68,79 @@ body {
   -webkit-user-select: none;
 }
 
-:root.toolbar-bottom {
-  --top-h: var(--titlebar-h); /* traffic lights only */
-  --bottom-h: var(--toolbar-h);
+:root.borderless {
+  --strip-h: 0px; /* no traffic lights: no strip */
 }
-:root.toolbar-bottom.borderless {
-  --top-h: 0px; /* nothing left up top */
+:root.has-top {
+  --bar-top: var(--hbar);
 }
-/* Window strips: the toolbar lives in one of them (appearance.ts moves it); both drag the window. */
-#top,
-#bottom {
+:root.has-bottom {
+  --bar-bottom: var(--hbar);
+}
+:root.has-left {
+  --bar-left: var(--vbar);
+}
+:root.has-right {
+  --bar-right: var(--vbar);
+}
+/* Title strip: the system's traffic lights, never Tie UI (S10). Drags the window. */
+#titlebar {
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
+  height: var(--strip-h);
   -webkit-app-region: drag;
 }
-#top {
-  top: 0;
-  height: var(--top-h);
-  padding-left: 84px; /* room for the traffic lights */
-}
-#bottom {
-  bottom: 0;
-  height: var(--bottom-h);
-  padding-left: var(--pad);
-}
-:root.borderless #top {
-  padding-left: var(--pad);
-}
-
-/* Toolbar: [brand][tab list →][space][← shelf][template list]. Flex resolves the contest: the
-   shelf keeps its content width and the tab list takes what is left down to --tabs-min; past
-   that the shelf shrinks (and scrolls). */
-#toolbar {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
+/* Bars: [start group][space][end group] along the bar (groups are display: contents: components
+   are the bar's flex items). Empty space drags the window; components don't (no-drag below).
+   Contest along the bar: the tab list shrinks first (and scrolls) down to --tabs-min, then the
+   shelf (and scrolls); templates never. Top / bottom span the width, left / right fit between. */
+.bar {
+  position: absolute;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-right: var(--pad);
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+.bar[hidden] {
+  display: none;
+}
+.bar .group {
+  display: contents;
+}
+.bar-space {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+.bar.h {
+  left: 0;
+  right: 0;
+  padding: 0 var(--pad);
+}
+#bar-top {
+  top: var(--strip-h);
+  height: var(--bar-top);
+}
+#bar-bottom {
+  bottom: 0;
+  height: var(--bar-bottom);
+}
+.bar.v {
+  flex-direction: column;
+  top: var(--top-h);
+  bottom: var(--bottom-h);
+  padding: var(--pad) 0;
+}
+#bar-left {
+  left: 0;
+  width: var(--bar-left);
+}
+#bar-right {
+  right: 0;
+  width: var(--bar-right);
 }
 #brand {
   flex: none;
@@ -113,13 +152,19 @@ body {
 #brand:empty {
   display: none;
 }
+/* Content-sized (the bar's space sits between its groups, so gravity holds); shrinks long before
+   the shelf does (the contest above), never below --tabs-min. */
 #tabs {
-  flex: 1 1 0;
+  flex: 0 1000000 auto;
   min-width: var(--tabs-min);
   display: flex;
   align-items: center;
   height: 100%;
   padding: 5px 0;
+}
+/* At the bar's end: the tab list and + pack toward it (#tabs is never narrower than --tabs-min). */
+.group.end > #tabs {
+  justify-content: flex-end;
 }
 /* Tabs that don't fit scroll (no bar); fades show there is more; the divider toward the shelf
    appears only then. */
@@ -836,7 +881,7 @@ body.tile-drag #tab-add.drop {
   pointer-events: none;
 }
 #peak.up {
-  clip-path: polygon(50% 0, 100% 100%, 0 100%); /* toolbar on top: "^" */
+  clip-path: polygon(50% 0, 100% 100%, 0 100%); /* shelf in the top bar: "^" */
 }
 #peak.pinned {
   background: var(--accent);
@@ -917,7 +962,7 @@ body.resizing-col { cursor: row-resize; }
   white-space: nowrap;
 }
 
-/* Shelf strip and template list: square icon slots in the toolbar. The shelf is where shelved tiles
+/* Shelf strip and template list: square icon slots in their bars. The shelf is where shelved tiles
    live (S.shelf), shown here; it yields to nothing but the tab list's minimum, then scrolls. */
 #shelf,
 #templates {
@@ -967,10 +1012,72 @@ body.os-drag #shelf:not(.landing)::before {
 #shelf::-webkit-scrollbar {
   display: none;
 }
-#templates {
+/* Divider only beside the shelf in the same group (bars.ts), on the side facing it. */
+#templates.after-shelf {
   margin-left: 4px;
   padding-left: 6px;
   border-left: 1px solid var(--fg-c);
+}
+#templates.before-shelf {
+  margin-right: 4px;
+  padding-right: 6px;
+  border-right: 1px solid var(--fg-c);
+}
+/* Vertical bars (left / right): components in a column. Basic only: vertical tab drag, overflow
+   fades, shelf slots and reveal sideways are phase 1b (2026-11-19-configurable-toolbars.md). */
+.bar.v #brand {
+  margin: 0;
+}
+.bar.v #tabs {
+  flex-direction: column;
+  align-self: stretch;
+  height: auto;
+  min-width: 0;
+  min-height: var(--tabs-min);
+  padding: 0 var(--pad);
+  gap: 2px;
+}
+.bar.v #tab-list {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  mask-image: none;
+}
+.bar.v .tab {
+  height: 28px;
+  max-width: none;
+}
+.bar.v #tab-add {
+  width: 100%;
+  height: 26px;
+}
+.bar.v #tabs.overflow {
+  padding-right: var(--pad);
+  border-right: 0;
+}
+.bar.v #shelf {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.bar.v #templates {
+  flex-direction: column;
+}
+.bar.v #templates.after-shelf {
+  margin: 4px 0 0;
+  padding: 6px 0 0;
+  border-left: 0;
+  border-top: 1px solid var(--fg-c);
+}
+.bar.v #templates.before-shelf {
+  margin: 0 0 4px;
+  padding: 0 0 6px;
+  border-right: 0;
+  border-bottom: 1px solid var(--fg-c);
 }
 .template,
 .item {
@@ -1041,7 +1148,7 @@ body.os-drag #shelf:not(.landing)::before {
 
 #empty-hint {
   position: absolute;
-  inset: max(var(--top-h), var(--pad)) var(--pad) max(var(--bottom-h), var(--pad)) var(--pad);
+  inset: max(var(--top-h), var(--pad)) max(var(--right-w), var(--pad)) max(var(--bottom-h), var(--pad)) max(var(--left-w), var(--pad));
   display: none;
   place-items: center;
   color: var(--faint);

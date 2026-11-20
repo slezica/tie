@@ -14,16 +14,25 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div id="top"></div>
-    <div id="bottom">
-      <div id="toolbar">
+    <!-- Title strip: the system's traffic lights only, never Tie UI (absent when borderless). -->
+    <div id="titlebar"></div>
+    <!-- Bars (renderer/bars.ts): components placed into start / end groups per the `bars` setting;
+         a bar with none is hidden. Top / bottom span the width, left / right fit between them. -->
+    <div id="bar-top" class="bar h" data-bar="top"><div class="group start"></div><div class="bar-space"></div><div class="group end"></div></div>
+    <div id="bar-bottom" class="bar h" data-bar="bottom">
+      <div class="group start">
         <span id="brand"></span>
         <div id="tabs"><div id="tab-list"></div><button id="tab-add" title="New tab">+</button></div>
+      </div>
+      <div class="bar-space"></div>
+      <div class="group end">
         <div id="shelf"></div>
         <div id="templates"></div>
       </div>
     </div>
-    <div id="empty-hint">Drag a terminal from the toolbar, or press ⌘D</div>
+    <div id="bar-left" class="bar v" data-bar="left"><div class="group start"></div><div class="bar-space"></div><div class="group end"></div></div>
+    <div id="bar-right" class="bar v" data-bar="right"><div class="group start"></div><div class="bar-space"></div><div class="group end"></div></div>
+    <div id="empty-hint">Drag a terminal from the templates, or press ⌘D</div>
     <div id="tiles"></div>
     <div id="borders"></div>
     <div id="peak"></div>

@@ -112,8 +112,6 @@ function build(info: SettingsInfo) {
           <h3>Window</h3>
           <label class="check"><input id="set-borderless" type="checkbox" /> Borderless <span class="scope">no window controls, square corners</span></label>
           <p class="hint">Corners change on next launch.</p>
-          <label for="set-toolbar">Toolbar <span class="scope">tabs, shelf, templates</span></label>
-          <select id="set-toolbar"><option value="bottom">Bottom</option><option value="top">Top</option></select>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
           <select id="set-font"></select>
@@ -185,7 +183,6 @@ function build(info: SettingsInfo) {
   const font = $<HTMLSelectElement>('#set-font')
   const cellWidth = $<HTMLInputElement>('#set-cell-width')
   const borderless = $<HTMLInputElement>('#set-borderless')
-  const toolbar = $<HTMLSelectElement>('#set-toolbar')
   const fontSize = $<HTMLInputElement>('#set-font-size')
   const shell = $<HTMLInputElement>('#set-shell')
   const terminalTitle = $<HTMLSelectElement>('#set-terminal-title')
@@ -213,7 +210,6 @@ function build(info: SettingsInfo) {
   monospaceFonts().then((fonts) => panel && fillFonts(fonts))
   cellWidth.value = String(settings.cellWidth)
   borderless.checked = settings.borderless
-  toolbar.value = settings.toolbar
   fontSize.value = String(settings.fontSize)
   shell.value = settings.shell
   terminalTitle.value = settings.terminalTitle
@@ -236,7 +232,6 @@ function build(info: SettingsInfo) {
     fontSize: Math.min(32, Math.max(8, Number(fontSize.value) || 12)),
     cellWidth: Math.min(150, Math.max(70, Number(cellWidth.value) || 100)),
     borderless: borderless.checked,
-    toolbar: toolbar.value as 'top' | 'bottom',
     terminalTitle: terminalTitle.value as Settings['terminalTitle'],
     warnPasteControl: warnControl.checked,
     warnPasteRun: warnRun.checked,
@@ -247,11 +242,10 @@ function build(info: SettingsInfo) {
   const preview = () => {
     swatches()
     $('.warn').hidden = fontInstalled(font.value.trim())
-    applyAppearance(draft())
+    applyAppearance({ ...saved, ...draft() }) // the layout (bars) stays the active one: file-only for now
     tie.settings.previewBorderless(borderless.checked)
   }
   themeSel.addEventListener('change', preview)
-  toolbar.addEventListener('change', preview)
   for (const el of [lineHeight, font, fontSize, cellWidth, borderless]) el.addEventListener('input', preview)
   swatches()
 

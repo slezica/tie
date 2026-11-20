@@ -1,6 +1,7 @@
 // State → DOM. Positions every tile absolutely in window coords; never re-parents.
 import { compute, parentDir, type Rect, type TileId } from '@core/layout'
-import { S, squashed, layoutOpts, TITLE, PEAK, boardRect, shelfRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
+import { S, squashed, layoutOpts, TITLE, PEAK, boardRect, revealSize, readGeometry, withSpace, spaceOf, type Tile } from './state'
+import { barOfComponent } from './bars'
 import { renderTabs } from './tabs'
 import { ICON } from './icons'
 import { canCollapse, clampFloat } from './ops'
@@ -95,12 +96,12 @@ function renderVisible() {
     setButtons(S.tiles.get(f.id)!, { collapse: true, zoom: true })
   })
 
-  // Shelf strip, then reveals next to their items: above (toolbar at the bottom) or below (top),
-  // horizontally centered on the item, clamped into the board.
+  // Shelf strip, then reveals next to their items, toward the board: below the item (shelf in the
+  // top bar) or above it (bottom), horizontally centered on the item, clamped into the board.
+  // Left / right bars: as bottom for now (sideways reveal: phase 1b).
   syncShelf()
-  const sr = shelfRect()
   const size = revealSize()
-  const below = sr.y < b.y // toolbar on top: reveals open downward
+  const below = barOfComponent('shelf') === 'top'
   const peak = document.getElementById('peak')!
   peak.style.display = 'none'
   for (const id of S.shelf) {

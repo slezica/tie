@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { WalkChunk } from '../main/walk'
 import type { Bindings } from '../core/keymap'
+import type { Bars } from '../core/bars'
 export type { WalkChunk }
 
 export interface Settings {
@@ -11,7 +12,7 @@ export interface Settings {
   fontSize: number
   cellWidth: number
   borderless: boolean
-  toolbar: 'top' | 'bottom'
+  bars: Bars // core/bars.ts
   terminalTitle: 'auto' | 'command' | 'directory'
   warnPasteControl: boolean
   warnPasteRun: boolean

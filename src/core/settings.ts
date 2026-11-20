@@ -1,6 +1,7 @@
 // Settings: shape, defaults and the pure rules (sanitize at load / save, validation before a save,
 // command line parsing). The file itself: main/settings.ts. docs/SETTINGS.md.
 import { bindingErrors, cleanBindings, type Bindings } from './keymap'
+import { cleanBars, defaultBars, migrateToolbar, validBars, type Bars } from './bars'
 
 // Terminal tile title: program's own (OSC) else command | foreground command | working directory.
 export const TERMINAL_TITLES = ['auto', 'command', 'directory'] as const
@@ -14,7 +15,7 @@ export interface Settings {
   fontSize: number // all tiles: content font size (px)
   cellWidth: number // all tiles: character width, percent (kitty cell_width)
   borderless: boolean // app-wide: hide window controls (kitty hide_window_decorations)
-  toolbar: 'top' | 'bottom' // app-wide: toolbar (tabs, shelf, templates) position
+  bars: Bars // app-wide: where tabs, shelf, templates sit (core/bars.ts); the old `toolbar` key migrates to it
   terminalTitle: TerminalTitle // terminal tiles: what the title shows (TERMINALS.md)
   warnPasteControl: boolean // terminal tiles: confirm pastes/drops containing control characters
   warnPasteRun: boolean // terminal tiles: confirm pastes that would run commands (newline, no bracketed paste)
@@ -24,15 +25,17 @@ export interface Settings {
   bindings: Bindings // app-wide: key binding overrides, sparse (action → chord, null = unbound; core/keymap.ts)
 }
 
-export const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, toolbar: 'bottom', terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false, gitignore: true, bindings: {} }
+export const DEFAULTS: Settings = { shell: '', theme: 'tie-dark', lineHeight: 1.15, fontFamily: '', fontSize: 12, cellWidth: 100, borderless: false, bars: defaultBars(), terminalTitle: 'command', warnPasteControl: true, warnPasteRun: true, confirmExternal: true, allowExternalControl: false, gitignore: true, bindings: {} }
 export const THEME_ALIASES: Record<string, string> = { 'elegant-dark': 'tie-dark' }
 
 // Clamp numbers into range; wrongly typed strings fall back to defaults (hand-edited files).
+// Unknown keys stay (a newer Tie's), except `toolbar` (replaced by `bars`): dropped at the next Save.
 export function sanitize(s: Settings): Settings {
+  const { toolbar: _toolbar, ...rest } = s as Settings & { toolbar?: unknown }
   const str = (v: unknown, d: string) => (typeof v === 'string' ? v : d)
   const num = (v: unknown, min: number, max: number, d: number) => Math.min(max, Math.max(min, Number(v) || d))
   return {
-    ...s,
+    ...rest,
     shell: str(s.shell, DEFAULTS.shell),
     theme: str(s.theme, DEFAULTS.theme),
     lineHeight: num(s.lineHeight, 1, 2, DEFAULTS.lineHeight),
@@ -40,7 +43,8 @@ export function sanitize(s: Settings): Settings {
     cellWidth: num(s.cellWidth, 70, 150, DEFAULTS.cellWidth),
     fontFamily: str(s.fontFamily, DEFAULTS.fontFamily).trim(),
     borderless: typeof s.borderless === 'boolean' ? s.borderless : DEFAULTS.borderless,
-    toolbar: s.toolbar === 'top' ? 'top' : 'bottom',
+    // Invalid (a component missing or twice, unknown name, wrong shape): the whole default.
+    bars: cleanBars(s.bars),
     terminalTitle: TERMINAL_TITLES.includes(s.terminalTitle) ? s.terminalTitle : DEFAULTS.terminalTitle,
     warnPasteControl: typeof s.warnPasteControl === 'boolean' ? s.warnPasteControl : DEFAULTS.warnPasteControl,
     warnPasteRun: typeof s.warnPasteRun === 'boolean' ? s.warnPasteRun : DEFAULTS.warnPasteRun,
@@ -80,6 +84,7 @@ export function validateSettings(s: Partial<Settings>, executable: (cmd: string)
   if (s.gitignore !== undefined && typeof s.gitignore !== 'boolean')
     errors.push({ field: 'gitignore', message: `Not a boolean: gitignore = ${String(s.gitignore)}` })
   // Replaced whole by a save (setSettings merges top-level keys), so conflicts are checked within it.
+  if (s.bars !== undefined && !validBars(s.bars)) errors.push({ field: 'bars', message: 'Invalid bars layout: each of tabs, shelf, templates once, in top / bottom / left / right, start / end' })
   if (s.bindings !== undefined) for (const message of bindingErrors(s.bindings)) errors.push({ field: 'bindings', message })
   return errors
 }
@@ -95,7 +100,8 @@ export function fileChanged(baseline: FileSnapshot, now: FileSnapshot): boolean 
   return 'missing' in baseline !== 'missing' in now
 }
 
-// File text → settings: JSON object, merged over the defaults, sanitized, theme aliases mapped.
+// File text → settings: JSON object, old keys migrated (`toolbar` → `bars`), merged over the
+// defaults, sanitized, theme aliases mapped.
 // The one parse for startup and the panel's Reload (same trust level: sanitize only, no
 // validateSettings). Never writes anything: what sanitize changed stays in memory.
 export function parseSettings(text: string): { ok: true; settings: Settings } | { ok: false; message: string } {
@@ -107,7 +113,7 @@ export function parseSettings(text: string): { ok: true; settings: Settings } | 
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, message: 'Not a JSON object' }
   // SECURITY: sanitize is the gate for hand-edited (or foreign) files: allowExternalControl only on a real true.
-  const s = sanitize({ ...DEFAULTS, ...(raw as Partial<Settings>) })
+  const s = sanitize({ ...DEFAULTS, ...(migrateToolbar(raw as Record<string, unknown>) as Partial<Settings>) })
   s.theme = THEME_ALIASES[s.theme] ?? s.theme
   return { ok: true, settings: s }
 }

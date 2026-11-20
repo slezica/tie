@@ -1,4 +1,4 @@
-// Tabs: one per space, the tab list in the toolbar (scrolls when they don't fit).
+// Tabs: one per space, the tab list in its bar (scrolls when they don't fit).
 import { S, newSpace, spaceOf, debug, type Space } from './state'
 import { render } from './render'
 import { activate, openTile, closeTile, moveToSpace, moveGroupToSpace, setEmptySpaceHandler } from './ops'
@@ -7,6 +7,7 @@ import { requestCloseTab } from './close'
 import { iconHtml } from './icons'
 import { ICON } from './icons'
 import { track } from './drag'
+import { verticalComponent } from './bars'
 
 let home = ''
 export const setHome = (h: string) => (home = h)
@@ -306,12 +307,10 @@ function syncOverflow() {
   list.classList.toggle('more-right', over && list.scrollLeft + list.clientWidth < list.scrollWidth - 1)
 }
 
-// Tile / template drags over the tab area (drag.ts): a tab under x (gaps: the nearest one) → its
-// space; the rest of #tabs (the + button, empty space, the overflow edge) → null: a new tab.
-// Not over #tabs: undefined.
-export function tabDropAt(x: number, y: number): string | null | undefined {
-  const r = document.getElementById('tabs')!.getBoundingClientRect()
-  if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined
+// Tile / template drags over the tabs component (drag.ts, bars.ts): a tab under x (gaps: the
+// nearest one) → its space; the rest (the + button, empty space, the overflow edge) → null: a new
+// tab. Phase 1b: along y in a vertical bar.
+export function tabDropAt(x: number): string | null {
   const list = document.getElementById('tab-list')!.getBoundingClientRect()
   if (x < list.left || x > list.right) return null
   let best: string | null = null
@@ -340,9 +339,10 @@ export function initTabs() {
   document.getElementById('tab-add')!.addEventListener('click', () => newTab())
   const list = document.getElementById('tab-list')!
   list.addEventListener('scroll', syncOverflow)
-  // A vertical wheel scrolls the list sideways (trackpads scroll sideways already).
+  // A vertical wheel scrolls the list sideways (trackpads scroll sideways already). In a vertical
+  // bar the list scrolls natively (S18).
   list.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+    if (verticalComponent('tabs') || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
     list.scrollLeft += e.deltaY
     e.preventDefault()
   })

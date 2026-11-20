@@ -5,6 +5,7 @@ import { place, placeGroup, floatGroup, shelveGroup, selection, swap, activate, 
 import type { OpenOpts } from './kinds'
 import { tabDropAt, markTabDrop, newTab, moveToTab, moveGroupToTab, switchTab, edgeScroll } from './tabs'
 import { render } from './render'
+import { barDropAt } from './bars'
 import { setShelfGhost, clearShelfGhost, hideShelfItems } from './shelf'
 import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
@@ -86,31 +87,30 @@ function computeTarget(src: DragSource, x: number, y: number, shift: boolean, gr
   const group = src.type === 'group' ? src.ids : null
   const moving = group ?? (srcId ? [srcId] : []) // hidden from the strip while dragged
 
-  // The shelf takes the strip, plus the empty toolbar between + and the strip right of the
-  // toolbar's midpoint (left of it: a new tab, below), over the toolbar's height. Rect math only: a
-  // tab area past the midpoint keeps the whole gap, a strip past it takes it.
-  const tb = document.getElementById('toolbar')!.getBoundingClientRect()
-  const add = document.getElementById('tab-add')!.getBoundingClientRect()
-  const left = Math.min(sr.x, Math.max(tb.left + tb.width / 2, add.right))
-  const hit = { x: left, y: tb.top, w: sr.x + sr.w - left, h: tb.height }
-  if (inside(hit, x, y)) {
+  // Over a bar (S25, S26): the component under the pointer along the bar, else the nearest one in
+  // that bar taking drops (tabs, shelf); templates, a templates-only bar: nothing.
+  const bar = barDropAt(x, y)
+  if (bar === null) return null
+  if (bar?.c === 'shelf') {
     // Slot under the pointer, by pitch from the strip's left edge (the strip holds the "+" hint or
-    // the ghost as one more slot, so its width is stable while dragging); left of the strip: slot 0.
-    // The dragged item is hidden: the slot counts the items shown; the index is into S.shelf
-    // (place() detaches first). A group: its items hidden, its ghosts from the slot on (one per
-    // tile); the index is among the other items (shelveGroup).
+    // the ghost as one more slot, so its width is stable while dragging); bar space before the
+    // strip: slot 0, after it: the end. The dragged item is hidden: the slot counts the items shown;
+    // the index is into S.shelf (place() detaches first). A group: its items hidden, its ghosts
+    // from the slot on (one per tile); the index is among the other items (shelveGroup).
+    // Phase 1b: along y in a vertical bar.
     const list = document.getElementById('shelf')!
     const shown = S.shelf.filter((id) => !moving.includes(id))
-    const slot = x < sr.x ? 0 : Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
+    const slot = x < sr.x ? 0 : x > sr.x + sr.w ? shown.length : Math.max(0, Math.min(shown.length, Math.floor((x - sr.x + list.scrollLeft) / (SLOT + SLOT_GAP))))
     if (group) return { drop: { type: 'shelf', index: slot }, previews: [], slot }
     const srcIdx = srcId ? S.shelf.indexOf(srcId) : -1
     const index = srcIdx >= 0 && slot > srcIdx ? slot + 1 : slot
     return { drop: { type: 'shelf', index }, previews: [], slot }
   }
 
-  // Tab area: join that tab, or a new one. A board tile over its own tab: nothing to do.
-  const tab = tabDropAt(x, y)
-  if (tab !== undefined) {
+  // Tabs: join the tab under the pointer, or a new one (+, the rest of the tabs, bar space nearest
+  // them). A board tile over its own tab: nothing to do.
+  if (bar?.c === 'tabs') {
+    const tab = bar.inside ? tabDropAt(x) : null
     if (tab && srcId && tab === spaceOf(srcId)?.id && location(srcId) !== 'shelved') return null
     return { drop: { type: 'tab', space: tab }, previews: [] }
   }

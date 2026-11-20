@@ -69,7 +69,7 @@ export default async (ctx, h) => {
 
   // Strip with plain, pinned and selected items, for a look.
   await away()
-  const strip = await h.boxOf(ctx, '#toolbar')
+  const strip = await h.boxOf(ctx, '#bar-bottom')
   const stripShot = join(ctx.runDir, 'shots', 'strip.png') // pinned b, selected c + d, plain e (device pixels)
   await page.screenshot({ path: stripShot, clip: strip.box, scale: 'device' })
   console.log(stripShot)

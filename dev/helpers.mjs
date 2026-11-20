@@ -1,5 +1,6 @@
 import { inflateSync } from 'node:zlib'
 import { homedir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { rpc } from './lib.mjs'
 
 // Composable scenario helpers. All take ctx = { page, tie, shot, sleep, instance }.
@@ -32,6 +33,28 @@ export async function openSettings(ctx, page) {
   await ctx.page.locator(`nav button[data-page="${page}"]`).click()
   await ctx.page.waitForSelector(`section[data-page="${page}"].current`)
 }
+
+// Bars layout (`bars` setting, core/bars.ts) changed as a user does it until the panel edits it:
+// the settings file edited (`bars`, plus `extra` keys), the panel opened (banner: changed on disk),
+// Reload, the panel closed. `bars` may be invalid on purpose (→ the default layout). Waits until the
+// layout Tie applied is mounted (each component in its bar) and rendered. Returns that layout.
+export async function setBars(ctx, bars, extra = {}) {
+  const { path } = await ctx.page.evaluate(() => window.tie.settings.get())
+  writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, 'utf8')), ...extra, bars }, null, 2))
+  await openSettings(ctx)
+  await ctx.page.waitForSelector('.settings-banner:not([hidden])')
+  await ctx.page.locator('.settings-banner .reload').click()
+  await ctx.page.waitForSelector('.settings-banner', { state: 'hidden' }) // the panel rebuilt on the file's values
+  await ctx.page.locator('.settings .cancel').click()
+  await ctx.page.waitForSelector('.settings', { state: 'detached' })
+  const applied = (await ctx.page.evaluate(() => window.tie.settings.get())).settings.bars
+  await waitFor(ctx, () => ctx.page.evaluate((applied) => Object.entries(applied).every(([bar, g]) => [...g.start, ...g.end].every((c) => document.getElementById(c).closest('.bar')?.dataset.bar === bar)), applied), 'bars layout mounted')
+  await settle(ctx)
+  return applied
+}
+
+// Which bar a component (tabs, shelf, templates) is mounted in, and its gravity group.
+export const barOf = (ctx, c) => ctx.page.evaluate((c) => { const el = document.getElementById(c); return { bar: el.closest('.bar')?.dataset.bar, gravity: el.closest('.group')?.classList.contains('end') ? 'end' : 'start' } }, c)
 
 // CSS custom property of the UI page's root (settings → tokens, SETTINGS.md), trimmed.
 export const cssVar = (ctx, name) => ctx.page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)

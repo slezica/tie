@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DEFAULTS, sanitize, parseCommand, validateSettings, parseSettings, fileChanged, type Settings } from './settings'
+import { defaultBars } from './bars'
 
 // A hand-edited file may hold anything: sanitize takes it as if typed.
 const clean = (patch: Record<string, unknown>) => sanitize({ ...DEFAULTS, ...patch } as Settings)
@@ -7,8 +8,8 @@ const found = (cmd: string) => (cmd === 'zsh' || cmd === '/bin/zsh' ? '/bin/zsh'
 
 describe('sanitize', () => {
   it('keeps valid values', () => {
-    const s = clean({ theme: 'nord', fontSize: 15, lineHeight: 1.3, cellWidth: 95, fontFamily: 'Menlo', borderless: true, toolbar: 'top', terminalTitle: 'directory', gitignore: false })
-    expect(s).toMatchObject({ theme: 'nord', fontSize: 15, lineHeight: 1.3, cellWidth: 95, fontFamily: 'Menlo', borderless: true, toolbar: 'top', terminalTitle: 'directory', gitignore: false })
+    const s = clean({ theme: 'nord', fontSize: 15, lineHeight: 1.3, cellWidth: 95, fontFamily: 'Menlo', borderless: true, terminalTitle: 'directory', gitignore: false })
+    expect(s).toMatchObject({ theme: 'nord', fontSize: 15, lineHeight: 1.3, cellWidth: 95, fontFamily: 'Menlo', borderless: true, terminalTitle: 'directory', gitignore: false })
   })
   it('clamps numbers into range', () => {
     expect(clean({ fontSize: 200 }).fontSize).toBe(32)
@@ -30,7 +31,6 @@ describe('sanitize', () => {
     expect(clean({ fontFamily: '  Menlo ' }).fontFamily).toBe('Menlo')
   })
   it('enums and booleans fall back', () => {
-    expect(clean({ toolbar: 'left' }).toolbar).toBe('bottom')
     expect(clean({ terminalTitle: 'nope' }).terminalTitle).toBe(DEFAULTS.terminalTitle)
     expect(clean({ borderless: 'yes' }).borderless).toBe(false)
     expect(clean({ warnPasteControl: 0 }).warnPasteControl).toBe(true)
@@ -47,6 +47,14 @@ describe('sanitize', () => {
       expect(clean({ [key]: false })[key]).toBe(false)
       for (const v of ['false', 0, null, undefined]) expect(clean({ [key]: v })[key]).toBe(true)
     }
+  })
+  it('bars: a valid layout kept; anything invalid → the whole default; toolbar dropped', () => {
+    const top = defaultBars('top')
+    expect(clean({ bars: top }).bars).toEqual(top)
+    expect(clean({ bars: { ...top, left: { start: ['tabs'], end: [] } } }).bars).toEqual(defaultBars()) // tabs twice
+    expect(clean({ bars: 'top' }).bars).toEqual(defaultBars())
+    expect('toolbar' in clean({ toolbar: 'top' })).toBe(false)
+    expect(clean({ toolbar: 'top' }).bars).toEqual(defaultBars()) // migration is the parse's, not sanitize's
   })
   it('bindings: unknown actions and bad chords dropped', () => {
     expect(clean({ bindings: { 'split-right': 'Ctrl+G', nope: 'Cmd+J', quit: null, 'new-tab': 'Escape' } }).bindings).toEqual({ 'split-right': 'Ctrl+G', quit: null })
@@ -78,6 +86,10 @@ describe('validateSettings', () => {
     const errors = validateSettings({ bindings: { 'split-right': 'Escape', 'new-tab': 'J' } }, found)
     expect(errors.length).toBe(2)
     expect(errors.every((e) => e.field === 'bindings')).toBe(true)
+  })
+  it('bars: an invalid layout is an error on the bars field', () => {
+    expect(validateSettings({ bars: defaultBars('left') }, found)).toEqual([])
+    expect(validateSettings({ bars: { top: {} } as never }, found)[0].field).toBe('bars')
   })
   it('absent keys are not checked', () => {
     expect(validateSettings({}, found)).toEqual([])
@@ -117,5 +129,19 @@ describe('parseSettings (startup and Reload: one parse, one trust level)', () =>
     expect(r.ok && r.settings).toMatchObject({ fontSize: 32, allowExternalControl: false, theme: 'tie-dark', lineHeight: DEFAULTS.lineHeight })
     const on = parseSettings('{ "allowExternalControl": true }')
     expect(on.ok && on.settings.allowExternalControl).toBe(true)
+  })
+  it('migrates toolbar: "top" (no bars) to the default layout on the top bar; toolbar dropped', () => {
+    const r = parseSettings('{ "toolbar": "top" }')
+    expect(r.ok && r.settings.bars).toEqual(defaultBars('top'))
+    expect(r.ok && 'toolbar' in r.settings).toBe(false)
+    const bottom = parseSettings('{ "toolbar": "bottom" }')
+    expect(bottom.ok && bottom.settings.bars).toEqual(defaultBars())
+    // bars present: toolbar ignored.
+    const both = parseSettings(JSON.stringify({ toolbar: 'top', bars: defaultBars('right') }))
+    expect(both.ok && both.settings.bars).toEqual(defaultBars('right'))
+  })
+  it('invalid bars → the whole default layout', () => {
+    const r = parseSettings(JSON.stringify({ bars: { ...defaultBars(), top: { start: ['nope'], end: [] } } }))
+    expect(r.ok && r.settings.bars).toEqual(defaultBars())
   })
 })

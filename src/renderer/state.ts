@@ -13,8 +13,12 @@ declare global {
 export const tie = window.tie
 
 // Geometry (px), read from CSS vars in style.css :root (readGeometry, called by render).
-export let TOP = 40 // --top-h: top strip: the toolbar, or the system title bar (traffic lights); 0 when toolbar bottom + borderless
-export let BOTTOM = 0 // --bottom-h: the toolbar, when at the bottom
+// Board insets from the window chrome: the title strip (traffic lights; 0 when borderless) and the
+// four bars (0 when empty: bars.ts). Top = strip + top bar; left / right fit between top and bottom.
+export let TOP = 28 // --strip-h + --bar-top
+export let BOTTOM = 40 // --bar-bottom
+export let LEFT = 0 // --bar-left
+export let RIGHT = 0 // --bar-right
 export let PAD = 6 // --pad: board edge padding
 export let GAP = 6 // --gap: between tiles
 // Zoom squashes the other slotted tiles to bars (LAYOUT.md "Zoom"): true for those. A zoomed float
@@ -37,8 +41,10 @@ export function readGeometry() {
     const v = parseFloat(cs.getPropertyValue(name))
     return Number.isFinite(v) ? v : fallback
   }
-  TOP = px('--top-h', TOP)
-  BOTTOM = px('--bottom-h', BOTTOM)
+  TOP = px('--strip-h', 0) + px('--bar-top', 0)
+  BOTTOM = px('--bar-bottom', BOTTOM)
+  LEFT = px('--bar-left', LEFT)
+  RIGHT = px('--bar-right', RIGHT)
   PAD = px('--pad', PAD)
   GAP = px('--gap', GAP)
   TITLE = px('--title-h', TITLE)
@@ -173,13 +179,14 @@ export function boardRect(): Rect {
   const W = window.innerWidth
   const H = window.innerHeight
   const top = Math.max(TOP, PAD)
-  return { x: PAD, y: top, w: W - PAD * 2, h: H - top - Math.max(BOTTOM, PAD) }
+  const left = Math.max(LEFT, PAD)
+  return { x: left, y: top, w: W - left - Math.max(RIGHT, PAD), h: H - top - Math.max(BOTTOM, PAD) }
 }
 
-// The shelf strip in the toolbar (its DOM box): drop target, and what reveals open next to.
 // Layout options the board renders with (render.ts); drop previews and group insertion use the same.
 export const layoutOpts = () => ({ gap: GAP, bar: TITLE, collapsed: S.collapsed, zoomed: S.zoomed })
 
+// The shelf strip in its bar (its DOM box): what reveals open next to.
 export function shelfRect(): Rect {
   const r = document.getElementById('shelf')!.getBoundingClientRect()
   return { x: r.x, y: r.y, w: r.width, h: r.height }

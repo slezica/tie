@@ -1,4 +1,4 @@
-// Drops onto tabs: the toolbar gap's halves (shelf / new tab), a board tile, a tab's last tile (the tab closes), onto + (new tab), a shelf item, templates (tab, empty tab-list space).
+// Drops onto tabs: empty bar space goes to the nearest component (shelf / new tab), a board tile, a tab's last tile (the tab closes), onto + (new tab), a shelf item, templates (tab, empty tab-list space); tabs and shelf in different bars; a templates-only bar takes nothing.
 export default async (ctx, h) => {
   const L = () => h.list(ctx)
   let l
@@ -24,13 +24,13 @@ export default async (ctx, h) => {
   const a = (await L()).tiles[0].id
   const b = (await ctx.tie('add', 'terminal', '--at', a, '--side', 'r')).id
 
-  // The empty toolbar between + and the shelf splits at the toolbar's midpoint. One tab, empty shelf.
+  // Empty bar space between the tabs and the shelf: the nearest of the two (S26). One tab, empty shelf.
   const ghosts = () => ctx.page.locator('#shelf .item.ghost').count()
-  const tb = (await h.boxOf(ctx, '#toolbar')).box
-  const mid = tb.x + tb.width / 2
-  const gapL = (await h.boxOf(ctx, '#tab-add')).box
+  const tb = (await h.boxOf(ctx, '#bar-bottom')).box
+  const gapL = (await h.boxOf(ctx, '#tabs')).box
   const gapR = (await h.boxOf(ctx, '#shelf')).box
-  h.assert(gapL.x + gapL.width < mid - 40 && gapR.x > mid + 40, `free toolbar on both sides of the midpoint (+ ${gapL.x + gapL.width}, mid ${mid}, shelf ${gapR.x})`)
+  const mid = (gapL.x + gapL.width + gapR.x) / 2
+  h.assert(gapL.x + gapL.width < mid - 40 && gapR.x > mid + 40, `free bar on both sides of the gap's midpoint (tabs ${gapL.x + gapL.width}, mid ${mid}, shelf ${gapR.x})`)
   const gy = tb.y + tb.height / 2
   // Right half: the shelf, slot 0 (ghost, no hint). + is a slot square while dragging.
   await h.drag(ctx, await h.titlePoint(ctx, b), { x: mid + 20, y: gy }, {
@@ -38,7 +38,7 @@ export default async (ctx, h) => {
       const add = await ctx.page.evaluate(() => document.getElementById('tab-add').getBoundingClientRect().toJSON())
       h.assert(add.width === 28 && add.height === 28, `dragging: + is a 28px square (${add.width}x${add.height})`)
       const m = await marks()
-      h.assert((await ghosts()) === 1 && !m.add && m.tabs.length === 0, `gap right of mid: shelf ghost, no tab marks (${JSON.stringify(m)})`)
+      h.assert((await ghosts()) === 1 && !m.add && m.tabs.length === 0, `nearer the shelf: shelf ghost, no tab marks (${JSON.stringify(m)})`)
       await ctx.shot('gap-shelf')
     },
   })
@@ -140,7 +140,7 @@ export default async (ctx, h) => {
   // Template onto the tab list's empty space: a new tab with that tile.
   const tabs = (await h.boxOf(ctx, '#tabs')).box
   const add = (await h.boxOf(ctx, '#tab-add')).box
-  h.assert(mid - (add.x + add.width) > 40, 'empty space right of +, left of the midpoint')
+  h.assert(mid - (add.x + add.width) > 40, 'empty space right of +, nearer the tabs')
   const n = (await L()).tabs.length
   await h.drag(ctx, await h.template(ctx), { x: add.x + add.width + 20, y: tabs.y + tabs.height / 2 }, {
     during: async () => h.assert((await marks()).add, 'empty tab-list space: + highlighted'),
@@ -167,4 +167,49 @@ export default async (ctx, h) => {
   })
   h.assert((await tabOf(b)) === m0, 'escape: b stays')
   await ctx.shot('after')
+
+  // Tabs on top, shelf + templates at the bottom (each bar's own components, survey B5).
+  const E = () => ({ start: [], end: [] })
+  await h.setBars(ctx, { top: { start: ['tabs'], end: [] }, bottom: { start: [], end: ['shelf', 'templates'] }, left: E(), right: E() })
+  const top = (await h.boxOf(ctx, '#bar-top')).box
+  const bottom = (await h.boxOf(ctx, '#bar-bottom')).box
+  const away = async (id) => {
+    const p = await h.titlePoint(ctx, id)
+    return { x: p.x, y: p.y }
+  }
+  // Top bar, far right (no shelf there): a new tab.
+  let n2 = (await L()).tabs.length
+  const f = (await ctx.tie('add', 'terminal')).id
+  await h.drag(ctx, await away(f), { x: top.x + top.width - 30, y: top.y + top.height / 2 }, {
+    during: async () => h.assert((await marks()).add && (await ghosts()) === 0, 'top bar, far from the tabs: + highlighted (no shelf in this bar)'),
+  })
+  await h.waitFor(ctx, async () => (await L()).tabs.length === n2 + 1 && (await tabsOf((await L()).tab)).join() === f, 'top bar space: a new tab with f')
+  // Bottom bar, far left (no tabs there): the shelf, at its near end (before the items).
+  await ctx.tie('add', 'terminal', '--shelved')
+  const g = (await ctx.tie('add', 'terminal')).id
+  await h.settle(ctx)
+  const shelf0 = (await L()).shelf
+  await h.drag(ctx, await away(g), { x: bottom.x + 30, y: bottom.y + bottom.height / 2 }, {
+    during: async () => h.assert((await ghosts()) === 1 && !(await marks()).add, 'bottom bar, far from the shelf: shelf ghost, no tab mark'),
+  })
+  l = await L()
+  h.assert((await h.tileOf(ctx, g)).state === 'shelved' && l.shelf[0] === g && l.shelf.slice(1).join() === shelf0.join(), `bottom bar space: g shelved first (${l.shelf})`)
+  await ctx.shot('split-bars')
+
+  // A bar holding only the templates takes nothing; over the templates: nothing either.
+  await h.setBars(ctx, { top: { start: ['tabs'], end: ['shelf'] }, bottom: { start: [], end: ['templates'] }, left: E(), right: E() })
+  const only = (await h.boxOf(ctx, '#bar-bottom')).box
+  const st0 = await h.state(ctx)
+  const tabs0b = (await L()).tabs.length
+  const t = (await L()).active
+  await h.drag(ctx, await away(t), { x: only.x + 40, y: only.y + only.height / 2 }, {
+    during: async () => {
+      h.assert((await ghosts()) === 0 && !(await marks()).add && !(await ctx.page.isVisible('#preview')), 'templates-only bar: no target')
+    },
+  })
+  await h.drag(ctx, await away(t), await h.template(ctx), {
+    during: async () => h.assert((await ghosts()) === 0 && !(await marks()).add, 'over the templates: no target'),
+  })
+  const st1 = await h.state(ctx)
+  h.assert(JSON.stringify(st1.tree) === JSON.stringify(st0.tree) && st1.shelf.join() === st0.shelf.join() && (await L()).tabs.length === tabs0b, 'nothing moved')
 }

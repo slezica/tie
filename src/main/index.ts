@@ -181,7 +181,7 @@ function createWindow(ses: Electron.Session) {
   // and only at creation). Toggling later hides the traffic lights live; corners follow on restart.
   const frame = getSettings().borderless
     ? { frame: false, roundedCorners: false }
-    : { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 10 } }
+    : { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 7 } } // centred in the 28 px title strip (--strip-h; buttons 14 px)
   win = new BrowserWindow({
     ...workArea,
     ...frame,

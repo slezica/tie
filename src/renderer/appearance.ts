@@ -2,6 +2,8 @@
 import { S } from './state'
 import { render } from './render'
 import { theme, xtermTheme, DEFAULT_THEME } from './themes'
+import { applyBars } from './bars'
+import type { Bars } from '@core/bars'
 
 export interface Appearance {
   theme: string
@@ -9,8 +11,8 @@ export interface Appearance {
   fontFamily: string // '' = default stack
   fontSize: number
   cellWidth: number // percent of natural character width (kitty's cell_width)
-  borderless?: boolean // window controls hidden: the toolbar starts at the left edge
-  toolbar?: 'top' | 'bottom'
+  borderless?: boolean // window controls hidden: no title strip
+  bars?: Bars // where tabs, shelf, templates sit (bars.ts); absent: unchanged
 }
 
 const FALLBACK_FONTS = '"Hack", "JetBrains Mono", "SF Mono", Menlo, monospace'
@@ -85,7 +87,7 @@ function watchDpr() {
 watchDpr()
 
 export function applyAppearance(a: Appearance) {
-  current = a
+  current = a.bars ? a : { ...a, bars: current.bars }
   const t = theme(a.theme)
   const p = t.palette
   const root = document.documentElement.style
@@ -102,11 +104,7 @@ export function applyAppearance(a: Appearance) {
   document.documentElement.classList.toggle('light', !t.dark)
   const cl = document.documentElement.classList
   cl.toggle('borderless', !!a.borderless)
-  const bottom = a.toolbar !== 'top'
-  cl.toggle('toolbar-bottom', bottom)
-  const toolbar = document.getElementById('toolbar')
-  const strip = document.getElementById(bottom ? 'bottom' : 'top')
-  if (toolbar && strip && toolbar.parentElement !== strip) strip.appendChild(toolbar)
+  if (a.bars) applyBars(a.bars)
   for (const tile of S.tiles.values()) tile.surface.appearance?.()
   render() // the bars move the board
 }
