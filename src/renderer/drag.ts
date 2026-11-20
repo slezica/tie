@@ -7,7 +7,7 @@ import { tabDropAt, markTabDrop, newTab, moveToTab, moveGroupToTab, switchTab } 
 import { edgeScroll } from './overflow'
 import { render } from './render'
 import { barDropAt, verticalComponent } from './bars'
-import { setShelfGhost, clearShelfGhost, hideShelfItems } from './shelf'
+import { setShelfGhost, clearShelfGhost, hideShelfItems, type GhostItem } from './shelf'
 import { displayIcon, displayTitle } from './tile'
 import { iconHtml } from './icons'
 import { TEMPLATES, type Template } from './kinds'
@@ -288,9 +288,15 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
   let target: Target | null = null
   let edges: ReturnType<typeof edgeScroll>[] = [] // tab list and shelf auto-scroll, while started
   const ghost = document.getElementById('ghost')!
-  const iconOf = (id: TileId) => iconHtml(displayIcon(S.tiles.get(id)!))
-  const icons = () =>
-    src.type === 'group' ? src.ids.filter((id) => S.tiles.has(id)).map(iconOf) : src.type === 'tile' ? [iconOf(src.id)] : [iconHtml({ glyph: TEMPLATES.find((t) => t.id === (src as any).template)!.icon })]
+  // What the dragged thing looks like as shelf items (ghosts; the first icon also on the pointer
+  // label): each tile's icon and title; a template's glyph and label.
+  const itemOf = (id: TileId): GhostItem => ({ icon: iconHtml(displayIcon(S.tiles.get(id)!)), title: displayTitle(S.tiles.get(id)!) })
+  const items = (): GhostItem[] =>
+    src.type === 'group'
+      ? src.ids.filter((id) => S.tiles.has(id)).map(itemOf)
+      : src.type === 'tile'
+        ? [itemOf(src.id)]
+        : [{ icon: iconHtml({ glyph: TEMPLATES.find((t) => t.id === (src as { template: Template['id'] }).template)!.icon }), title: src.label }]
 
   const update = () => {
     target = computeTarget(src, lx, ly, shift, grab)
@@ -298,7 +304,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     markTabDrop(target?.drop.type === 'tab' ? target.drop.space : undefined)
     // Over the strip the ghost slots show the landing; the pointer label would only cover them.
     const onShelf = target?.slot !== undefined
-    if (onShelf) setShelfGhost(target!.slot!, icons())
+    if (onShelf) setShelfGhost(target!.slot!, items())
     else clearShelfGhost()
     ghost.style.display = onShelf ? 'none' : 'flex'
     // Beside the pointer, kept inside the window (dragging along a bar at the window's edge).
@@ -319,7 +325,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     document.getElementById('shelf')!.style.setProperty('--drag-slots', String(Math.max(1, hidden.length)))
     const n = src.type === 'group' ? src.ids.length : 0
     const label = src.type === 'group' ? `${n} tile${n === 1 ? '' : 's'}` : src.type === 'tile' ? displayTitle(S.tiles.get(src.id)!) : src.label
-    ghost.innerHTML = `${icons()[0] ?? ''}<span>${label.replace(/</g, '&lt;')}</span>` // a group: the first's icon, "N tiles"
+    ghost.innerHTML = `${items()[0]?.icon ?? ''}<span>${label.replace(/</g, '&lt;')}</span>` // a group: the first's icon, "N tiles"
     ghost.style.display = 'flex'
     // Near the tab list's or the strip's ends they scroll; each step moves tabs or slots under the
     // pointer: target again.

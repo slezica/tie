@@ -67,15 +67,29 @@ export function shelfItemEl(id: TileId): HTMLElement | undefined {
   return items.get(id)
 }
 
+// What a ghost shows: the item it stands for (a tile's icon and display title; a template's glyph and
+// label).
+export type GhostItem = { icon: string; title: string }
+
+// An item's content, shared by real items and ghosts: the same elements give the same box in every
+// form (horizontal, narrow, list), so nothing shifts when a drop turns a ghost into an item.
+const ITEM_HTML = `<div class="ico"></div><span class="lbl"></span><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
+
+function fillItem(el: HTMLElement, icon: string, title: string) {
+  const ico = el.querySelector('.ico') as HTMLElement
+  if (ico.dataset.icon !== icon) (ico.innerHTML = icon), (ico.dataset.icon = icon)
+  el.title = title // icon-only (horizontal, narrow): the title is the tooltip
+  const lbl = el.querySelector('.lbl') as HTMLElement
+  if (lbl.textContent !== title) lbl.textContent = title // list form (vertical bars)
+}
+
 // Show ghosts from visual slot `slot` (among the items shown: dragged ones are hidden), one per
-// icon; the "+" hint slot gives way to them (CSS: #shelf.landing).
-export function setShelfGhost(slot: number, icons: string[]) {
+// item; the "+" hint slot gives way to them (CSS: #shelf.landing).
+export function setShelfGhost(slot: number, shown: GhostItem[]) {
   const list = document.getElementById('shelf')!
-  while (ghosts.length < icons.length) ghosts.push(Object.assign(document.createElement('div'), { className: 'item ghost' }))
-  for (const g of ghosts.splice(icons.length)) g.remove()
-  ghosts.forEach((g, i) => {
-    if (g.dataset.icon !== icons[i]) (g.innerHTML = icons[i]), (g.dataset.icon = icons[i])
-  })
+  while (ghosts.length < shown.length) ghosts.push(Object.assign(document.createElement('div'), { className: 'item ghost', innerHTML: ITEM_HTML }))
+  for (const g of ghosts.splice(shown.length)) g.remove()
+  ghosts.forEach((g, i) => fillItem(g, shown[i].icon, shown[i].title))
   const kids = [...list.children].filter((e) => !isGhost(e) && !e.classList.contains('drag-source'))
   let before: Element | null = kids[slot] ?? null
   for (let i = ghosts.length - 1; i >= 0; i--) {
@@ -186,7 +200,7 @@ function createItem(id: TileId): HTMLElement {
   const el = document.createElement('div')
   el.className = 'item'
   el.dataset.id = id
-  el.innerHTML = `<div class="ico"></div><span class="lbl"></span><span class="dot"></span><span class="ping"></span><span class="exit"></span>`
+  el.innerHTML = ITEM_HTML
   el.addEventListener('pointerenter', (e) => {
     if (isDragging() || e.metaKey) return // cmd held: selecting, not looking
     S.revealed = id
@@ -218,13 +232,7 @@ function updateItem(id: TileId) {
   const t = S.tiles.get(id)
   const el = items.get(id)
   if (!t || !el) return
-  const icon = iconHtml(displayIcon(t))
-  const title = displayTitle(t)
-  const ico = el.querySelector('.ico') as HTMLElement
-  if (ico.dataset.icon !== icon) (ico.innerHTML = icon), (ico.dataset.icon = icon)
-  el.title = title // icon-only (horizontal, narrow): the title is the tooltip
-  const lbl = el.querySelector('.lbl') as HTMLElement
-  if (lbl.textContent !== title) lbl.textContent = title // list form (vertical bars)
+  fillItem(el, iconHtml(displayIcon(t)), displayTitle(t))
   el.classList.toggle('activity', t.activity)
   el.classList.toggle('pinged', t.pinged)
   el.classList.toggle('pinned', S.pinned === id)
@@ -251,6 +259,7 @@ export function syncShelf() {
     if (kids[i] !== el) list.insertBefore(el, kids[i] ?? null)
     updateItem(id)
   })
+  list.classList.toggle('empty', !S.shelf.length) // the empty placeholder: three slots long (style.css)
   syncShelfFades()
 }
 

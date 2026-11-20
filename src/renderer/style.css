@@ -1091,10 +1091,24 @@ body.os-drag #shelf:not(.landing)::before {
 #shelf {
   position: relative; /* items' offsets relative to the strip */
   flex: 0 1 auto;
-  min-width: var(--slot); /* an empty shelf still takes a drop */
+  min-width: var(--slot);
   min-height: var(--slot);
   overflow-x: auto;
   overflow-y: hidden;
+}
+/* Empty (shelf.ts): a placeholder three slots long along the bar, so the shelf is an easy drop
+   target (and holds its label in the edit layout mode). Nothing shows at rest; during a drag the
+   "+" hint fills it (a ghost then takes one slot at its start). */
+#shelf.empty {
+  min-width: calc(var(--slot) * 3 + var(--slot-gap) * 2);
+}
+#shelf.empty::before {
+  flex: 1 1 auto;
+}
+/* The first item lands at the strip's fixed end: its start in a start group, its end in an end group
+   (the strip shrinks toward it). The ghost shows there, so it doesn't move at the drop. */
+.group.end > #shelf.empty {
+  justify-content: flex-end;
 }
 /* Divider only beside the shelf in the same group (bars.ts), on the side facing it. */
 #templates.after-shelf {
@@ -1196,6 +1210,9 @@ body.tile-drag .bar.v #tab-add {
   min-height: var(--item);
   overflow-x: hidden;
   overflow-y: auto;
+}
+.bar.v #shelf.empty {
+  min-height: calc(var(--item) * 3 + var(--slot-gap) * 2);
 }
 .bar.v #templates {
   flex-direction: column;
