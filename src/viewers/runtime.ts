@@ -64,6 +64,10 @@ export function scrollToHash(hash: string) {
   anchorOf?.(id)?.scrollIntoView()
 }
 
+// `ready` without a paint: frames that aren't painting get no rAF (Chromium), and timers in a
+// hidden window run at most once a second. Well under the host's 5 s (frame.ts READY_MS).
+const READY_FALLBACK_MS = 250
+
 // `extra`: the viewer's own harness fields (kept as is, getters included).
 export function startViewer<T extends object>(spec: ViewerSpec, extra: T): ViewerState & T {
   const state = Object.assign(extra, { name: spec.name, port: null as MessagePort | null, theme: { vars: {}, dark: true } as Theme })
@@ -117,8 +121,17 @@ export function startViewer<T extends object>(spec: ViewerSpec, extra: T): Viewe
     // `ready` once a themed frame has been painted (two rAFs: the first runs before this frame's
     // paint, the second after it was submitted): the host shows the iframe on `ready`, and an
     // out-of-process frame without a submitted frame yet shows as a white placeholder.
+    // Not painting (tile hidden mid-handshake, window hidden or covered): rAF never runs, so a
+    // timer sends `ready` instead (READY_FALLBACK_MS; the host fails the tile at 5 s, frame.ts).
     const port = state.port
-    requestAnimationFrame(() => requestAnimationFrame(() => port.postMessage({ verb: 'ready' })))
+    let sent = false
+    const ready = () => {
+      if (sent) return
+      sent = true
+      port.postMessage({ verb: 'ready' })
+    }
+    requestAnimationFrame(() => requestAnimationFrame(ready))
+    setTimeout(ready, READY_FALLBACK_MS)
   })
 
   // Clicks on links: nothing navigates. With `links`, anchors scroll here and the rest become

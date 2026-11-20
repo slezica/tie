@@ -19,6 +19,7 @@
   const closest = Element.prototype.closest
   const getAttr = Element.prototype.getAttribute
   const raf = window.requestAnimationFrame
+  const later = window.setTimeout
   let store: Storage | null = null
   try {
     store = window.sessionStorage
@@ -45,7 +46,16 @@
       }
       // After the page's first paint (two rAFs: the host shows the frame on `ready`; before a
       // first submitted frame an out-of-process frame shows as a white placeholder).
-      raf.call(window, () => raf.call(window, () => send({ verb: 'ready' })))
+      // Not painting (tile hidden mid-handshake, window hidden or covered): no rAF, so a timer
+      // sends it instead (250 ms, as runtime.ts READY_FALLBACK_MS; the host fails the tile at 5 s).
+      let sent = false
+      const ready = () => {
+        if (sent) return
+        sent = true
+        send({ verb: 'ready' })
+      }
+      raf.call(window, () => raf.call(window, ready))
+      later.call(window, ready, 250)
     }) as EventListener,
     true,
   )
