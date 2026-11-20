@@ -1591,6 +1591,185 @@ body.empty #empty-hint {
   cursor: default;
 }
 
+/* Layout row (Appearance > Window): title and summary, Reset and Modify (settings.ts). */
+.settings .layout-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.settings .layout-row .text {
+  flex: 1;
+  min-width: 0;
+}
+.settings .layout-row .title {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.settings .layout-row .summary {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.settings .layout-row button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: 600 12.5px var(--ui-font);
+  cursor: pointer;
+}
+.settings .layout-row button:hover:not(:disabled) {
+  background: var(--fg-b);
+}
+.settings .layout-row button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.settings .layout-row button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Hidden while the edit layout mode runs (kept: draft, fields). */
+.settings-backdrop.away {
+  display: none;
+}
+
+/* Edit layout mode (layoutedit.ts). The root covers the window below the title strip, transparent:
+   nothing under it takes the pointer. The board is dimmed (dialog backdrop look); bars stay
+   undimmed. Indicators, previews and labels are window-positioned (JS). Not window drag regions:
+   else macOS takes the pointer there (bars too, while the mode runs). */
+#layout-edit {
+  position: fixed;
+  top: var(--strip-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6500;
+  -webkit-app-region: no-drag;
+}
+:root.layout-editing .bar {
+  -webkit-app-region: no-drag;
+}
+#layout-edit .le-dim {
+  position: fixed;
+  top: var(--top-h);
+  bottom: var(--bottom-h);
+  left: var(--left-w);
+  right: var(--right-w);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+#layout-edit .le-bar,
+#layout-edit .le-comp,
+#layout-edit .le-preview,
+#layout-edit .le-label {
+  position: fixed;
+  -webkit-app-region: no-drag;
+}
+/* Bars: existing ones outlined; potential ones as dashed zones at their edge. The target of a drag:
+   accent fill (a potential bar shows its future rect: the bar's own preview). */
+#layout-edit .le-bar {
+  border: 2px dashed color-mix(in srgb, var(--accent) 80%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  pointer-events: none;
+}
+#layout-edit .le-bar.exists {
+  border: 2px solid color-mix(in srgb, var(--accent) 85%, transparent);
+  background: transparent;
+}
+#layout-edit .le-bar.target {
+  border-style: solid;
+  border-color: var(--accent);
+}
+#layout-edit .le-bar.target:not(.exists) {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+/* Components: the whole box is the drag handle. */
+#layout-edit .le-comp {
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 75%, transparent);
+  cursor: grab;
+}
+#layout-edit .le-comp:hover {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+#layout-edit.dragging,
+#layout-edit.dragging .le-comp {
+  cursor: grabbing;
+}
+#layout-edit .le-comp.dragging {
+  box-shadow: inset 0 0 0 1px var(--faint);
+  background: transparent;
+}
+.bar .le-dragging {
+  opacity: 0.3;
+}
+/* Landing place: an abstract box, as tile drop previews (#preview); moves animated. */
+#layout-edit .le-preview {
+  display: none;
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: left 140ms ease-out, top 140ms ease-out, width 140ms ease-out, height 140ms ease-out;
+}
+#layout-edit .le-preview.shown {
+  display: block;
+}
+/* Labels (S37): beside their component, over the dimmed board; push nothing. */
+#layout-edit .le-label {
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 12px var(--ui-font);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+/* The floating box: a strip in the board's centre, not a dialog (no title, no modal frame). */
+#layout-edit .le-box {
+  position: fixed;
+  top: calc((100vh + var(--top-h) - var(--bottom-h)) / 2);
+  left: calc((100vw + var(--left-w) - var(--right-w)) / 2);
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - var(--left-w) - var(--right-w) - 24px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--bg);
+  box-shadow: 0 6px 24px var(--shadow);
+}
+#layout-edit .le-box p {
+  margin: 0 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+}
+#layout-edit .le-box button {
+  flex: none;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: 600 12.5px var(--ui-font);
+  cursor: pointer;
+}
+#layout-edit .le-box button.le-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+#layout-edit .le-box button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Bindings page (bindings.ts): filters fixed, the table scrolls. Binding column width: --bind-w
    (measured from all rows, never the filtered ones). */
 .settings section.current[data-page='bindings'] {

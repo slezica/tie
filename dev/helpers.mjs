@@ -57,6 +57,47 @@ export async function setBars(ctx, bars, extra = {}) {
 // bar is vertical (left / right: the component's axis is y).
 export const barOf = (ctx, c) => ctx.page.evaluate((c) => { const el = document.getElementById(c); const bar = el.closest('.bar')?.dataset.bar; return { bar, gravity: el.closest('.group')?.classList.contains('end') ? 'end' : 'start', vertical: bar === 'left' || bar === 'right' } }, c)
 
+// The bars layout as mounted (DOM order of each bar's groups; the brand is not a component).
+export const mountedBars = (ctx) =>
+  ctx.page.evaluate(() => Object.fromEntries(['top', 'bottom', 'left', 'right'].map((b) => [b, Object.fromEntries(['start', 'end'].map((g) => [g, [...document.querySelectorAll(`#bar-${b} .group.${g} > *`)].map((e) => e.id).filter((id) => id !== 'brand')]))])))
+
+// Edit layout mode (LAYOUT.md "Edit mode"): settings panel opened on Appearance (if not open), Modify,
+// waits for the mode (`#layout-edit`) with its indicators placed.
+export async function editLayout(ctx) {
+  if (!(await ctx.page.$('.settings'))) await openSettings(ctx, 'appearance')
+  await ctx.page.locator('#set-layout-modify').click()
+  await ctx.page.waitForSelector('#layout-edit')
+  await settle(ctx)
+}
+
+// Point in the edit mode that targets `bar` at `gravity`, index `index` among that list's other
+// components (default: start → first, end → last): along the bar's zone, between the components'
+// midpoints, on the right half; across: the zone's middle.
+export async function layoutPoint(ctx, component, bar, gravity, index) {
+  return ctx.page.evaluate(([c, bar, gravity, index]) => {
+    const v = bar === 'left' || bar === 'right'
+    const z = document.querySelector(`#layout-edit .le-bar[data-bar="${bar}"]`).getBoundingClientRect()
+    const [lo, hi] = v ? [z.top, z.bottom] : [z.left, z.right]
+    const half = (lo + hi) / 2
+    const others = [...document.querySelectorAll(`#bar-${bar} .group.${gravity} > *`)].map((e) => e.id).filter((id) => id !== 'brand' && id !== c)
+    const mids = others.map((o) => { const r = document.querySelector(`#layout-edit .le-comp[data-c="${o}"]`).getBoundingClientRect(); return v ? (r.top + r.bottom) / 2 : (r.left + r.right) / 2 })
+    const i = index ?? (gravity === 'start' ? 0 : others.length)
+    const [min, max] = gravity === 'start' ? [lo + 3, half - 3] : [half + 3, hi - 3]
+    const p = Math.max(min, Math.min(max, i === 0 ? (gravity === 'start' ? min : Math.min(max, (mids[0] ?? max) - 3)) : i >= mids.length ? (gravity === 'end' ? max : Math.max(min, mids.at(-1) + 3)) : (mids[i - 1] + mids[i]) / 2))
+    const q = v ? (z.left + z.right) / 2 : (z.top + z.bottom) / 2
+    return v ? { x: q, y: p } : { x: p, y: q }
+  }, [component, bar, gravity, index])
+}
+
+// Drag a component in the edit mode onto `bar` at `gravity` (`index` as layoutPoint); `during`:
+// hook before the release (preview checks, shots); `drop: false` releases outside every bar zone
+// (the board's centre: no change). Waits for the drop to be applied and the mode to settle.
+export async function dragComponent(ctx, component, bar, gravity, { index, during, steps = 12 } = {}) {
+  const from = await boxOf(ctx, `#layout-edit .le-comp[data-c="${component}"]`)
+  const to = bar ? await layoutPoint(ctx, component, bar, gravity, index) : await boardCenter(ctx)
+  await drag(ctx, { x: from.x, y: from.y }, to, { steps, during })
+}
+
 // Vertical bar width (`--vbar`, CSS: both side bars) overridden on the UI root, until bars are
 // resized by drag (phase 3): narrow vs list form of shelf and templates. null: back to the stylesheet's.
 // Re-lays out the board (a window resize event) and waits for it.

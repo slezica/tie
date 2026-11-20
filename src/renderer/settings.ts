@@ -10,6 +10,8 @@ import { applyPrefs } from './prefs'
 import { bindingsPage } from './bindings'
 import { tildePath } from './tabs'
 import { choiceDialog, infoDialog } from './dialog'
+import { barsSummary, defaultBars, sameBars, type Bars } from '@core/bars'
+import { editLayout, abortLayoutEdit } from './layoutedit'
 
 let panel: HTMLElement | null = null
 let page = 'appearance'
@@ -112,6 +114,14 @@ function build(info: SettingsInfo) {
           <h3>Window</h3>
           <label class="check"><input id="set-borderless" type="checkbox" /> Borderless <span class="scope">no window controls, square corners</span></label>
           <p class="hint">Corners change on next launch.</p>
+          <div class="layout-row">
+            <div class="text">
+              <div class="title">Layout <span class="scope">tabs, shelf, templates</span></div>
+              <p class="summary" id="set-layout-summary"></p>
+            </div>
+            <button id="set-layout-reset">Reset</button>
+            <button id="set-layout-modify">Modify</button>
+          </div>
           <h3>Text <span class="scope">inside tiles</span></h3>
           <label for="set-font">Font</label>
           <select id="set-font"></select>
@@ -219,6 +229,14 @@ function build(info: SettingsInfo) {
   allowExternal.checked = settings.allowExternalControl
   gitignore.checked = settings.gitignore
   shell.placeholder = defaults.shell
+  // Layout (bars): one more draft value (S29), edited by Reset and the edit mode (layoutedit.ts).
+  let layout: Bars = settings.bars
+  const layoutReset = $<HTMLButtonElement>('#set-layout-reset')
+  const layoutRow = () => {
+    $('#set-layout-summary').textContent = barsSummary(layout)
+    layoutReset.disabled = sameBars(layout, defaultBars())
+  }
+  layoutRow()
 
   const swatches = () => {
     $('.swatches').innerHTML = theme(themeSel.value)
@@ -238,11 +256,12 @@ function build(info: SettingsInfo) {
     confirmExternal: confirmExternal.checked,
     allowExternalControl: allowExternal.checked,
     gitignore: gitignore.checked,
+    bars: layout,
   })
   const preview = () => {
     swatches()
     $('.warn').hidden = fontInstalled(font.value.trim())
-    applyAppearance({ ...saved, ...draft() }) // the layout (bars) stays the active one: file-only for now
+    applyAppearance({ ...saved, ...draft() })
     tie.settings.previewBorderless(borderless.checked)
   }
   themeSel.addEventListener('change', preview)
@@ -310,10 +329,11 @@ function build(info: SettingsInfo) {
   // (edited and put back: disabled again), or after Ignore (the file differs; Save overwrites it).
   let overwrite = false
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  // Bindings: a map (key order irrelevant); bars: structural (order within a list matters).
   const dirty = () => {
-    const { bindings: b, ...rest } = patch()
+    const { bindings: b, bars, ...rest } = patch()
     const keys = (o: Settings['bindings']) => Object.entries(o).sort(([x], [y]) => x.localeCompare(y))
-    return !same(keys(b), keys(settings.bindings)) || Object.entries(rest).some(([k, v]) => !same(v, settings[k as keyof Settings]))
+    return !same(keys(b), keys(settings.bindings)) || !sameBars(bars, settings.bars) || Object.entries(rest).some(([k, v]) => !same(v, settings[k as keyof Settings]))
   }
   refreshSave = () => (saveBtn.disabled = !bar.hidden || !(overwrite || dirty()))
   for (const ev of ['input', 'change']) panel.addEventListener(ev, () => refreshSave())
@@ -340,6 +360,24 @@ function build(info: SettingsInfo) {
     remove()
     build(info)
   })
+  // Layout row: Reset = the default layout (previewed); Modify = the edit mode, the panel hidden
+  // (kept: draft and fields) until Done (its layout becomes the draft) or Cancel / Escape (unchanged).
+  const setLayout = (b: Bars) => {
+    layout = b
+    layoutRow()
+    preview()
+    refreshSave()
+  }
+  layoutReset.addEventListener('click', () => setLayout(defaultBars()))
+  $('#set-layout-modify').addEventListener('click', () => {
+    panel!.classList.add('away')
+    editLayout((result) => {
+      if (!panel) return
+      panel.classList.remove('away')
+      setLayout(result ?? layout)
+      $('#set-layout-modify').focus()
+    })
+  })
   $('.cancel').addEventListener('click', cancel)
   panel.addEventListener('pointerdown', (e) => e.target === panel && cancel())
   panel.addEventListener('keydown', (e) => {
@@ -365,6 +403,7 @@ function cancel() {
 }
 
 function remove() {
+  abortLayoutEdit() // closing or rebuilding the panel under the mode: the mode ends as Cancel
   panel?.remove()
   panel = null
   banner = null

@@ -18,7 +18,7 @@ function editingText(target: Element | null): boolean {
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
 }
 
-const modalOpen = () => !!document.querySelector('.settings, .dialog-backdrop')
+const modalOpen = () => !!document.querySelector('.settings, .dialog-backdrop, #layout-edit')
 
 // Shortcuts are matched and blocked in main (src/main/keys.ts); this side runs the actions. Main
 // skips the keymap (not ⌘Q) while a text field or modal has focus: told on every change.
