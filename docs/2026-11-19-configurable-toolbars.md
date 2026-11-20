@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b next.
+Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 next.
 
 # Topic
 
@@ -185,7 +185,7 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 - `trafficLightPosition` y 10 → 7 (buttons 14 px, centred in 28). Unverified: offscreen windows draw no traffic lights. Manual check.
 - Pre-existing failure fixed on the way: `sec-state` clicked a disabled Save (since `4db92b7`).
 
-Horizontal-only code left for 1b (line numbers as of the 1a commits):
+Horizontal-only code left for 1b (line numbers as of the 1a commits; all done in 1b, below):
 
 - `tabs.ts:134-172` `dragTab`: threshold and reorder on x (B4).
 - `tabs.ts:186-226` `edgeScroll`: `scrollLeft` / x only.
@@ -196,6 +196,27 @@ Horizontal-only code left for 1b (line numbers as of the 1a commits):
 - `render.ts:104-124` reveal: left / right bars placed as bottom (B1); peak up / down only.
 - `style.css:181` `#tab-list` mask `to right` (off in vertical bars); `style.css:978` `#shelf::before` hint sized for a row.
 - Vertical bar CSS is basic: tabs stretched full width, `+` full width, shelf / templates centred columns.
+
+## Phase 1b, as built (2026-11-20)
+
+- `renderer/overflow.ts`: one axis-generic module for the tab list and the shelf strip: `syncFades`, `showChild`, `sideWheel`, `edgeScroll` (+ `edgeHolding`). Axis per call (`verticalComponent`), read once per drag. Rejected: a copy per list.
+- Fade classes `.more-start` / `.more-end`; mask direction `--fade-dir`. Rules keyed `#tab-list.more-*` / `#shelf.more-*`: a bare `.more-*` class loses to the lists' `#id` rule (bug found by a screenshot; scenarios now check the mask depth).
+- `startDrag` runs two edge scrollers (tab list, shelf). Cross-axis zone: the component's bar (was `#tabs`; same in a horizontal bar).
+- Shelf drop pitch measured from a shown item (`offsetWidth` / `offsetHeight` + `--slot-gap`): works for scaled items. `SLOT` dropped from `state.ts`.
+- Forms (S14, S15) in CSS only: `.bar.v` is a size container (`container: bar / inline-size`); `@container bar (width <= 54px)` = narrow. 54 is literal (1.5 × `--slot` + 2 × `--pad`): queries can't read variables. `--item` = `clamp(--slot, 100cqi - 2 × --pad, 1.5 × --slot)`; icons scale by `--item × 16 / 28` (no typed arithmetic needed). Phase 3 only changes the bar's width.
+  - Choice: the list form starts right past the narrow form's widest (55 px: a title of ~15 px). S14 read literally; tune in phase 3.
+  - Harness: `h.setBarSize(px)` overrides `--vbar` on the root.
+- Vertical tabs: close button only on hover (choice: the title keeps its room in a narrow bar; horizontal unchanged: also on the current tab). Tab and brand text start 8 px in (was 12 horizontally).
+- Reveal (S16): x against the board edge by the bar, y centred on the item and clamped; peak `.left` / `.right` (`clip-path`), level with the item, clamped to the reveal's edge.
+- Templates: no click-to-spawn exists (drag only, as horizontal); not added.
+- Unit tests: `inRevealZone` for left and right bars (item at the bar's top with the reveal clamped below it; item level with the reveal's middle).
+- Scenario lesson: Playwright `mouse.move(x, y, options)` takes `x`, `y` from `options` too: spreading `h.boxOf` results (`{x, y, box}`) as arguments moved the pointer to the box's corner (flaky drags). `HARNESS.md` "Scenarios".
+
+Still horizontal-only or open after 1b:
+
+- Thickness scaling of horizontal bars (S19), resize (S20 to S23): phase 3.
+- Keep-in-view for the shelf (a new item appended out of view stays there): none, as before.
+- W2 (drag regions on side bars and the reveal): manual check still pending.
 
 ## Scenarios affected
 
@@ -217,10 +238,10 @@ Horizontal-only code left for 1b (line numbers as of the 1a commits):
   4. Done. Tile drops per component and nearest-component rule (`barDropAt`; S25 to S27).
   5. Done. Panel: `#set-toolbar` select removed (layout by file + Reload until phase 2).
   6. Done. Scenarios: `layout-geometry`, `tabs-drops` rewritten; helper `h.setBars`.
-- 1b. Vertical:
-  1. Tabs: axis-generic drag, reorder, overflow, drop target, wheel (B2 to B4).
-  2. Shelf + templates: vertical strip, slots, reveal side and peak (B1), overflow as tabs in both directions (S17).
-  3. Scenarios: tabs / shelf / templates in left and right bars; `tabs-overflow` covers both axes.
+- 1b. Vertical (done):
+  1. Done. Tabs: axis-generic drag, reorder, overflow, drop target, wheel (B2 to B4).
+  2. Done. Shelf + templates: vertical strip, slots, reveal side and peak (B1), overflow as tabs in both directions (S17); forms by bar width (S14, S15).
+  3. Done. Scenarios: `tabs-vertical`, `shelf-vertical`, `shelf-overflow` (both axes); `tabs-overflow` covers both axes; `layout-geometry` mixed layout + reveal per bar.
 
 ## Phase 2: edit mode
 

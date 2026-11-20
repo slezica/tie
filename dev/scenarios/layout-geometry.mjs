@@ -1,4 +1,4 @@
-// Bars layout (`bars`): old `toolbar: "top"` migrated; default look; tabs top + shelf bottom; gravity and order; empty bars hidden; left / right bars; board insets; reveal side; borderless; invalid → default; persisted without `toolbar`.
+// Bars layout (`bars`): old `toolbar: "top"` migrated; default look; tabs top + shelf bottom; gravity and order; empty bars hidden; left / right bars; mixed (tabs left, shelf right, templates top); board insets; reveal side and peak per bar; borderless; invalid → default; persisted without `toolbar`.
 import { readFileSync } from 'node:fs'
 
 // An old file: the toolbar on top, no `bars` (S40).
@@ -34,10 +34,13 @@ export default async (ctx, h) => {
     const p = await h.barOf(ctx, c)
     h.assert(p.bar === bar && p.gravity === gravity, `${what}: ${c} in ${bar} ${gravity} (${JSON.stringify(p)})`)
   }
-  const peak = () => page.evaluate(() => ({ shown: getComputedStyle(document.getElementById('peak')).display !== 'none', up: document.getElementById('peak').classList.contains('up') }))
+  const peak = () => page.evaluate(() => {
+    const e = document.getElementById('peak')
+    return { shown: getComputedStyle(e).display !== 'none', up: e.classList.contains('up'), left: e.classList.contains('left'), right: e.classList.contains('right') }
+  })
   const away = async () => {
     const b = await board()
-    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2)
+    await page.mouse.move(b.x + b.w / 2, b.y + 20) // clear of reveals
     await h.waitRevealed(ctx, null)
     await h.settle(ctx)
   }
@@ -142,11 +145,32 @@ export default async (ctx, h) => {
   h.assert(sl.x >= W - VBAR && (await box('#templates')).y > sl.y, 'right bar: shelf at the start, templates at the end, in a column')
   await h.assertPtySizes(ctx)
   await ctx.shot('left-right')
+  // Shelf in the right bar: the reveal left of the item, at the board's right edge; peak ">".
+  await h.hoverShelf(ctx, sh)
+  r = await h.rectOf(ctx, sh)
+  near(r.x + r.w, b.x + b.w - 10, 'right bar: reveal against the board\'s right edge, --peak + 2 in')
+  h.assert(r.y >= b.y && (await peak()).right && !(await peak()).up, `right bar: reveal left of the item, peak points right (${JSON.stringify(r)})`)
+  await ctx.shot('left-right-reveal')
+  await away()
+
+  // Mixed: tabs left, shelf right, templates top.
+  await h.setBars(ctx, layout({ left: { start: ['tabs'], end: [] }, right: { start: ['shelf'], end: [] }, top: { start: [], end: ['templates'] } }))
+  h.assert((await shownBars()) === 'top,left,right', 'mixed: three bars')
+  b = await insets({ top: STRIP + HBAR, left: VBAR, right: VBAR, bottom: PAD }, 'mixed')
+  near((await box('#templates')).right, W - PAD, 'mixed: templates at the top bar\'s end')
+  await ctx.shot('mixed')
 
   // Left (all three) with a top bar: the side bar fits between top and bottom (S9).
   await h.setBars(ctx, layout({ left: { start: ['tabs'], end: ['shelf', 'templates'] }, top: E() }))
-  await insets({ top: STRIP, left: VBAR, right: PAD, bottom: PAD }, 'left bar')
+  b = await insets({ top: STRIP, left: VBAR, right: PAD, bottom: PAD }, 'left bar')
   await ctx.shot('left')
+  // Shelf in the left bar: the reveal right of the item, at the board's left edge; peak "<".
+  await h.hoverShelf(ctx, sh)
+  r = await h.rectOf(ctx, sh)
+  near(r.x, b.x + 10, 'left bar: reveal against the board\'s left edge, --peak + 2 in')
+  h.assert((await peak()).left, 'left bar: peak points left')
+  await ctx.shot('left-reveal')
+  await away()
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
   const l2 = await box('#bar-left')
   h.assert(l2.y === STRIP + HBAR && l2.bottom === H, `left bar under the top bar (${JSON.stringify(l2)})`)

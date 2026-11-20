@@ -127,7 +127,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `paste.ts`: guarded paste (`pasteInto`), paste / drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
   - `bars.ts`: the four bars: `applyBars` (components into their groups, empty bars hidden, `has-<bar>` classes, templates divider), `barDropAt` (which component takes a tile drop over a bar), `bars()`, `barOfComponent`, `verticalComponent`.
-  - `shelf.ts`: shelf strip, template list, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, overflow, tab drops.
+  - `shelf.ts`: shelf strip (items: icon + `.lbl` title for the list form), template list, overflow wiring, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, reorder (`dragTab`), overflow, tab drops (`tabDropAt(x, y)`); along the bar's axis.
+  - `overflow.ts`: scrolling lists in bars (tab list, shelf strip), axis per bar: `syncFades` (`.more-start` / `.more-end`), `showChild` (keep in view), `sideWheel`, `edgeScroll` (drag auto-scroll), `edgeHolding`.
   - `menu.ts`: context menus (`showTileMenu`, `showMetaMenu`, `showListMenu`). `dialog.ts`: `infoDialog`, `confirmDialog`, `choiceDialog`.
   - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security, About), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus direction (ranking `@core/focus`). `capture.ts`: `captureField` (input taking key presses as a chord name; `INPUT.md` "Capture fields"). `quit.ts`: `askQuit`.
@@ -158,7 +159,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered), `selected: Set` (shelf selection, cmd+click; non-empty: nothing active; `SHELF.md` "Selection").
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
-- Window chrome (`LAYOUT.md` "Bars"): `#titlebar` (traffic lights only; none when borderless), then bars `#bar-top|bottom|left|right` (`.group.start`, `.bar-space`, `.group.end`; empty: hidden). Components placed by the `bars` setting: tabs = `#brand` + `#tabs` (`#tab-list` scroller + `#tab-add`), shelf = `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), templates = `#templates`. The shelf is a concept located in a bar, not a layout region.
+- Window chrome (`LAYOUT.md` "Bars"): `#titlebar` (traffic lights only; none when borderless), then bars `#bar-top|bottom|left|right` (`.group.start`, `.bar-space`, `.group.end`; empty: hidden). Components placed by the `bars` setting: tabs = `#brand` + `#tabs` (`#tab-list` scroller + `#tab-add`), shelf = `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), templates = `#templates`. The shelf is a concept located in a bar, not a layout region. Left / right bars (`.bar.v`): everything along y; shelf and templates take a form by the bar's width (narrow: scaled icons; list: icon + title; CSS container query, `SHELF.md` "Forms").
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`) unless it is the only one; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space, window coords). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).
@@ -188,6 +189,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - Keyed DOM reconcile where an element may hold pointer capture or hover (borders, shelf items, tabs).
 - Drags use `track()`. Pointer capture retargets native `click`/`dblclick`: title clicks come via `startDrag`'s `onClick`.
 - Tile metadata changes fire DOM event `tile-meta`; shelf and tabs listen.
+- Bar components: axis from their bar (`verticalComponent(c)`); scrolling lists through `overflow.ts`, never a per-axis copy.
 - Spacing: CSS vars, `readGeometry()` (`LAYOUT.md`); board layout options `layoutOpts()` (`state.ts`: render, drop previews, group insertion). Colors: `color-mix` of base tokens, never hardcoded (`SETTINGS.md`).
 - Menus and dialogs are HTML (Playwright-drivable).
 - Failures stay visible: tiles that can't start show `showError`; invalid settings block Save; a settings file that doesn't load raises a dialog at start (Tie on defaults, file untouched).

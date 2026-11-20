@@ -7,7 +7,7 @@ The template list `#templates` (the `templates` component; default: right of the
 - Template: drag onto board → new tile there (cwd: the tile next to it, else the active one: `DIRECTORIES.md`); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
 - `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker"; starts in the context tile's cwd); cancel → no tile. By key: `cmd+O` / `cmd+shift+O`. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
 - Finder drops of files on the board or the shelf follow the same rules (`INPUT.md`).
-- Item: icon only (`displayIcon`, `TILES.md` "Host": built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px).
+- Item: icon (`displayIcon`, `TILES.md` "Host": built-in glyph SVG, or the custom icon as text), title as tooltip (`displayTitle`), activity dot, ping dot, exit mark (`✓` green / `✗` red). Square slot: `--slot` (28 px). The title also as text (`.lbl`) in a vertical bar's list form ("Forms").
 - Right-click item: tile menu (`INPUT.md`); a selected item: the group menu ("Selection").
 - Look: hover, revealed and pinned items: `--fg-b` fill, text-colored icon. Selected: `--accent-soft` fill + accent icon (`.item.selected`). Pinned has no look of its own: the pinned tile's accent border + `#peak` say it.
 
@@ -24,15 +24,32 @@ The template list `#templates` (the `templates` component; default: right of the
 | `tie add/move --shelve` | Appended |
 
 - The drop zone is the strip itself (`shelfRect()`), plus the bar space nearest it in its bar (`LAYOUT.md` "Drops on bars"): before the strip → slot 0, after it → the end. An empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
-- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`, accent dashed border). Over the strip (or the bar space nearest it): the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
-- A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon, in order) from the slot under the pointer; elsewhere the "+" hint is as wide as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The width holds either way.
-- Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`; along x only: in a vertical bar, phase 1b), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
+- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's start (left end; top in a vertical bar) (`#shelf::before`, accent dashed border; a row in the list form, an `--item` square when narrow). Over the strip (or the bar space nearest it): the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's size never changes during a drag.
+- A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon, in order) from the slot under the pointer; elsewhere the "+" hint is as long as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The size holds either way.
+- Slot under the pointer: by pitch (an item's size along the bar, measured: `--slot`, or the scaled size in a narrow bar; + `--slot-gap`) from the strip's start along its bar's axis, scroll included (`drag.ts` `computeTarget`), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
+- The strip grows by one slot when a drag starts (hint), toward the bar's middle for an end group: items stay put, the free space shrinks.
 - Shelving the active tile → `focusNext()`. Shelving clears activity.
-- A new item is appended (right end of the strip). Under the pointer, it is revealed at once (hover rule below; Blink re-hovers after layout while the window is active: `ENGINE.md`).
+- A new item is appended (the strip's end: right, or bottom in a vertical bar). Under the pointer, it is revealed at once (hover rule below; Blink re-hovers after layout while the window is active: `ENGINE.md`).
 
 ## Space
 
-In a bar shared with the tabs, the shelf wins the contest: it keeps its content width while the tab list shrinks, down to the tab list's floor (`--tabs-min`); past that the strip shrinks and scrolls sideways (no scrollbar). `TABS.md` "Overflow". In a vertical bar: a column of items, scrolling vertically (basic; phase 1b).
+In a bar shared with the tabs, the shelf wins the contest: it keeps its content size along the bar while the tab list shrinks, down to the tab list's floor (`--tabs-min`); past that the strip shrinks and scrolls along the bar (no scrollbar). Templates never shrink. Same in a vertical bar, along y.
+
+Overflow (S17), as the tab list (`overflow.ts`, `TABS.md` "Overflow"):
+
+- Fades at the cut ends (`.more-start` / `.more-end`, 24 px), synced on scroll, every `syncShelf()` and ghost change.
+- Wheel (S18): horizontal bar: a vertical wheel scrolls it sideways (`sideWheel`); vertical bar: native.
+- Auto-scroll while a tile, template, shelf item or group is dragged near its ends (`edgeScroll`, from `startDrag`): 24 px zones, only over the strip along its axis and on its bar across it. The ghost slot follows each step.
+- No keep-in-view: a new item appended out of view stays there.
+
+## Forms (vertical bars)
+
+Shelf and templates in a left / right bar: one item per row, never side by side (S14, S15). The form follows the bar's width (container query on `.bar.v`, `container: bar`; nothing in JS: a resize only changes the width).
+
+- Narrow (width ≤ 54 px = 1.5 × `--slot` + 2 × `--pad`): icons only, centred. Size `--item` = the width less `--pad` each side, clamped to `--slot` .. 1.5 × `--slot`. Glyphs and custom icons scale with it (16 / 15 px at the default size).
+- List (wider): rows full width less `--pad`, `--slot` tall: the icon at the default size, then the title (`.lbl`, truncated): the tile's display title; templates: their label. Activity and ping dots at the row's end.
+- The current vertical size is fixed at 160 px (`--vbar`): the list form shows. Narrow form: phase 3 (resize). Harness: `h.setBarSize(px)` (`HARNESS.md`).
+- Horizontal bars: icons only, as before (thickness scaling: phase 3).
 
 ## Reveal and pin
 
@@ -42,8 +59,8 @@ In a bar shared with the tabs, the shelf wins the contest: it keeps its content 
 | Revealed | hover item (`S.revealed`) | shown next to item, above every tile | yes; keys stay with the active tile until a click |
 | Pinned | click item, click inside the reveal, title bar Pin, `tie focus` (`S.pinned`) | shown, active, until unpinned | yes |
 
-- Position: next to the item on the board side, by the shelf's bar in the layout (`barOfComponent('shelf')`, not geometry): below it in the top bar, above it otherwise. Horizontally centered on the item (`getBoundingClientRect()` in `render.ts`), clamped into the board; vertically against the board edge nearest the shelf's bar, `--peak` + 2 px in. Left / right bars: placed as for the bottom bar until phase 1b (sideways reveal).
-- Hover zone: item ∪ reveal ∪ band between them (the gap, spanning both along the other axis; `inRevealZone`, `core/layout.ts`, orientation-agnostic). The pointer can travel from the item into the reveal (across the gap and `#peak`); leaving the zone (or the window) dismisses. Along the bar, off the item: dismissed.
+- Position: next to the item on the board side, by the shelf's bar in the layout (`barOfComponent('shelf')`, not geometry): below it (top bar), above it (bottom), right of it (left bar), left of it (right bar) (S16). Centred on the item along the bar (`getBoundingClientRect()` in `render.ts`), clamped into the board; across, against the board edge nearest the shelf's bar, `--peak` + 2 px in.
+- Hover zone: item ∪ reveal ∪ band between them (the gap, spanning both along the other axis; `inRevealZone`, `core/layout.ts`, orientation-agnostic: unit tests for every bar). The pointer can travel from the item into the reveal (across the gap and `#peak`); leaving the zone (or the window) dismisses. Along the bar, off the item: dismissed.
 - Zone check: document `pointermove` (capture) + item `pointerleave`, against the item's box and the reveal's rect (`S.rects`). Over a frame or guest inside the reveal the UI gets no moves; leaving it crosses the tile's UI border, so the check still runs.
 - The document's `pointerleave` runs the same zone check with the event's position; it is not taken as "left the window". The bars are window drag regions (`-webkit-app-region: drag`): over them macOS owns the pointer and Chromium reports it as leaving the document, and the strip between the item and the board is such a region. A real exit lands outside the zone (window edges are outside item, reveal and band), so it still dismisses.
 - Click inside a hover reveal = pin (UI realm: delegated `pointerdown`, `main.ts`; frame or guest: window `blur` → `frame.ts`). It then stays when the pointer leaves, like a click on the item.
@@ -55,7 +72,7 @@ In a bar shared with the tabs, the shelf wins the contest: it keeps its content 
 - Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
 - z-order: reveal 2000 (hovered +1), above zoomed (1000) and floating tiles, browser guests included (`<webview>` composites in the DOM).
-- `#peak`: arrow from the reveal toward the item (down, or up with `.up` when the shelf is in the top bar). Accent when pinned (with the tile's accent border: the pin's only indicator).
+- `#peak`: arrow from the reveal toward the item, level with it (kept on the reveal's edge): down (bottom bar), `.up` (top), `.left` (left bar), `.right` (right bar). Accent when pinned (with the tile's accent border: the pin's only indicator).
 
 ## Selection
 
@@ -98,4 +115,4 @@ A drag starting on a selected item drags the selection (`drag.ts`: `DragSource` 
 
 ## Scenarios
 
-`shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`, `templates`.
+`shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`, `shelf-vertical` (left / right bars, forms, templates), `shelf-overflow` (both axes), `templates`.

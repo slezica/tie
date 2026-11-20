@@ -9,6 +9,8 @@
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
 - Shelf: `SHELF.md` (`cmd+click` on an item: selection; a pointerdown elsewhere de-selects, then acts as usual: "Selection"). Tabs: `TABS.md`.
+- Wheel over the tab list or the shelf strip (S18): in a top / bottom bar a vertical wheel scrolls it sideways; in a left / right bar it scrolls natively (`overflow.ts` `sideWheel`).
+- Bars: every rule runs along the bar's axis (x in top / bottom bars, y in left / right ones): tab reorder, drop targets, shelf slots, auto-scroll.
 
 ## Drop targets
 
@@ -30,7 +32,7 @@
 - Zones of a slotted tile (`dropZone`, `core/layout.ts`): center rectangle = `CENTER_ZONE` (25%) of the tile's width and of its height, centered; around it four edge bands (trapezoids), nearest edge wins (normalized coords: the bands meet on the diagonals). The title bar has no role of its own: it is part of the top band (or the center, by geometry). A collapsed tile (all title bar) is all center for a dragged tile; for a template or file, the zones apply.
 - Floats are not targets; the slotted tile under them is.
 - Templates follow the same rows: a new tile of that kind lands there (tab: `TABS.md`); cwd: the tile next to / under the drop, else the active one (`DIRECTORIES.md`). OS file drops (`files.ts`, `placementAt`) too, one tile per file, each against the board as it is then (several files on a center: the last one slotted, the others shelved). A tile with its own drop (terminal: pastes the path) keeps it.
-- Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
+- Tab area: the tile drag only (`startDrag`); a tab's own drag (reorder, `dragTab`) is separate. Both auto-scroll the tab list near its ends (`TABS.md` "Overflow"); a tile drag also auto-scrolls the shelf strip near its ends (`SHELF.md` "Space"). OS file drops (`placementAt`): not onto tabs (they count as outside board and shelf).
 - Shift can change mid-drag. Escape cancels. Dragged or target tile closed mid-drag: drop ignored.
 - A selected shelf item drags the whole selection: no center zone (nearest edge), group landings, one preview per tile (`SHELF.md` "Group drag"). Escape keeps the selection.
 

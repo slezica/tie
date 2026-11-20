@@ -68,6 +68,7 @@ export default async (ctx, h) => { ... }    // h = helpers
 - Check count (`h.checkCount()`): passed `h.assert`s, `h.waitFor`s and `h.eventually`s (helpers built on them included) are counted; `checks=N` in `drive.log`. A scenario file with 0 fails (`scenario ran no checks`); stdin runs only report it.
 - Uncaught errors in main: main logs every uncaught exception / unhandled rejection as `[error]` with its stack (always on; no dialog in background instances). A run whose `app.log` has an `[error]` line fails (`uncaught in main`), whatever its checks said.
 - Ad hoc from stdin: helpers in scope; body in an inner block, so it may redeclare their names.
+- Points: "away" / "outside" points from `list.board` (a side bar may sit where a fixed point was). Playwright's `mouse.move(x, y, options)` reads `x`, `y` from `options` too: never pass a box (`h.boxOf` result) as options.
 
 ```sh
 bin/tie-dev drive - <<'EOF'
@@ -88,7 +89,7 @@ All take `ctx` first except `assert`, `alive`, `leafIds`, `tilde`, `pixels`, `fr
 | `titlePoint(id)`, `sidePoint(id, l\|r\|t\|b\|c)`, `boardCenter` | target points |
 | `drag(from, to, {shift, steps, during})` | low-level drag, `during` hook mid-drag |
 | `dragTitle(id, target, side, opts)` | move tile by title |
-| `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags |
+| `shelve`, `unshelve`, `spawnFromTemplate` | shelf / template drags (`shelve`: the strip's end along its bar) |
 | `hoverShelf`, `clickShelf`, `shelfItem`, `template`, `boxOf(selector)` | shelf: hover reveal, plain item click (pins; unpins a pinned one) + DOM points |
 | `selectShelf(...ids)`, `selected()` | cmd+click items (selection toggle, each confirmed in `tie state`); selected ids |
 | `resizeWindow(w, h)` | window size (dev socket `window-size`), waits for the re-layout |
@@ -107,7 +108,8 @@ All take `ctx` first except `assert`, `alive`, `leafIds`, `tilde`, `pixels`, `fr
 | `site(route)`, `guestPage(id)`, `guestKey(id, chord)`, `guestClick(id, x, y)` | local web site (`route(path) → html \| {status, headers, body} \| null`, `hits`, `close`); browser tile's guest as a Playwright page (CDP target type `webview`, by `web.url`); keys / clicks into the guest through main (`sendInputEvent`: pass its `before-input-event` and `input-event`, like real input) |
 | `tileOf(id)`, `waitFor(fn, what)`, `osDrop(at, data)` | `tie list` entry; poll until truthy; OS drag-and-drop at a point (`{files}` or `{items}`, CDP) |
 | `tieError(...args)`, `leafIds(tree)` | `tie <args>` expected to fail: its message, or null if it succeeded; leaf ids of a slot tree (`tie state` tree), in order |
-| `setBars(bars, extra?)`, `barOf(component)` | bars layout as a user sets it today: settings file edited (`bars`, plus `extra` keys), panel Reload, panel closed; waits until mounted (may be invalid on purpose: the default then); which bar and gravity group a component is in |
+| `setBars(bars, extra?)`, `barOf(component)` | bars layout as a user sets it today: settings file edited (`bars`, plus `extra` keys), panel Reload, panel closed; waits until mounted (may be invalid on purpose: the default then); which bar and gravity group a component is in, `vertical` (left / right: its axis is y) |
+| `setBarSize(px\|null)` | vertical bars' width until bars resize by drag (phase 3): `--vbar` set on the UI root's style (null: removed), a window `resize` event (board re-laid out), settled. Shows the narrow form (≤ 54 px) of shelf and templates (`SHELF.md` "Forms") |
 | `openSettings(page?)`, `cssVar(name)` | settings panel open (`tie:settings`), optionally on a page (`appearance`, `bindings`, `terminal`, `files`, `security`); CSS custom property of the UI root |
 | `focused()`, `linkStrip(id)`, `alive(pid)` | where keys go in the UI (focused element's tile id, else its tag); a tile's link strip text, null while hidden; process alive (signal 0) |
 | `keyMode()`, `waitKeyMode(mode)` | main's key suspend level (dev socket `key-mode`: `off`, `fields`, `capture`); wait for it before keys that depend on it (focus reaches main asynchronously) |

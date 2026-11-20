@@ -103,17 +103,18 @@ Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design
 - Layout: setting `bars` (`SETTINGS.md`): per bar, `start` and `end` lists of components, in order. Each component in exactly one bar. Default: bottom, `start: [tabs]`, `end: [shelf, templates]`.
 - `applyBars(bars)` (from `applyAppearance`): moves components into their groups (only what changed: a move resets scroll); hides an empty bar (`hidden`, no space); root class `has-<bar>` sets its inset var.
 - Templates divider: only when beside the shelf in the same group, on the side facing it (`.after-shelf` / `.before-shelf`).
-- Contest along a bar: `#tabs` content-sized, shrinks first (`flex-shrink` 1e6) down to `min(content, --tabs-min)` (`calc-size`), then the shelf; templates never. Free space: `.bar-space`, between the groups.
+- Contest along a bar (S12): `#tabs` content-sized, shrinks first (`flex-shrink` 1e6) down to `min(content, --tabs-min)` (`calc-size`; width, or height in a vertical bar), then the shelf; templates never. Free space: `.bar-space`, between the groups.
 - Window drag: bars are `-webkit-app-region: drag`; tabs, `+`, `#shelf`, `#templates` are `no-drag`.
-- Vertical bars: components in a column (basic CSS). Not yet (phase 1b): tab reorder / drop / overflow along y, shelf slots along y, sideways reveal.
+- Vertical bars (`.bar.v`): a column; components stretch to the bar's width less `--pad` each side. Everything along y: tab rows (`TABS.md` "In a vertical bar"), shelf / template rows and their forms by width (`SHELF.md` "Forms"; the bar is a size container `bar`), drop slots, overflow, auto-scroll; reveal beside the item (`SHELF.md`). Dividers: templates on the side facing the shelf (top / bottom border); tabs overflow divider below the tabs.
+- Scrolling lists (tab list, shelf strip): `overflow.ts`, axis per the component's bar (`TABS.md` "Overflow").
 - Lookups: `bars()` (layout applied), `barOfComponent(c)`, `verticalComponent(c)`.
 
 ### Drops on bars (`barDropAt`, used by `drag.ts` `computeTarget`)
 
-- Point in a shown bar → the component whose span (along the bar's axis) holds it.
+- Point in a shown bar → the component whose span (along the bar's axis: x, or y in a left / right bar) holds it.
 - Else (bar space, brand, gaps) → the nearest drop-taking component in that bar, along its axis (`dropComponent`, `core/bars.ts`; ties: the first).
-- Tabs: on the tab list → that tab (`tabDropAt`); `+`, rest of `#tabs`, bar space → a new tab (`TABS.md` "Drops onto tabs").
-- Shelf: on the strip → the slot under the pointer; bar space before it → slot 0, after it → the end (`SHELF.md`).
+- Tabs: on the tab list → that tab (`tabDropAt`, along the axis); `+`, rest of `#tabs`, bar space → a new tab (`TABS.md` "Drops onto tabs").
+- Shelf: on the strip → the slot under the pointer (along the axis); bar space before it → slot 0, after it → the end (`SHELF.md`).
 - Templates, a bar holding only templates: no drop.
 - Tabs and shelf in different bars: each bar only sees its own components.
 
@@ -123,8 +124,8 @@ CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
 
 - Insets: `TOP` = `--strip-h` + `--bar-top`; `BOTTOM` = `--bar-bottom`; `LEFT` = `--bar-left`; `RIGHT` = `--bar-right`. A bar var is 0 when the bar is empty, else `--hbar` / `--vbar` (`:root.has-<bar>`).
 - `--top-h`, `--bottom-h`, `--left-w`, `--right-w`: the same insets for CSS (`calc`, so layout code adds the parts itself).
-- `--pad` (window edge, 6), `--gap` (between tiles, 6), `--title-h` (title bar, collapsed thickness, 30), `--peak` (reveal arrow, 8), `--slot` (shelf item / template square, 28), `--slot-gap` (between slots, 2).
-- CSS only: `--hbar`, `--vbar`, `--tabs-min` (tab list floor, 140), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
+- `--pad` (window edge, 6), `--gap` (between tiles, 6), `--title-h` (title bar, collapsed thickness, 30), `--peak` (reveal arrow, 8), `--slot-gap` (between shelf slots, 2).
+- CSS only: `--hbar`, `--vbar`, `--tabs-min` (tab list floor, 140), `--slot` (shelf item / template square, 28; drop slot pitch is measured from an item), `--item` (an item's size along the strip: `--slot`, scaled in a narrow vertical bar), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
 
 ```
 top  = max(TOP, pad);   bottom = max(BOTTOM, pad)
