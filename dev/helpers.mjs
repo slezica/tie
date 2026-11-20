@@ -81,9 +81,10 @@ export async function layoutPoint(ctx, component, bar, gravity, index) {
     const half = (lo + hi) / 2
     const others = [...document.querySelectorAll(`#bar-${bar} .group.${gravity} > *`)].map((e) => e.id).filter((id) => id !== 'brand' && id !== c)
     const mids = others.map((o) => { const r = document.querySelector(`#layout-edit .le-comp[data-c="${o}"]`).getBoundingClientRect(); return v ? (r.top + r.bottom) / 2 : (r.left + r.right) / 2 })
-    const i = index ?? (gravity === 'start' ? 0 : others.length)
+    const i = Math.min(index ?? (gravity === 'start' ? 0 : others.length), others.length)
     const [min, max] = gravity === 'start' ? [lo + 3, half - 3] : [half + 3, hi - 3]
-    const p = Math.max(min, Math.min(max, i === 0 ? (gravity === 'start' ? min : Math.min(max, (mids[0] ?? max) - 3)) : i >= mids.length ? (gravity === 'end' ? max : Math.max(min, mids.at(-1) + 3)) : (mids[i - 1] + mids[i]) / 2))
+    const at = gravity === 'start' && i === 0 ? min : gravity === 'end' && i === others.length ? max : i === 0 ? mids[0] - 3 : i === others.length ? mids.at(-1) + 3 : (mids[i - 1] + mids[i]) / 2
+    const p = Math.max(min, Math.min(max, at))
     const q = v ? (z.left + z.right) / 2 : (z.top + z.bottom) / 2
     return v ? { x: q, y: p } : { x: p, y: q }
   }, [component, bar, gravity, index])

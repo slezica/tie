@@ -26,7 +26,7 @@ export const editingLayout = () => !!session
 const THRESHOLD = 4
 const GAP = 6 // between components in a bar (style.css .bar gap)
 const LABEL_GAP = 6 // label off its bar's board-side edge
-const MARGIN = 4 // labels kept this far inside the window
+const MARGIN = 4 // labels kept this far inside the board, and apart
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
@@ -95,9 +95,14 @@ export function editLayout(done: (result: Bars | null) => void) {
     for (const c of COMPONENTS) place($(`.le-comp[data-c="${c}"]`), compRect(c))
     placeLabels(g)
   }
-  // Labels: beside their component, on the board side of its bar, outside the layout flow;
-  // pushed apart along the bar so they never overlap, kept inside the window.
+  // Labels: beside their component, on the board side of its bar, outside the layout flow. Kept
+  // inside the four zones (never over a bar or a potential one): along the bar within that inner
+  // area; a side bar's labels also clear the top / bottom bars' label bands (no clash at the
+  // corners). Pushed apart along the bar so they never overlap each other.
   const placeLabels = (g: ReturnType<typeof geometry>) => {
+    const z = g.zones
+    const board = { left: z.left.x + z.left.w, right: z.right.x, top: z.top.y + z.top.h, bottom: z.bottom.y }
+    const band = $('.le-label').offsetHeight + LABEL_GAP
     for (const b of BARS) {
       const v = isVertical(b)
       const r = g.rects[b]
@@ -107,8 +112,9 @@ export function editLayout(done: (result: Bars | null) => void) {
         return { el, size, at: mid(compRect(c), v) - size / 2 }
       })
       items.sort((a, b) => a.at - b.at)
-      const max = (v ? innerHeight : innerWidth) - MARGIN
-      for (let i = 0; i < items.length; i++) items[i].at = Math.max(items[i].at, i ? items[i - 1].at + items[i - 1].size + MARGIN : MARGIN)
+      const min = (v ? board.top + (g.shown('top') ? band : 0) : board.left) + MARGIN
+      const max = (v ? board.bottom - (g.shown('bottom') ? band : 0) : board.right) - MARGIN
+      for (let i = 0; i < items.length; i++) items[i].at = Math.max(items[i].at, i ? items[i - 1].at + items[i - 1].size + MARGIN : min)
       for (let i = items.length - 1; i >= 0; i--) items[i].at = Math.min(items[i].at, i < items.length - 1 ? items[i + 1].at - items[i].size - MARGIN : max - items[i].size)
       for (const { el, at } of items) {
         const cross = v ? el.offsetWidth : el.offsetHeight
