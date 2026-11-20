@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b done 2026-11-20; phase 2 done 2026-11-20; phase 3 done 2026-11-20.
+Status: implemented 2026-11-20 (phases 1 to 3). Not released. Open: manual checks (`RELEASES.md`), feel iteration.
 
 # Topic
 

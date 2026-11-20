@@ -30,10 +30,22 @@ Known, not fixed:
 
 ## Unreleased
 
-- Toolbars: four bars (top, bottom, left, right); tabs, shelf and templates each in any bar, at either end, in any order. Set with `bars` in the settings file for now (editor pending). `toolbar` is migrated.
+- Bars resize by dragging their board-side edge (double-click: default size). Horizontal 32 to 60 px, content scales; vertical 48 px to 30% of the window. Sizes kept in `<instance>.ui.json`.
+- Tabs: Close in the tab menu; middle-click closes.
+- Toolbars: four bars (top, bottom, left, right); tabs, shelf and templates each in any bar, at either end, in any order. Edited in Settings → Appearance → Layout → Modify (drag components to any edge); `toolbar` is migrated.
 - Title strip (traffic lights) holds no Tie UI: a top bar sits below it.
 - Vertical bars: tab list with titles, shelf and templates as lists (icons only when narrow), reveals open sideways.
 - Shelf overflow: fades and auto-scroll while dragging, as tabs.
+
+### Pending manual testing (toolbars)
+
+- Traffic lights sit well in the title strip, with and without a top bar.
+- Side bars drag the window on empty space; shelf reveal from a side bar stays open while the pointer crosses the bar.
+- Edit layout mode: bars do not drag the window; preview animation and gravity flip feel right.
+- Bar edges: resize cursor shows, no window drag from the edge, double-click resets.
+
+### Other
+
 - Settings panel: Save disabled when nothing differs from the active settings.
 - Settings panel: About page (versions, instance, settings and log paths).
 - Settings panel: `~` path on the status line (full path in its tooltip).
