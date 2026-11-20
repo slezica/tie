@@ -294,7 +294,7 @@ export function startDrag(e: PointerEvent, from: DragSource, onClick?: () => voi
     if (onShelf) setShelfGhost(target!.slot!, icons())
     else clearShelfGhost()
     ghost.style.display = onShelf ? 'none' : 'flex'
-    // Beside the pointer, kept inside the window (dragging along the bottom toolbar).
+    // Beside the pointer, kept inside the window (dragging along a bar at the window's edge).
     ghost.style.left = `${Math.min(lx + 12, window.innerWidth - ghost.offsetWidth - 4)}px`
     ghost.style.top = `${Math.min(ly + 12, window.innerHeight - ghost.offsetHeight - 4)}px`
     edge?.at(lx, ly)

@@ -196,6 +196,10 @@ body {
   padding-right: 6px;
   border-right: 1px solid var(--fg-c);
 }
+.group.end > #tabs.overflow:last-child {
+  padding-right: 0;
+  border-right: 0; /* nothing after the tabs in this bar */
+}
 .tab,
 #tab-add,
 #shelf,

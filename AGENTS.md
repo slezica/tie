@@ -1,13 +1,13 @@
 # Tie: Tiled Integrated Environment
 
-Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames: live markdown, text, image, hex, local html; browser guests) in a slot tree + floating, with a shelf for parking tiles (icons in the toolbar, with the tabs), scriptable via the `tie` CLI.
+Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content frames: live markdown, text, image, hex, local html; browser guests) in a slot tree + floating, with a shelf for parking tiles; tabs, shelf and templates placed in four configurable bars; scriptable via the `tie` CLI.
 
 ## Guides
 
 - `docs/ARCHITECTURE.md`: processes, IPC, instances, startup, quit, build.
-- `docs/LAYOUT.md`: locations, slot tree, floats, collapse, zoom, focus, ping, geometry, rendering.
+- `docs/LAYOUT.md`: locations, slot tree, floats, collapse, zoom, focus, ping, bars (layout, drops on bars), geometry, rendering.
 - `docs/SHELF.md`: the shelf (concept + strip), reveal/pin, selection, group drag, activity.
-- `docs/TABS.md`: spaces, `withSpace`, switching, toolbar, tab list overflow, drops onto tabs.
+- `docs/TABS.md`: spaces, `withSpace`, switching, tab list, overflow, drops onto tabs.
 - `docs/INPUT.md`: mouse, drops, drags, keys, file picker, menu, dialogs, closing, OS drops.
 - `docs/TILES.md`: tile host, nav bar, kind registry, policy table, file view, frame host, requests, links out, `tie-content` protocol, viewers.
 - `docs/TERMINALS.md`: create, cwd, spawn, paste, links, size, keys, exit, errors, busy, close.
@@ -85,7 +85,8 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `ids.ts`: `randomId` (prefix + 6 chars, base32 minus `0 1 l o`, live uniqueness check) (renderer).
   - `picker.ts`: file picker scorer: `score` (fzf v1 window, path bonuses, smart case, NFC, AND terms), `rank` (top-K), `merge` (streamed chunks), `parseLine` (line → prefix, dir, query), `joinPath`, `descendOf` (renderer).
   - `keymap.ts`: `ACTIONS` (id, label, default chord, aliases), `Bindings` (sparse overrides), `resolveKeymap`, `conflicts`, `validBinding`, `bindingErrors` / `cleanBindings`, `accelerator` (menu label), `chord`, `actionFor`; `decideKey` (`KeyMode`: every real key → pass / block / action / capture) (main + renderer).
-  - `settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings), `fileChanged`, `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main).
+  - `bars.ts`: bars layout: `Bars` (bar → `start` / `end` component lists), `defaultBars`, `validBars`, `cleanBars`, `migrateToolbar` (old `toolbar` key), `placeOf` / `barOf` / `barItems` / `barEmpty`, `isVertical`, `dropComponent` (nearest-component drop rule) (core settings + renderer).
+  - `settings.ts`: `Settings`, `DEFAULTS`, `THEME_ALIASES`, `sanitize`, `parseSettings` (file text → settings, `toolbar` migrated), `fileChanged`, `validateSettings(s, executable)`, `parseCommand`, `TERMINAL_TITLES` (main).
   - `zoom.ts`: page zoom `ZOOM_STEPS`, `zoomStep(factor, dir)`, `zoomLabel` (renderer).
   - `cli.test.ts`: `bin/tie` argument errors (subprocess, no socket), help sections.
   - `docs.test.ts`: tree rules: `SECURITY.md` cites only existing scenarios; `ipcMain` and Electron `shell` only in `main/security.ts`.
@@ -110,7 +111,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `html-bootstrap.ts`: inlined by main into html documents (handshake, pong, zoom, link / `window.open` requests, scroll keep). `markdown-it-plugins.d.ts`: plugin types.
 - `src/renderer/`:
   - `index.html`: static layers. `style.css`: tokens, spacing vars, all styles.
-  - `state.ts`: `S`, `Space`, `Tile`, geometry (`readGeometry`, `layoutOpts`, `shelfRect`, `revealSize`), `withSpace`, `location`, `spaceOf`, `debug()`.
+  - `state.ts`: `S`, `Space`, `Tile`, geometry (`readGeometry`: insets `TOP` `BOTTOM` `LEFT` `RIGHT`; `boardRect`, `layoutOpts`, `shelfRect`, `revealSize`), `withSpace`, `location`, `spaceOf`, `debug()`.
   - `ops.ts`: all mutations: place / swap / close / move, focus (`activate`, `refocus`), collapse / zoom / pin, shelf selection + group ops (`toggleSelected`, `placeGroup`, `floatGroup`, `shelveGroup`, `unshelveGroup`, `moveGroupToSpace`), `replaceTile` (`tie replace`), `displaceTile`, tile cwd (`contextOf`, `cwdOf`, `setCwd`). `render.ts`: `render()`: state → DOM.
   - `tile.ts`: tile host: `createTile`, `mountTile`, title bar, `Host` for kinds, `showError`, `displayTitle` / `displayIcon`.
   - `nav.ts`: `Nav` capability, nav bar (back / forward / reload / location), `navAction`, `focusLocation`.
@@ -125,13 +126,14 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `drag.ts`: `track()`, `startDrag`, drop targets (group: `groupTarget`, `dropGroup`; previews `showPreviews`), border + float resize.
   - `paste.ts`: guarded paste (`pasteInto`), paste / drop routing to `Surface.paste|drop`.
   - `picker.ts`: file picker `pickPath(startDir)` (path line, fuzzy rows over a `doc:walk`, `…` native dialog; `INPUT.md` "File picker").
+  - `bars.ts`: the four bars: `applyBars` (components into their groups, empty bars hidden, `has-<bar>` classes, templates divider), `barDropAt` (which component takes a tile drop over a bar), `bars()`, `barOfComponent`, `verticalComponent`.
   - `shelf.ts`: shelf strip, template list, selection de-select paths, group menu. `tabs.ts`: tabs (`newTab`, `switchTab`, `closeTab`), tab list, overflow, tab drops.
   - `menu.ts`: context menus (`showTileMenu`, `showMetaMenu`, `showListMenu`). `dialog.ts`: `infoDialog`, `confirmDialog`, `choiceDialog`.
   - `settings.ts`: settings panel (Appearance, Bindings, Terminal, Files, Security, About), changed-on-disk banner, `applySettings`, `settingsLoadDialog`. `bindings.ts`: Bindings page (`bindingsPage`: filters, table, capture edit, conflict dialog).
   - `keys.ts`: runs actions from main, key suspend reporting, split, focus direction (ranking `@core/focus`). `capture.ts`: `captureField` (input taking key presses as a chord name; `INPUT.md` "Capture fields"). `quit.ts`: `askQuit`.
   - `close.ts`: user closes (`requestCloseTile`, `requestCloseGroup`, `requestCloseTab`): busy terminals confirm, browser beforeunload; `runningIn`, `runningList`.
   - `driver.ts`: `initDriver`: socket methods → ops.
-  - `themes.ts`: `THEMES` (`Theme {label, dark, accent, palette, code?}`: `code` = viewer code token colors, else ANSI fallback), `xtermTheme`. `appearance.ts`: colors, fonts, window classes, `termOptions`.
+  - `themes.ts`: `THEMES` (`Theme {label, dark, accent, palette, code?}`: `code` = viewer code token colors, else ANSI fallback), `xtermTheme`. `appearance.ts`: colors, fonts, window classes, bars layout (→ `applyBars`), `termOptions`.
   - `icons.ts`: SVGs (`ICON` buttons, `GLYPH` tile / template icons), `SHELLS`, `Icon`, `iconHtml`.
   - `main.ts`: boot, delegated tile events, OS-drag shield.
 - `native/peer/`: `peer.cc` (`peerOf(fd)`, `parentOf(pid)`, `childrenOf(pid)`: libproc `proc_listchildpids`, `nameOf(pid)`: `proc_name`), `binding.gyp`, `index.js` / `.d.ts`; local dependency `tie-peer`.
@@ -156,7 +158,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `floats: {id, x, y, w, h}[]`: board-relative px, last = topmost.
   - `shelf: id[]`. `collapsed: Set`, `zoomed`, `active`, `mru`, `pinned` (reveal pinned), `revealed` (hovered), `selected: Set` (shelf selection, cmd+click; non-empty: nothing active; `SHELF.md` "Selection").
 - `Space` also: `id` (`s` + 6 random chars, `@core/ids`), `customTitle`, `customIcon`.
-- Toolbar (`TABS.md`): `#toolbar` in `#bottom` or `#top` (`toolbar` setting): `#brand`, `#tabs` (`#tab-list` scroller + `#tab-add`), `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), `#templates`. The shelf is a concept located in the toolbar, not a layout region.
+- Window chrome (`LAYOUT.md` "Bars"): `#titlebar` (traffic lights only; none when borderless), then bars `#bar-top|bottom|left|right` (`.group.start`, `.bar-space`, `.group.end`; empty: hidden). Components placed by the `bars` setting: tabs = `#brand` + `#tabs` (`#tab-list` scroller + `#tab-add`), shelf = `#shelf` (one `.item` per `S.shelf` entry, `shelfRect()` = its DOM box), templates = `#templates`. The shelf is a concept located in a bar, not a layout region.
 - New spaces get a terminal (`newTab({empty})`: none); a space emptied by `closeTile` / `moveToSpace` drops itself (empty-space hook registered by `initTabs`) unless it is the only one; never zero spaces (`TABS.md`).
 - `S.tiles: Map<id, Tile>` (all spaces). `S.rects`: last rendered rects (visible space, window coords). `S.cwd`: app cwd (tiles from nothing: boot, new tab).
 - A tile is in exactly one of tree / floats / shelf of one space (`location(id)`, `spaceOf(id)`).

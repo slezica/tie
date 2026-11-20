@@ -1,8 +1,8 @@
 # Shelf
 
-The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie add --shelved`). Shown as a strip of icons in the toolbar (`TABS.md`): `#shelf`, one `.item` per shelved tile in `S.shelf` order, growing leftward from the template list. No fixed window region: `shelfRect()` is the strip's DOM box.
+The shelf is where shelved tiles live (`S.shelf`, per space; `location(id) === 'shelved'`, `tie add --shelved`). Shown as a strip of icons in a bar (the `shelf` component, `LAYOUT.md` "Bars"; default: the bottom bar's end): `#shelf`, one `.item` per shelved tile in `S.shelf` order. No fixed window region: `shelfRect()` is the strip's DOM box.
 
-Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; glyphs `terminal`, `folder`, `browser`), not part of the shelf.
+The template list `#templates` (the `templates` component; default: right of the shelf, in the same bar) (`TEMPLATES` in `kinds/index.ts`: `terminal`, `file`, `browser`; glyphs `terminal`, `folder`, `browser`), not part of the shelf.
 
 - Template: drag onto board → new tile there (cwd: the tile next to it, else the active one: `DIRECTORIES.md`); onto the shelf → new shelved tile; onto a tab or `+` → new tile there (`TABS.md`).
 - `file` template: the drop opens Tie's file picker first (`INPUT.md` "File picker"; starts in the context tile's cwd); cancel → no tile. By key: `cmd+O` / `cmd+shift+O`. Its kind as for `tie add` (extension, else content: `VIEWERS.md`); not openable (too large...) → modal with the reason.
@@ -23,16 +23,16 @@ Beside it, at the toolbar's right edge: the template list `#templates` (`TEMPLAT
 | Drag item onto a tab | Joins that tab's board (its own tab: back on the board), `TABS.md` "Drops onto tabs" |
 | `tie add/move --shelve` | Appended |
 
-- The drop zone is the strip itself (`shelfRect()`), plus the empty toolbar left of it up to the toolbar's midpoint (or `+`), over the toolbar's height: slot 0 there (`TABS.md` "Drops onto tabs"). An empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
-- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`, accent dashed border). Over the strip (or its gap half): the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
+- The drop zone is the strip itself (`shelfRect()`), plus the bar space nearest it in its bar (`LAYOUT.md` "Drops on bars"): before the strip → slot 0, after it → the end. An empty shelf keeps one slot's width so it still takes a drop. Templates are not a drop target.
+- While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's left end (`#shelf::before`, accent dashed border). Over the strip (or the bar space nearest it): the ghost slot (`.item.ghost`, the dragged thing's icon; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's width never changes during a drag.
 - A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon, in order) from the slot under the pointer; elsewhere the "+" hint is as wide as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The width holds either way.
-- Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
+- Slot under the pointer: by pitch (`--slot` + `--slot-gap`) from the strip's left edge (`drag.ts` `computeTarget`; along x only: in a vertical bar, phase 1b), counted among the items shown; the placement index is into `S.shelf` (the hidden source included; `place()` detaches first).
 - Shelving the active tile → `focusNext()`. Shelving clears activity.
-- Items grow leftward: a new item lands where the previous last one was. Under the pointer, it is revealed at once (hover rule below; Blink re-hovers after layout while the window is active: `ENGINE.md`).
+- A new item is appended (right end of the strip). Under the pointer, it is revealed at once (hover rule below; Blink re-hovers after layout while the window is active: `ENGINE.md`).
 
 ## Space
 
-The shelf wins the toolbar contest: it keeps its content width while the tab list shrinks, down to the tab list's floor (`--tabs-min`); past that the strip shrinks and scrolls sideways (no scrollbar). `TABS.md` "Overflow".
+In a bar shared with the tabs, the shelf wins the contest: it keeps its content width while the tab list shrinks, down to the tab list's floor (`--tabs-min`); past that the strip shrinks and scrolls sideways (no scrollbar). `TABS.md` "Overflow". In a vertical bar: a column of items, scrolling vertically (basic; phase 1b).
 
 ## Reveal and pin
 
@@ -42,10 +42,10 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 | Revealed | hover item (`S.revealed`) | shown next to item, above every tile | yes; keys stay with the active tile until a click |
 | Pinned | click item, click inside the reveal, title bar Pin, `tie focus` (`S.pinned`) | shown, active, until unpinned | yes |
 
-- Position: next to the item on the board side: above it with the toolbar at the bottom, below it with the toolbar on top. Horizontally centered on the item (`getBoundingClientRect()` in `render.ts`), clamped into the board; vertically against the board edge nearest the toolbar, `--peak` + 2 px in.
-- Hover zone: item ∪ reveal ∪ band between them (the gap, spanning both along the other axis; `inRevealZone`, `core/layout.ts`, orientation-agnostic). The pointer can travel from the item into the reveal (across the gap and `#peak`); leaving the zone (or the window) dismisses. Along the toolbar, off the item: dismissed.
+- Position: next to the item on the board side, by the shelf's bar in the layout (`barOfComponent('shelf')`, not geometry): below it in the top bar, above it otherwise. Horizontally centered on the item (`getBoundingClientRect()` in `render.ts`), clamped into the board; vertically against the board edge nearest the shelf's bar, `--peak` + 2 px in. Left / right bars: placed as for the bottom bar until phase 1b (sideways reveal).
+- Hover zone: item ∪ reveal ∪ band between them (the gap, spanning both along the other axis; `inRevealZone`, `core/layout.ts`, orientation-agnostic). The pointer can travel from the item into the reveal (across the gap and `#peak`); leaving the zone (or the window) dismisses. Along the bar, off the item: dismissed.
 - Zone check: document `pointermove` (capture) + item `pointerleave`, against the item's box and the reveal's rect (`S.rects`). Over a frame or guest inside the reveal the UI gets no moves; leaving it crosses the tile's UI border, so the check still runs.
-- The document's `pointerleave` runs the same zone check with the event's position; it is not taken as "left the window". The toolbar is a window drag region (`-webkit-app-region: drag`): over it macOS owns the pointer and Chromium reports it as leaving the document, and the strip between the item and the board is such a region. A real exit lands outside the zone (window edges are outside item, reveal and band), so it still dismisses.
+- The document's `pointerleave` runs the same zone check with the event's position; it is not taken as "left the window". The bars are window drag regions (`-webkit-app-region: drag`): over them macOS owns the pointer and Chromium reports it as leaving the document, and the strip between the item and the board is such a region. A real exit lands outside the zone (window edges are outside item, reveal and band), so it still dismisses.
 - Click inside a hover reveal = pin (UI realm: delegated `pointerdown`, `main.ts`; frame or guest: window `blur` → `frame.ts`). It then stays when the pointer leaves, like a click on the item.
 - Title bar pin button (`.btn.pin`, `setButtons` in `render.ts`): shown only on a shown shelved tile. Hover reveal → Pin (pins + activates, on click; pointerdown on it doesn't pin); pinned → Unpin. Hidden for slotted / floating tiles.
 - A pin stays until released. Unpin paths: item click, Unpin button, closing the tile, leaving the shelf (drag, `cmd+S`, swap, `tie move`: `detach`). Unpinning an active shelved tile → `focusNext()`.
@@ -55,7 +55,7 @@ The shelf wins the toolbar contest: it keeps its content width while the tab lis
 - Reveal shows only the pin and close buttons.
 - Size: 30% × 50% of board (`revealSize()`), independent of item position: pty size never changes on hover. Shelved tiles stay laid out at this size while hidden.
 - z-order: reveal 2000 (hovered +1), above zoomed (1000) and floating tiles, browser guests included (`<webview>` composites in the DOM).
-- `#peak`: arrow from the reveal toward the item (down, or up with `.up` when the toolbar is on top). Accent when pinned (with the tile's accent border: the pin's only indicator).
+- `#peak`: arrow from the reveal toward the item (down, or up with `.up` when the shelf is in the top bar). Accent when pinned (with the tile's accent border: the pin's only indicator).
 
 ## Selection
 

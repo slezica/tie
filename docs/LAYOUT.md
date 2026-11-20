@@ -80,7 +80,7 @@
 - After close or shelve: `focusNext()` = MRU tile still on the board.
 - `activate()` calls `refocus()` only if its space is visible.
 - `refocus()`: keys to the active tile; blur if none, collapsed, or it can't take them (`Surface.focus()` false: not started).
-- Empty board: hint "Drag a terminal from the toolbar, or press ⌘D".
+- Empty board: hint "Drag a terminal from the templates, or press ⌘D".
 
 ## Ping
 
@@ -90,20 +90,50 @@
 - Yellow (`--yellow`): title-bar icon glow (the active tile's icon glows accent; no extra element, title text never moves), shelf item dot (hides activity dot), tab dot (non-current tabs only).
 - Cleared by `activate()` (click, focus keys, `tie focus`, pin, switching to its tab) or `--clear`.
 
+## Bars
+
+Window chrome around the board (`renderer/bars.ts`, rules `core/bars.ts`; design: `2026-11-19-configurable-toolbars.md`).
+
+- Title strip `#titlebar`: the system traffic lights only, never Tie UI. `--strip-h` 28 px; 0 with `borderless`. Drags the window.
+- Four bars `#bar-top`, `#bar-bottom`, `#bar-left`, `#bar-right` (`.bar.h` / `.bar.v`).
+  - Top / bottom: full width; top sits below the strip. Left / right: between them (S9).
+  - Each: `.group.start`, `.bar-space`, `.group.end`. Groups are `display: contents`: components are the bar's flex items.
+  - Sizes fixed for now: `--hbar` 40 px (top / bottom), `--vbar` 160 px (left / right). Resize: phase 3.
+- Components: `tabs` (`#tabs`, with `#brand` always just before it), `shelf` (`#shelf`), `templates` (`#templates`).
+- Layout: setting `bars` (`SETTINGS.md`): per bar, `start` and `end` lists of components, in order. Each component in exactly one bar. Default: bottom, `start: [tabs]`, `end: [shelf, templates]`.
+- `applyBars(bars)` (from `applyAppearance`): moves components into their groups (only what changed: a move resets scroll); hides an empty bar (`hidden`, no space); root class `has-<bar>` sets its inset var.
+- Templates divider: only when beside the shelf in the same group, on the side facing it (`.after-shelf` / `.before-shelf`).
+- Contest along a bar: `#tabs` content-sized, shrinks first (`flex-shrink` 1e6) down to `--tabs-min`, then the shelf; templates never. Free space: `.bar-space`, between the groups. `#tabs` at the end: its content packs toward the end.
+- Window drag: bars are `-webkit-app-region: drag`; tabs, `+`, `#shelf`, `#templates` are `no-drag`.
+- Vertical bars: components in a column (basic CSS). Not yet (phase 1b): tab reorder / drop / overflow along y, shelf slots along y, sideways reveal.
+- Lookups: `bars()` (layout applied), `barOfComponent(c)`, `verticalComponent(c)`.
+
+### Drops on bars (`barDropAt`, used by `drag.ts` `computeTarget`)
+
+- Point in a shown bar → the component whose span (along the bar's axis) holds it.
+- Else (bar space, brand, gaps) → the nearest drop-taking component in that bar, along its axis (`dropComponent`, `core/bars.ts`; ties: the first).
+- Tabs: on the tab list → that tab (`tabDropAt`); `+`, rest of `#tabs`, bar space → a new tab (`TABS.md` "Drops onto tabs").
+- Shelf: on the strip → the slot under the pointer; bar space before it → slot 0, after it → the end (`SHELF.md`).
+- Templates, a bar holding only templates: no drop.
+- Tabs and shelf in different bars: each bar only sees its own components.
+
 ## Geometry
 
 CSS vars in `style.css` `:root`, read by `readGeometry()` each render:
 
-- `--top-h`: top strip: the toolbar (`--toolbar-h`, 40px) when it is on top; else the system title bar (`--titlebar-h`, 28px, traffic lights), 0 with `borderless`. `--bottom-h`: the toolbar at the bottom (default), else 0.
+- Insets: `TOP` = `--strip-h` + `--bar-top`; `BOTTOM` = `--bar-bottom`; `LEFT` = `--bar-left`; `RIGHT` = `--bar-right`. A bar var is 0 when the bar is empty, else `--hbar` / `--vbar` (`:root.has-<bar>`).
+- `--top-h`, `--bottom-h`, `--left-w`, `--right-w`: the same insets for CSS (`calc`, so layout code adds the parts itself).
 - `--pad` (window edge, 6), `--gap` (between tiles, 6), `--title-h` (title bar, collapsed thickness, 30), `--peak` (reveal arrow, 8), `--slot` (shelf item / template square, 28), `--slot-gap` (between slots, 2).
-- CSS only: `--toolbar-h`, `--titlebar-h`, `--tabs-min` (tab list floor, 140), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
+- CSS only: `--hbar`, `--vbar`, `--tabs-min` (tab list floor, 140), `--nav-h`, `--tile-pad`. Constants in `state.ts`: `MIN` (80), `REVEAL` (0.3 × 0.5).
 
 ```
-top   = max(top-h, pad);  bottom = max(bottom-h, pad)
-board = { x: pad, y: top, w: W - 2·pad, h: H - top - bottom }
+top  = max(TOP, pad);   bottom = max(BOTTOM, pad)
+left = max(LEFT, pad);  right  = max(RIGHT, pad)
+board = { x: left, y: top, w: W - left - right, h: H - top - bottom }
 ```
 
-- `shelfRect()`: the shelf strip's DOM box inside the toolbar (drop target, reveal anchor; `SHELF.md`).
+- `shelfRect()`: the shelf strip's DOM box in its bar (slot math; `SHELF.md`).
+- Traffic lights: `trafficLightPosition {x: 12, y: 7}` (`main/index.ts`): centred in the 28 px strip.
 
 ## Rendering
 

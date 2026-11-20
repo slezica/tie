@@ -17,11 +17,9 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 - Clears the hover reveal and the shelf selection of the tab left.
 - Hidden spaces' tiles: `display: none`; terminals keep running, fit skipped.
 
-## Toolbar
+## Tab list
 
-One `#toolbar`, in the bottom strip `#bottom` (default) or the top strip `#top` after the traffic lights (`toolbar` setting, `SETTINGS.md`; `appearance.ts` moves it). Both strips drag the window (`-webkit-app-region: drag`), toolbar gaps included; tabs, `+`, `#shelf` and `#templates` are `no-drag`. Height `--toolbar-h` (40 px).
-
-Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the tab list `#tab-list` + `#tab-add`), `#shelf` (`SHELF.md`), `#templates`. Flex: the tab list takes what is left (`flex: 1`), the shelf keeps its content width, templates never shrink.
+The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (the tab list `#tab-list` + `#tab-add`), in the bar the `bars` setting names (`LAYOUT.md` "Bars"). `#tabs` is content-sized: it shrinks first in its bar (floor `--tabs-min`), the shelf after; templates never. At a bar's end, its content packs toward the end.
 
 - Tab: ping dot, custom icon, title, close button. `+` adds a tab.
 - Pointerdown switches; drag sideways reorders (live, 4 px threshold). Near the list's ends it auto-scrolls ("Overflow"); the order follows.
@@ -29,8 +27,8 @@ Order, left to right: `#brand` (instance name when not `default`), `#tabs` (the 
 
 ## Overflow
 
-- Tabs never shrink (`flex: none`, `max-width: 200px`). When they don't fit, `#tab-list` scrolls sideways (no scrollbar): trackpad, or a vertical wheel mapped to `scrollLeft`.
-- `#tabs.overflow` (list `scrollWidth > clientWidth`): divider toward the shelf (right border). Fades (`mask-image`) at the list's ends where more tabs are: `.more-left` / `.more-right`, synced on scroll and every `renderTabs()`.
+- Tabs never shrink (`flex: none`, `max-width: 200px`). When they don't fit, `#tab-list` scrolls sideways (no scrollbar): trackpad, or a vertical wheel mapped to `scrollLeft` (not in a vertical bar: native scroll there).
+- `#tabs.overflow` (list `scrollWidth > clientWidth`): divider on its right (none when last in a bar's end group). Fades (`mask-image`) at the list's ends where more tabs are: `.more-left` / `.more-right`, synced on scroll and every `renderTabs()`.
 - The current tab is scrolled into view (`showTab`, list-only scroll) when it changes or when the list's content width changes (titles, new tabs); a user's scroll otherwise stays.
 - Floor: `#tabs` `min-width: var(--tabs-min)` (140 px: one tab and `+`). Below it the shelf gives way (`SHELF.md` "Space").
 - Auto-scroll while dragging (`edgeScroll`, `tabs.ts`): a tab reorder (`dragTab`) or a tile / template over the list (`startDrag`). Zone: 24 px inside each end (the fades' width), only while the list can scroll that way. Speed by depth: 2 to 12 px per frame (`requestAnimationFrame`, no pointer moves needed). After each step the target is computed again under the still pointer (reorder index; `tabDropAt` + `markTabDrop`). Tab reorder: past the ends = deepest. Tile drag: only over the list itself (`+` and the rest of `#tabs` are the new-tab target). Stops on leaving the zone, drop, Escape, cancel. While it runs, `renderTabs` leaves the scroll alone (no snap back to the current tab); the next render after the drag catches up.
@@ -51,13 +49,12 @@ Title (`tabTitle`), first match:
 
 ## Drops onto tabs
 
-Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets"). Target under the pointer: `tabDropAt` (`tabs.ts`).
+Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets"). Which component of a bar takes the drop: `barDropAt` (`LAYOUT.md` "Drops on bars").
 
-- Over a tab (gaps between tabs: the nearest one): that space. Over the rest of `#tabs` (`+`, the empty space right of it up to the toolbar's midpoint; with overflow, `+` and the strip's right edge): a new tab (`newTab({empty: true})`: no terminal).
-- Empty toolbar between `+` and the shelf: split at `#toolbar`'s horizontal midpoint (`computeTarget`, checked before the tabs).
-  - Left of it: a new tab, as above.
-  - Right of it (toolbar's height): the shelf, slot 0 (`SHELF.md`).
-  - Tab area past the midpoint: the whole gap is tabs; shelf past it: the whole gap is shelf. Plain rect math, no special cases.
+- Over a tab (gaps between tabs: the nearest one, `tabDropAt`): that space.
+- Over the rest of `#tabs` (`+`, the space after it; with overflow, the strip's edge): a new tab (`newTab({empty: true})`: no terminal).
+- Bar space nearest the tabs (brand, the free space up to its midpoint with the shelf when both share the bar, all of it when the shelf is elsewhere): a new tab.
+- Horizontal only for now: in a vertical bar every drop on the list goes to the nearest tab by x (phase 1b).
 - Tile → `moveToTab`: switch to the target tab, then `moveToSpace` (`ops.ts`): `detach`, `place(besidePlacement(null))` in the target space (root slot if its board is empty), active there; keys follow it. The source space: dropped from its `mru`, `focusNext` if it was active there; emptied, it closes like after `closeTile` (already hidden: just removed).
 - Same tab: a board tile = no target (no highlight); a shelf item = unshelved beside the active tile (as `cmd+S`).
 - Template → a new tile of its kind in that tab (or a new one), beside its active tile; the tab is shown. Cwd: that tab's active tile's (fresh `cwdOf`; none → `S.cwd`), every kind; new tab → `S.cwd` (`DIRECTORIES.md`). `file`: picker first (from that dir), cancel → nothing, no switch.

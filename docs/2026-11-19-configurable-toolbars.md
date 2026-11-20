@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: design settled 2026-11-20. Phase 1 in progress.
+Status: design settled 2026-11-20. Phase 1a done 2026-11-20; 1b next.
 
 # Topic
 
@@ -171,6 +171,33 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 - B5. Tabs and shelf in different bars: shelf hit area computed from `#tab-add` goes wrong.
 - B6. Tabs have an icon only when the user set one. S9 ("icon plus title") needs a default tab glyph.
 
+## Phase 1a, as built (2026-11-20)
+
+- Custom properties keep `calc()` unresolved in `getComputedStyle`: `readGeometry` reads the parts (`--strip-h`, `--bar-<side>`) and adds them. `--top-h` etc. stay for CSS only.
+- Bar = `[.group.start][.bar-space][.group.end]`; groups `display: contents`. Rejected: `margin-left: auto` on the end group's first child: the brand is first there with tabs at the end, and `display: none` when the instance is `default`.
+- `#tabs` content-sized (`flex: 0 1000000 auto`, floor `--tabs-min`), not `flex: 1`. With `flex: 1` the tabs would push the components after them in their group to the far end: gravity breaks. Choice: S12 read as "the tab list gives way first", the free space is `.bar-space`. Shelf width change during a tabs overflow: sub-pixel (`tabs-overflow` checks < 1 px).
+- `#tabs` in an end group: content packs to the end (`justify-content: flex-end`).
+- Brand: bar space for drops (nearest: the tabs → new tab). Was no drop. Choice: no special case.
+- Drop rule: the component's span along the bar's axis only (cross axis ignored, as before: the bar's height).
+- Shelf drop from bar space: before the strip → slot 0, after → end. S26 "near end" read this way.
+- Templates divider: `.after-shelf` / `.before-shelf`, only when adjacent in one group. `#tabs.overflow` divider dropped when the tabs are last in an end group.
+- Panel: preview applies `{...saved, ...draft()}`, so the active layout stays; `dirty()` never sees `bars`. `validateSettings` reports an invalid `bars` (field `bars`) for a future panel save.
+- Layout changes in scenarios: settings file edited + panel Reload (`h.setBars`), the real path until phase 2.
+- `trafficLightPosition` y 10 → 7 (buttons 14 px, centred in 28). Unverified: offscreen windows draw no traffic lights. Manual check.
+- Pre-existing failure fixed on the way: `sec-state` clicked a disabled Save (since `4db92b7`).
+
+Horizontal-only code left for 1b (line numbers as of the 1a commits):
+
+- `tabs.ts:134-172` `dragTab`: threshold and reorder on x (B4).
+- `tabs.ts:186-226` `edgeScroll`: `scrollLeft` / x only.
+- `tabs.ts:290-308` `showTab`, `syncOverflow`: `offsetLeft`, `more-left` / `more-right`.
+- `tabs.ts:313` `tabDropAt(x)`: nearest tab by x (B2: in a vertical bar, the first tab).
+- `tabs.ts:345` wheel: skipped in a vertical bar (native scroll, B3 avoided); no fades there yet.
+- `drag.ts:103` shelf slot from x and `scrollLeft`.
+- `render.ts:104-124` reveal: left / right bars placed as bottom (B1); peak up / down only.
+- `style.css:184` `#tab-list` mask `to right` (off in vertical bars); `style.css:981` `#shelf::before` hint sized for a row.
+- Vertical bar CSS is basic: tabs stretched full width, `+` full width, shelf / templates centred columns.
+
 ## Scenarios affected
 
 - Rewritten: `layout-geometry` (entirely top / bottom), `tabs-overflow` (entirely horizontal), `tabs-drops` (midpoint rule).
@@ -184,13 +211,13 @@ Code survey done 2026-11-19 (read-only). Line numbers as of commit `4db92b7`.
 
 ## Phase 1: model and rendering (no editor, no resize)
 
-- 1a. Core + horizontal:
-  1. `core/`: bars type, default, `sanitize`, migration of `toolbar` (S39, S40). Unit tests.
-  2. DOM: title strip (system only, S10) + four bar containers; components mounted per layout; brand with tabs.
-  3. Geometry: board insets on four sides (`state.ts`), CSS vars.
-  4. Tile drops per component and nearest-component rule (S25 to S27).
-  5. Panel: `#set-toolbar` select removed (layout by file until phase 2).
-  6. Scenarios: `layout-geometry`, `tabs-drops` rewritten; any top / bottom arrangement works.
+- 1a. Core + horizontal (done):
+  1. Done. `core/bars.ts`: bars type, default, validity, `cleanBars`, `migrateToolbar` (S39, S40), lookups, `dropComponent`. Unit tests.
+  2. Done. DOM: `#titlebar` (system only, S10) + four bar containers; components mounted per layout (`renderer/bars.ts` `applyBars`); brand with tabs.
+  3. Done. Geometry: board insets on four sides (`state.ts`), CSS vars.
+  4. Done. Tile drops per component and nearest-component rule (`barDropAt`; S25 to S27).
+  5. Done. Panel: `#set-toolbar` select removed (layout by file + Reload until phase 2).
+  6. Done. Scenarios: `layout-geometry`, `tabs-drops` rewritten; helper `h.setBars`.
 - 1b. Vertical:
   1. Tabs: axis-generic drag, reorder, overflow, drop target, wheel (B2 to B4).
   2. Shelf + templates: vertical strip, slots, reveal side and peak (B1), overflow as tabs in both directions (S17).

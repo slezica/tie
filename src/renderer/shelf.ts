@@ -1,4 +1,4 @@
-// Shelf strip and template list in the toolbar: one icon per shelved tile; templates to spawn from.
+// Shelf strip and template list, each in its bar (bars.ts): one icon per shelved tile; templates to spawn from.
 import { inRevealZone, type TileId } from '@core/layout'
 import { S, location, debug } from './state'
 import { displayIcon, displayTitle } from './tile'
@@ -40,7 +40,7 @@ export function initShelf() {
   // (core/layout inRevealZone). Over a frame or guest inside the reveal the UI gets no moves, but
   // it does on the way out (the tile's border is UI), so the last position is always known.
   // The document's pointerleave is checked the same way, not taken as "left the window": the
-  // toolbar is a window drag region (-webkit-app-region), and macOS hands the pointer to the OS
+  // bars are window drag regions (-webkit-app-region), and macOS hands the pointer to the OS
   // there, which Chromium reports as leaving the document. The strip between the item and the
   // board is such a region, so the pointer "leaves" on its way into the reveal (SHELF.md).
   document.addEventListener('pointermove', (e) => keepReveal(e.clientX, e.clientY), true)

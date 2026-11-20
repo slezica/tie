@@ -22,7 +22,7 @@
 |---|---|---|---|
 | `theme` | `tie-dark` | app | theme id |
 | `borderless` | false | app | hide window controls |
-| `toolbar` | `bottom` | app | `top` \| `bottom` |
+| `bars` | bottom: tabs \| shelf, templates | app | layout of the bars ("Window options"); file only for now |
 | `fontFamily` | `''` | all tiles | `''` = default stack |
 | `fontSize` | 12 | all tiles | 8–32 px (markdown: base text size) |
 | `lineHeight` | 1.15 | all tiles | 1–2 |
@@ -95,5 +95,17 @@
 
 `applyAppearance()` toggles `:root` classes; layout re-reads geometry, terminals refit.
 
-- `borderless`: traffic lights hidden live; a top toolbar starts at the left edge. Square corners need `frame: false` at window creation, so corners change on next launch. The strips stay the drag region.
-- `toolbar: bottom` (`.toolbar-bottom`, default): `#toolbar` in `#bottom`; the top strip shrinks to the system title bar (`--titlebar-h`) for the traffic lights, 0 with `borderless`. `top`: `#toolbar` in `#top`, no bottom strip (`TABS.md` "Toolbar").
+- `borderless`: traffic lights hidden live; the title strip goes (`--strip-h` 0). Square corners need `frame: false` at window creation, so corners change on next launch. The bars stay drag regions.
+- `bars`: where tabs, shelf and templates sit (`LAYOUT.md` "Bars"; `core/bars.ts`). Shape:
+  ```json
+  "bars": {
+    "top":    { "start": [], "end": [] },
+    "bottom": { "start": ["tabs"], "end": ["shelf", "templates"] },
+    "left":   { "start": [], "end": [] },
+    "right":  { "start": [], "end": [] }
+  }
+  ```
+  - Each of `tabs`, `shelf`, `templates` exactly once; order within a list matters. An empty bar is hidden.
+  - Invalid (missing, twice, unknown name, wrong shape, extra keys): the whole layout falls back to the default (`sanitize` → `cleanBars`). `validateSettings`: an error on `bars` for a save.
+  - Not in the panel yet (edit mode: phase 2): edit the file, then the panel's Reload. The panel's preview keeps the active layout; `dirty()` ignores it.
+- Old `toolbar` key: `"top"` with no `bars` → the default layout on the top bar (`migrateToolbar`, in `parseSettings`). Otherwise ignored. `sanitize` drops it: gone from the file at the next Save.
