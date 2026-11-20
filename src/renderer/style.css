@@ -1161,11 +1161,14 @@ body.tile-drag .bar.v #tab-add {
 .bar.v .lbl {
   display: block;
   max-width: 100%;
-  padding-right: 18px;
+  padding-right: 18px; /* clear of the item's dots */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+}
+.bar.v .template .lbl {
+  padding-right: 6px; /* no dots */
 }
 .bar.v #shelf::before {
   width: auto;
