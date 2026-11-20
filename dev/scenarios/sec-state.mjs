@@ -16,6 +16,7 @@ export default async (ctx, h) => {
   const settings = (await ctx.page.evaluate(() => window.tie.settings.get())).path
   chmodSync(settings, 0o644)
   await h.openSettings(ctx)
+  await ctx.page.locator('#set-gitignore').evaluate((e) => e.click()) // a change: Save is enabled only with one
   await ctx.page.locator('.save').click()
   await h.waitFor(ctx, () => mode(settings) === '600', `settings file 0600 after Save (${mode(settings)})`)
 
