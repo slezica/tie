@@ -102,8 +102,8 @@ export async function dragComponent(ctx, component, bar, gravity, { index, durin
 // Edit mode labels (LAYOUT.md "Edit mode"), checked: one per component, each inside the window and
 // inside its component's bar (never past it); over its component, centred on it across the bar;
 // fully inside the component's box when it fits along the bar; rotated exactly in a vertical bar
-// too narrow for it across; apart from each other. `what` prefixes messages. Returns the labels
-// `{c, bar, rotated, r, comp}` (rects as plain objects).
+// where some label doesn't fit across its component (all of that bar's); apart from each other.
+// `what` prefixes messages. Returns the labels `{c, text, bar, rotated, r, comp}` (plain rects).
 export async function checkLabels(ctx, what) {
   await settle(ctx)
   const labels = await ctx.page.evaluate(() => {
@@ -131,7 +131,8 @@ export async function checkLabels(ctx, what) {
     assert(Math.abs(mid(l.r, v) - mid(l.comp, v)) <= 1, `${at} centred across the bar: ${mid(l.r, v)} vs ${mid(l.comp, v)}`)
     const fits = v ? l.r.height <= l.comp.height : l.r.width <= l.comp.width
     if (fits) assert(inside(l.r, l.comp), `${at} inside its component: ${JSON.stringify(l.r)} in ${JSON.stringify(l.comp)}`)
-    assert(l.rotated === (v && l.across > l.comp.width - 4), `${at} rotated=${l.rotated} (width ${l.across}, component ${l.comp.width})`)
+    const rotate = v && labels.some((k) => k.bar === l.bar && k.across > k.comp.width - 4) // one orientation per bar
+    assert(l.rotated === rotate, `${at} rotated=${l.rotated} (width ${l.across}, component ${l.comp.width})`)
     for (const k of labels.slice(i + 1)) assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
   }
   return labels

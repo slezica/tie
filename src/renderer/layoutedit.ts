@@ -98,18 +98,23 @@ export function editLayout(done: (result: Bars | null) => void) {
     placeLabels(g)
   }
   // Labels: inside their component's outline, centred on it, over its content; window-positioned
-  // (they push nothing). In a vertical bar too narrow for a label across it: rotated (reads top to
-  // bottom). A label longer than its component (a shelf of one item) overhangs it along the bar,
-  // still centred; labels pushed apart along the bar, kept inside it (never past its ends).
+  // (they push nothing). In a vertical bar where a label doesn't fit across its component: the
+  // bar's labels rotated (read top to bottom; one orientation per bar). A label longer than its
+  // component (a shelf of one item) overhangs it along the bar, still centred; labels pushed apart
+  // along the bar, kept inside it (never past its ends).
   const placeLabels = (g: ReturnType<typeof geometry>) => {
     for (const b of BARS) {
       const v = isVertical(b)
       const r = g.rects[b]
-      const items = [...g.layout[b].start, ...g.layout[b].end].map((c) => {
-        const el = $(`.le-label[data-c="${c}"]`)
+      const cs = [...g.layout[b].start, ...g.layout[b].end]
+      const els = cs.map((c) => $(`.le-label[data-c="${c}"]`))
+      for (const el of els) el.classList.remove('rotated')
+      // One orientation per bar: all rotated when any doesn't fit across its component.
+      const rotate = v && cs.some((c, i) => els[i].offsetWidth > compRect(c).w - 2 * INSET)
+      const items = cs.map((c, i) => {
+        const el = els[i]
         const comp = compRect(c)
-        el.classList.remove('rotated')
-        if (v && el.offsetWidth > comp.w - 2 * INSET) el.classList.add('rotated')
+        el.classList.toggle('rotated', rotate)
         const size = v ? el.offsetHeight : el.offsetWidth
         return { el, comp, size, at: mid(comp, v) - size / 2 }
       })
