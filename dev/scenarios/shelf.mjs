@@ -2,20 +2,32 @@
 // exit marks, reorder both ways, unshelve by drag; a pin ends when its tile leaves the shelf or closes.
 export default async (ctx, h) => {
   const [a, b, c] = await h.threeWaySplit(ctx)
-  const hint = () => ctx.page.evaluate(() => getComputedStyle(document.getElementById('shelf'), '::before').display !== 'none')
+  // The "+" slot: 'none', 'muted' (an empty shelf at rest) or 'accent' (the drag hint).
+  const hintIs = () =>
+    ctx.page.evaluate(() => {
+      const st = getComputedStyle(document.getElementById('shelf'), '::before')
+      if (st.display === 'none') return 'none'
+      const probe = document.createElement('div')
+      probe.style.color = 'var(--accent)'
+      document.body.append(probe)
+      const accent = getComputedStyle(probe).color
+      probe.remove()
+      return st.color === accent ? 'accent' : 'muted'
+    })
+  const hint = async () => (await hintIs()) === 'accent'
   const ghosts = () => ctx.page.locator('#shelf .item.ghost').count()
-  h.assert(!(await hint()), 'no "+" slot at rest')
+  h.assert((await hintIs()) === 'muted', `empty shelf at rest: the muted "+" slot (${await hintIs()})`)
   // Mid-drag over the board: the "+" hint slot; over the strip: the ghost slot instead (checked below).
   await h.dragTitle(ctx, c, a, 'l', {
     during: async () => h.assert((await hint()) && (await ghosts()) === 0, 'dragging over the board: "+" hint, no ghost'),
   })
   await h.shelve(ctx, c, {
     during: async () => {
-      h.assert(!(await hint()) && (await ghosts()) === 1, 'over the strip: ghost slot replaces the hint')
+      h.assert((await hintIs()) === 'none' && (await ghosts()) === 1, 'over the strip: ghost slot replaces the hint')
       await ctx.shot('shelve-preview')
     },
   })
-  h.assert((await ghosts()) === 0 && !(await hint()), 'dropped: ghost and hint gone')
+  h.assert((await ghosts()) === 0 && (await hintIs()) === 'none', 'dropped: ghost and hint gone (the shelf holds c)')
   let l = await h.list(ctx)
   h.assert(l.shelf.includes(c), 'c shelved')
   h.assert(l.active === b, `focus moved off the shelved tile to the recent board tile (active ${l.active})`)

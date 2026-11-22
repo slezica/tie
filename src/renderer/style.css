@@ -1112,13 +1112,24 @@ body.os-drag #shelf:not(.landing)::before {
   overflow-y: hidden;
 }
 /* Empty (shelf.ts): a placeholder three slots long along the bar, so the shelf is an easy drop
-   target (and holds its label in the edit layout mode). Nothing shows at rest; during a drag the
-   "+" hint fills it (a ghost then takes one slot at its start). */
+   target (and holds its label in the edit layout mode). The "+" hint fills it, shown at rest, muted
+   (feel round 4, S47; side bars: one item long, below); during a drag it takes the accent (a ghost
+   then takes one slot at its start). Same box at rest and during a drag. */
 #shelf.empty {
   min-width: calc(var(--slot) * 3 + var(--slot-gap) * 2);
 }
 #shelf.empty::before {
   flex: 1 1 auto;
+}
+#shelf.empty:not(.landing)::before {
+  display: grid;
+  border-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+body.tile-drag #shelf.empty::before,
+body.os-drag #shelf.empty::before {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 /* The first item lands at the strip's fixed end: its start in a start group, its end in an end group
    (the strip shrinks toward it). The ghost shows there, so it doesn't move at the drop. */
@@ -1249,20 +1260,10 @@ body.tile-drag .bar.v #tab-add {
   overflow-x: hidden;
   overflow-y: auto;
 }
-/* Empty, in a vertical bar (feel round 2): one item long, the "+" placeholder shown at rest, muted;
-   during a drag it takes the accent (rules above). Horizontal bars: three slots, blank at rest. */
+/* Empty, in a vertical bar (feel round 2): one item long; the "+" placeholder as in horizontal bars
+   (muted at rest, accent during a drag: rules above). */
 .bar.v #shelf.empty {
   min-height: var(--item);
-}
-.bar.v #shelf.empty:not(.landing)::before {
-  display: grid;
-  border-color: color-mix(in srgb, var(--muted) 60%, transparent);
-  color: color-mix(in srgb, var(--muted) 80%, transparent);
-}
-body.tile-drag .bar.v #shelf.empty::before,
-body.os-drag .bar.v #shelf.empty::before {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 .bar.v #templates {
   flex-direction: column;

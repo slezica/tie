@@ -89,7 +89,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 4 done. Not rel
 - S41. Bare board (no slotted tile): the bars' edges drawn as a tile's border would draw them. (user)
 - S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent) Superseded by S46.
 - S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user)
-- S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user)
+- S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user) Horizontal: superseded by S47.
 
 ## Feel round 3
 

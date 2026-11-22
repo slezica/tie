@@ -25,8 +25,8 @@ The template list `#templates` (the `templates` component; default: right of the
 
 - The drop zone is the strip itself (`shelfRect()`), plus the bar space nearest it in its bar (`LAYOUT.md` "Drops on bars"): before the strip → slot 0, after it → the end. Templates are not a drop target.
 - Empty shelf (`#shelf.empty`, `syncShelf`): a placeholder along the bar, an easy target.
-  - Horizontal bars: three slots (and two gaps) long; nothing drawn at rest (blank space in the bar).
-  - Vertical bars: one item long (as the shelf holding one); the "+" hint shown at rest, muted (`--muted` via `color-mix`), the accent during a drag.
+  - Horizontal bars: three slots (and two gaps) long. Vertical bars: one item long (as the shelf holding one).
+  - Every bar: the dashed "+" hint fills it at rest, muted (`--muted` via `color-mix`), the accent during a drag (S44, S47). Same box at rest and during a drag.
   - During a drag the "+" hint fills it; over it, the ghost at the end the first item lands at: the strip's start in a start group, its end in an end group (`justify-content: flex-end`: the strip shrinks toward that end at the drop). In a horizontal bar, components after it in its group move by two slots at the first drop; in a vertical one nothing moves.
 - While a tile or template is dragged (`body.tile-drag`; OS file drags too, `body.os-drag`): a dashed "+" hint slot at the strip's start (left end; top in a vertical bar) (`#shelf::before`, accent dashed border; a row in the list form, an `--item` square when narrow). Over the strip (or the bar space nearest it): the ghost slot (`.item.ghost`; accent border + `--accent-soft` fill, like the board's `#preview`) at the slot under the pointer instead (`#shelf.landing`): what you see is where it lands. A ghost is built as an item (same elements, `ITEM_HTML` / `fillItem` in `shelf.ts`): the same box, radius, icon place and, in the list form, title as the item it becomes (a tile: its icon and display title; a template: its glyph and label). Nothing moves at the drop (`shelf-ghost`). A dragged shelf item is hidden meanwhile (`.item.drag-source`): the ghost stands for it. Hint and ghost are one slot, so the strip's size never changes during a drag.
 - A group drag ("Group drag"): all its items hidden; over the strip one ghost per tile (its icon and title, in order) from the slot under the pointer; elsewhere the "+" hint is as long as the hidden items (`--drag-slots` on `#shelf`, set by `drag.ts`). The size holds either way.
@@ -121,4 +121,4 @@ A drag starting on a selected item drags the selection (`drag.ts`: `DragSource` 
 
 ## Scenarios
 
-`shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`, `shelf-vertical` (left / right bars, forms, templates), `shelf-overflow` (both axes), `shelf-ghost` (ghost = item in every form, empty shelf per bar orientation), `templates`.
+`shelf`, `shelf-reveal`, `shelf-select`, `shelf-select-actions`, `shelf-select-close-browser`, `shelf-select-drag`, `shelf-vertical` (left / right bars, forms, templates), `shelf-overflow` (both axes), `shelf-ghost` (ghost = item in every form, empty shelf per bar orientation: length, muted "+" at rest, accent during a drag), `templates`.
