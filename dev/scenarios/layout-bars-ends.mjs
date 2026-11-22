@@ -1,4 +1,4 @@
-// Side bar ends level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a slotted tile's outer box), whatever bounds the bar there (a top / bottom bar: the junction; the title strip; the window, borderless); every component first and last (tabs: the brand / `+`, shelf, templates), narrow and list forms, empty and filled shelf, left and right bars.
+// Side bar ends: against the title strip or the window (borderless), level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a slotted tile's outer box); against a top / bottom bar (a junction divider on the board's edge row), the end component clears the divider by the bar's item gap (--slot-gap); every component first and last (tabs: the brand / `+`, shelf, templates), narrow and list forms, empty and filled shelf, left and right bars.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 
@@ -17,6 +17,9 @@ const LAYOUTS = (s) => [
 
 export default async (ctx, h) => {
   const page = ctx.page
+  const gap = parseFloat(await h.cssVar(ctx, '--slot-gap'))
+  h.assert(gap === 2, `--slot-gap 2 px (${gap})`)
+  const used = (bars, b) => bars[b].start.length + bars[b].end.length > 0
   const near = (a, b, what, d = 0.5) => h.assert(Math.abs(a - b) <= d, `${what}: ${a} vs ${b}`)
   // The side bar's start group's first shown box (its top) and end group's last (its bottom); null
   // for an empty group (the bar space is there).
@@ -42,8 +45,12 @@ export default async (ctx, h) => {
           const e = await ends(side)
           near(e.tile.top, board.y, `${what}: the tile's outer box is the board (top)`)
           near(e.tile.bottom, board.y + board.h, `${what}: the tile's outer box is the board (bottom)`)
-          if (e.first) near(e.top, board.y, `${what}: first (${e.first}) starts at the board's top edge`)
-          if (e.last) near(e.bottom, board.y + board.h, `${what}: last (${e.last}) ends at the board's bottom edge`)
+          // A junction: the divider is the board edge's row (1 px), then the gap.
+          const top = used(bars, 'top') ? 1 + gap : 0
+          const bottom = used(bars, 'bottom') ? 1 + gap : 0
+          const at = (n) => (n ? `clears the junction divider by ${gap} px` : `level with the board's edge`)
+          if (e.first) near(e.top, board.y + top, `${what}: first (${e.first}) starts ${at(top)} (top)`)
+          if (e.last) near(e.bottom, board.y + board.h - bottom, `${what}: last (${e.last}) ends ${at(bottom)} (bottom)`)
           h.assert(e.first || e.last, `${what}: a component at an end`)
         }
         if (shelf === 'empty' && side === 'right') await ctx.shot(label.replace(/[^a-z]+/g, '-'))
