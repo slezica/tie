@@ -157,10 +157,10 @@ UI CSS tinkered in the running instance's devtools, brought back as a diff (devt
 - Read-only: CDP session on the instance's page (`connectPage`), `DOM.enable` + `CSS.enable`, `CSS.getStyleSheetText`; never a write. `--instance NAME` as other commands.
 - Sheet: found by content (the sheet holding most of `style.css`'s lines). Built: `tie://app/assets/index-*.css` = `style.css` unminified, then xterm's CSS (cut off by anchors: the file's first / last 3 lines; an edited end: the cut with the smallest diff). Hot mode (`run --hot`): the dev server's `style.css` link (`index.html`), verified by hand.
 - Base: the build may predate HEAD. Candidates: the working tree, the last 15 commits touching `style.css`; the one with the smallest diff wins, named on stderr.
-- Encoding: the built sheet is read by Chromium as windows-1252 (served without a charset, `PENDING.md`): runs of non-ASCII text that re-encode to valid UTF-8 are repaired; a char typed in devtools stays as typed. Noted on stderr when it happens.
+- Encoding: `style.css` starts with `@charset "UTF-8"` (kept first by the build): Chromium reads the sheet as UTF-8 (`tie://` serves `text/css` without a charset). Builds from before it read as windows-1252: runs of non-ASCII text that re-encode to valid UTF-8 are repaired (noted on stderr); a char typed in devtools stays as typed.
 - Output: unified diff on stdout (3 lines of context, the rule's selector in each hunk header as git's, paths `a/src/renderer/style.css` / `b/...`: `git apply`-able), else `no changes`. Stderr: instance, sheet, base, notes. Rules added with devtools' "New Style Rule" (inspector sheet, in no file): listed after, on stderr.
 - Not included: `element.style` (inline style attribute) edits; viewer CSS (frames: `mdpage`).
-- Scenario `css-changes`: edits through a second CDP session (a declaration with a typed "×" on a line with a mojibake "×", the file's last rule, an inspector rule, an older build's sheet → its commit as the base); the command's output checked exactly, the sheet unchanged by it.
+- Scenario `css-changes`: the sheet decoded as UTF-8 (`@charset` first, nothing repaired); edits through a second CDP session (a declaration with a typed "×" on a line with its own "×", the file's last rule, an inspector rule, an older build's sheet → its commit as the base); the command's output checked exactly, the sheet unchanged by it.
 
 ## macOS permission prompts (TCC)
 

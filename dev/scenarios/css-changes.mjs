@@ -1,4 +1,4 @@
-// `tie-dev css-changes` (HARNESS.md "CSS changes") against this instance: no edit → "no changes" (non-ASCII comments repaired, base = working tree); a rule changed through CDP from a second session (as a devtools edit; one with a non-ASCII char) → exactly that delta as a unified diff, git-style paths, the selector in its context; a rule added in an inspector sheet listed apart; the instance's sheets untouched by the command (read-only).
+// `tie-dev css-changes` (HARNESS.md "CSS changes") against this instance: no edit → "no changes" (base = working tree; the sheet read as UTF-8: `@charset`, nothing to repair); a rule changed through CDP from a second session (as a devtools edit; one with a non-ASCII char) → exactly that delta as a unified diff, git-style paths, the selector in its context; a rule added in an inspector sheet listed apart; the instance's sheets untouched by the command (read-only).
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { ROOT } from '../lib.mjs'
@@ -25,11 +25,14 @@ export default async (ctx, h) => {
   h.assert(/^base: working tree /m.test(r.err), `base: the working tree (${r.err})`)
   h.assert(/sheet tie:\/\/app\/assets\/index-.*\.css/.test(r.err), `the UI sheet named (${r.err})`)
   h.assert(/element\.style \(inline\) edits are not included/.test(r.err), 'inline edits note')
-  h.assert(/line\(s\) with non-ASCII text repaired/.test(r.err), `the sheet's mojibake repaired (${r.err})`)
+  h.assert(!/repaired/.test(r.err), `nothing to repair (${r.err})`)
   h.assert((await text()) === before, 'the command left the sheet as it was')
+  // The sheet decoded as UTF-8 (PENDING 44 fixed: `@charset "UTF-8"` first in style.css, kept first by the build).
+  h.assert(before.startsWith('@charset "UTF-8";'), `@charset first in the built sheet (${JSON.stringify(before.slice(0, 40))})`)
+  h.assert(before.includes('(× --k in a horizontal bar)') && !before.includes('Ã'), 'non-ASCII read back as written ("×", no mojibake)')
 
-  // A devtools-like edit: one declaration changed, a comment with "×" added (typed, not mojibake)
-  // on a line whose own comment has a "×" (mojibake in the sheet: repaired, the typed one kept).
+  // A devtools-like edit: one declaration changed, a comment with "×" added (typed) on a line whose
+  // own comment has a "×": both come back right.
   const old = '  --tabs-min: 140px;'
   const source = readFileSync(`${ROOT}/src/renderer/style.css`, 'utf8').split('\n').find((l) => l.startsWith(old))
   h.assert(source.includes('×'), `the edited line has a "×" of its own (${source})`)

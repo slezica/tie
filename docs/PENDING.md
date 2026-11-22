@@ -63,8 +63,6 @@
 
 43. Shelf reveal in a tall window: the reveal is clamped, its centre far below the item; a diagonal pointer path from the item to the reveal's centre crosses other bar rows and dismisses it (seen 2026-11-22 at 2336x1429; `shelf-vertical` now travels straight across first). Open: keep the reveal along a diagonal (a "safe triangle")? Also: scenarios depend on the screen's size (window = work area).
 
-44. UI CSS served without a charset: `tie://` (`serveShell`, `net.fetch` of a file) answers `text/css` with no `charset`; Chromium reads the built sheet as windows-1252 ("×" → "Ã—"; the document's UTF-8 isn't used). Harmless today (non-ASCII only in comments); a `content: '×'` would render wrong. Fix candidates: `; charset=utf-8` on text types in `serveShell`, or `@charset "UTF-8";` first in `style.css`. Hot mode (Vite) unaffected. `tie-dev css-changes` repairs it either way.
-
 ## Directories
 
 34. Done 2026-11-01: `docs/DIRECTORIES.md`, record `2026-10-30-working-directories.md` (cwd on every tile, inherited from the context tile).

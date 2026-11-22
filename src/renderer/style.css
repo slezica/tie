@@ -1,3 +1,4 @@
+@charset "UTF-8"; /* first bytes, kept first by the build: tie:// serves this sheet as text/css without a charset (Chromium would read windows-1252) */
 /* Wave Terminal look, light blue accent. */
 :root {
   /* Base tokens, set from the active theme (appearance.ts). */
