@@ -22,7 +22,7 @@ One tab per space, all in one renderer (`2026-10-10-tabs-single-renderer.md`). S
 The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (the tab list `#tab-list` + `#tab-add`), in the bar the `bars` setting names (`LAYOUT.md` "Bars"). `#tabs` is content-sized: it shrinks first in its bar (floor: `--tabs-min`, or its content when narrower), the shelf after; templates never.
 
 - Tab: ping dot, custom icon, title, close button. `+` adds a tab.
-- Size: in a top / bottom bar, tabs, brand and `+` scale with the bar's height (`LAYOUT.md` "Bar sizes"): tab height = bar − 2 × 5 px × `--k`; text 12 px × max(1, `--k`) (never smaller: 12 px in a 32 px bar, 18 px at 60).
+- Size: in a top / bottom bar, tabs, brand and `+` scale with the bar's height (`LAYOUT.md` "Bar sizes"): tab height = bar − 2 × 5 px × `--k`; text 12 px × max(1, `--k`) (never smaller: 12 px in a 32 px bar, 18 px at 60). A tab there never shrinks below its content (up to its max width, 200 px × `--kt`): 5 letters at least at every height (`layout-bars-scale`).
 - Pointerdown switches; drag along the list reorders (live, 4 px threshold along the bar's axis). Near the list's ends it auto-scrolls ("Overflow"); the order follows.
 - Axis: the bar's. Top / bottom bar: a row (x). Left / right bar: a column (y). Every rule below (reorder, drop target, keep-in-view, fades, auto-scroll) runs along it.
 
@@ -32,7 +32,8 @@ The `tabs` component: `#brand` (instance name when not `default`) then `#tabs` (
 - One tab per row, full bar width less `--pad` each side, 28 px tall.
 - Title only, truncated with an ellipsis (S13). Custom icon shown if set (as horizontal). No default glyph (icon set: `PENDING.md`).
 - Close button only on hover (the title keeps its room). Horizontal: also on the current tab.
-- Narrow bar (`.narrow`, under 100 px, `SHELF.md` "Forms"): no close button at all, hover included (it took the title's few letters); the context menu and middle-click still close. Padding 4 px each side: at 48 px a title shows 2 or 3 letters and an ellipsis (`no…` for `node_modules`; S22's "about 3": the --pad margins kept, as the icons below).
+- Minimum width (S49): a side bar holding the tabs is at least `TABS_MIN` (65 px, `core/barsize.ts`): a title shows at least 5 letters and an ellipsis (`node_…`). Edge drag clamps there; a smaller stored size is shown at 65 while the bar holds the tabs (`LAYOUT.md` "Bar sizes"); in the edit mode the tabs dragged over a narrower side bar grow it (`LAYOUT.md` "Edit mode"). A pinged tab's dot or a custom icon take from the title (not counted).
+- Narrow bar (`.narrow`, 65 to 99 px, `SHELF.md` "Forms"): no close button at all, hover included (at 65 it would leave 2 letters); the context menu and middle-click still close. Padding 4 px each side (the narrow `--pad` 4 px too: `TABS_MIN`'s insets). From 100 px (list form) the hover close button keeps 5 letters.
 - Never scaled (`--k` 1): rows 28 px tall at any width.
 - `+` is a full-width row; while a tile drag runs, a `--slot` tall dashed row.
 - Right-click: rename / set icon menu.
@@ -80,4 +81,4 @@ Tile and template drags (`drag.ts` `startDrag`; rows in `INPUT.md` "Drop targets
 
 ## Scenarios
 
-`tabs`, `tabs-drops`, `tabs-overflow` (both axes), `tabs-vertical`, `cli-tabs`, `layout-bars-scale` (sizes, narrow tabs on hover).
+`tabs`, `tabs-drops`, `tabs-overflow` (both axes), `tabs-vertical` (also the minimum width), `cli-tabs`, `layout-bars-scale` (sizes, 5 letters, narrow tabs on hover), `settings-layout-tabs-min` (edit mode: a bar grows under the tabs).

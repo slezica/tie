@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 4 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 5 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -52,7 +52,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 4 done. Not rel
 
 - S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. (user) Feel round 2: in the edit mode too, same edges (user).
 - S21. Limits: vertical bars up to 30% of the window width; horizontal bars up to 1.5x the default thickness (60 px), the point where scaling stops. (user, 2026-11-20; was 20% of the window height, which left empty space)
-- S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune)
+- S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune) A side bar holding the tabs: superseded by S49.
 - S23. Double-click on the edge: back to the default size. (agent)
 - S24. Sizes are UI state, not settings: stored in `<stateDir>/<instance>.ui.json` (0600), written when a resize ends, read at start, clamped. (agent)
   - Reason: a resize happens outside the settings panel. The settings file is written only by Save / Recreate (`SETTINGS.md` "File"), and a write there would meet the "changed on disk" logic.
@@ -93,12 +93,22 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 4 done. Not rel
 
 ## Feel round 3
 
-- S45. Side bar ends level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a tile's outer box), whatever bounds the bar there. (user)
+- S45. Side bar ends level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a tile's outer box), whatever bounds the bar there. (user) Against a junction divider: superseded by S48.
 
 ## Feel round 4
 
 - S46. The edit mode's Cancel reverts bar resizes made in it: the mode remembers the stored sizes as it opens; Cancel, Escape and any abort (panel closed or rebuilt under it) restore them, shown and stored; Done keeps the new ones. Sizes stay UI state (S24), outside the panel's changeset: after Done, the panel's Cancel keeps them. (user) Written at the mode's end, not at each release in it. (agent)
 - S47. Empty shelf in a horizontal bar: the "+" placeholder shown at rest, muted, accent during a drag, as in side bars (S44). Same box at rest and during a drag. (user)
+
+## Feel round 5
+
+- S48. Against a junction divider (a top / bottom bar there), the side bar's end component clears the divider by the gap between the bar's items (`--slot-gap`, 2 px: tab rows, shelf items, templates use the same, never scaled). Both ends, every component, narrow and list forms, empty and filled shelf. (user) Against the title strip or the window: S45 unchanged (level with the board's edge; no divider there). (agent)
+- S49. Tabs in a side bar: a tab shows at least 5 characters of its title before the ellipsis. (user)
+  - a. A side bar holding the tabs is at least `TABS_MIN` (65 px, `core/barsize.ts`) wide; without them, 48 as before. Edge drag clamps there; double-click: the default (160). (user)
+  - Narrow form kept from 65 to 99 px (narrow insets; shelf icons 1.4x at 65); no close button there (at 65 it would leave 2 letters); from 100 px (list) the hover close button keeps 5 letters. (agent)
+  - b. Edit mode: the tabs dragged over a side bar (existing or a potential zone) narrower than `TABS_MIN`: the bar grows to it, animated (140 ms), as part of the preview; off it, back, animated; dropped there: kept as the bar's stored size (Done keeps, Cancel reverts: S46). (user)
+  - c. Other paths: shown at `TABS_MIN` whenever the bar holds the tabs (layout from settings, panel Cancel / Reload, Reset), the stored size kept (back when the tabs leave). A window too small for both: the minimum wins over the 30% cap (as 48 does). (agent: "keep it simple")
+  - d. Horizontal bars: a tab never shrinks below its content (up to its max width): 5 letters at every height, checked, nothing changed. (agent)
 
 ## Persistence
 
@@ -336,6 +346,24 @@ Report: a narrow right bar's shelf ended past the board's bottom edge.
    - Checks: `shelf-ghost` (every form: "+" at rest, muted, fills the strip, same box during a drag, accent then), `shelf` (empty shelf at rest: muted "+").
 3. Toolkit: `tie-dev css-changes` (`HARNESS.md` "CSS changes"): devtools CSS edits in a running instance → a diff against `style.css`. Scenario `css-changes`.
    - Found: Chromium reads the built UI sheet as windows-1252 (`tie://` serves `text/css` without a charset): the prototype's mojibake was in the sheet, not in its handling. Repaired in the tool; the serve fix left for a decision (`PENDING.md` 44).
+
+## Feel round 5, as built (2026-11-22)
+
+Three user requests and a fix.
+
+1. Junction padding (S48): `:root.has-top .bar.v { padding-top: calc(1px + var(--slot-gap)) }`, same at the bottom (`has-bottom`): the divider's row, then the gap. Tab gaps (`#tab-list`, `.bar.v #tabs`) now read `--slot-gap` too (were a literal 2 px: same value, one source).
+   - Strip / window ends: unchanged (no divider; level with the board's edge). Not inconsistent in screenshots: a tile's top border is level with the first component there, as before.
+   - Checks: `layout-bars-ends` (junction ends: board edge + 1 + gap; others level), `layout-bars-dividers` (shelf clears the divider by 2 px at both ends, narrow and list; contrast sampled in the gap: the end component sat 3 px off the divider before).
+   - Screenshots: `tmp/shots/round5-junction-{top,bottom}-{narrow,list}.png`.
+2. CSS charset (`PENDING.md` 44, closed): `@charset "UTF-8";` as `style.css`'s first bytes. The Vite build keeps it first in `index-*.css`; read back over CDP, built: "×" decodes (no mojibake); hot mode (dev server, `style.css` link): decodes, a CSS edit hot-reloads. `serveShell` untouched. `tie-dev css-changes`: its repair is a no-op for these builds (kept for older ones); `css-changes` asserts the clean decode.
+3. Tabs minimum in side bars (S49).
+   - `TABS_MIN` = ceil(5 × 7.5 + 11) + 2 × 4 (narrow tab padding) + 2 × 4 (narrow `--pad`) = 65. Text measured in Tie (12 px semibold system font): lowercase average 6.7, `n` 7.35, `…` 10.85; 7.5 per letter leaves room for wider letters ("node_" fits, "Docum" doesn't quite). Unit tests: value, narrow form, `minSize` / `maxSize` / `shownSize` with `tabs`.
+   - Renderer: `barsize.ts` passes "holds the tabs" (`barOfComponent('tabs')`) to every limit; `shownSizes` = max(own, preview).
+   - Preview (`growForTabs`, `keepGrown`): per side bar an animation {from, to, t0}, eased, 140 ms, `render()` each frame (board, tiles follow, as an edge drag), the mode's overlays re-placed by a frame hook. Clock starts at the first frame (an offscreen page paints a few frames a second when idle: started at the call, the animation was over before its second frame). The real bar grows (not just its outline): the board follows, a drop changes nothing more.
+   - A pinged tab's dot or a custom icon take from the title: not counted (5 letters is for a plain title).
+   - Checks: `tabs-vertical` (edge drag clamps live and at release, double-click 160, settings-placed small size shown at 65 / stored 48 / back after, 200 px window), `settings-layout-tabs-min` (new: existing bar and absent zone grow / shrink, animated (model sizes sampled over the socket: offscreen frames are sparse), Escape, drop kept, file only at Done, Cancel reverts), `layout-bars-scale` (5 letters at `TABS_MIN`, no close on hover; horizontal 32 / 40 / 60: every tab shows 5 letters, a long title cut).
+   - Screenshot: `tmp/shots/round5-tabs-drag-over.png`.
+4. `PENDING.md` 43 shown to the user: `tmp/shots/reveal-diagonal.png` (annotated: straight path keeps the reveal, diagonal leaves the item's row and dismisses it). No behaviour change.
 
 ## Scenarios affected
 

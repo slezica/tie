@@ -41,6 +41,9 @@ Known, not fixed:
 - Side bars: first and last components level with the board's top and bottom edges. Shelf / tab list no longer jitter while auto-scrolling in a drag.
 - Narrow side bars: icons at the default size from 48 px; an empty shelf there is one slot with a muted "+".
 - Empty shelf in a top / bottom bar: the muted dashed "+" shown at rest too (accent during a drag).
+- Side bars: against a top / bottom bar the end item keeps a 2 px gap to the divider (was touching it).
+- Tabs in a side bar: the bar is at least 65 px wide (5 letters of a title). In the edit layout mode, dragging the tabs over a narrower side bar widens it (animated); dropped there, it keeps that width.
+- UI stylesheet read as UTF-8 (was windows-1252; only comments were affected).
 
 ### Pending manual testing (toolbars)
 
@@ -48,6 +51,7 @@ Known, not fixed:
 - Side bars drag the window on empty space; shelf reveal from a side bar stays open while the pointer crosses the bar.
 - Edit layout mode: bars do not drag the window; preview animation and gravity flip feel right.
 - Bar edges: resize cursor shows, no window drag from the edge, double-click resets; same in the edit layout mode.
+- Edit layout mode: the side bar growing under the dragged tabs looks smooth in a real window (harness offscreen frames are sparse).
 
 ### Other
 
