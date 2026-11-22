@@ -95,7 +95,11 @@ export default async (ctx, h) => {
     const v = await h.violations(fr)
     ctx.log('CSP violations:', JSON.stringify(v))
     for (const path of ['/classfill', '/stylefill', '/imgshape']) h.assert(v.includes(`img-src ${P}${path}`), `CSP img-src refused ${path}: ${v}`)
-    h.assert(v.every((x) => /^(img-src|font-src|style-src)/.test(x)), `only resource loads blocked, nothing else: ${v}`)
+    // `script-src-attr inline`: Chromium 156+ checks an inline handler against the CSP when the attribute is
+    // set or parsed, not when it would first run (ENGINE.md). Sources here: DOMPurify's inert parse of the
+    // PoCs (`onerror`), Mermaid's own `onclick` on sequence actors with links (set, then sanitized away).
+    // None reaches the document (`handlers` above), none runs (`__xss`).
+    h.assert(v.every((x) => /^(img-src|font-src|style-src)/.test(x) || x === 'script-src-attr inline'), `only resource loads and inline handlers blocked, nothing else: ${v}`)
 
     // Pathological: edge limit → error block; text limit → Mermaid's notice. Tile and terminal fine.
     const edges = 'flowchart LR\n' + Array.from({ length: 600 }, (_, i) => `  n${i} --> n${i + 1}`).join('\n')
