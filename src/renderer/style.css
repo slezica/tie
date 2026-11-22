@@ -184,6 +184,9 @@ body {
   --fade-e: 0px;
   scrollbar-width: none;
   mask-image: linear-gradient(var(--fade-dir), transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent);
+  /* Scroll only by Tie's code (keep-in-view, edge auto-scroll, wheel): no scroll anchoring, which
+     shifted the scroll a slot at each ghost move during a drag and fought the auto-scroll. */
+  overflow-anchor: none;
 }
 #tab-list::-webkit-scrollbar,
 #shelf::-webkit-scrollbar {
