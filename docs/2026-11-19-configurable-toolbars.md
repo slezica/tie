@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel round 1 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 and 2 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -50,7 +50,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel round 1 done. Not released.
 
 ## Bar sizes
 
-- S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. Not in edit mode. (user)
+- S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. (user) Feel round 2: in the edit mode too, same edges (user).
 - S21. Limits: vertical bars up to 30% of the window width; horizontal bars up to 1.5x the default thickness (60 px), the point where scaling stops. (user, 2026-11-20; was 20% of the window height, which left empty space)
 - S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune)
 - S23. Double-click on the edge: back to the default size. (agent)
@@ -81,8 +81,15 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel round 1 done. Not released.
 - S34. Drag to an edge with no bar: a bar preview appears there. (user)
 - S35. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end. (user)
 - S36. Components in the same bar and gravity can be reordered. (user)
-- S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user) Feel round 1: inside their component (user).
+- S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user) Feel round 1: inside their component (user). Feel round 2: never past the component's box, with room around the chip (user).
 - S38. Preview look: abstract accent-tinted box at the landing place, as tile drop previews; the dragged component dims in place. To iterate by feel. (agent)
+
+## Feel round 2
+
+- S41. Bare board (no slotted tile): the bars' edges drawn as a tile's border would draw them. (user)
+- S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent)
+- S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user)
+- S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user)
 
 ## Persistence
 
@@ -112,6 +119,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel round 1 done. Not released.
   - W2. Drag regions on side bars and the reveal (`shelf.ts` pointerleave note): manual check, the offscreen harness cannot test it.
   - W3. S24 (sizes in a state file): the first persisted UI state outside settings. Built (phase 3): `main/uistate.ts`.
   - W4. Bar edges in a visible window: `no-drag` carved out of the bars' drag regions, cursors, the lit edge. Manual check (offscreen: no drag regions).
+  - W5. Bar edges in the edit mode, in a visible window: resize cursor over the mode, the lit edge over the bar outline. Manual check.
 
 # Research
 
@@ -272,6 +280,29 @@ The user's six changes after trying it. Users' words in quotes.
 5. "Vertical min width icons larger than horizontal min height": `narrowScale` (`core/barsize.ts`, unit tests): 0.875x at 48 px, + 1/40 per px, 1.5x from 73 px. The bar's `--kn` is the `--k` of its shelf and templates (CSS); the `100cqi` clamp and the size container are gone. Min width 48 and list form from 100 unchanged; dead band now 73 to 99.
 6. "Divider when vertical and horizontal bars meet": `.bar.v::before` / `::after`, 1 px `--border`, inset by `--pad`, only with `has-top` / `has-bottom`. On the board edge's pixel row, so it continues a tile's top / bottom border line (no double line). Checked: geometry, colour = tile border, visible against the bar in dark and light (`layout-bars-dividers`).
    - Choice: inset by `--pad` (aligned with the bar's rows, as the templates divider spans only its component). Full width (window edge to the board) not tried.
+
+## Feel round 2, as built (2026-11-21)
+
+The user's six changes after round 1.
+
+1. Board edge on a bare board (S41): `#board-edge` (index.html, before `#tiles`), the board's rect (insets as `#empty-hint`), shown while `S.tree` is empty (`body.bare`, `render.ts`).
+   - Lines only on the sides with a shown bar (`has-<bar>`): the bars' edges, not a frame. Sides without a bar: nothing (a tile's border there sits `--pad` from the window, not a bar edge).
+   - Two layers (`::before` `--tile-bg`, `::after` `--border`): a tile's border is `--border` over its own background, so the pixels match (checked dark and light). One layer (`--border` over `--app-bg`) is visibly darker.
+   - On the board's edge pixels: level with the junction dividers. Under every tile: floats and a zoomed float cover it; a slotted tile (zoom included) hides it (no double line).
+   - Rejected: borders on the bars (would need hiding per side when a tile touches; floats-only boards).
+2. Resize in the edit mode (S20, S42): the same `.bar-edge` strips, raised above the mode's root (z 6600 / 6601: over its zones, boxes, labels; under dialogs, 7500). Overlays follow live through the mode's `ResizeObserver` (bars) and CSS vars (dim). During a component drag the edges take no pointer (root `layout-dragging`).
+   - The top / bottom edge overlaps the tabs' box (full bar height) by 4 px: there the edge wins (as in normal use).
+   - Escape during a resize: ends the mode (the resize finishes at the release). Choice: no special case.
+3. Labels never past their component's box (all three components, every size): each fits its box less `INSET` (4 px) on every side.
+   - Too big: shrinks (`--ls` on the label: font, padding, radius; down to `LABEL_MIN` 0.65), then truncates (ellipsis, `max-width` / `max-height`). Width measured, stepped down while the text still overflows (text doesn't scale linearly).
+   - Orientation, vertical bars: each label where it is larger; where it fits both ways, the bar's (rotated if any of its labels is). Was: one orientation per bar. Reason: at 48 / 60 px a one-item shelf's "Shelf" rotated read "s…"; across it fits.
+   - Gone: overhang along the bar, push-apart sweep (labels inside disjoint boxes can't overlap).
+   - Rough: a one-item shelf in a 32 px horizontal bar (24.5 px box) shows "S…": no legible size fits.
+4. Narrow scale (S43): `narrowScale` 1x at 48 px (`NARROW_MIN`; 28 px slots, 16 px glyphs), + 1/40 per px, 1.5x from 68 px. Narrow bars set `--pad: 4px` on the bar: rows, junction dividers and the bar's padding inset 4 px (was 6). Choice: the scale alone fits at 6 px (28 in 36); 4 px gives the icons air and narrow tab titles 4 px more.
+5. Empty side-bar shelf (S44): `min-height: var(--item)` (= one item, every form), `::before` shown at rest (`--muted` via `color-mix`, dashed), accent during a drag (`body.tile-drag` / `os-drag`). Same box at rest, during a drag and holding one item (`shelf-ghost`).
+6. Label padding: label chips 4 px inside the box (item 3); padding 2 × 6 px (was 3 × 8), shadow lighter, so a 32 px bar's label shrinks less.
+
+Checks: `layout-bars-board-edge` (new: combos, pixels, floats, zoom, junctions), `settings-layout-resize` (new: edges over the mode, live overlays, release write, tabs overlap, component drag, Cancel / panel Cancel keep sizes), `settings-layout-labels` (32 / 40 / 60, 48 / 68 / 99 / 100 / 160, empty and one item), `h.checkLabels` (inside with 4 px, centred, full size where it fits), `shelf-ghost` (empty vertical shelf), `layout-bars-scale`, `shelf-vertical`, `layout-bars-dividers` (4 px inset when narrow), `layout-bars-size` (edges in the mode).
 
 ## Scenarios affected
 

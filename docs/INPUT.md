@@ -8,7 +8,7 @@
 - Nav bar (kinds that navigate, `TILES.md`): back / forward / reload buttons (never take focus); location field (browser: editable; click into it selects all, type to replace, cmd+C copies, drag selects a range; Enter loads, Escape restores; refused input → dialog). A click there activates the tile without handing the keys to its content.
 - Border between slotted tiles: drag resizes neighbors; double-click equalizes all siblings at that split.
 - Float edges/corners (8 `.rz` handles): activate, raise, resize.
-- Bar edge (`.bar-edge`, a shown bar's board-side edge): drag resizes the bar; double-click: its default size (`LAYOUT.md` "Bar sizes"). Not in the edit layout mode.
+- Bar edge (`.bar-edge`, a shown bar's board-side edge): drag resizes the bar; double-click: its default size (`LAYOUT.md` "Bar sizes"). Also in the edit layout mode (above its root; not during a component drag).
 - Shelf: `SHELF.md` (`cmd+click` on an item: selection; a pointerdown elsewhere de-selects, then acts as usual: "Selection"). Tabs: `TABS.md`.
 - Wheel over the tab list or the shelf strip (S18): in a top / bottom bar a vertical wheel scrolls it sideways; in a left / right bar it scrolls natively (`overflow.ts` `sideWheel`).
 - Bars: every rule runs along the bar's axis (x in top / bottom bars, y in left / right ones): tab reorder, drop targets, shelf slots, auto-scroll.

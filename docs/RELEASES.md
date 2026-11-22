@@ -36,13 +36,16 @@ Known, not fixed:
 - Title strip (traffic lights) holds no Tie UI: a top bar sits below it.
 - Vertical bars: tab list with titles, shelf and templates as lists (icons only when narrow), reveals open sideways.
 - Shelf overflow: fades and auto-scroll while dragging, as tabs.
+- Empty board: the bars' edges drawn as a tile's border would.
+- Edit layout mode: bars resize there too (sizes kept on Cancel); labels always inside their component, shrunk or truncated when it is small.
+- Narrow side bars: icons at the default size from 48 px; an empty shelf there is one slot with a muted "+".
 
 ### Pending manual testing (toolbars)
 
 - Traffic lights sit well in the title strip, with and without a top bar.
 - Side bars drag the window on empty space; shelf reveal from a side bar stays open while the pointer crosses the bar.
 - Edit layout mode: bars do not drag the window; preview animation and gravity flip feel right.
-- Bar edges: resize cursor shows, no window drag from the edge, double-click resets.
+- Bar edges: resize cursor shows, no window drag from the edge, double-click resets; same in the edit layout mode.
 
 ### Other
 
