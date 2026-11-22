@@ -165,6 +165,8 @@ function renderVisible() {
   for (const h of [...borders.children] as HTMLElement[]) if (!keep.has(h.dataset.key!)) h.remove()
 
   document.body.classList.toggle('empty', !S.tree && S.floats.length === 0)
+  document.body.classList.toggle('bare', !S.tree) // no slotted tile: #board-edge draws the bars' edges
+
 }
 
 // Dev (--hot): CSS edits re-layout immediately.

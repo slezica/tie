@@ -1,6 +1,6 @@
 // Bar sizes (LAYOUT.md "Bar sizes"): drag each bar's edge (all four sides), board insets follow live;
 // clamps (horizontal 32..60, vertical 48..30% of the window, kept stored when the window narrows);
-// double-click resets; edges vs corners, tile borders, edit mode; panel layout Reset leaves sizes;
+// double-click resets; edges vs corners, tile borders, edit mode (edges shown); panel layout Reset leaves sizes;
 // UI state file written at drag end only (0600) and restored after a restart.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { uiStatePath } from '../lib.mjs'
@@ -111,9 +111,10 @@ export default async (ctx, h) => {
   await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160, 'left double-click: 160'))
   await h.resizeBar(ctx, 'left', 240)
 
-  // Edit layout mode: no edges; the panel's layout Reset (and Save) leaves the sizes.
+  // Edit layout mode: the same edges (resize there: settings-layout-resize); the panel's layout Reset
+  // (and Save) leaves the sizes.
   await h.editLayout(ctx)
-  h.assert((await shownEdges()) === '', `edit mode: no edges (${await shownEdges()})`)
+  h.assert((await shownEdges()) === 'left,right,top', `edit mode: the edges (${await shownEdges()})`)
   await ctx.page.locator('#layout-edit .le-cancel').click()
   await ctx.page.waitForSelector('#layout-edit', { state: 'detached' })
   await ctx.page.locator('#set-layout-reset').click()

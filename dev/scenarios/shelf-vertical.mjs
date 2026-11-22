@@ -138,9 +138,9 @@ export default async (ctx, h) => {
     await h.drag(ctx, await h.template(ctx), await h.sidePoint(ctx, a, 'r'))
     await h.waitFor(ctx, async () => (await L()).tiles.length === n + 1, `${side}: template spawned a tile`)
 
-    // Narrow form: icons only, square, centred, scaled as a horizontal bar's (0.875x at 48 px, +1/40
-    // per px, 1.5x from 73 px); then back to the list form.
-    for (const [w, size] of [[48, 24.5], [54, 28.7], [73, 42]]) {
+    // Narrow form: icons only, square, centred, scaled (1x at 48 px, +1/40 per px, 1.5x from 68 px);
+    // then back to the list form.
+    for (const [w, size] of [[48, 28], [54, 32.2], [68, 42]]) {
       await h.setBarSize(ctx, side, w)
       const nb = (await h.boxOf(ctx, `#bar-${side}`)).box
       near(nb.width, w, `${side}: bar ${w} px`)

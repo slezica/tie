@@ -38,10 +38,12 @@ export const barScale = (bar: Bar, size: number) => (isVertical(bar) ? 1 : Math.
 export const LIST_MIN = 100
 export const barForm = (size: number): 'narrow' | 'list' => (size < LIST_MIN ? 'narrow' : 'list')
 
-// Content scale of a narrow vertical bar's shelf and templates (feel round 1): at the minimum width
-// the same as a horizontal bar at its minimum (SCALE_MIN), then growing with the width at a
-// horizontal bar's rate (1 / 40 per px), capped at 1.5x (reached at 73 px; centred after that).
-export const narrowScale = (size: number) => Math.round(clamp(SCALE_MIN + (size - VBAR.min) / HBAR.def, SCALE_MIN, HBAR.max / HBAR.def) * 1000) / 1000
+// Content scale of a narrow vertical bar's shelf and templates (feel round 2): at the minimum width
+// the default size, NARROW_MIN (1x: 28 px slots, 16 px glyphs; round 1's SCALE_MIN read too small),
+// then growing with the width at a horizontal bar's rate (1 / 40 per px), capped at 1.5x (reached at
+// 68 px; centred after that).
+export const NARROW_MIN = 1
+export const narrowScale = (size: number) => Math.round(clamp(NARROW_MIN + (size - VBAR.min) / HBAR.def, NARROW_MIN, HBAR.max / HBAR.def) * 1000) / 1000
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 

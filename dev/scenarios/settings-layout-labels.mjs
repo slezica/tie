@@ -1,4 +1,4 @@
-// Edit layout mode labels by bar size: inside their components (centred, never past the bar), apart; an empty shelf holds its label; a one-item shelf's label overhangs it; rotated in a narrow side bar (48 px), across from where they fit; horizontal bars at 32 / 40 / 60; light theme.
+// Edit layout mode labels by bar size: always inside their component's box with room around the chip (never past it), centred; shrunk then truncated where the box is small (a one-item shelf), full size where they fit; horizontal bars at 32 / 40 / 60 (empty and one-item shelf); side bar at 48 / 68 / 99 / 100 / 160 (empty and one item): rotated where that fits them better, across in the list form; light theme.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 
@@ -13,32 +13,38 @@ export default async (ctx, h) => {
     await page.waitForSelector('.settings', { state: 'detached' })
     return Object.fromEntries(labels.map((l) => [l.c, l]))
   }
-  const inside = (p, q) => p.left >= q.left - 0.5 && p.right <= q.right + 0.5 && p.top >= q.top - 0.5 && p.bottom <= q.bottom + 0.5
 
-  // Bottom bar (default layout), empty shelf: every label inside its component at each size.
+  // Bottom bar (default layout), empty shelf (three slots): every label full size at 40 and 60.
   for (const size of [32, 40, 60]) {
     await h.setBarSize(ctx, 'bottom', size)
     const l = await check(`bottom-${size}-empty`)
-    for (const c of ['tabs', 'shelf', 'templates']) h.assert(inside(l[c].r, l[c].comp) && !l[c].rotated, `bottom ${size}: ${c} label inside, not rotated`)
+    if (size >= 40) for (const c of ['tabs', 'shelf', 'templates']) h.assert(l[c].ls === 1 && !l[c].cut, `bottom ${size}: ${c} label full size (${l[c].ls})`)
   }
-  // One item: the shelf is shorter than its label, which overhangs it, centred, inside the bar.
+  // One item: the shelf is shorter than its label: shrunk, then cut, never past the shelf's box.
   const one = (await ctx.tie('add', 'terminal', '--shelved')).id
   await h.waitTile(ctx, one)
-  await h.setBarSize(ctx, 'bottom', 32)
-  const l1 = await check('bottom-32-one-item')
-  h.assert(l1.shelf.r.width > l1.shelf.comp.width, 'one item: the shelf label longer than the shelf')
+  for (const size of [32, 40, 60]) {
+    await h.setBarSize(ctx, 'bottom', size)
+    const l = await check(`bottom-${size}-one-item`)
+    h.assert(l.shelf.ls < 1, `bottom ${size}, one item: the shelf label shrunk (${l.shelf.ls})`)
+  }
   await h.setBarSize(ctx, 'bottom', null)
-  await ctx.tie('close', '--tile', one)
-  await h.waitGone(ctx, one)
 
-  // Side bar: tabs top, shelf and templates left. Narrow (48): rotated; wider: across.
-  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
-  for (const [w, rotated] of [[48, true], [73, true], [100, false], [160, false]]) {
-    await h.setBarSize(ctx, 'left', w)
-    const l = await check(`left-${w}-empty`)
-    for (const c of ['shelf', 'templates']) {
-      h.assert(l[c].rotated === rotated, `left ${w}: ${c} label ${rotated ? '' : 'not '}rotated`)
-      h.assert(inside(l[c].r, l[c].comp), `left ${w}: ${c} label inside its component`)
+  // Side bar: tabs bottom, shelf and templates left. One item, then empty.
+  await h.setBars(ctx, layout({ bottom: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
+  for (const shelf of ['one-item', 'empty']) {
+    if (shelf === 'empty') {
+      await ctx.tie('close', '--tile', one)
+      await h.waitGone(ctx, one)
+    }
+    for (const w of [48, 68, 99, 100, 160]) {
+      await h.setBarSize(ctx, 'left', w)
+      const l = await check(`left-${w}-${shelf}`)
+      if (w <= 68) h.assert(l.templates.rotated, `left ${w}: Templates rotated (too long across)`)
+      else if (w === 99) h.assert(!l.templates.rotated && l.templates.ls === 1, `left 99 (narrow, 1.5x): Templates fits across, full size`)
+      else h.assert(!l.shelf.rotated && !l.templates.rotated && l.shelf.ls === 1 && l.templates.ls === 1, `left ${w}: list form: across, full size`)
+      // The shelf one item long (empty or not): across, where it is largest.
+      if (w === 48) h.assert(!l.shelf.rotated && !l.shelf.cut, `left 48, ${shelf}: Shelf across, uncut (--ls ${l.shelf.ls})`)
     }
   }
 

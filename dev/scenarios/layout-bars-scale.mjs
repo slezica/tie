@@ -130,9 +130,9 @@ export default async (ctx, h) => {
       })
       return { bar: bar.toJSON(), narrow: document.getElementById('bar-left').classList.contains('narrow'), rows }
     })
-  // width → item size (narrow: 28 × narrowScale: 0.875x at 48, as a 32 px horizontal bar, +1/40 per
-  // px, 1.5x from 73; list: rows 28 tall).
-  for (const [w, size] of [[48, 24.5], [54, 28.7], [60, 32.9], [73, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
+  // width → item size (narrow: 28 × narrowScale: 1x at 48, +1/40 per px, 1.5x from 68; list: rows
+  // 28 tall).
+  for (const [w, size] of [[48, 28], [54, 32.2], [60, 36.4], [68, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
     await h.setBarSize(ctx, 'left', w)
     const f = await forms()
     near(f.bar.width, w, `left ${w}: width`)

@@ -1,7 +1,8 @@
-// Junction dividers: a side bar ending against a shown top / bottom bar gets a 1 px divider across it (inset by --pad, the border colour: tiles, the templates divider), on the board edge's pixel row (a tile's border there); only where both bars show; at resized bars; dark and light (visible against the bar).
+// Junction dividers: a side bar ending against a shown top / bottom bar gets a 1 px divider across it (inset by --pad: 4 px in a narrow bar, the border colour: tiles, the templates divider), on the board edge's pixel row (a tile's border there); only where both bars show; at resized bars; dark and light (visible against the bar).
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const PAD = 6
+const NARROW_PAD = 4 // a narrow side bar's --pad
 
 export default async (ctx, h) => {
   const page = ctx.page
@@ -43,8 +44,9 @@ export default async (ctx, h) => {
       near(d.box.y + d.top.top, board.y, `${what}: top divider on the board's top edge row`)
       near(d.box.y + d.box.height - d.bottom.bottom - d.bottom.h, board.y + board.h - 1, `${what}: bottom divider on the board's bottom border row`)
       near(d.top.h, 1, `${what}: 1 px`)
-      near(d.top.left, PAD, `${what}: inset at the window side`)
-      near(d.top.right, PAD, `${what}: inset at the board side`)
+      const pad = side < 100 ? NARROW_PAD : PAD
+      near(d.top.left, pad, `${what}: inset at the window side`)
+      near(d.top.right, pad, `${what}: inset at the board side`)
       const border = await page.$eval('.tile', (e) => getComputedStyle(e).borderTopColor) // --border (= --fg-c, the templates divider's)
       h.assert(d.top.color === border && d.bottom.color === border, `${what}: the border colour (${d.top.color}, ${border})`)
       await contrast(d.box.x + d.box.width / 2, board.y, 3, `${what}: top`)

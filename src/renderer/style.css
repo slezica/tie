@@ -917,7 +917,7 @@ body.tile-drag #tab-add.drop {
 /* Bar edges (barsize.ts): a strip on each shown bar's board-side edge, 4 px inside the bar and 2 px
    over the board (tile borders and float handles keep the rest). Drag: resize; double-click: the
    default size. Carved out of the bar's window drag region (no-drag; after the bars in the DOM). At
-   the corners the top / bottom edges win (above). None in the edit layout mode. */
+   the corners the top / bottom edges win (above). Also in the edit layout mode (below). */
 .bar-edge {
   position: absolute;
   display: none;
@@ -955,8 +955,16 @@ body.tile-drag #tab-add.drop {
 :root.has-right .bar-edge[data-bar='right'] {
   display: block;
 }
-:root.layout-editing .bar-edge[data-bar] {
-  display: none;
+/* Edit layout mode: above its root (6500, below dialogs 7500), so bars resize there too; out of the
+   way while a component is dragged. */
+:root.layout-editing .bar-edge.v {
+  z-index: 6600;
+}
+:root.layout-editing .bar-edge.h {
+  z-index: 6601;
+}
+:root.layout-dragging .bar-edge {
+  pointer-events: none;
 }
 /* The edge itself lit on hover and while dragged, as tile borders. */
 .bar-edge::after {
@@ -1234,8 +1242,20 @@ body.tile-drag .bar.v #tab-add {
   overflow-x: hidden;
   overflow-y: auto;
 }
+/* Empty, in a vertical bar (feel round 2): one item long, the "+" placeholder shown at rest, muted;
+   during a drag it takes the accent (rules above). Horizontal bars: three slots, blank at rest. */
 .bar.v #shelf.empty {
-  min-height: calc(var(--item) * 3 + var(--slot-gap) * 2);
+  min-height: var(--item);
+}
+.bar.v #shelf.empty:not(.landing)::before {
+  display: grid;
+  border-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+body.tile-drag .bar.v #shelf.empty::before,
+body.os-drag .bar.v #shelf.empty::before {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .bar.v #templates {
   flex-direction: column;
@@ -1297,9 +1317,14 @@ body.tile-drag .bar.v #tab-add {
   height: calc(var(--item) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
 }
 /* Narrow (`.bar.v.narrow`, barsize.ts: width under LIST_MIN, core/barsize.ts): icons only, centred,
-   scaled as a horizontal bar's: `--k` here is the bar's `--kn` (narrowScale: 0.875x at 48 px, as a
-   32 px horizontal bar, 1.5x from 73 px on), so slots, glyphs, dots, radii, the hint and ghosts
+   scaled: `--k` here is the bar's `--kn` (narrowScale: 1x at 48 px, 1.5x from 68 px on), so slots,
+   glyphs, dots, radii, the hint and ghosts
    follow it. Threshold and scale live in JS only (no literal here). */
+/* Narrow bars inset their rows 4 px (not --pad): room for the larger icons (1x at 48 px). Rows,
+   junction dividers and the bar's own padding follow. */
+.bar.v.narrow {
+  --pad: 4px;
+}
 .bar.v.narrow #shelf,
 .bar.v.narrow #templates {
   --k: var(--kn, 1);
@@ -1393,6 +1418,46 @@ body.tile-drag .bar.v #tab-add {
   color: var(--red);
 }
 
+/* The board's edges against the bars while no tile is slotted (body.bare, render.ts): a slotted
+   tile's border draws them otherwise (the tree fills the board), so the bars' edges look the same
+   with and without tiles. Only the sides with a shown bar; on the board's own edge pixels (where a
+   tile's 1 px border sits); below every tile (floats, a zoomed float). Two layers, as a tile's border
+   is drawn: --border over the tile's background (::before), so the pixels match. */
+#board-edge {
+  position: absolute;
+  inset: max(var(--top-h), var(--pad)) max(var(--right-w), var(--pad)) max(var(--bottom-h), var(--pad)) max(var(--left-w), var(--pad));
+  display: none;
+  pointer-events: none;
+}
+body.bare #board-edge {
+  display: block;
+}
+#board-edge::before,
+#board-edge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0 solid var(--tile-bg);
+}
+#board-edge::after {
+  border-color: var(--border);
+}
+:root.has-top #board-edge::before,
+:root.has-top #board-edge::after {
+  border-top-width: 1px;
+}
+:root.has-bottom #board-edge::before,
+:root.has-bottom #board-edge::after {
+  border-bottom-width: 1px;
+}
+:root.has-left #board-edge::before,
+:root.has-left #board-edge::after {
+  border-left-width: 1px;
+}
+:root.has-right #board-edge::before,
+:root.has-right #board-edge::after {
+  border-right-width: 1px;
+}
 #empty-hint {
   position: absolute;
   inset: max(var(--top-h), var(--pad)) max(var(--right-w), var(--pad)) max(var(--bottom-h), var(--pad)) max(var(--left-w), var(--pad));
@@ -1838,22 +1903,26 @@ body.empty #empty-hint {
 #layout-edit .le-preview.shown {
   display: block;
 }
-/* Labels (S37): inside their component, centred, over its content; push nothing. Rotated (reads top
-   to bottom) in a vertical bar too narrow for them across (layoutedit.ts). */
+/* Labels (S37): inside their component, centred, over its content; push nothing. Never past the
+   component's box (layoutedit.ts: an inset each side; `--ls` shrinks font and padding, then max sizes
+   truncate). Rotated (reads top to bottom) in a vertical bar where that fits them better. */
 #layout-edit .le-label {
-  padding: 3px 8px;
-  border-radius: 5px;
+  --ls: 1;
+  padding: calc(2px * var(--ls)) calc(6px * var(--ls));
+  border-radius: calc(5px * var(--ls));
   background: var(--accent);
   color: var(--bg);
-  font: 700 12px var(--ui-font);
-  line-height: 14px;
+  font: 700 calc(12px * var(--ls)) var(--ui-font);
+  line-height: calc(14px * var(--ls));
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
-  box-shadow: 0 1px 4px var(--shadow);
+  box-shadow: 0 1px 3px var(--shadow);
 }
 #layout-edit .le-label.rotated {
   writing-mode: vertical-rl;
-  padding: 8px 3px;
+  padding: calc(6px * var(--ls)) calc(2px * var(--ls));
 }
 /* The floating box: a strip in the board's centre, not a dialog (no title, no modal frame). */
 #layout-edit .le-box {

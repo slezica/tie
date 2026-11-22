@@ -24,8 +24,8 @@ export const editingLayout = () => !!session
 
 const THRESHOLD = 4
 const GAP = 6 // between components in a bar (style.css .bar gap)
-const MARGIN = 4 // labels kept this far inside their bar's ends, and apart
-const INSET = 2 // a label across a vertical bar fits its component with this much room each side
+const INSET = 4 // a label's chip stays this far inside its component's box, every side
+const LABEL_MIN = 0.65 // smallest label scale (font, padding); a label still too long is truncated
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
@@ -97,38 +97,48 @@ export function editLayout(done: (result: Bars | null) => void) {
     for (const c of COMPONENTS) place($(`.le-comp[data-c="${c}"]`), compRect(c))
     placeLabels(g)
   }
-  // Labels: inside their component's outline, centred on it, over its content; window-positioned
-  // (they push nothing). In a vertical bar where a label doesn't fit across its component: the
-  // bar's labels rotated (read top to bottom; one orientation per bar). A label longer than its
-  // component (a shelf of one item) overhangs it along the bar, still centred; labels pushed apart
-  // along the bar, kept inside it (never past its ends).
+  // Labels: inside their component's box, centred on it, over its content; window-positioned (they
+  // push nothing). Never past the box: INSET inside it on every side (feel round 2). A label that
+  // doesn't fit shrinks (`--ls`: font and padding, down to LABEL_MIN), then truncates (ellipsis). In
+  // a vertical bar a label is rotated (read top to bottom) where that makes it larger; where it fits
+  // either way, the bar's orientation: rotated when any of its labels is (one look per bar unless a
+  // label would have to shrink).
   const placeLabels = (g: ReturnType<typeof geometry>) => {
     for (const b of BARS) {
       const v = isVertical(b)
-      const r = g.rects[b]
-      const cs = [...g.layout[b].start, ...g.layout[b].end]
-      const els = cs.map((c) => $(`.le-label[data-c="${c}"]`))
-      for (const el of els) el.classList.remove('rotated')
-      // One orientation per bar: all rotated when any doesn't fit across its component.
-      const rotate = v && cs.some((c, i) => els[i].offsetWidth > compRect(c).w - 2 * INSET)
-      const items = cs.map((c, i) => {
-        const el = els[i]
-        const comp = compRect(c)
-        el.classList.toggle('rotated', rotate)
-        const size = v ? el.offsetHeight : el.offsetWidth
-        return { el, comp, size, at: mid(comp, v) - size / 2 }
+      const items = [...g.layout[b].start, ...g.layout[b].end].map((c) => ({ el: $(`.le-label[data-c="${c}"]`), comp: compRect(c), rotate: false }))
+      // The scale a label needs to fit its box in an orientation (1: fits as is).
+      const need = (el: HTMLElement, comp: BarRect, rotated: boolean) => {
+        el.classList.toggle('rotated', rotated)
+        Object.assign(el.style, { maxWidth: '', maxHeight: '' })
+        el.style.setProperty('--ls', '1')
+        const r = el.getBoundingClientRect()
+        return Math.min(1, (comp.w - 2 * INSET) / r.width, (comp.h - 2 * INSET) / r.height)
+      }
+      const fits = items.map((i) => (v ? { across: need(i.el, i.comp, false), rotated: need(i.el, i.comp, true) } : null))
+      const barRotated = fits.some((f) => f && f.rotated > f.across)
+      items.forEach((i, n) => {
+        const f = fits[n]
+        i.rotate = !!f && (f.rotated === f.across ? barRotated : f.rotated > f.across)
       })
-      items.sort((a, b) => a.at - b.at)
-      const min = lo(r, v) + MARGIN
-      const max = lo(r, v) + len(r, v) - MARGIN
-      for (let i = 0; i < items.length; i++) items[i].at = Math.max(items[i].at, i ? items[i - 1].at + items[i - 1].size + MARGIN : min)
-      for (let i = items.length - 1; i >= 0; i--) items[i].at = Math.min(items[i].at, i < items.length - 1 ? items[i + 1].at - items[i].size - MARGIN : max - items[i].size)
-      for (const { el, comp, at } of items) {
-        // Across the bar: centred on the component (it spans the bar's thickness less padding).
-        const cross = v ? el.offsetWidth : el.offsetHeight
-        const off = Math.max(lo(r, !v), Math.min(mid(comp, !v) - cross / 2, lo(r, !v) + len(r, !v) - cross))
-        el.style.left = `${v ? off : at}px`
-        el.style.top = `${v ? at : off}px`
+      for (const { el, comp, rotate } of items) {
+        const w = Math.max(0, comp.w - 2 * INSET)
+        const h = Math.max(0, comp.h - 2 * INSET)
+        let ls = Math.max(LABEL_MIN, Math.floor(need(el, comp, rotate) * 1000) / 1000)
+        el.style.setProperty('--ls', String(ls))
+        // Text doesn't scale quite linearly with the font: a step smaller while it is still too big.
+        const fits = () => {
+          const r = el.getBoundingClientRect()
+          return r.width <= w && r.height <= h
+        }
+        while (ls > LABEL_MIN && !fits()) {
+          ls = Math.max(LABEL_MIN, Math.round((ls - 0.02) * 1000) / 1000)
+          el.style.setProperty('--ls', String(ls))
+        }
+        Object.assign(el.style, { maxWidth: `${w}px`, maxHeight: `${h}px` }) // past LABEL_MIN: truncated
+        const r = el.getBoundingClientRect()
+        el.style.left = `${comp.x + (comp.w - r.width) / 2}px`
+        el.style.top = `${comp.y + (comp.h - r.height) / 2}px`
       }
     }
   }
@@ -235,12 +245,14 @@ export function editLayout(done: (result: Bars | null) => void) {
     const begin = () => {
       started = true
       root.classList.add('dragging')
+      document.documentElement.classList.add('layout-dragging') // bar edges out of the way (style.css)
       for (const p of parts(c)) p.classList.add('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.add('dragging')
     }
     const end = () => {
       s.cancelDrag = null
       root.classList.remove('dragging')
+      document.documentElement.classList.remove('layout-dragging')
       for (const p of parts(c)) p.classList.remove('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.remove('dragging')
       preview.classList.remove('shown')
@@ -280,7 +292,7 @@ export function editLayout(done: (result: Bars | null) => void) {
       window.removeEventListener('resize', layout)
       ro.disconnect()
       root.remove()
-      document.documentElement.classList.remove('layout-editing')
+      document.documentElement.classList.remove('layout-editing', 'layout-dragging')
     },
   }
   session = s

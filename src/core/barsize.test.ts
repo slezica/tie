@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { HBAR, VBAR, LIST_MIN, SCALE_MIN, defaultSizes, defaultSize, clampStored, maxSize, shownSize, barScale, barForm, narrowScale, cleanSizes, parseUiState, uiStateText, sameSizes } from './barsize'
+import { HBAR, VBAR, LIST_MIN, SCALE_MIN, NARROW_MIN, defaultSizes, defaultSize, clampStored, maxSize, shownSize, barScale, barForm, narrowScale, cleanSizes, parseUiState, uiStateText, sameSizes } from './barsize'
 
 describe('limits', () => {
   it('defaults: 40 horizontal, 160 vertical', () => {
@@ -36,16 +36,17 @@ describe('scale and forms', () => {
     expect(barScale('top', 90)).toBe(1.5)
     expect(barScale('left', 300)).toBe(1)
   })
-  it('narrow vertical: SCALE_MIN at the minimum width, 1/40 per px, 1.5x from 73 px', () => {
-    expect(narrowScale(VBAR.min)).toBe(SCALE_MIN)
-    expect(narrowScale(VBAR.min)).toBe(barScale('top', HBAR.min)) // as a horizontal bar at its minimum
-    expect(narrowScale(52)).toBe(0.975)
-    expect(narrowScale(53)).toBe(1)
-    expect(narrowScale(60)).toBe(1.175)
-    expect(narrowScale(72)).toBe(1.475)
-    expect(narrowScale(73)).toBe(1.5)
+  it('narrow vertical: NARROW_MIN (1x) at the minimum width, 1/40 per px, 1.5x from 68 px', () => {
+    expect(NARROW_MIN).toBe(1)
+    expect(narrowScale(VBAR.min)).toBe(NARROW_MIN)
+    expect(narrowScale(VBAR.min)).toBe(barScale('top', HBAR.def)) // as a horizontal bar at its default
+    expect(narrowScale(52)).toBe(1.1)
+    expect(narrowScale(54)).toBe(1.15)
+    expect(narrowScale(60)).toBe(1.3)
+    expect(narrowScale(67)).toBe(1.475)
+    expect(narrowScale(68)).toBe(1.5)
     expect(narrowScale(LIST_MIN - 1)).toBe(1.5)
-    expect(narrowScale(30)).toBe(SCALE_MIN)
+    expect(narrowScale(30)).toBe(NARROW_MIN)
   })
   it('vertical forms: narrow below LIST_MIN, list from it', () => {
     expect(barForm(48)).toBe('narrow')

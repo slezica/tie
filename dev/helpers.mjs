@@ -99,11 +99,12 @@ export async function dragComponent(ctx, component, bar, gravity, { index, durin
   await drag(ctx, { x: from.x, y: from.y }, to, { steps, during })
 }
 
-// Edit mode labels (LAYOUT.md "Edit mode"), checked: one per component, each inside the window and
-// inside its component's bar (never past it); over its component, centred on it across the bar;
-// fully inside the component's box when it fits along the bar; rotated exactly in a vertical bar
-// where some label doesn't fit across its component (all of that bar's); apart from each other.
-// `what` prefixes messages. Returns the labels `{c, text, bar, rotated, r, comp}` (plain rects).
+// Edit mode labels (LAYOUT.md "Edit mode"), checked: one per component, each inside the window, its
+// bar and its component's box with room around its chip (LABEL_INSET, every side: never past it);
+// centred on its component; never rotated in a horizontal bar; at full size (`--ls` 1, not cut)
+// whenever it fits its box at full size in its orientation; apart from each other. `what` prefixes
+// messages. Returns the labels `{c, text, bar, rotated, ls, cut, r, comp}` (plain rects).
+const LABEL_INSET = 4 // layoutedit.ts INSET
 export async function checkLabels(ctx, what) {
   await settle(ctx)
   const labels = await ctx.page.evaluate(() => {
@@ -112,27 +113,35 @@ export async function checkLabels(ctx, what) {
       const c = e.dataset.c
       const bar = document.getElementById(c).closest('.bar')
       const comp = r(document.querySelector(`#layout-edit .le-comp[data-c="${c}"]`))
-      const rotated = e.classList.contains('rotated')
-      e.classList.remove('rotated')
-      const across = e.offsetWidth // unrotated width: would it fit across a vertical bar?
-      e.classList.toggle('rotated', rotated)
-      return { c, text: e.textContent, bar: bar.dataset.bar, barRect: r(bar), rotated, across, r: r(e), comp, win: { w: innerWidth, h: innerHeight } }
+      const ls = parseFloat(e.style.getPropertyValue('--ls') || '1')
+      const placed = r(e)
+      // Its natural size at full scale, uncut, in its orientation (restored after).
+      const keep = { maxWidth: e.style.maxWidth, maxHeight: e.style.maxHeight, ls: e.style.getPropertyValue('--ls') }
+      Object.assign(e.style, { maxWidth: '', maxHeight: '' })
+      e.style.setProperty('--ls', '1')
+      const full = r(e)
+      e.style.setProperty('--ls', String(ls))
+      const natural = r(e)
+      Object.assign(e.style, { maxWidth: keep.maxWidth, maxHeight: keep.maxHeight })
+      e.style.setProperty('--ls', keep.ls)
+      const cut = natural.width > placed.width + 0.5 || natural.height > placed.height + 0.5
+      return { c, text: e.textContent, bar: bar.dataset.bar, barRect: r(bar), rotated: e.classList.contains('rotated'), ls, cut, full, r: placed, comp, win: { w: innerWidth, h: innerHeight } }
     })
   })
   const ov = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom
   const inside = (p, q, d = 0.5) => p.left >= q.left - d && p.top >= q.top - d && p.right <= q.right + d && p.bottom <= q.bottom + d
+  const shrink = (q, d) => ({ left: q.left + d, top: q.top + d, right: q.right - d, bottom: q.bottom - d })
   for (const [i, l] of labels.entries()) {
     const v = l.bar === 'left' || l.bar === 'right'
     const at = `${what}: label ${l.c} (${l.bar})`
     assert(l.r.left >= 0 && l.r.top >= 0 && l.r.right <= l.win.w && l.r.bottom <= l.win.h, `${at} inside the window`)
     assert(inside(l.r, l.barRect), `${at} inside its bar: ${JSON.stringify(l.r)} in ${JSON.stringify(l.barRect)}`)
-    assert(ov(l.r, l.comp), `${at} over its component`)
+    assert(inside(l.r, shrink(l.comp, LABEL_INSET)), `${at} inside its component, ${LABEL_INSET} px clear: ${JSON.stringify(l.r)} in ${JSON.stringify(l.comp)}`)
     const mid = (r, x) => (x ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2)
-    assert(Math.abs(mid(l.r, v) - mid(l.comp, v)) <= 1, `${at} centred across the bar: ${mid(l.r, v)} vs ${mid(l.comp, v)}`)
-    const fits = v ? l.r.height <= l.comp.height : l.r.width <= l.comp.width
-    if (fits) assert(inside(l.r, l.comp), `${at} inside its component: ${JSON.stringify(l.r)} in ${JSON.stringify(l.comp)}`)
-    const rotate = v && labels.some((k) => k.bar === l.bar && k.across > k.comp.width - 4) // one orientation per bar
-    assert(l.rotated === rotate, `${at} rotated=${l.rotated} (width ${l.across}, component ${l.comp.width})`)
+    for (const x of [true, false]) assert(Math.abs(mid(l.r, x) - mid(l.comp, x)) <= 1, `${at} centred on its component (${x ? 'x' : 'y'}): ${mid(l.r, x)} vs ${mid(l.comp, x)}`)
+    if (!v) assert(!l.rotated, `${at} not rotated in a horizontal bar`)
+    const roomy = l.full.width <= l.comp.width - 2 * LABEL_INSET && l.full.height <= l.comp.height - 2 * LABEL_INSET
+    if (roomy) assert(l.ls === 1 && !l.cut, `${at} fits: full size, not cut (--ls ${l.ls}, cut ${l.cut})`)
     for (const k of labels.slice(i + 1)) assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
   }
   return labels
