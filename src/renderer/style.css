@@ -1929,7 +1929,7 @@ body.empty #empty-hint {
 }
 #layout-edit .le-label.rotated {
   writing-mode: vertical-rl;
-  padding: calc(6px * var(--ls)) calc(2px * var(--ls));
+  padding: calc(7px * var(--ls)) calc(3px * var(--ls));
 }
 /* The floating box: a strip in the board's centre, not a dialog (no title, no modal frame). */
 #layout-edit .le-box {
