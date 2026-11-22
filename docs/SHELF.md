@@ -54,6 +54,7 @@ Vertical bars (left / right, S14, S15): one item per row, never side by side. Th
 
 - Narrow (48 to 99 px): icons only, centred, scaled by `narrowScale` (`core/barsize.ts`): 1x at 48 px (`NARROW_MIN`: 28 px slots, 16 px glyphs), + 1/40 per px (a horizontal bar's rate), 1.5x from 68 px (42 px slots), then kept at 1.5x, centred, up to 99 px. Rows 4 px from the bar's sides (the narrow bar's `--pad`). CSS: the bar's `--kn` becomes `--k` on `#shelf` / `#templates` (and their `--slot`, `--item`): glyphs, custom icons, dots, radii, the "+" hint and ghosts follow. Choice: a dead band (68 to 99) of centred 1.5x icons rather than a list whose titles show a letter or two; at 100 px a title shows ~6 letters.
 - List (100 px and wider): rows full width less `--pad`, `--slot` tall: the icon at the default size, then the title (`.lbl`, truncated): the tile's display title; templates: their label. Activity and ping dots at the row's end.
+- Both forms: a shelf or templates at the bar's start / end begins / ends level with the board's top / bottom edge (`LAYOUT.md` "Bars", S45).
 - Default width 160: the list form. Harness: `h.setBarSize(ctx, bar, px)` (`HARNESS.md`).
 
 ## Reveal and pin

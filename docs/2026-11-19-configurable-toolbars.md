@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 and 2 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 3 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -90,6 +90,10 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 and 2 done. Not re
 - S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent)
 - S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user)
 - S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user)
+
+## Feel round 3
+
+- S45. Side bar ends level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a tile's outer box), whatever bounds the bar there. (user)
 
 ## Persistence
 
@@ -303,6 +307,18 @@ The user's six changes after round 1.
 6. Label padding: label chips 4 px inside the box (item 3); padding 2 × 6 px (was 3 × 8), shadow lighter, so a 32 px bar's label shrinks less.
 
 Checks: `layout-bars-board-edge` (new: combos, pixels, floats, zoom, junctions), `settings-layout-resize` (new: edges over the mode, live overlays, release write, tabs overlap, component drag, Cancel / panel Cancel keep sizes), `settings-layout-labels` (32 / 40 / 60, 48 / 68 / 99 / 100 / 160, empty and one item), `h.checkLabels` (inside with 4 px, centred, full size where it fits), `shelf-ghost` (empty vertical shelf), `layout-bars-scale`, `shelf-vertical`, `layout-bars-dividers` (4 px inset when narrow), `layout-bars-size` (edges in the mode).
+
+## Feel round 3, as built (2026-11-21)
+
+Report: a narrow right bar's shelf ended past the board's bottom edge.
+
+- Cause: the side bar's padding along y was its own `--pad` (4 px narrow, 6 list) at both ends, whatever bounded it.
+  - Bar against the strip or a top / bottom bar: the board starts where the bar does; items `--pad` inside the board (4 / 6 px short).
+  - Bar against the window (borderless top, no bottom bar): the board is 6 px in (`--pad`); a narrow bar's 4 px put the last item 2 px past it (the report: borderless, no bottom bar).
+- Fix (S45): `.bar.v` padding per end = max(0, `--board-pad` - the inset there) (`--top-h`, `--bottom-h`): 0 against the strip or a bar, 6 against the window. `--board-pad`: the root's `--pad`, resolved at the root (a narrow bar's `--pad` leaves it).
+- At a junction the end component's outermost pixel row is the divider's (board edge row): the divider is drawn over it (an empty shelf's dashed box sits on the line). Choice: level with a tile's outer box, as asked; the alternative, 1 px short (above the line), not taken.
+- Found on the way: scroll anchoring in the shelf strip (and tab list). Each ghost move during a drag shifted `scrollTop` by about a slot; the edge auto-scroll fought it (visible jitter) and could end at 0 without re-targeting (ghost on slot 1). `shelf-overflow` failed once the geometry moved 6 px. Fix: `overflow-anchor: none` on both lists.
+- Checks: `layout-bars-ends` (new: left / right, 48 / 160, empty / filled shelf, eight layouts: strip, borderless, top / bottom junctions; every component first and last; the tile's box = the board).
 
 ## Scenarios affected
 
