@@ -61,7 +61,7 @@
 
 32. Flake: `markdown-links` "b.md in the same tile" and `markdown-nav` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
 
-43. Shelf reveal in a tall window: the reveal is clamped, its centre far below the item; a diagonal pointer path from the item to the reveal's centre crosses other bar rows and dismisses it (seen 2026-11-22 at 2336x1429; `shelf-vertical` now travels straight across first). Open: keep the reveal along a diagonal (a "safe triangle")? Also: scenarios depend on the screen's size (window = work area).
+43. Scenarios depend on the screen's size (window = work area; seen 1728x1083 and 2336x1429): geometric checks must not assume one. (Shelf reveal dismissed on a diagonal pointer path in a tall window: kept as is, user 2026-11-22.)
 
 ## Directories
 

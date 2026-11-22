@@ -21,8 +21,8 @@ Notes per release: what changed for the user, and what still needs a manual chec
 
 ### Pending manual testing (toolbars)
 
-- Traffic lights sit well in the title strip, with and without a top bar.
-- Side bars drag the window on empty space; shelf reveal from a side bar stays open while the pointer crosses the bar.
+- Verified 2026-11-22 (user): traffic lights in the title strip; side bars drag the window on empty space.
+- Shelf reveal from a side bar stays open while the pointer crosses the bar.
 - Edit layout mode: bars do not drag the window; preview animation and gravity flip feel right.
 - Bar edges: resize cursor shows, no window drag from the edge, double-click resets; same in the edit layout mode.
 - Edit layout mode: the side bar growing under the dragged tabs looks smooth in a real window (harness offscreen frames are sparse).
