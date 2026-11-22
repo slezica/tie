@@ -127,11 +127,11 @@ export function editLayout(done: (result: Bars | null) => void) {
         let ls = Math.max(LABEL_MIN, Math.floor(need(el, comp, rotate) * 1000) / 1000)
         el.style.setProperty('--ls', String(ls))
         // Text doesn't scale quite linearly with the font: a step smaller while it is still too big.
-        const fits = () => {
+        const inBox = () => {
           const r = el.getBoundingClientRect()
           return r.width <= w && r.height <= h
         }
-        while (ls > LABEL_MIN && !fits()) {
+        while (ls > LABEL_MIN && !inBox()) {
           ls = Math.max(LABEL_MIN, Math.round((ls - 0.02) * 1000) / 1000)
           el.style.setProperty('--ls', String(ls))
         }
