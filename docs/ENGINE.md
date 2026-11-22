@@ -6,7 +6,7 @@ What Tie assumes about Chromium, Electron, its libraries and macOS. On a depende
 
 | Dependency | Version | Pinned in |
 |---|---|---|
-| Electron | 44.11.5 (Chromium 152.0.7977.169, Node v24.22.3) | `package.json` (exact); Chromium / Node: `process.versions` (sources below read at Electron `v44.10.0`: same Chromium) |
+| Electron | 45.4.1 (Chromium 156.0.8078.100, Node v24.22.3) | `package.json` (exact); Chromium / Node: `process.versions` (sources below read at Electron `v45.4.1`, Chromium `156.0.8078.100`) |
 | `@xterm/xterm` + `@xterm/addon-fit` | 6.0.0 + 0.11.0 | `package.json` |
 | `node-pty` | 1.1.0 + `patches/node-pty+1.1.0.patch` | `package.json`, `patch-package` |
 | `tie-peer` (`native/peer`) | local; libproc, `getsockopt` | `package.json` (`file:`) |
@@ -30,7 +30,7 @@ Evidence: `scenario` (the named check fails if the assumption breaks), `source` 
 
 Security rows with their own guard and test live in `SECURITY.md` "Guards"; here only the engine side.
 
-## Chromium (152.0.7977.169)
+## Chromium (156.0.8078.100)
 
 | Assumption | Used by | Evidence | If false | Re-check on |
 |---|---|---|---|---|
@@ -45,6 +45,7 @@ Security rows with their own guard and test live in `SECURITY.md` "Guards"; here
 | Page visibility is per top-level page: a frame hidden by CSS (shelved tile) still reports `visibilityState === 'visible'` | change marks fade (`marks.ts` `visible()`); `MARKDOWN.md` "Limitations" | scenario: `engine` (shelved frame visible); docs: WHATWG HTML "page visibility" (the top-level traversable's state) | Limitation gone: marks wait while shelved | Electron major |
 | `unresponsive` comes from an input-event ack timeout (plus unload timeouts): a busy page with no input pending never fires it | guest hang → error (`BROWSER.md`); no harness test (`SECURITY.md` row "Guest crash") | source: `render_widget_host_impl.cc` `OnInputEventAckTimeout` → `RendererIsUnresponsive` | — (explains the missing test) | Electron major |
 | `calc-size()` (Chromium 129+) works in `min-width` | `#tabs` floor: `min(content, --tabs-min)` (`LAYOUT.md` "Bars") | scenario `layout-geometry` (tabs at a bar's end reach its edge, brand beside them); `CSS.supports` true on 152 (checked by hand) | Invalid declaration dropped: no floor, the tab list can shrink to `+` | Electron major |
+| An inline event handler is checked against the CSP when its attribute is set or parsed (`setAttribute`, `innerHTML`, `DOMParser`, inert documents included), not when it would first run: a `script-src-attr` violation fires even for a handler removed before any event (Chromium 156; 152 checked lazily) | `sec-mermaid` violation list (DOMPurify's scratch parse, Mermaid's sequence `onclick`); html "Scripts blocked" pill counts handlers at parse (`html-bootstrap.ts`) | by hand (`sec-mermaid` trace on 156, 2026-11-22: violations at the `parseFromString` / `setAttribute` call sites, no event fired); source not traced | Fewer violations: the scenario still passes; the pill shows only once a handler would run | Electron major |
 | A frame paused in DevTools runs no tasks: no `pong`, so > 5 s paused = hung, frame killed | watchdog (`TILES.md`) | none | Dev only | — |
 | `beforeunload` prompts only after a user activation | `BROWSER.md` "Leaving a page" | none (harness can't cover it: `BROWSER.md`) | More prompts, same dialog | Electron major |
 | Zoom levels are per origin (HostZoomMap): another tile on the same site would share it | browser zoom re-applied on every `did-navigate` | docs: Electron `web-contents.md` `setZoomFactor` note | Re-apply becomes a no-op | Electron major |
@@ -54,7 +55,7 @@ Security rows with their own guard and test live in `SECURITY.md` "Guards"; here
 | Over a window drag region (`-webkit-app-region: drag`) macOS owns the pointer: Chromium reports leaving the document | shelf reveal zone check (`SHELF.md`) | by hand | Reveal dismissal simpler | Electron major |
 | On macOS a modifier's own key-up may still report its flag held | `captured()` (`core/keymap.ts`) | by hand | — | Electron major |
 
-## Electron (44.11.5; sources read at 44.10.0)
+## Electron (45.4.1; sources read at 45.4.1)
 
 | Assumption | Used by | Evidence | If false | Re-check on |
 |---|---|---|---|---|

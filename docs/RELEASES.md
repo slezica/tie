@@ -2,6 +2,14 @@
 
 Notes per release: what changed for the user, and what still needs a manual check. Newest first. Cut with `tie-dev release --version X.Y.Z` (`PACKAGING.md`).
 
+## Unreleased
+
+- Electron 45.4.1 (Chromium 156, Node 24.22.3). No behaviour change in Tie.
+
+Pending manual testing:
+
+- A real session on Electron 45: terminals, browser tiles, drags, pinch / scroll feel (only the harness was run).
+
 ## 0.9.0 (2026-11-22)
 
 - Bars resize by dragging their board-side edge (double-click: default size). Horizontal 32 to 60 px, content scales; vertical 48 px to 30% of the window. Sizes kept in `<instance>.ui.json`.

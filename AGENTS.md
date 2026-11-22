@@ -57,7 +57,7 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 
 ## Stack
 
-- Electron 44 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
+- Electron 45 (pinned), electron-vite 5, Vite 7, TypeScript 5.9.
 - xterm.js 6 + fit addon; node-pty 1.1 (rebuilt for Electron on install; patched by `patch-package` first: `patches/node-pty+1.1.0.patch`, shells spawned TCC-disclaimed, `TERMINALS.md` "Spawn").
 - `native/peer` (`tie-peer`, N-API via node-addon-api, rebuilt for Electron on install): socket peer pid/uid, parent pid, child pids (busy terminals), process names (`tie replace` errors). Main only.
 - Markdown viewer (bundled into its IIFE): markdown-it 15 (+ footnote, deflist, emoji plugins), DOMPurify 3, highlight.js 11 (core + common languages). Diagrams: `@mermaid-js/tiny` 12.2.0 (pinned; separate asset, loaded on demand). Live updates: morphdom 2.7.8 (keyed DOM diff).
