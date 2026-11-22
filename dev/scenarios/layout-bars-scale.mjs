@@ -1,13 +1,15 @@
 // Bar content by size (LAYOUT.md "Bar sizes"): horizontal bars scale tabs, brand, shelf items and
-// templates with the thickness (32 / 40 / 60 px: heights, glyphs, centring; drop at a slot, reveal next
+// templates with the thickness (32 / 40 / 60 px: heights, glyphs, centring, tab titles 5 letters at least; drop at a slot, reveal next
 // to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow from 0.875x to 1.5x
-// then centred, list from LIST_MIN), narrow tabs keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
+// then centred, list from LIST_MIN), narrow tabs (a bar holding them: TABS_MIN, 5 letters) keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
 import { join } from 'node:path'
+import { mkdirSync, rmSync } from 'node:fs'
 import { ROOT } from '../lib.mjs'
 
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const PEAK = 8
+const TABS_MIN = 65 // core/barsize.ts: a side bar holding the tabs
 
 export default async (ctx, h) => {
   const page = ctx.page
@@ -48,6 +50,22 @@ export default async (ctx, h) => {
       }
     }, bar)
   const mid = (r) => r.y + r.height / 2
+  // Every tab's title in view: the whole title, or (cut) at least 5 letters and the ellipsis (feel
+  // round 5; a horizontal tab never shrinks below its content up to its max width: a long title).
+  const fiveLetters = (what) =>
+    page.evaluate(() => [...document.querySelectorAll('.tab-title')].map((t) => {
+      const m = document.createElement('span')
+      Object.assign(m.style, { font: getComputedStyle(t).font, position: 'absolute', whiteSpace: 'pre' })
+      m.textContent = t.textContent.slice(0, 5) + '…'
+      document.body.appendChild(m)
+      const five = m.getBoundingClientRect().width
+      m.remove()
+      return { title: t.textContent, w: t.clientWidth, five, cut: t.scrollWidth > t.clientWidth }
+    })).then((ts) => { for (const t of ts) h.assert(!t.cut || t.w >= t.five, `${what}: tab "${t.title}" shows 5 letters at least (${JSON.stringify(t)})`) ; return ts })
+  const longDir = join(ROOT, 'tmp', `${ctx.instance}-a-directory-name-long-enough-to-be-cut-in-any-tab`)
+  mkdirSync(longDir, { recursive: true })
+  const long = (await ctx.tie('add', 'terminal', '--tab', 'new', '--cwd', longDir)).id
+  await h.waitFor(ctx, async () => (await L()).tabs.some((t) => longDir.endsWith(t.title)), 'a tab titled by the long directory name')
   for (const bar of ['bottom', 'top']) {
     if (bar === 'top') await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['shelf', 'templates'] } }))
     // size → [scale, text scale]: below 35 px a compact floor (0.875), text never below its default.
@@ -64,10 +82,15 @@ export default async (ctx, h) => {
       near(s.itemGlyph, 16 * k, `${bar} ${size}: item glyph`, 0.5)
       near(s.add.width, 26 * k, `${bar} ${size}: + width`)
       for (const [what, r] of [['tab', s.tab], ['template', s.tpl], ['item', s.item], ['+', s.add]]) near(mid(r), mid(s.bar), `${bar} ${size}: ${what} centred`)
+      const ts = await fiveLetters(`${bar} ${size}`)
+      h.assert(ts.some((t) => t.cut), `${bar} ${size}: the long title is cut (${JSON.stringify(ts)})`)
       await ctx.shot(`${bar}-${size}`)
     }
     await h.setBarSize(ctx, bar, null)
   }
+  await ctx.tie('close', '--tile', long)
+  await h.waitGone(ctx, long)
+  rmSync(longDir, { recursive: true, force: true })
 
   // At 60 (top bar): a drop at a slot (pitch from the scaled item), the reveal next to the item.
   await h.setBarSize(ctx, 'top', 60)
@@ -118,8 +141,9 @@ export default async (ctx, h) => {
   for (const t of (await L()).tiles.filter((t) => t.state === 'shelved' && !items.includes(t.id) && t.id !== b)) await ctx.tie('close', '--tile', t.id)
   await h.setBarSize(ctx, 'top', null)
 
-  // Vertical: tabs, shelf, templates in the left bar; forms by width.
-  await h.setBars(ctx, layout({ left: { start: ['tabs'], end: ['shelf', 'templates'] } }))
+  // Vertical: shelf, templates in the left bar (the tabs on top: a bar holding them is never under
+  // TABS_MIN); forms by width.
+  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
   await away()
   const forms = () =>
     page.evaluate(() => {
@@ -154,22 +178,31 @@ export default async (ctx, h) => {
     await ctx.shot(`left-${w}`)
   }
 
-  // Narrow tabs (48): a title of a few letters with an ellipsis; hovering keeps it (no close button).
+  // Narrow tabs: the tabs in the left bar too; 48 asked → TABS_MIN (65): a title of 5 letters with an
+  // ellipsis; hovering keeps it (no close button).
+  await h.setBars(ctx, layout({ left: { start: ['tabs'], end: ['shelf', 'templates'] } }))
   await h.setBarSize(ctx, 'left', 48)
+  near((await box('#bar-left')).width, TABS_MIN, 'tabs in the left bar: 48 asked, TABS_MIN shown')
   const nm = (await L()).tabs.find((t) => t.title === 'node_modules')
   h.assert(nm, `a node_modules tab: ${JSON.stringify((await L()).tabs)}`)
   const title = () => page.$eval(`.tab[data-space="${nm.id}"]`, (e) => {
     const t = e.querySelector('.tab-title')
-    return { w: t.getBoundingClientRect().width, cut: t.scrollWidth > t.clientWidth, close: getComputedStyle(e.querySelector('.tab-close')).display }
+    const m = document.createElement('span')
+    Object.assign(m.style, { font: getComputedStyle(t).font, position: 'absolute', whiteSpace: 'pre' })
+    m.textContent = t.textContent.slice(0, 5) + '…'
+    document.body.appendChild(m)
+    const five = m.getBoundingClientRect().width
+    m.remove()
+    return { w: t.getBoundingClientRect().width, five, cut: t.scrollWidth > t.clientWidth, close: getComputedStyle(e.querySelector('.tab-close')).display }
   })
   const t0 = await title()
-  h.assert(t0.w >= 24 && t0.cut, `48: title shows a few letters, cut (${JSON.stringify(t0)})`)
+  h.assert(t0.w >= t0.five && t0.cut, `TABS_MIN: title shows 5 letters and the ellipsis, cut (${JSON.stringify(t0)})`)
   const tb = await h.boxOf(ctx, `.tab[data-space="${nm.id}"]`)
   await m.move(tb.x, tb.y, { steps: 3 })
   await h.settle(ctx)
   const t1 = await title()
-  h.assert(t1.close === 'none' && Math.abs(t1.w - t0.w) < 1, `48, hover: title kept, no close button (${JSON.stringify(t1)})`)
-  await ctx.shot('left-48-tab-hover')
+  h.assert(t1.close === 'none' && Math.abs(t1.w - t0.w) < 1, `TABS_MIN, hover: title kept, no close button (${JSON.stringify(t1)})`)
+  await ctx.shot('left-tabs-min-tab-hover')
   // From the list form on, hover shows the close button again.
   await h.setBarSize(ctx, 'left', 160)
   const tb2 = await h.boxOf(ctx, `.tab[data-space="${nm.id}"]`)

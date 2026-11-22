@@ -1233,8 +1233,10 @@ body.os-drag #shelf.empty::before {
 .bar.v .tab:hover .tab-close {
   display: grid;
 }
-/* Narrow bar: no close button even on hover (it would take the title's few letters); middle-click
-   and the context menu still close. Tighter padding: ~3 letters and an ellipsis at 48 px (S22). */
+/* Narrow bar: no close button even on hover (it would take the title below 5 letters near
+   TABS_MIN); middle-click and the context menu still close. Tighter padding (4 px, with the narrow
+   --pad: core/barsize.ts NARROW_TAB_PAD, NARROW_PAD): 5 letters and an ellipsis at TABS_MIN (65 px),
+   a side bar holding the tabs is never narrower (feel round 5). */
 .bar.v.narrow .tab:hover .tab-close {
   display: none;
 }

@@ -7,7 +7,7 @@
 // sizes as the mode opened (barsize.ts holdSizes / releaseSizes).
 import { BARS, COMPONENTS, COMPONENT_LABELS, barAt, barEmpty, barRects, barZones, gravityAt, indexAt, isVertical, moveComponent, placeOf, sameBars, type Bar, type BarRect, type Bars, type Component, type Gravity } from '@core/bars'
 import { bars } from './bars'
-import { shownSizes, holdSizes, releaseSizes } from './barsize'
+import { shownSizes, holdSizes, releaseSizes, growForTabs, keepGrown } from './barsize'
 import { appearance, applyAppearance } from './appearance'
 import { track } from './drag'
 import { S, debug } from './state'
@@ -203,20 +203,31 @@ export function editLayout(done: (result: Bars | null) => void) {
       const g = geometry()
       const bar = barAt(BARS.map((b) => ({ bar: b, rect: g.zones[b], exists: g.shown(b) })), x, y)
       for (const b of BARS) $(`.le-bar[data-bar="${b}"]`).classList.toggle('target', b === bar)
+      // Tabs over a side bar narrower than TABS_MIN: it grows to it, animated (feel round 5); the
+      // overlays follow each frame (re-placed, the target's bar and box too).
+      if (c === 'tabs') growForTabs(bar && isVertical(bar) ? bar : null, regrow)
       if (!bar) {
         target = null
         preview.classList.remove('shown')
         return
       }
       const v = isVertical(bar)
-      const rect = g.rects[bar]
-      const gravity = gravityAt(bar, rect, x, y)
+      const gravity = gravityAt(bar, g.rects[bar], x, y)
       const others = g.layout[bar][gravity].filter((o) => o !== c)
       const index = indexAt(others.map((o) => mid(compRect(o), v)), v ? y : x)
       target = { bar, gravity, index }
-      // The potential bar's own preview: its future rect (S34).
-      if (!g.shown(bar)) place($(`.le-bar[data-bar="${bar}"]`), rect)
+      placeTarget(g)
+    }
+    // The target's indicators: a potential bar's own preview, its future rect (S34); the box.
+    const placeTarget = (g: ReturnType<typeof geometry>) => {
+      if (!target) return
+      if (!g.shown(target.bar)) place($(`.le-bar[data-bar="${target.bar}"]`), g.rects[target.bar])
       showBox(boxRect(c, g, target))
+    }
+    const regrow = () => {
+      if (session !== s) return
+      layout()
+      if (s.cancelDrag) placeTarget(geometry()) // still dragging (a bar shrinking after the drop: overlays only)
     }
     // The box: roughly the component's size there (its length along its own bar, a long one capped
     // in the other orientation), at its landing place among the components of that list.
@@ -254,6 +265,7 @@ export function editLayout(done: (result: Bars | null) => void) {
     }
     const end = () => {
       s.cancelDrag = null
+      if (c === 'tabs') growForTabs(null) // a grown bar not dropped on: back to its size, animated
       root.classList.remove('dragging')
       document.documentElement.classList.remove('layout-dragging')
       for (const p of parts(c)) p.classList.remove('le-dragging')
@@ -271,9 +283,11 @@ export function editLayout(done: (result: Bars | null) => void) {
       up: () => {
         const t = target
         const was = started
+        const next = was && t ? moveComponent(bars(), c, t.bar, t.gravity, t.index) : null
+        // The tabs dropped on a side bar they grew: it keeps that size (its stored size; Done / Cancel).
+        if (c === 'tabs' && t && next && !sameBars(next, bars()) && isVertical(t.bar)) keepGrown(t.bar)
         end()
-        if (!was || !t) return // a click, or a drop outside every bar: nothing
-        const next = moveComponent(bars(), c, t.bar, t.gravity, t.index)
+        if (!next || !t) return // a click, or a drop outside every bar: nothing
         debug('layout', 'component drop', c, t)
         if (sameBars(next, bars())) return
         applyAppearance({ ...appearance(), bars: next })

@@ -1,6 +1,7 @@
-// Tabs in a left / right bar (mixed layouts: shelf in the other side bar, templates top / bottom): one row per tab, full width, brand above, + below; new tab (+), switch, reorder by drag along y, close (×, on hover); drops along y: a tile onto a tab, onto +, a template onto a tab, the bar space below +.
+// Tabs in a left / right bar (mixed layouts: shelf in the other side bar, templates top / bottom): one row per tab, full width, brand above, + below; new tab (+), switch, reorder by drag along y, close (×, on hover); drops along y: a tile onto a tab, onto +, a template onto a tab, the bar space below +; the minimum width (TABS_MIN): edge drag clamps, double-click default, tabs placed in a smaller bar shown at the minimum (stored kept), a window too small (the minimum wins).
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
+const TABS_MIN = 65 // core/barsize.ts: a side bar holding the tabs
 
 export default async (ctx, h) => {
   const page = ctx.page
@@ -108,4 +109,37 @@ export default async (ctx, h) => {
     await ctx.shot(`${side}-after`)
   }
   await h.assertPtySizes(ctx)
+
+  // Minimum width (feel round 5): a side bar holding the tabs is at least TABS_MIN (5 letters of a
+  // title). Edge drag clamps there (live and at the release); double-click: the default as before.
+  await h.setBars(ctx, layout({ left: { start: ['tabs'], end: [] }, right: { start: ['shelf'], end: [] }, top: { start: [], end: ['templates'] } }))
+  const width = async (b) => (await h.boxOf(ctx, `#bar-${b}`)).box.width
+  let sz = await h.resizeBar(ctx, 'left', 30, { during: async () => h.assert((await h.barSizes(ctx)).shown.left === TABS_MIN, 'edge drag: never under TABS_MIN, live') })
+  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === TABS_MIN && Math.abs((await width('left')) - TABS_MIN) <= 0.5, `edge drag clamps at TABS_MIN (${JSON.stringify(sz)})`)
+  sz = await h.resizeBar(ctx, 'right', 30) // no tabs there: the plain minimum
+  h.assert(sz.shown.right === 48, `a side bar without the tabs: 48 (${JSON.stringify(sz)})`)
+  await page.dblclick(`.bar-edge[data-bar="left"]`)
+  await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160, 'double-click: the default'))
+
+  // Tabs placed (settings) in a bar whose stored size is smaller: shown at TABS_MIN, stored kept; the
+  // tabs gone, the stored size again.
+  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
+  await h.setBarSize(ctx, 'left', 48)
+  h.assert(Math.abs((await width('left')) - 48) <= 0.5, 'left 48 without the tabs')
+  await h.setBars(ctx, layout({ top: { start: [], end: ['templates'] }, left: { start: ['tabs', 'shelf'], end: [] } }))
+  sz = await h.barSizes(ctx)
+  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === 48 && Math.abs((await width('left')) - TABS_MIN) <= 0.5, `tabs moved in: shown TABS_MIN, stored 48 (${JSON.stringify(sz)})`)
+  await ctx.shot('tabs-min-from-settings')
+  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
+  h.assert(Math.abs((await width('left')) - 48) <= 0.5, 'tabs gone: back to the stored 48')
+
+  // A window too small for both rules: TABS_MIN wins over the 30% cap (as 48 does for any side bar).
+  await h.setBars(ctx, layout({ top: { start: [], end: ['templates'] }, left: { start: ['tabs'], end: ['shelf'] } }))
+  await h.setBarSize(ctx, 'left', 160)
+  const win = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }))
+  await h.resizeWindow(ctx, 200, win.h)
+  sz = await h.barSizes(ctx)
+  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === 160, `200 px window (30% = 60): shown TABS_MIN, stored kept (${JSON.stringify(sz)})`)
+  await h.resizeWindow(ctx, win.w, win.h)
+  h.assert((await h.barSizes(ctx)).shown.left === 160, 'window back: the stored size')
 }

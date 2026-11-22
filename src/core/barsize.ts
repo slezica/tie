@@ -17,13 +17,32 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 // Static limits (no window): what a stored size may be. Whole px.
 export const clampStored = (bar: Bar, n: number) => Math.round(isVertical(bar) ? clamp(n, VBAR.min, VBAR.max) : clamp(n, HBAR.min, HBAR.max))
 
-// Largest size now: horizontal 60; vertical 30% of the window width (never under the minimum).
-export const maxSize = (bar: Bar, windowW: number) => (isVertical(bar) ? Math.max(VBAR.min, Math.floor(windowW * VBAR.share)) : HBAR.max)
-export const minSize = (bar: Bar) => (isVertical(bar) ? VBAR.min : HBAR.min)
+// A side bar holding the tabs (feel round 5, user): a tab row shows at least TAB_CHARS characters of
+// its title before the ellipsis, so such a bar is at least TABS_MIN wide. Derived once (macOS: the
+// tab title's font, 12 px semibold system font, measured in Tie's Chromium):
+// - text: TAB_CHARS × TAB_CHAR_PX (lowercase average 6.7 px, 'n' 7.35 px: 7.5 leaves room for
+//   wider letters) + the ellipsis (10.85 px → TAB_ELLIPSIS_PX), rounded up: 49 px;
+// - the row: the narrow form's tab padding (4 px each side), the narrow bar's --pad (4 px each side).
+// TABS_MIN is below LIST_MIN: a bar at the minimum is in the narrow form, whose insets these are
+// (style.css `.bar.v.narrow`). A pinged tab's dot or a custom icon take from the title (not counted).
+export const TAB_CHARS = 5
+export const TAB_CHAR_PX = 7.5
+export const TAB_ELLIPSIS_PX = 11
+export const NARROW_PAD = 4 // a narrow side bar's --pad (rows), each side
+export const NARROW_TAB_PAD = 4 // a narrow side bar's tab padding, each side
+export const TABS_MIN = Math.ceil(TAB_CHARS * TAB_CHAR_PX + TAB_ELLIPSIS_PX) + 2 * NARROW_TAB_PAD + 2 * NARROW_PAD // 65
+
+// Smallest size: horizontal 32; vertical 48, or TABS_MIN when the bar holds the tabs (`tabs`).
+export const minSize = (bar: Bar, tabs = false) => (isVertical(bar) ? (tabs ? TABS_MIN : VBAR.min) : HBAR.min)
+// Largest size now: horizontal 60; vertical 30% of the window width, never under the minimum (a
+// window too small for both: the minimum wins, as for 48).
+export const maxSize = (bar: Bar, windowW: number, tabs = false) => (isVertical(bar) ? Math.max(minSize(bar, tabs), Math.floor(windowW * VBAR.share)) : HBAR.max)
 
 // The size a bar is shown at: the stored one within today's limits. A vertical bar wider than 30% of
-// a narrowed window is shown clamped; the stored size stays (back when the window grows).
-export const shownSize = (bar: Bar, stored: number, windowW: number) => Math.round(clamp(stored, minSize(bar), maxSize(bar, windowW)))
+// a narrowed window is shown clamped; the stored size stays (back when the window grows). Same for a
+// side bar holding the tabs with a smaller stored size (a layout from settings, tabs moved there by
+// hand edit): shown at TABS_MIN, stored kept (back when the tabs leave).
+export const shownSize = (bar: Bar, stored: number, windowW: number, tabs = false) => Math.round(clamp(stored, minSize(bar, tabs), maxSize(bar, windowW, tabs)))
 
 // Content scale of a horizontal bar (S19): 1x at 40 px, 1.5x at 60 px. Below 40 it shrinks with the
 // bar down to a compact floor, SCALE_MIN (reached at 35 px; icons 14 px): smaller icons stop being
