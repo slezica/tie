@@ -107,7 +107,11 @@ export default async (ctx, h) => {
     // kept; along the bar, off the item (the bar space above the first row): dismissed.
     await h.hoverShelf(ctx, b)
     const rr = await h.rectOf(ctx, b)
-    await m.move(rr.x + rr.w / 2, rr.y + rr.h / 2, { steps: 25 })
+    // Straight across at the item's height first: in a tall window the reveal is clamped and its
+    // centre is far below the item, so a diagonal would cross other rows of the bar (dismissed).
+    const at = (await h.shelfItem(ctx, b)).box
+    await m.move(rr.x + rr.w / 2, at.y + at.height / 2, { steps: 25 })
+    await m.move(rr.x + rr.w / 2, rr.y + rr.h / 2, { steps: 10 })
     await h.settle(ctx)
     h.assert((await S()).revealed === b, `${side}: reveal kept while the pointer moves into it`)
     const ib = await h.shelfItem(ctx, b)
