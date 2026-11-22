@@ -27,6 +27,9 @@ Commands:
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
+  css-changes              CSS edited in the instance's devtools, as a unified diff against src/renderer/style.css
+                           (base: working tree or a recent commit, the closest; read-only; inline element.style
+                           edits not included; hot mode too)
   sample [name]            Open dev/samples/<name>.md (default markdown) in the instance: style iteration fixture
   mdpage [--theme NAME] [--sample NAME] [--out FILE] [--open]
                            Sample as a standalone HTML page (720 px tile, Tie palette, change marks) for devtools CSS
@@ -188,6 +191,8 @@ case "$cmd" in
     exec node dev/mdpage.mjs "$@" ;;
   frames)
     exec node dev/frames.mjs ;;
+  css-changes)
+    exec node dev/css-changes.mjs "$@" ;;
   drive)
     if [[ " $* " != *" --attach "* ]] && needs_build; then build; fi
     node dev/drive.mjs "$@" ;;

@@ -61,6 +61,10 @@
 
 32. Flake: `markdown-links` "b.md in the same tile" and `markdown-nav` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
 
+43. `shelf-vertical` fails here at "left: reveal kept while the pointer moves into it" (found 2026-11-22; fails the same at `df66ff8~1`, before feel round 2: not a recent change). Not investigated.
+
+44. UI CSS served without a charset: `tie://` (`serveShell`, `net.fetch` of a file) answers `text/css` with no `charset`; Chromium reads the built sheet as windows-1252 ("×" → "Ã—"; the document's UTF-8 isn't used). Harmless today (non-ASCII only in comments); a `content: '×'` would render wrong. Fix candidates: `; charset=utf-8` on text types in `serveShell`, or `@charset "UTF-8";` first in `style.css`. Hot mode (Vite) unaffected. `tie-dev css-changes` repairs it either way.
+
 ## Directories
 
 34. Done 2026-11-01: `docs/DIRECTORIES.md`, record `2026-10-30-working-directories.md` (cwd on every tile, inherited from the context tile).

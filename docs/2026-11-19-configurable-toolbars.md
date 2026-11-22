@@ -325,6 +325,18 @@ Report: a narrow right bar's shelf ended past the board's bottom edge.
 - Found on the way: scroll anchoring in the shelf strip (and tab list). Each ghost move during a drag shifted `scrollTop` by about a slot; the edge auto-scroll fought it (visible jitter) and could end at 0 without re-targeting (ghost on slot 1). `shelf-overflow` failed once the geometry moved 6 px. Fix: `overflow-anchor: none` on both lists.
 - Checks: `layout-bars-ends` (new: left / right, 48 / 160, empty / filled shelf, eight layouts: strip, borderless, top / bottom junctions; every component first and last; the tile's box = the board).
 
+## Feel round 4, as built (2026-11-22)
+
+1. Cancel reverts bar resizes in the edit mode (S46). `barsize.ts`: `holdSizes` (mode opens), `releaseSizes(keep)` (Done: keep; Cancel, Escape, `abortLayoutEdit`: restore, render).
+   - Writes: held while the mode is open; at its end the bars whose size the file lacks are written (the renderer tracks what it wrote / read). Choice: at the mode's end, not at each release in it. Reason: a crash or quit mid-edit leaves the sizes from before the mode (as Cancel), better than today; "at an action's end, never during a drag" holds (the action: the mode).
+   - Escape mid-resize: the edge drag ends at Escape, before the restore (else the next move re-applied a size after Cancel).
+   - After Done the panel's Cancel keeps the sizes (UI state, not the changeset): kept simple, as asked.
+   - Checks: `settings-layout-resize` (sizes before the mode set off-default: 200 / 44): in the mode the file untouched; Cancel, Escape, Escape mid-resize, the panel closed under the mode → shown, stored, file restored; a restart reads them; Done → written, kept through the panel's Cancel and a restart; double-click reverted by Cancel, kept by Done.
+2. Empty shelf, horizontal bars (S47): the dashed "+" placeholder shown at rest, muted (`color-mix` of `--muted`), accent during a drag: the side-bar rules, now for every bar. Length kept: three slots (screenshots: reads as a drop target, not too long at 32 / 40 / 60).
+   - Checks: `shelf-ghost` (every form: "+" at rest, muted, fills the strip, same box during a drag, accent then), `shelf` (empty shelf at rest: muted "+").
+3. Toolkit: `tie-dev css-changes` (`HARNESS.md` "CSS changes"): devtools CSS edits in a running instance → a diff against `style.css`. Scenario `css-changes`.
+   - Found: Chromium reads the built UI sheet as windows-1252 (`tie://` serves `text/css` without a charset): the prototype's mojibake was in the sheet, not in its handling. Repaired in the tool; the serve fix left for a decision (`PENDING.md` 44).
+
 ## Scenarios affected
 
 - Rewritten: `layout-geometry` (entirely top / bottom), `tabs-overflow` (entirely horizontal), `tabs-drops` (midpoint rule).

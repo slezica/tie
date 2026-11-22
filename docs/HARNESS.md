@@ -26,6 +26,7 @@
 - `tie-dev ptydump [dir]` (`dev/ptydump.sh`): run the moment terminals stop starting, before rebooting. One folder (`out/log/ptydump/<time>/`, `summary.txt` first): stuck processes with `sample` stacks, probes (`stat` of a tty, `openpty`, `script`, `lsof`), sleep/wake log, kernel log (2h, tty-filtered copy), Tie instance files, logs, `tie list`, samples. Every step time-boxed: a probe that hangs is reported as `HUNG` and left behind (unkillable). Then `sudo spindump -notarget 3 -file <dir>/spindump-full.txt` for kernel stacks (printed by the command).
 - `scenarios`: name + first-line description of each scenario.
 - `sample [name]`: opens `dev/samples/<name>.md` (default `markdown`: every syntax the viewer renders) in the instance, for iterating viewer styles (`tie-dev run --hot` beside it: viewer edits rebuild and the tile reloads, "Hot" above). Fixtures for other kinds go beside it.
+- `css-changes`: devtools CSS edits of `--instance` as a diff against `src/renderer/style.css` ("CSS changes").
 - `frames`: frame tree of `--instance` (dev builds; socket method `frames`, answered by main).
 - Dev socket methods answered by main (dev builds only): `frames`, `input` (`sendInputEvent`), `window-close` (the window's close, as its red button: `lib.mjs` `rpc`), `window-size {w, h}` (resize the window: layout scenarios, `h.resizeWindow`), `pick {path|null}` (next answer of the native file dialog, the picker's `…`; harness instances never show it), `guest {action}` (browser guests: `list`, `crash {id}`, `key {id, keyCode, modifiers}`, `click {id, x, y}` (guest `sendInputEvent`), `proxy {url}` (UI vs browser session `resolveProxy`)), `window-hide` (the window hidden as a hidden or covered real one: shown once transparent and inactive, then hidden; `h.hideWindow`), `window-state` (the UI page over 1 s, asked from main: `{visibility, frames}`), `key-mode` (main's key suspend level `off | fields | capture`, `keys.ts`; read-only: `h.waitKeyMode`). Gate: main's `devMethods` answer only when `!app.isPackaged`; a packaged app passes every method to the renderer, which has none of these. `lib.mjs` `rpc()` calls them.
 - Dev socket methods answered by the renderer (`driver.ts` `DEV_ONLY`, refused unless a dev build): `state` (`tie state`: internal dump, with `barSizes`), `bar-size {bar, px}` (a bar's size as a resize's end: `h.setBarSize`).
@@ -148,6 +149,18 @@ Viewer CSS tinkered in a normal browser's devtools, brought back as a diff.
 - Diagrams: waited up to 10 s; any still pending: a note above the tile. Images (`tie-content://`): `src` removed (alt only), noted.
 - Verified on each run (headless system Chrome, else Playwright's Chromium): no console errors or requests, vars on `.viewer-root`, ≥ 2 marked blocks, tile 720 px, code token colors, h1 size = the live frame's.
 - Not faithful: `rem` resolves against the page's `html`, pinned to the viewer's root size at snapshot: a `--size` / `--scale` tweak moves em sizes, not rem spacing (set `html { font-size }` to match). Fonts: the browser's (same names; system fonts on macOS). No CSP, no live behaviour (marks never fade, links inert).
+
+## CSS changes (`tie-dev css-changes`, `dev/css-changes.mjs`)
+
+UI CSS tinkered in the running instance's devtools, brought back as a diff (devtools' Changes panel copies whole files).
+
+- Read-only: CDP session on the instance's page (`connectPage`), `DOM.enable` + `CSS.enable`, `CSS.getStyleSheetText`; never a write. `--instance NAME` as other commands.
+- Sheet: found by content (the sheet holding most of `style.css`'s lines). Built: `tie://app/assets/index-*.css` = `style.css` unminified, then xterm's CSS (cut off by anchors: the file's first / last 3 lines; an edited end: the cut with the smallest diff). Hot mode (`run --hot`): the dev server's `style.css` link (`index.html`), verified by hand.
+- Base: the build may predate HEAD. Candidates: the working tree, the last 15 commits touching `style.css`; the one with the smallest diff wins, named on stderr.
+- Encoding: the built sheet is read by Chromium as windows-1252 (served without a charset, `PENDING.md`): runs of non-ASCII text that re-encode to valid UTF-8 are repaired; a char typed in devtools stays as typed. Noted on stderr when it happens.
+- Output: unified diff on stdout (3 lines of context, the rule's selector in each hunk header as git's, paths `a/src/renderer/style.css` / `b/...`: `git apply`-able), else `no changes`. Stderr: instance, sheet, base, notes. Rules added with devtools' "New Style Rule" (inspector sheet, in no file): listed after, on stderr.
+- Not included: `element.style` (inline style attribute) edits; viewer CSS (frames: `mdpage`).
+- Scenario `css-changes`: edits through a second CDP session (a declaration with a typed "×" on a line with a mojibake "×", the file's last rule, an inspector rule, an older build's sheet → its commit as the base); the command's output checked exactly, the sheet unchanged by it.
 
 ## macOS permission prompts (TCC)
 

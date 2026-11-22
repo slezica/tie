@@ -148,9 +148,9 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
   - `lib.mjs`: `launch` (fresh instance; `restart` option: same instance, files kept), `uiStatePath`, `connectPage` (CDP), `tie` / `tieAt` / `tieRaw`, `rpc` (socket), `quitInstance`, `leftovers` (per-instance pty leak check).
   - `helpers.mjs`: scenario helpers (`h`; table in `HARNESS.md`), check counter `checkCount`.
   - `drive.mjs`: scenario runner (`checks=N`, fails at 0; leak check; `ctx.restart()`: same instance again; `ctx.detach()` / `attach()`: Playwright off / on, hidden-window scenarios). `e2e.mjs`: `test --e2e` (parallel, selection, leak total, `--strict-leaks`).
-  - `scenarios/*.mjs`: e2e, named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`; plus `close-busy`, `engine` (engine assumption probes, `ENGINE.md`), `lifecycle`, `menu`, `ping`, `quit`.
+  - `scenarios/*.mjs`: e2e, named by feature, one glob each: `layout-*`, `keys*`, `tabs*`, `shelf*`, `templates`, `viewer-*`, `content-*`, `markdown*`, `html*`, `browser*`, `cwd-*`, `terminal*`, `cli*`, `settings*`, `picker*`, `sec-*`; plus `close-busy`, `css-changes` (`tie-dev css-changes`), `engine` (engine assumption probes, `ENGINE.md`), `lifecycle`, `menu`, `ping`, `quit`.
   - `viewers.mjs` (+ `viewers.d.mts`): viewer build, `--watch` for hot mode. `mdpage.mjs`: standalone markdown page. `samples/`: viewer fixtures (`markdown.md`).
-  - `frames.mjs`, `layout.mjs`, `screenshot.mjs`: `tie-dev frames | layout | screenshot`. `ptydump.sh`: pty wedge snapshot.
+  - `frames.mjs`, `layout.mjs`, `screenshot.mjs`: `tie-dev frames | layout | screenshot`. `css-changes.mjs`: `tie-dev css-changes` (devtools CSS edits → diff vs `style.css`). `ptydump.sh`: pty wedge snapshot.
   - `package-check.mjs` (fuses + smoke), `install-check.sh` (`tie-dev check-install`), `electron-check.mjs`.
   - `brand-electron.sh` (postinstall: dev Electron named Tie), `icon.cjs` (placeholder icon).
 - `electron-builder.yml`, `resources/bin/tie` (CLI launcher), `build/` (icon): packaging. `electron.vite.config.ts`: build.
@@ -237,6 +237,9 @@ Commands:
   layout                   ASCII render of the board
   frames                   Window frame tree: url, origin, pid, out-of-process (content frames)
   screenshot [file]        PNG of current state (default tmp/shots/current.png)
+  css-changes              CSS edited in the instance's devtools, as a unified diff against src/renderer/style.css
+                           (base: working tree or a recent commit, the closest; read-only; inline element.style
+                           edits not included; hot mode too)
   sample [name]            Open dev/samples/<name>.md (default markdown) in the instance: style iteration fixture
   mdpage [--theme NAME] [--sample NAME] [--out FILE] [--open]
                            Sample as a standalone HTML page (720 px tile, Tie palette, change marks) for devtools CSS
