@@ -37,7 +37,7 @@ Known, not fixed:
 - Vertical bars: tab list with titles, shelf and templates as lists (icons only when narrow), reveals open sideways.
 - Shelf overflow: fades and auto-scroll while dragging, as tabs.
 - Empty board: the bars' edges drawn as a tile's border would.
-- Edit layout mode: bars resize there too (sizes kept on Cancel); labels always inside their component, shrunk or truncated when it is small.
+- Edit layout mode: bars resize there too (Cancel / Escape restore the sizes, Done keeps them); labels always inside their component, shrunk or truncated when it is small.
 - Side bars: first and last components level with the board's top and bottom edges. Shelf / tab list no longer jitter while auto-scrolling in a drag.
 - Narrow side bars: icons at the default size from 48 px; an empty shelf there is one slot with a muted "+".
 

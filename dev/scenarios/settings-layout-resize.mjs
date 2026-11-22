@@ -1,4 +1,4 @@
-// Bar resize inside the edit layout mode: edges shown above the mode's root; a drag resizes live (dim layer, bar outlines, potential zones, component boxes, labels follow at each move), applied and persisted at the release as in normal use; double-click: the default; an edge press over a component (the tabs, full bar height) resizes, never drags the component; edges out of the way during a component drag; Cancel / Done and the panel's Cancel never revert a size.
+// Bar resize inside the edit layout mode: edges shown above the mode's root; a drag resizes live (dim layer, bar outlines, potential zones, component boxes, labels follow at each move), applied at the release, written only when the mode ends (S46); double-click: the default; an edge press over a component (the tabs, full bar height) resizes, never drags the component; edges out of the way during a component drag. Cancel, Escape (also mid-resize) and the panel closing under the mode restore the sizes as the mode opened (shown, stored, file, after a restart); Done keeps them, and the panel's Cancel after Done never reverts them.
 import { existsSync, readFileSync } from 'node:fs'
 import { uiStatePath } from '../lib.mjs'
 
@@ -6,7 +6,7 @@ const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 
 export default async (ctx, h) => {
-  const page = ctx.page
+  let page = ctx.page
   const file = uiStatePath(ctx.instance)
   const fileBars = () => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).bars : null)
   const near = (a, b, what, d = 1) => h.assert(Math.abs(a - b) <= d, `${what}: ${a} vs ${b}`)
@@ -15,6 +15,20 @@ export default async (ctx, h) => {
 
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
   const before = await h.mountedBars(ctx)
+  // Sizes before the mode, not the defaults (a revert to them is told apart from a double-click's).
+  await h.setBarSize(ctx, 'left', 200)
+  await h.setBarSize(ctx, 'top', 44)
+  await h.eventually(ctx, async () => h.assert(fileBars()?.left === 200 && fileBars()?.top === 44, `sizes before the mode written: ${JSON.stringify(fileBars())}`))
+  // Stored, shown and written sizes of left / top are these.
+  const sizesAre = async (what, left, top) => {
+    const s = await h.barSizes(ctx)
+    h.assert(s.stored.left === left && s.stored.top === top, `${what}: stored ${JSON.stringify(s.stored)}`)
+    h.assert(s.shown.left === left && s.shown.top === top, `${what}: shown ${JSON.stringify(s.shown)}`)
+    const { board } = await h.list(ctx)
+    near(board.x, left, `${what}: board left = left bar`)
+    near(board.y, STRIP + top, `${what}: board top = strip + top bar`)
+  }
+  const fileIs = (what, left, top) => h.eventually(ctx, async () => h.assert(fileBars()?.left === left && fileBars()?.top === top, `${what}: file ${JSON.stringify(fileBars())}`))
   await h.editLayout(ctx)
 
   // Edges: shown, above the mode's root (the pointer reaches them), only the shown bars'.
@@ -53,18 +67,17 @@ export default async (ctx, h) => {
   }
   await follows('edit mode, default sizes')
 
-  // Left edge dragged: live overlays, nothing written until the release; persisted at it.
+  // Left edge dragged: live overlays; applied at the release, not written (the mode's end writes).
   let s = await h.resizeBar(ctx, 'left', 90, {
     during: async () => {
       near((await h.barSizes(ctx)).shown.left, 90, 'live: left bar 90')
       await follows('live: left 90 (narrow form)')
-      h.assert(fileBars() === null, 'live: nothing written during the drag')
+      h.assert(fileBars().left === 200, 'live: nothing written during the drag')
       h.assert(await page.$('#layout-edit'), 'live: still in the mode')
       await ctx.shot('live-left-90')
     },
   })
   h.assert(s.stored.left === 90, `left 90 stored: ${JSON.stringify(s.stored)}`)
-  await h.eventually(ctx, async () => h.assert(fileBars()?.left === 90, `written at the release: ${JSON.stringify(fileBars())}`))
   await follows('after: left 90')
 
   // Top edge pressed over the tabs (they span the bar's height): a resize, not a component drag.
@@ -73,7 +86,7 @@ export default async (ctx, h) => {
   const from = { x: tabs.x + Math.min(30, tabs.width / 2), y: te.y + te.height / 2 }
   h.assert(from.y < tabs.y + tabs.height && from.y > tabs.y, 'the top edge overlaps the tabs box')
   h.assert((await hit(from.x, from.y)) === 'edge:top', `over the tabs: the edge takes the press (${await hit(from.x, from.y)})`)
-  await h.drag(ctx, from, { x: from.x, y: from.y + 16 }, {
+  await h.drag(ctx, from, { x: from.x, y: from.y + 12 }, {
     steps: 8,
     during: async () => {
       h.assert(!(await page.$('#layout-edit.dragging')) && !(await page.$('#layout-edit .le-preview.shown')), 'edge drag: no component drag, no preview')
@@ -83,8 +96,13 @@ export default async (ctx, h) => {
   s = await h.barSizes(ctx)
   h.assert(s.stored.top === 56, `top 56: ${JSON.stringify(s.stored)}`)
   h.assert(JSON.stringify(await h.mountedBars(ctx)) === JSON.stringify(before), 'layout unchanged by the edge drags')
-  await h.eventually(ctx, async () => h.assert(fileBars()?.top === 56, 'top written'))
   near((await overlays()).bars.left.y, STRIP + 56, 'left outline below the resized top bar')
+  // Double-click in the mode: the default, applied, not written either.
+  const le = await h.barEdge(ctx, 'left')
+  await page.mouse.dblclick(le.x, le.y)
+  await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160, 'double-click in the mode: 160'))
+  await follows('after the double-click')
+  h.assert(fileBars().left === 200 && fileBars().top === 44, `in the mode: file untouched: ${JSON.stringify(fileBars())}`)
   await ctx.shot('resized-in-mode')
 
   // A component drag still works; edges ignore the pointer meanwhile.
@@ -99,24 +117,72 @@ export default async (ctx, h) => {
   const pe = await page.$eval('.bar-edge[data-bar="left"]', (e) => getComputedStyle(e).pointerEvents)
   h.assert(pe !== 'none', 'after the drag: edges take the pointer again')
 
-  // Cancel: the layout back, the sizes kept (not part of the changeset).
+  // Cancel: the layout back, the sizes as the mode opened (drag, top drag, double-click reverted).
   await page.locator('#layout-edit .le-cancel').click()
   await page.waitForSelector('#layout-edit', { state: 'detached' })
   h.assert(JSON.stringify(await h.mountedBars(ctx)) === JSON.stringify(before), 'Cancel: layout as before')
-  s = await h.barSizes(ctx)
-  h.assert(s.stored.left === 90 && s.stored.top === 56, `Cancel: sizes kept: ${JSON.stringify(s.stored)}`)
+  await sizesAre('Cancel', 200, 44)
+  await fileIs('Cancel', 200, 44)
 
-  // Double-click in the mode: the default; Done, then the panel's Cancel: still the default.
+  // Escape: the same.
   await h.editLayout(ctx)
-  const le = await h.barEdge(ctx, 'left')
-  await page.mouse.dblclick(le.x, le.y)
-  await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160 && fileBars()?.left === 160, 'double-click in the mode: 160, written'))
-  await follows('after the double-click')
+  await h.resizeBar(ctx, 'left', 120)
+  await h.resizeBar(ctx, 'top', 60)
+  await sizesAre('in the mode again', 120, 60)
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('#layout-edit', { state: 'detached' })
+  await sizesAre('Escape', 200, 44)
+  await fileIs('Escape', 200, 44)
+
+  // Escape mid-resize: the mode ends, the drag with it; moves after it change nothing.
+  await h.editLayout(ctx)
+  const e0 = await h.barEdge(ctx, 'left')
+  await page.mouse.move(e0.x, e0.y)
+  await page.mouse.down()
+  await page.mouse.move(e0.x - 80, e0.y, { steps: 6 })
+  await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).shown.left === 120, 'mid-resize: left 120'))
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('#layout-edit', { state: 'detached' })
+  await page.mouse.move(e0.x - 100, e0.y, { steps: 4 })
+  await page.mouse.up()
+  await h.settle(ctx)
+  await sizesAre('Escape mid-resize', 200, 44)
+  await fileIs('Escape mid-resize', 200, 44)
+
+  // The panel closed under the mode (menu toggle: abortLayoutEdit): restored too.
+  await h.editLayout(ctx)
+  await h.resizeBar(ctx, 'left', 100)
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('tie:settings'))) // the menu's cmd+, (settings-layout)
+  await page.waitForSelector('.settings', { state: 'detached' })
+  h.assert(!(await page.$('#layout-edit')), 'menu toggle: the mode is gone')
+  await sizesAre('panel closed under the mode', 200, 44)
+  await fileIs('panel closed under the mode', 200, 44)
+
+  // A restart reads the restored sizes.
+  await ctx.restart()
+  page = ctx.page
+  await h.settle(ctx)
+  await sizesAre('restart after the cancels', 200, 44)
+
+  // Done keeps: a drag and a double-click, written at Done (not before); the panel's Cancel after
+  // Done keeps them too (sizes are UI state, not the panel's changeset).
+  await h.editLayout(ctx)
+  await h.resizeBar(ctx, 'left', 90)
+  const te2 = await h.barEdge(ctx, 'top')
+  await page.mouse.dblclick(te2.x, te2.y)
+  await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.top === 40, 'double-click in the mode: top 40'))
+  h.assert(fileBars().left === 200 && fileBars().top === 44, `before Done: file untouched: ${JSON.stringify(fileBars())}`)
   await page.locator('#layout-edit .le-done').click()
   await page.waitForSelector('#layout-edit', { state: 'detached' })
+  await sizesAre('Done', 90, 40)
+  await fileIs('Done', 90, 40)
   await page.keyboard.press('Escape')
   await page.waitForSelector('.settings', { state: 'detached' })
-  s = await h.barSizes(ctx)
-  h.assert(s.stored.left === 160 && s.stored.top === 56 && fileBars().left === 160, `panel Cancel: sizes kept: ${JSON.stringify(s.stored)}`)
+  await sizesAre('panel Cancel after Done', 90, 40)
+  await fileIs('panel Cancel after Done', 90, 40)
+  await ctx.restart()
+  page = ctx.page
+  await h.settle(ctx)
+  await sizesAre('restart after Done', 90, 40)
   h.assert(W > 0 && !/\[error\]/.test(ctx.appLog()), 'no errors')
 }

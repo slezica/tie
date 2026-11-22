@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 3 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 4 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -87,13 +87,18 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 3 done. Not rel
 ## Feel round 2
 
 - S41. Bare board (no slotted tile): the bars' edges drawn as a tile's border would draw them. (user)
-- S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent)
+- S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent) Superseded by S46.
 - S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user)
 - S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user)
 
 ## Feel round 3
 
 - S45. Side bar ends level with the board: the first component's top on the board's top edge, the last one's bottom on its bottom edge (a tile's outer box), whatever bounds the bar there. (user)
+
+## Feel round 4
+
+- S46. The edit mode's Cancel reverts bar resizes made in it: the mode remembers the stored sizes as it opens; Cancel, Escape and any abort (panel closed or rebuilt under it) restore them, shown and stored; Done keeps the new ones. Sizes stay UI state (S24), outside the panel's changeset: after Done, the panel's Cancel keeps them. (user) Written at the mode's end, not at each release in it. (agent)
+- S47. Empty shelf in a horizontal bar: the "+" placeholder shown at rest, muted, accent during a drag, as in side bars (S44). Same box at rest and during a drag. (user)
 
 ## Persistence
 

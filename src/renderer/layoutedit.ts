@@ -2,10 +2,12 @@
 // Layout row (`Modify`). The board is dimmed and takes no input; the four bars are indicated
 // (existing outlined, absent ones as potential zones); Tabs, Shelf and Templates are dragged to any
 // bar, either end, any order. Each drop is applied live; Done hands the layout back to the panel
-// (its draft), Cancel / Escape hand back nothing (the panel re-applies its draft). Never writes.
+// (its draft), Cancel / Escape hand back nothing (the panel re-applies its draft). Never writes the
+// settings. Bar resizes in the mode (S42, S46): live; Done keeps (writes) them, Cancel restores the
+// sizes as the mode opened (barsize.ts holdSizes / releaseSizes).
 import { BARS, COMPONENTS, COMPONENT_LABELS, barAt, barEmpty, barRects, barZones, gravityAt, indexAt, isVertical, moveComponent, placeOf, sameBars, type Bar, type BarRect, type Bars, type Component, type Gravity } from '@core/bars'
 import { bars } from './bars'
-import { shownSizes } from './barsize'
+import { shownSizes, holdSizes, releaseSizes } from './barsize'
 import { appearance, applyAppearance } from './appearance'
 import { track } from './drag'
 import { S, debug } from './state'
@@ -148,6 +150,7 @@ export function editLayout(done: (result: Bars | null) => void) {
     s.cancelDrag?.()
     session = null
     s.cleanup()
+    releaseSizes(!!result)
     done(result)
   }
 
@@ -296,16 +299,18 @@ export function editLayout(done: (result: Bars | null) => void) {
     },
   }
   session = s
+  holdSizes()
   debug('layout', 'edit mode', start)
   layout()
   doneBtn.focus()
 }
 
-// Leave the mode as Cancel (the panel closing or rebuilding under it): no callback.
+// Leave the mode as Cancel (the panel closing or rebuilding under it): no callback; sizes restored.
 export function abortLayoutEdit() {
   if (!session) return
   const s = session
   s.cancelDrag?.()
   session = null
   s.cleanup()
+  releaseSizes(false)
 }
