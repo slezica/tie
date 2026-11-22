@@ -47,6 +47,7 @@
   --size-right: 160px;
   --tabs-min: 140px; /* the tab list never shrinks below this: one tab and + (× --k in a horizontal bar) */
   --pad: 6px; /* board edge padding */
+  --board-pad: var(--pad); /* the board's --pad, resolved here: a narrow side bar's own --pad leaves it */
   --gap: 6px; /* between tiles */
   --title-h: 30px; /* tile title bar; collapsed bar thickness */
   --nav-h: 24px; /* nav bar under the title bar (kinds that navigate) */
@@ -139,11 +140,14 @@ body {
   bottom: 0;
   height: var(--bar-bottom);
 }
+/* Ends level with the board (feel round 3): the first component starts at the board's top edge, the
+   last ends at its bottom edge (a tile's outer border box). The bar spans --top-h to --bottom-h; the
+   board is inset max(that, --board-pad): padding is the difference (0 against a bar or the strip). */
 .bar.v {
   flex-direction: column;
   top: var(--top-h);
   bottom: var(--bottom-h);
-  padding: var(--pad) 0;
+  padding: max(0px, var(--board-pad) - var(--top-h)) 0 max(0px, var(--board-pad) - var(--bottom-h));
 }
 #bar-left {
   left: 0;
@@ -1323,8 +1327,8 @@ body.os-drag .bar.v #shelf.empty::before {
    scaled: `--k` here is the bar's `--kn` (narrowScale: 1x at 48 px, 1.5x from 68 px on), so slots,
    glyphs, dots, radii, the hint and ghosts
    follow it. Threshold and scale live in JS only (no literal here). */
-/* Narrow bars inset their rows 4 px (not --pad): room for the larger icons (1x at 48 px). Rows,
-   junction dividers and the bar's own padding follow. */
+/* Narrow bars inset their rows 4 px (not --pad): room for the larger icons (1x at 48 px). Rows and
+   junction dividers follow; the bar's ends stay level with the board (--board-pad). */
 .bar.v.narrow {
   --pad: 4px;
 }
