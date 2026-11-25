@@ -2,11 +2,9 @@
 
 Notes per release: what changed for the user, and what still needs a manual check. Newest first. Cut with `tie-dev release --version X.Y.Z` (`PACKAGING.md`).
 
-## Unreleased
-
 ## 0.10.0 (2026-11-25)
 
-- Electron 45.4.1 (Chromium 156, Node 24.22.3). No behaviour change in Tie.
+- Electron 45.5.0 (Chromium 156.0.8078.109, Node 24.22.3; was 45.4.1). No behaviour change in Tie.
 - Bar edges: no longer light up on hover in normal use (the resize cursor shows); lit while dragged. The edit layout mode keeps the hover highlight.
 - Empty shelf in a top / bottom bar: one slot wide (was three).
 - Edit layout mode: the other components make room for the dragged one's preview (was overlapping at a bar's far end, before the first or between two); the preview shows the drop's result.
