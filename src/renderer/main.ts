@@ -21,6 +21,7 @@ import { initKeys } from './keys'
 import { initTabs, setHome } from './tabs'
 import { initPaste, dropOnTile } from './paste'
 import { initSizes, initBarEdges } from './barsize'
+import { initQuit } from './quit'
 
 // SECURITY: native drops (from Finder, browsers) are no-ops. Unclaimed, the browser navigates the
 // window to a dropped link/file (and the preload would follow), and dropped text lands in xterm's
@@ -115,6 +116,7 @@ async function boot() {
   initMenu()
   initPaste()
   initDriver({ dev: !!info.dev })
+  initQuit(!!info.dev)
   initSettings()
   initKeys()
   initTabs()

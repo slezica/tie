@@ -1,4 +1,4 @@
-// Quit asks, always (⌘Q, window close; no tiles at all included): busy terminals listed (one tab: a plain
+// Quit asks, always (⌘Q, window close; no tiles at all included; titled "Quit Tie (dev)?" in a dev build): busy terminals listed (one tab: a plain
 // list; several: grouped by tab); Esc / Cancel keep Tie; ⌘Q while a dialog is open: no second one; Enter
 // (Quit has the focus) quits, every shell and its commands killed.
 import { existsSync } from 'node:fs'
@@ -26,7 +26,7 @@ export default async (ctx, h) => {
   await h.waitActive(ctx, a)
   await k('Meta+q')
   await h.eventually(ctx, async () => {
-    h.assert((await ctx.page.isVisible('.dialog.quit')) && (await ctx.page.textContent('.dialog h2')) === 'Quit Tie?', 'cmd+Q asks')
+    h.assert((await ctx.page.isVisible('.dialog.quit')) && (await ctx.page.textContent('.dialog h2')) === 'Quit Tie (dev)?', 'cmd+Q asks (a dev build: says so)')
     h.assert((await ctx.page.$$('.dialog ul.running')).length === 0, 'idle: nothing listed')
   })
   await ctx.page.keyboard.press('Escape')

@@ -10,6 +10,12 @@ import { tabTitle } from './tabs'
 const dialogOpen = () => !!document.querySelector('.dialog-backdrop')
 const para = (text: string, cls = '') => Object.assign(document.createElement('p'), { textContent: text, className: cls })
 
+// The question's title: dev (unpackaged) builds say so, beside an installed Tie (app:info `dev`).
+let title = 'Quit Tie?'
+export const initQuit = (dev: boolean) => {
+  title = dev ? 'Quit Tie (dev)?' : 'Quit Tie?'
+}
+
 let asking = false
 export async function askQuit() {
   if (asking || dialogOpen()) return
@@ -28,7 +34,7 @@ export async function askQuit() {
           if (mine.length) body.push(para(tabTitle(sp), 'group'), runningList(mine))
         }
     }
-    const ok = await confirmDialog({ cls: 'quit', title: 'Quit Tie?', body, confirm: 'Quit', focus: 'confirm' })
+    const ok = await confirmDialog({ cls: 'quit', title, body, confirm: 'Quit', focus: 'confirm' })
     if (!ok || !(await unloadAll(ids))) return
     tie.quit()
   } finally {
