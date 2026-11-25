@@ -1,7 +1,10 @@
-// Tabs in a left / right bar (mixed layouts: shelf in the other side bar, templates top / bottom): one row per tab, full width, brand above, + below; new tab (+), switch, reorder by drag along y, close (×, on hover); drops along y: a tile onto a tab, onto +, a template onto a tab, the bar space below +; the minimum width (TABS_MIN): edge drag clamps, double-click default, tabs placed in a smaller bar shown at the minimum (stored kept), a window too small (the minimum wins).
+// Tabs in a left / right bar (mixed layouts: shelf in the other side bar, templates top / bottom): one row per tab, full width, brand above, + below; new tab (+), switch, reorder by drag along y, close (×, on hover); drops along y: a tile onto a tab, onto +, a template onto a tab, the bar space below +; the minimum width (40, as any side bar: S54): edge drag clamps there, double-click default, tabs placed in or dragged (edit mode) to a 40 px bar stay at 40, a 40 px bar with the tabs renders inside itself (rows, brand, +, ellipsis; characters shown measured), a window too small (the minimum wins).
+import { join } from 'node:path'
+import { ROOT } from '../lib.mjs'
+
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
-const TABS_MIN = 65 // core/barsize.ts: a side bar holding the tabs
+const MIN = 40 // core/barsize.ts: every bar's minimum, the tabs' side bar too
 
 export default async (ctx, h) => {
   const page = ctx.page
@@ -110,36 +113,95 @@ export default async (ctx, h) => {
   }
   await h.assertPtySizes(ctx)
 
-  // Minimum width (feel round 5): a side bar holding the tabs is at least TABS_MIN (5 letters of a
-  // title). Edge drag clamps there (live and at the release); double-click: the default as before.
+  // Minimum width (S54): a side bar holding the tabs goes down to 40, as any other. Edge drag clamps
+  // there (live and at the release); double-click: the default.
   await h.setBars(ctx, layout({ left: { start: ['tabs'], end: [] }, right: { start: ['shelf'], end: [] }, top: { start: [], end: ['templates'] } }))
   const width = async (b) => (await h.boxOf(ctx, `#bar-${b}`)).box.width
-  let sz = await h.resizeBar(ctx, 'left', 30, { during: async () => h.assert((await h.barSizes(ctx)).shown.left === TABS_MIN, 'edge drag: never under TABS_MIN, live') })
-  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === TABS_MIN && Math.abs((await width('left')) - TABS_MIN) <= 0.5, `edge drag clamps at TABS_MIN (${JSON.stringify(sz)})`)
-  sz = await h.resizeBar(ctx, 'right', 30) // no tabs there: the plain minimum
-  h.assert(sz.shown.right === 40, `a side bar without the tabs: 40 (${JSON.stringify(sz)})`)
+  let sz = await h.resizeBar(ctx, 'left', 30, { during: async () => h.assert((await h.barSizes(ctx)).shown.left === MIN, 'edge drag: never under 40, live') })
+  h.assert(sz.shown.left === MIN && sz.stored.left === MIN && Math.abs((await width('left')) - MIN) <= 0.5, `edge drag clamps at 40 (${JSON.stringify(sz)})`)
+
+  // At 40 px: every row, the brand and + inside the bar (less the narrow --pad), nothing past it
+  // across; titles cut with an ellipsis (a tab titled node_modules). How many characters show:
+  // measured (logged).
+  await ctx.tie('add', 'terminal', '--tab', 'new', '--cwd', join(ROOT, 'node_modules'))
+  await h.waitFor(ctx, async () => (await L()).tabs.some((t) => t.title === 'node_modules'), 'a tab titled node_modules')
+  await h.settle(ctx)
+  const NARROW_PAD = 4
+  const tight = await page.evaluate(() => {
+    const r = (e) => e.getBoundingClientRect().toJSON()
+    const bar = document.getElementById('bar-left')
+    const fits = (t) => {
+      const m = document.createElement('span')
+      Object.assign(m.style, { font: getComputedStyle(t).font, position: 'absolute', whiteSpace: 'pre' })
+      document.body.appendChild(m)
+      let n = 0
+      for (; n < t.textContent.length; n++) {
+        m.textContent = t.textContent.slice(0, n + 1) + '…'
+        if (m.getBoundingClientRect().width > t.clientWidth + 0.5) break
+      }
+      m.remove()
+      return n
+    }
+    return {
+      bar: r(bar),
+      scroll: { w: bar.scrollWidth, cw: bar.clientWidth },
+      brand: { r: r(document.getElementById('brand')), cut: document.getElementById('brand').scrollWidth > document.getElementById('brand').clientWidth, overflow: getComputedStyle(document.getElementById('brand')).textOverflow },
+      add: r(document.getElementById('tab-add')),
+      plus: r(document.querySelector('#tab-add svg') ?? document.getElementById('tab-add')),
+      tabs: [...document.querySelectorAll('#bar-left .tab')].map((e) => {
+        const t = e.querySelector('.tab-title')
+        return { r: r(e), title: t.textContent, w: t.clientWidth, cut: t.scrollWidth > t.clientWidth, overflow: getComputedStyle(t).textOverflow, chars: fits(t) }
+      }),
+    }
+  })
+  const inBar = (q, what) => h.assert(q.left >= tight.bar.left + NARROW_PAD - 0.5 && q.right <= tight.bar.right - NARROW_PAD + 0.5, `40 px: ${what} inside the bar (${JSON.stringify(q)} in ${JSON.stringify(tight.bar)})`)
+  h.assert(tight.scroll.w <= tight.scroll.cw, `40 px: no overflow across (${JSON.stringify(tight.scroll)})`)
+  for (const [i, t] of tight.tabs.entries()) {
+    inBar(t.r, `tab ${i}`)
+    h.assert(t.overflow === 'ellipsis' && t.w > 0, `40 px: tab ${i} title with an ellipsis (${JSON.stringify(t)})`)
+  }
+  h.assert(tight.tabs.some((t) => t.cut), `40 px: a title cut (${JSON.stringify(tight.tabs)})`)
+  inBar(tight.add, '+')
+  inBar(tight.plus, "+'s glyph")
+  if (tight.brand.r.width > 0) (inBar(tight.brand.r, 'brand'), h.assert(tight.brand.overflow === 'ellipsis', '40 px: brand with an ellipsis'))
+  console.log('tabs at 40 px: characters shown', JSON.stringify(tight.tabs.map((t) => ({ title: t.title, w: t.w, chars: t.chars }))), 'brand', JSON.stringify(tight.brand))
+  await ctx.shot('tabs-40')
+
+  sz = await h.resizeBar(ctx, 'right', 30) // no tabs there: the same minimum
+  h.assert(sz.shown.right === MIN, `a side bar without the tabs: 40 (${JSON.stringify(sz)})`)
   await page.dblclick(`.bar-edge[data-bar="left"]`)
   await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160, 'double-click: the default'))
 
-  // Tabs placed (settings) in a bar whose stored size is smaller: shown at TABS_MIN, stored kept; the
-  // tabs gone, the stored size again.
+  // Tabs placed (settings) in a 40 px bar: shown at 40.
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
-  await h.setBarSize(ctx, 'left', 48)
-  h.assert(Math.abs((await width('left')) - 48) <= 0.5, 'left 48 without the tabs')
+  await h.setBarSize(ctx, 'left', MIN)
   await h.setBars(ctx, layout({ top: { start: [], end: ['templates'] }, left: { start: ['tabs', 'shelf'], end: [] } }))
   sz = await h.barSizes(ctx)
-  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === 48 && Math.abs((await width('left')) - TABS_MIN) <= 0.5, `tabs moved in: shown TABS_MIN, stored 48 (${JSON.stringify(sz)})`)
-  await ctx.shot('tabs-min-from-settings')
-  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
-  h.assert(Math.abs((await width('left')) - 48) <= 0.5, 'tabs gone: back to the stored 48')
+  h.assert(sz.shown.left === MIN && sz.stored.left === MIN && Math.abs((await width('left')) - MIN) <= 0.5, `tabs moved in: shown 40 (${JSON.stringify(sz)})`)
+  await ctx.shot('tabs-40-from-settings')
 
-  // A window too small for both rules: TABS_MIN wins over the 30% cap (as 40 does for any side bar).
+  // Tabs dragged in the edit mode onto a 40 px side bar: it stays at 40, during the drag and after.
+  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
+  await h.editLayout(ctx)
+  await h.dragComponent(ctx, 'tabs', 'left', 'start', {
+    during: async () => {
+      h.assert((await h.barSizes(ctx)).shown.left === MIN && Math.abs((await width('left')) - MIN) <= 0.5, 'edit mode: tabs over the 40 px bar, it stays 40')
+    },
+  })
+  h.assert((await h.barOf(ctx, 'tabs')).bar === 'left', 'edit mode: tabs dropped in the left bar')
+  sz = await h.barSizes(ctx)
+  h.assert(sz.shown.left === MIN && sz.stored.left === MIN && Math.abs((await width('left')) - MIN) <= 0.5, `edit mode: dropped, still 40 (${JSON.stringify(sz)})`)
+  await page.locator('#layout-edit .le-cancel').click()
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('.settings', { state: 'detached' })
+
+  // A window too small: the minimum wins over the 30% cap.
   await h.setBars(ctx, layout({ top: { start: [], end: ['templates'] }, left: { start: ['tabs'], end: ['shelf'] } }))
   await h.setBarSize(ctx, 'left', 160)
   const win = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }))
-  await h.resizeWindow(ctx, 200, win.h)
+  await h.resizeWindow(ctx, 120, win.h)
   sz = await h.barSizes(ctx)
-  h.assert(sz.shown.left === TABS_MIN && sz.stored.left === 160, `200 px window (30% = 60): shown TABS_MIN, stored kept (${JSON.stringify(sz)})`)
+  h.assert(sz.shown.left === MIN && sz.stored.left === 160, `120 px window (30% = 36): shown 40, stored kept (${JSON.stringify(sz)})`)
   await h.resizeWindow(ctx, win.w, win.h)
   h.assert((await h.barSizes(ctx)).shown.left === 160, 'window back: the stored size')
 }

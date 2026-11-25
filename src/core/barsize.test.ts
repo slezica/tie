@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { HBAR, VBAR, LIST_MIN, TABS_MIN, TAB_CHARS, TAB_CHAR_PX, TAB_ELLIPSIS_PX, NARROW_PAD, NARROW_TAB_PAD, defaultSizes, defaultSize, clampStored, minSize, maxSize, shownSize, barScale, barForm, narrowScale, cleanSizes, parseUiState, uiStateText, sameSizes } from './barsize'
+import { HBAR, VBAR, LIST_MIN, defaultSizes, defaultSize, clampStored, minSize, maxSize, shownSize, barScale, barForm, narrowScale, cleanSizes, parseUiState, uiStateText, sameSizes } from './barsize'
 
 describe('limits', () => {
   it('defaults: 40 horizontal, 160 vertical', () => {
@@ -7,9 +7,10 @@ describe('limits', () => {
     expect(defaultSize('left')).toBe(160)
     expect(defaultSize('bottom')).toBe(40)
   })
-  it('minimums: 40 for every bar', () => {
+  it('minimums: 40 for every bar, whatever it holds (the tabs too)', () => {
     expect(HBAR.min).toBe(40)
     expect(VBAR.min).toBe(40)
+    for (const bar of ['top', 'bottom', 'left', 'right'] as const) expect(minSize(bar)).toBe(40)
   })
   it('stored sizes: static limits, whole px; under 40 (an older minimum) clamped up', () => {
     expect(clampStored('top', 10)).toBe(40)
@@ -28,39 +29,6 @@ describe('limits', () => {
     expect(shownSize('right', 160, 100)).toBe(40) // 30% under the minimum: the minimum
     expect(shownSize('bottom', 80, 500)).toBe(60)
     expect(shownSize('top', 20, 500)).toBe(40)
-  })
-})
-
-describe('tabs in a side bar: TABS_MIN', () => {
-  it('fits TAB_CHARS characters and the ellipsis in a narrow-form tab row: 65 px', () => {
-    expect(TAB_CHARS).toBe(5)
-    expect(TABS_MIN).toBe(Math.ceil(TAB_CHARS * TAB_CHAR_PX + TAB_ELLIPSIS_PX) + 2 * NARROW_TAB_PAD + 2 * NARROW_PAD)
-    expect(TABS_MIN).toBe(65)
-    expect(barForm(TABS_MIN)).toBe('narrow') // the insets counted are the narrow form's
-    expect(TABS_MIN).toBeGreaterThan(VBAR.min)
-  })
-  it('the minimum of a side bar holding the tabs; others unchanged', () => {
-    expect(minSize('left', true)).toBe(TABS_MIN)
-    expect(minSize('right', false)).toBe(VBAR.min)
-    expect(minSize('right')).toBe(VBAR.min)
-    expect(minSize('top', true)).toBe(HBAR.min) // horizontal: tabs never shrink below 5 characters there (not a bar size)
-    expect(minSize('bottom')).toBe(HBAR.min)
-  })
-  it('shown: a smaller stored size shown at TABS_MIN while the bar holds the tabs', () => {
-    expect(shownSize('left', 48, 2000, true)).toBe(TABS_MIN)
-    expect(shownSize('left', 48, 2000, false)).toBe(48)
-    expect(shownSize('right', 80, 2000, true)).toBe(80)
-    expect(shownSize('right', 400, 1000, true)).toBe(300)
-  })
-  it('a window too small for both: the minimum wins over the 30% cap', () => {
-    expect(maxSize('left', 200, true)).toBe(TABS_MIN)
-    expect(shownSize('left', 160, 200, true)).toBe(TABS_MIN)
-    expect(shownSize('left', 160, 200, false)).toBe(60)
-    expect(maxSize('left', 100, false)).toBe(VBAR.min)
-    expect(VBAR.min).toBe(40)
-  })
-  it('stored sizes keep the static minimum (a bar may hold the tabs later, or no longer)', () => {
-    expect(clampStored('left', 50)).toBe(50)
   })
 })
 
