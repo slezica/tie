@@ -1907,6 +1907,19 @@ body.empty #empty-hint {
 :root.layout-editing .bar .le-dragging {
   opacity: 0.15;
 }
+/* During a drag the other components of the target list make room (layoutedit.ts: shifted to where
+   the drop puts them; their boxes and labels with them), animated as the box. Back at once at the
+   drop. */
+:root.layout-dragging .bar > .group > *,
+#layout-edit.dragging .le-comp,
+#layout-edit.dragging .le-label {
+  transition: transform 140ms ease-out;
+}
+/* Reordered in its own list: the others close over the dragged component's place; its content and
+   label hide there (layoutedit.ts `lift`). */
+:root.layout-editing .le-lifted {
+  visibility: hidden;
+}
 /* Landing place: an abstract box, as tile drop previews (#preview); moves animated. */
 #layout-edit .le-preview {
   display: none;

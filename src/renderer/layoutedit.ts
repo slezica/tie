@@ -25,27 +25,41 @@ let session: Session | null = null
 export const editingLayout = () => !!session
 
 const THRESHOLD = 4
-const GAP = 6 // between components in a bar (style.css .bar gap)
 const INSET = 4 // a label's chip stays this far inside its component's box, every side
 const LABEL_MIN = 0.65 // smallest label scale (font, padding); a label still too long is truncated
+// The templates' divider beside the shelf (style.css #templates.after-shelf / .before-shelf), along
+// the bar: its margin outside the box, its padding and border inside.
+const DIVIDER_OUT = 4
+const DIVIDER_IN = 7
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
 
-// A component's box (window px): the union of its shown parts (the brand is hidden when empty).
+// A component's box (window px): the union of its shown parts (the brand is hidden when empty), as
+// laid out: without the shift a drag gives it (`transform`, as it is now: mid-transition too).
 function compRect(c: Component): BarRect {
   const rs = parts(c)
-    .map((p) => p.getBoundingClientRect())
-    .filter((r) => r.width > 0 && r.height > 0)
+    .map((p) => {
+      const r = p.getBoundingClientRect()
+      const t = getComputedStyle(p).transform
+      const m = t === 'none' ? null : new DOMMatrixReadOnly(t)
+      return { x: r.left - (m?.m41 ?? 0), y: r.top - (m?.m42 ?? 0), w: r.width, h: r.height }
+    })
+    .filter((r) => r.w > 0 && r.h > 0)
   if (!rs.length) return { x: 0, y: 0, w: 0, h: 0 }
-  const x = Math.min(...rs.map((r) => r.left))
-  const y = Math.min(...rs.map((r) => r.top))
-  return { x, y, w: Math.max(...rs.map((r) => r.right)) - x, h: Math.max(...rs.map((r) => r.bottom)) - y }
+  const x = Math.min(...rs.map((r) => r.x))
+  const y = Math.min(...rs.map((r) => r.y))
+  return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y }
 }
 
 const lo = (r: BarRect, v: boolean) => (v ? r.y : r.x)
 const len = (r: BarRect, v: boolean) => (v ? r.h : r.w)
 const mid = (r: BarRect, v: boolean) => lo(r, v) + len(r, v) / 2
+
+// The templates with their divider now (beside the shelf in their group: bars.ts).
+const divided = (c: Component) => c === 'templates' && /\b(after|before)-shelf\b/.test(document.getElementById(c)!.className)
+// A component's length along an axis, without its divider.
+const natural = (c: Component, v: boolean) => len(compRect(c), v) - (divided(c) ? DIVIDER_IN : 0)
 
 // Geometry: the title strip (stylesheet), each bar's size (shown, barsize.ts), the applied layout.
 function geometry() {
@@ -209,6 +223,8 @@ export function editLayout(done: (result: Bars | null) => void) {
       if (!bar) {
         target = null
         preview.classList.remove('shown')
+        shift(new Map(), false)
+        lift(false)
         return
       }
       const v = isVertical(bar)
@@ -218,33 +234,66 @@ export function editLayout(done: (result: Bars | null) => void) {
       target = { bar, gravity, index }
       placeTarget(g)
     }
-    // The target's indicators: a potential bar's own preview, its future rect (S34); the box.
+    // The target's indicators: a potential bar's own preview, its future rect (S34); the box; the
+    // others of its list making room.
     const placeTarget = (g: ReturnType<typeof geometry>) => {
       if (!target) return
       if (!g.shown(target.bar)) place($(`.le-bar[data-bar="${target.bar}"]`), g.rects[target.bar])
-      showBox(boxRect(c, g, target))
+      const { box, shifts } = landing(c, g, target)
+      showBox(box)
+      shift(shifts, isVertical(target.bar))
+      const from = placeOf(g.layout, c)
+      lift(from.bar === target.bar && from.gravity === target.gravity)
+    }
+    // Its own list the target: the others close over its place, so the dragged component's content
+    // and label hide there (its outline, the drag's handle, stays).
+    const lift = (on: boolean) => {
+      for (const el of [...parts(c), $(`.le-label[data-c="${c}"]`)]) el.classList.toggle('le-lifted', on)
     }
     const regrow = () => {
       if (session !== s) return
       layout()
       if (s.cancelDrag) placeTarget(geometry()) // still dragging (a bar shrinking after the drop: overlays only)
     }
-    // The box: roughly the component's size there (its length along its own bar, a long one capped
-    // in the other orientation), at its landing place among the components of that list.
-    const boxRect = (c: Component, g: ReturnType<typeof geometry>, t: Target): BarRect => {
+    // The drop's result, drawn (feel round 6): the target list as it will be (`c` at its index),
+    // packed from its end of the bar (the bar's padding), the bar's gap between components, each at
+    // its length (the templates' divider where the shelf will be beside them). The box: `c` there,
+    // roughly its size (its length along its own bar, a long one capped in the other orientation).
+    // `shifts`: how far each other component of the list moves along the bar to its place.
+    const landing = (c: Component, g: ReturnType<typeof geometry>, t: Target) => {
       const v = isVertical(t.bar)
       const r = g.rects[t.bar]
-      const own = compRect(c)
+      const cs = getComputedStyle(document.getElementById(`bar-${t.bar}`)!)
+      const gap = parseFloat(v ? cs.rowGap : cs.columnGap) || 0
+      const a0 = lo(r, v) + (parseFloat(v ? cs.paddingTop : cs.paddingLeft) || 0)
+      const a1 = lo(r, v) + len(r, v) - (parseFloat(v ? cs.paddingBottom : cs.paddingRight) || 0)
       const ownV = isVertical(placeOf(g.layout, c).bar)
       const span = len(r, v) - 2 * g.pad
-      const length = Math.max(28, Math.min(len(own, ownV), (ownV === v ? 0.45 : 0.3) * span))
-      const others = g.layout[t.bar][t.gravity].filter((o) => o !== c).map(compRect)
-      let a: number
-      if (t.gravity === 'start') a = t.index ? lo(others[t.index - 1], v) + len(others[t.index - 1], v) + GAP : lo(r, v) + g.pad
-      else a = (t.index < others.length ? lo(others[t.index], v) - GAP : lo(r, v) + len(r, v) - g.pad) - length
-      a = Math.max(lo(r, v) + g.pad, Math.min(a, lo(r, v) + len(r, v) - g.pad - length))
+      const length = Math.max(28, Math.min(natural(c, ownV), (ownV === v ? 0.45 : 0.3) * span))
+      const others = g.layout[t.bar][t.gravity].filter((o) => o !== c)
+      const list = [...others]
+      list.splice(Math.max(0, Math.min(others.length, t.index)), 0, c)
+      const pair = (i: number) => (list[i] === 'shelf' && list[i + 1] === 'templates') || (list[i] === 'templates' && list[i + 1] === 'shelf')
+      const size = list.map((o, i) => (o === c ? length : natural(o, v)) + (o === 'templates' && (pair(i - 1) || pair(i)) ? DIVIDER_IN : 0))
+      const space = (i: number) => gap + (pair(i) ? DIVIDER_OUT : 0) // between list[i] and list[i + 1]
+      const at: number[] = []
+      if (t.gravity === 'start') list.reduce((p, _, i) => ((at[i] = p), p + size[i] + space(i)), a0)
+      else list.reduceRight((p, _, i) => ((at[i] = p - size[i]), at[i] - space(i - 1)), a1)
+      const shifts = new Map(others.map((o) => [o, at[list.indexOf(o)] - lo(compRect(o), v)]))
+      const i = list.indexOf(c)
+      const a = Math.max(a0, Math.min(at[i], a1 - size[i]))
       const cross = (v ? r.w : r.h) - 2 * g.pad
-      return v ? { x: r.x + g.pad, y: a, w: cross, h: length } : { x: a, y: r.y + g.pad, w: length, h: cross }
+      const box: BarRect = v ? { x: r.x + g.pad, y: a, w: cross, h: size[i] } : { x: a, y: r.y + g.pad, w: size[i], h: cross }
+      return { box, shifts }
+    }
+    // The others' shifts (`transform`, animated while dragging: style.css), their boxes and labels
+    // with them; an empty map: all back.
+    const shift = (shifts: Map<Component, number>, v: boolean) => {
+      for (const o of COMPONENTS) {
+        const d = shifts.get(o) ?? 0
+        const tf = Math.abs(d) < 0.5 ? '' : v ? `translateY(${d}px)` : `translateX(${d}px)`
+        for (const el of [...parts(o), $(`.le-comp[data-c="${o}"]`), $(`.le-label[data-c="${o}"]`)]) el.style.transform = tf
+      }
     }
     // Moves animated (CSS transition); the first placement of a drag jumps there.
     const showBox = (r: BarRect) => {
@@ -268,6 +317,8 @@ export function editLayout(done: (result: Bars | null) => void) {
       if (c === 'tabs') growForTabs(null) // a grown bar not dropped on: back to its size, animated
       root.classList.remove('dragging')
       document.documentElement.classList.remove('layout-dragging')
+      shift(new Map(), false) // at once: animated only while dragging (style.css)
+      lift(false)
       for (const p of parts(c)) p.classList.remove('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.remove('dragging')
       preview.classList.remove('shown')
