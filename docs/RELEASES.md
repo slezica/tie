@@ -8,12 +8,19 @@ Notes per release: what changed for the user, and what still needs a manual chec
 - Bar edges: no longer light up on hover in normal use (the resize cursor shows); lit while dragged. The edit layout mode keeps the hover highlight.
 - Empty shelf in a top / bottom bar: one slot wide (was three).
 - Edit layout mode: the other components make room for the dragged one's preview (was overlapping at a bar's far end, before the first or between two); the preview shows the drop's result.
+- Bars: every bar goes down to 40 px (top / bottom were 32, sides 48). Sizes stored below 40 grow to 40.
+- Side bars: shelf and template icons the same size as in a top / bottom bar of the same thickness (1x at 40 px, 1.5x from 60 px).
+- Tabs in a side bar: no larger minimum (was 65 px); the bar goes down to 40 px, showing a letter or two of each title. The edit layout mode no longer widens a bar under the dragged tabs.
+- Edit layout mode: the drag box shows off the bars too, following the pointer; it snaps into a bar's slot (animated) and back out. Released off the bars, it returns to the component's place (nothing changes).
+- Dev builds: the quit question reads "Quit Tie (dev)?".
 
 Manual testing:
 
 - Verified 2026-11-24 (user): a real session on Electron 45 (terminals, browser tiles, drags, pinch / scroll feel).
 - Bar edges in a visible window: no lit line on hover, lit while dragging; lit on hover in the edit layout mode.
 - Edit layout mode: the others sliding aside during a drag (feel of the 140 ms shift); a reorder in a component's own list (its content and label hide).
+- Edit layout mode, drag box: following the pointer over the board (no lag), snap into a bar and out (140 ms), the return animation after a release off the bars; Escape mid-drag (box gone at once).
+- 40 px bars in a real window: side bar with shelf / templates (icons match a 40 px bottom bar), side bar holding the tabs (rows, brand, `+`, ellipsis; "S…" edit mode label on a one-item shelf).
 
 ## 0.9.0 (2026-11-22)
 
@@ -36,7 +43,7 @@ Manual testing:
 
 - Verified 2026-11-22 (user): traffic lights in the title strip; side bars drag the window on empty space.
 - Verified 2026-11-24 (user): shelf reveal from a side bar stays open while the pointer crosses the bar; edit layout mode: bars do not drag the window, preview animation and gravity flip, side bar growing under the dragged tabs; bar edges: resize cursor, no window drag, double-click resets (edit layout mode too); the "Other" list below.
-- Found in that pass (open, `PENDING.md`): empty shelf placeholder width; side bar minimum vs top / bottom; edit mode drop at a bar's far end (previews overlap) and no preview off the bars; bar edge lit on hover in normal mode.
+- Found in that pass, fixed (see Unreleased): empty shelf placeholder width; side bar minimum vs top / bottom; edit mode drop at a bar's far end (previews overlap) and no preview off the bars; bar edge lit on hover in normal mode.
 
 ### Other
 

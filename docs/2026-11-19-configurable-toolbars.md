@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 7 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -52,7 +52,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not rel
 
 - S20. Resized in normal use by dragging the bar's board-side edge, as tile borders. (user) Feel round 2: in the edit mode too, same edges (user).
 - S21. Limits: vertical bars up to 30% of the window width; horizontal bars up to 1.5x the default thickness (60 px), the point where scaling stops. (user, 2026-11-20; was 20% of the window height, which left empty space)
-- S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune) A side bar holding the tabs: superseded by S49.
+- S22. Minimums: vertical 48 px (one icon slot plus padding; about 3 letters and an ellipsis of a tab title); horizontal 32 px. Defaults: horizontal 40 px (today's), vertical 160 px. (agent; numbers to tune) A side bar holding the tabs: superseded by S49. Minimums: superseded by S53.
 - S23. Double-click on the edge: back to the default size. (agent)
 - S24. Sizes are UI state, not settings: stored in `<stateDir>/<instance>.ui.json` (0600), written when a resize ends, read at start, clamped. (agent)
   - Reason: a resize happens outside the settings panel. The settings file is written only by Save / Recreate (`SETTINGS.md` "File"), and a write there would meet the "changed on disk" logic.
@@ -88,7 +88,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not rel
 
 - S41. Bare board (no slotted tile): the bars' edges drawn as a tile's border would draw them. (user)
 - S42. A resize in the edit mode applies and persists at the release as in normal use; sizes stay outside the panel's changeset: the mode's Cancel and the panel's Cancel never revert them (S24 holds). (agent) Superseded by S46.
-- S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user)
+- S43. Narrow side bar: shelf / templates icons 1x at 48 px (was 0.875x), less padding at the sides. (user) Scale: superseded by S53.
 - S44. Empty shelf in a side bar: one item long; the "+" placeholder shown at rest, muted; accent during a drag. Horizontal bars unchanged (three slots, blank at rest). (user) Horizontal: superseded by S47.
 
 ## Feel round 3
@@ -103,7 +103,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not rel
 ## Feel round 5
 
 - S48. Against a junction divider (a top / bottom bar there), the side bar's end component clears the divider by the gap between the bar's items (`--slot-gap`, 2 px: tab rows, shelf items, templates use the same, never scaled). Both ends, every component, narrow and list forms, empty and filled shelf. (user) Against the title strip or the window: S45 unchanged (level with the board's edge; no divider there). (agent)
-- S49. Tabs in a side bar: a tab shows at least 5 characters of its title before the ellipsis. (user)
+- S49. Tabs in a side bar: a tab shows at least 5 characters of its title before the ellipsis. (user) Superseded by S54 (a to c; d holds).
   - a. A side bar holding the tabs is at least `TABS_MIN` (65 px, `core/barsize.ts`) wide; without them, 48 as before. Edge drag clamps there; double-click: the default (160). (user)
   - Narrow form kept from 65 to 99 px (narrow insets; shelf icons 1.4x at 65); no close button there (at 65 it would leave 2 letters); from 100 px (list) the hover close button keeps 5 letters. (agent)
   - b. Edit mode: the tabs dragged over a side bar (existing or a potential zone) narrower than `TABS_MIN`: the bar grows to it, animated (140 ms), as part of the preview; off it, back, animated; dropped there: kept as the bar's stored size (Done keeps, Cancel reverts: S46). (user)
@@ -115,6 +115,13 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not rel
 - S50. Bar edge in normal use: not lit on hover (the resize cursor says it; lighting up at every crossing into the board distracted); lit while dragged. Edit mode: lit on hover and while dragged, as before. (user; "while dragged": agent's reading)
 - S51. Empty shelf in a top / bottom bar: one slot long (was three), as in side bars and as the shelf holding one. (user) Its edit mode label then reads "S…" at 32 / 40 px, "Shelf" shrunk at 60, as a one-item shelf. (agent)
 - S52. Edit mode drop preview: the box where the drop puts the component, the others of that list making room (shifted, animated); never overlapping. Bug: past the last component of an end group (or before the first of a start group, or between two) the box overlapped a component that stayed put. Reordered in its own list: the dragged component's content and label hide there. (user; hiding: agent)
+
+## Feel round 7
+
+- S53. Every bar's minimum is 40 px (top / bottom were 32, sides 48); a stored size under 40 is clamped up. The compact form below 40 goes (`SCALE_MIN`, `--kt`). Icon scale: "at the same bar size, an icon is the same size in a vertical and a horizontal bar": narrow side bars use the horizontal formula (size / 40, 1x at 40, 1.5x from 60; kept to the list form at 100). (user)
+- S54. No tabs minimum: a side bar holding the tabs goes down to 40 like any other. "It's unusable but that's up to the user, not the resizer." `TABS_MIN` and the edit mode growing a bar under the dragged tabs go; tabs dropped on a 40 px bar stay at 40. (user)
+- S55. Edit mode drag box always shown during a drag. Off the bars: follows the pointer, centred, the label's size plus padding, no lag; snapping into a bar and out animated. Released off the bars: nothing changes, the box animates back to the component's place, then hides. (user) Escape: hidden at once (agent: the simpler, as allowed).
+- S56. Dev (unpackaged) builds: the quit question reads "Quit Tie (dev)?"; packaged unchanged; other dialogs and menu labels unchanged. (user)
 
 ## Persistence
 
@@ -370,6 +377,21 @@ Three user requests and a fix.
    - Checks: `tabs-vertical` (edge drag clamps live and at release, double-click 160, settings-placed small size shown at 65 / stored 48 / back after, 200 px window), `settings-layout-tabs-min` (new: existing bar and absent zone grow / shrink, animated (model sizes sampled over the socket: offscreen frames are sparse), Escape, drop kept, file only at Done, Cancel reverts), `layout-bars-scale` (5 letters at `TABS_MIN`, no close on hover; horizontal 32 / 40 / 60: every tab shows 5 letters, a long title cut).
    - Screenshot: `tmp/shots/round5-tabs-drag-over.png`.
 4. `PENDING.md` 43 shown to the user: `tmp/shots/reveal-diagonal.png` (annotated: straight path keeps the reveal, diagonal leaves the item's row and dismisses it). No behaviour change.
+
+## Feel round 7, as built (2026-11-24)
+
+1. Minimums 40 (S53): `HBAR.min`, `VBAR.min` 40 (`core/barsize.ts`). `SCALE_MIN`, `NARROW_MIN` gone; one `sizeScale` (size / 40, 1 to 1.5) behind `barScale` and `narrowScale`. `--kt` gone from the CSS (equal to `--k` once `--k` ≥ 1).
+   - Measured (`layout-bars-scale`, top vs left at 40 / 50 / 60): slot 28 / 35 / 42, glyph 16 / 20 / 24, room across 6 / 7.5 / 9 each side, the same in both (0 px difference). No CSS change needed: the narrow `--pad` (4) leaves 6 px each side at 40, as a 40 px bottom bar.
+   - Edit mode label of a one-item or empty shelf in a 40 px side bar: "S…" (box 24 × 20 inside the inset), as in a 40 px bottom bar. Check relaxed from "uncut" to "across, shrunk" (`settings-layout-labels`).
+   - Scenario numbers moved: 32 → 40 / 50, 48 → 40, 68 / 73 → 60 (`layout-bars-size`, `-state`, `-dividers`, `-ends`, `-scale`, `shelf-ghost`, `shelf-vertical`, `settings-layout-labels`).
+2. Tabs minimum removed (S54): `TABS_MIN` and its derivation constants, the `tabs` parameter of `minSize` / `maxSize` / `shownSize`, `growForTabs` / `keepGrown` (`renderer/barsize.ts`) and their callers (`layoutedit.ts`), scenario `settings-layout-tabs-min`.
+   - At 40 px (`tabs-vertical`, measured): title box 24 px; "tie" whole, "node_modules" → "n…" (1 letter), brand "dri…"; rows, brand, `+` inside the bar, no overflow across. Shot: `tmp/shots/round7-tabs-40.png`.
+   - Checks: edge drag clamps at 40 with the tabs, settings-placed tabs at 40, edit mode drop on a 40 px bar stays 40 (during and after), 120 px window (the minimum wins).
+3. Free drag box (S55, `layoutedit.ts`): `aimBox` / `hideBox`. Goal: the landing rect (snapped) or a label-sized rect on the pointer (`FREE_PAD` 6). Free to free: drawn at once. Snap, unsnap, a new landing place, the return: animated 140 ms (`BOX_MS`, eased) from the drawn rect toward the goal, which keeps following the pointer.
+   - Clock: a keyframe-less Web Animation on the box (`preview.animate([], BOX_MS)`): the harness's `settle` waits for it; frames lerp; `finished` draws the goal (before awaiters registered after it). The CSS transition on `.le-preview` is gone (would lag a free box).
+   - Choice: JS animation, not CSS transitions. Reason: a CSS transition to a moving pointer restarts on every move (lag while unsnapping, then a jump).
+   - Checks: `settings-layout-preview` (free: centred on the pointer, label + 12 px, no animation free to free; snapped: in the bar, bar less `--pad`; release off the bars: layout unchanged, box ended at the origin rect, hidden; Escape: hidden at once), `settings-layout-drag` (the gravity flip animates: checks the box's animation, was its CSS transition). Shot: `tmp/shots/round7-free-box.png`.
+4. Quit title (S56): `app:info` already carried `dev` (= `!app.isPackaged`); `initQuit(dev)` at boot (`renderer/quit.ts`, `main.ts`). No IPC added. `quit` scenario expects "Quit Tie (dev)?". The packaged title is not checked by the harness (`check-package` doesn't open the dialog).
 
 ## Scenarios affected
 
