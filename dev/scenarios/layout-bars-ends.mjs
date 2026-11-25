@@ -37,7 +37,7 @@ export default async (ctx, h) => {
     for (const side of ['left', 'right']) {
       for (const [label, bars, borderless] of LAYOUTS(side)) {
         await h.setBars(ctx, bars, { borderless })
-        for (const px of [48, 160]) {
+        for (const px of [40, 160]) {
           await h.setBarSize(ctx, side, px)
           await h.settle(ctx)
           const what = `${side} ${px}, ${label}, shelf ${shelf}`

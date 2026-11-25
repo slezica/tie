@@ -19,17 +19,18 @@ export default async (ctx, h) => {
   h.assert(readFileSync(file, 'utf8') === uiState, 'garbage: file untouched')
   await h.settle(ctx)
 
-  // Wrong types, out of range, unknown keys: each field on its own (clamped, or its default).
-  const mixed = JSON.stringify({ bars: { top: 'tall', bottom: 1000, left: 3, right: 300.4, middle: 9 }, other: true })
+  // Wrong types, out of range (32: an old minimum, clamped up to 40), unknown keys: each field on its
+  // own (clamped, or its default).
+  const mixed = JSON.stringify({ bars: { top: 32, bottom: 1000, left: 'wide', right: 300.4, middle: 9 }, other: true })
   writeFileSync(file, mixed)
   await ctx.restart()
-  h.assert(JSON.stringify(await sizes()) === JSON.stringify({ top: 40, bottom: 60, left: 48, right: 300 }), `mixed: cleaned (${JSON.stringify(await sizes())})`)
+  h.assert(JSON.stringify(await sizes()) === JSON.stringify({ top: 40, bottom: 60, left: 160, right: 300 }), `mixed: cleaned (${JSON.stringify(await sizes())})`)
   const { board } = await h.list(ctx)
   const H = await ctx.page.evaluate(() => innerHeight)
   h.assert(Math.abs(board.y + board.h - (H - 60)) <= 1, `mixed: bottom bar shown at 60 (${board.y + board.h})`)
   await noDialog()
   h.assert(readFileSync(file, 'utf8') === mixed, 'mixed: file untouched by the load')
-  h.assert(/\[app\] ui state .*dropped: top, middle/.test(ctx.appLog()), 'mixed: dropped fields logged')
+  h.assert(/\[app\] ui state .*dropped: left, middle/.test(ctx.appLog()), 'mixed: dropped fields logged')
 
   // Wrong shape: bars not an object → defaults.
   writeFileSync(file, '{"bars": [60, 60, 200, 200]}')

@@ -103,12 +103,11 @@ body {
    are the bar's flex items). Empty space drags the window; components don't (no-drag below).
    Contest along the bar: the tab list shrinks first (and scrolls) down to --tabs-min, then the
    shelf (and scrolls); templates never. Top / bottom span the width, left / right fit between. */
-/* Content scale (S19): `--k` per bar (barsize.ts): a horizontal bar's thickness / 40 px, 0.8 to 1.5;
-   vertical bars 1 (their shelf and templates scale by width: "Forms"). Sizes in a bar are written
-   × --k; text × --kt (never below its default size: a thin bar keeps readable text). */
+/* Content scale (S19, S53): `--k` per bar (barsize.ts): a horizontal bar's thickness / 40 px, 1 to
+   1.5; vertical bars 1 (their shelf and templates scale by width: "Forms"). Sizes and text in a bar
+   are written × --k. */
 .bar {
   --k: 1;
-  --kt: max(1, var(--k));
   --slot: calc(var(--slot-base) * var(--k));
   position: absolute;
   display: flex;
@@ -171,7 +170,7 @@ body {
   flex: none;
   margin-right: calc(6px * var(--k));
   color: var(--faint);
-  font-size: calc(11px * var(--kt));
+  font-size: calc(11px * var(--k));
   font-weight: 600;
 }
 #brand:empty {
@@ -246,11 +245,11 @@ body {
   align-items: center;
   gap: calc(6px * var(--k));
   height: 100%;
-  max-width: calc(200px * var(--kt));
+  max-width: calc(200px * var(--k));
   padding: 0 calc(4px * var(--k)) 0 calc(12px * var(--k));
   border-radius: calc(6px * var(--k));
   color: var(--muted);
-  font-size: calc(12px * var(--kt));
+  font-size: calc(12px * var(--k));
   font-weight: 600;
   cursor: default;
 }
@@ -308,7 +307,7 @@ body.dragging-tab .tab {
   border-radius: calc(6px * var(--k));
   background: transparent;
   color: var(--muted);
-  font-size: calc(16px * var(--kt));
+  font-size: calc(16px * var(--k));
   cursor: pointer;
 }
 #tab-add:hover {
@@ -1333,18 +1332,18 @@ body.tile-drag .bar.v #tab-add {
   height: calc(var(--item) * var(--drag-slots, 1) + var(--slot-gap) * (var(--drag-slots, 1) - 1));
 }
 /* Narrow (`.bar.v.narrow`, barsize.ts: width under LIST_MIN, core/barsize.ts): icons only, centred,
-   scaled: `--k` here is the bar's `--kn` (narrowScale: 1x at 48 px, 1.5x from 68 px on), so slots,
-   glyphs, dots, radii, the hint and ghosts
-   follow it. Threshold and scale live in JS only (no literal here). */
-/* Narrow bars inset their rows 4 px (not --pad): room for the larger icons (1x at 48 px). Rows and
-   junction dividers follow; the bar's ends don't (--board-pad, the junction gap). */
+   scaled: `--k` here is the bar's `--kn` (narrowScale: 1x at 40 px, 1.5x from 60 px on, as a
+   horizontal bar of the same size), so slots, glyphs, dots, radii, the hint and ghosts follow it.
+   Threshold and scale live in JS only (no literal here). */
+/* Narrow bars inset their rows 4 px (not --pad): a 40 px bar holds the 1x slot (28 px) centred, 6 px
+   clear each side, as a 40 px horizontal bar does. Rows and junction dividers follow; the bar's ends
+   don't (--board-pad, the junction gap). */
 .bar.v.narrow {
   --pad: 4px;
 }
 .bar.v.narrow #shelf,
 .bar.v.narrow #templates {
   --k: var(--kn, 1);
-  --kt: max(1, var(--k));
   --slot: calc(var(--slot-base) * var(--k));
   --item: var(--slot);
   align-items: center;
@@ -1424,7 +1423,7 @@ body.tile-drag .bar.v #tab-add {
   position: absolute;
   top: 0;
   left: calc(3px * var(--k));
-  font-size: calc(9px * var(--kt));
+  font-size: calc(9px * var(--k));
   font-weight: 700;
 }
 .item .exit.ok {

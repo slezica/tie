@@ -117,7 +117,7 @@ export default async (ctx, h) => {
   let sz = await h.resizeBar(ctx, 'left', 30, { during: async () => h.assert((await h.barSizes(ctx)).shown.left === TABS_MIN, 'edge drag: never under TABS_MIN, live') })
   h.assert(sz.shown.left === TABS_MIN && sz.stored.left === TABS_MIN && Math.abs((await width('left')) - TABS_MIN) <= 0.5, `edge drag clamps at TABS_MIN (${JSON.stringify(sz)})`)
   sz = await h.resizeBar(ctx, 'right', 30) // no tabs there: the plain minimum
-  h.assert(sz.shown.right === 48, `a side bar without the tabs: 48 (${JSON.stringify(sz)})`)
+  h.assert(sz.shown.right === 40, `a side bar without the tabs: 40 (${JSON.stringify(sz)})`)
   await page.dblclick(`.bar-edge[data-bar="left"]`)
   await h.eventually(ctx, async () => h.assert((await h.barSizes(ctx)).stored.left === 160, 'double-click: the default'))
 
@@ -133,7 +133,7 @@ export default async (ctx, h) => {
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
   h.assert(Math.abs((await width('left')) - 48) <= 0.5, 'tabs gone: back to the stored 48')
 
-  // A window too small for both rules: TABS_MIN wins over the 30% cap (as 48 does for any side bar).
+  // A window too small for both rules: TABS_MIN wins over the 30% cap (as 40 does for any side bar).
   await h.setBars(ctx, layout({ top: { start: [], end: ['templates'] }, left: { start: ['tabs'], end: ['shelf'] } }))
   await h.setBarSize(ctx, 'left', 160)
   const win = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }))

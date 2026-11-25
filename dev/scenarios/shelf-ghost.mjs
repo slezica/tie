@@ -1,16 +1,16 @@
-// Shelf ghost slots and the empty shelf, per form (bottom 32 / 40 / 60, top start group, left list 160, left narrow 48 / 73): a ghost has a real item's box (size, radius, icon, title in the list form) and nothing moves at the drop: a board tile, an item reordered, a template, a group (each tile's own title); the empty shelf: one slot / item long (= the shelf holding one), every bar; the "+" hint fills it at rest, muted (every form); the "+" hint (accent) fills it during a drag, the ghost at the end the first item lands at.
+// Shelf ghost slots and the empty shelf, per form (bottom 40 / 50 / 60, top start group, left list 160, left narrow 40 / 60): a ghost has a real item's box (size, radius, icon, title in the list form) and nothing moves at the drop: a board tile, an item reordered, a template, a group (each tile's own title); the empty shelf: one slot / item long (= the shelf holding one), every bar; the "+" hint fills it at rest, muted (every form); the "+" hint (accent) fills it during a drag, the ghost at the end the first item lands at.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const GAP = 2 // --slot-gap
 
 const FORMS = [
   { name: 'bottom-40', bar: 'bottom', size: 40, bars: layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } }) },
-  { name: 'bottom-32', bar: 'bottom', size: 32, bars: layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } }) },
+  { name: 'bottom-50', bar: 'bottom', size: 50, bars: layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } }) },
   { name: 'bottom-60', bar: 'bottom', size: 60, bars: layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } }) },
   { name: 'top-start', bar: 'top', size: 40, bars: layout({ top: { start: ['shelf', 'templates'], end: [] }, bottom: { start: ['tabs'], end: [] } }) },
   { name: 'left-list', bar: 'left', size: 160, bars: layout({ left: { start: [], end: ['shelf', 'templates'] }, bottom: { start: ['tabs'], end: [] } }) },
-  { name: 'left-48', bar: 'left', size: 48, bars: layout({ left: { start: [], end: ['shelf', 'templates'] }, bottom: { start: ['tabs'], end: [] } }) },
-  { name: 'left-73', bar: 'left', size: 73, bars: layout({ left: { start: [], end: ['shelf', 'templates'] }, bottom: { start: ['tabs'], end: [] } }) },
+  { name: 'left-40', bar: 'left', size: 40, bars: layout({ left: { start: [], end: ['shelf', 'templates'] }, bottom: { start: ['tabs'], end: [] } }) },
+  { name: 'left-60', bar: 'left', size: 60, bars: layout({ left: { start: [], end: ['shelf', 'templates'] }, bottom: { start: ['tabs'], end: [] } }) },
 ]
 
 export default async (ctx, h) => {

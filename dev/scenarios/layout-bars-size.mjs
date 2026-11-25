@@ -1,5 +1,5 @@
 // Bar sizes (LAYOUT.md "Bar sizes"): drag each bar's edge (all four sides), board insets follow live;
-// clamps (horizontal 32..60, vertical 48..30% of the window, kept stored when the window narrows);
+// clamps (horizontal 40..60, vertical 40..30% of the window, kept stored when the window narrows);
 // double-click resets; edges vs corners, tile borders, edit mode (edges shown); panel layout Reset leaves sizes;
 // UI state file written at drag end only (0600) and restored after a restart.
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -50,9 +50,9 @@ export default async (ctx, h) => {
   h.assert(!(await ctx.page.evaluate(() => document.body.classList.contains('resizing-col') || document.body.classList.contains('dragging'))), 'drag classes cleared')
   await h.assertPtySizes(ctx)
 
-  // Clamps: 32 .. 60.
+  // Clamps: 40 .. 60.
   s = await h.resizeBar(ctx, 'bottom', 10)
-  h.assert(s.stored.bottom === 32, `min 32: ${s.stored.bottom}`)
+  h.assert(s.stored.bottom === 40, `min 40: ${s.stored.bottom}`)
   s = await h.resizeBar(ctx, 'bottom', 200)
   h.assert(s.stored.bottom === 60, `max 60: ${s.stored.bottom}`)
   await h.eventually(ctx, async () => h.assert(fileBars()?.bottom === 60, 'file: 60'))
@@ -96,9 +96,9 @@ export default async (ctx, h) => {
   h.assert((await hit(241, b.y + 200)) === 'left' && (await hit(243, b.y + 200)) === 'tile', `left edge: 2 px over the board (${await hit(241, b.y + 200)}, ${await hit(243, b.y + 200)})`)
   h.assert((await hit(500, STRIP + 61)) === 'top' && (await hit(500, STRIP + 63)) === 'tile', `top edge: 2 px over the board`)
 
-  // Vertical clamps: 48 .. 30% of the window width.
+  // Vertical clamps: 40 .. 30% of the window width.
   s = await h.resizeBar(ctx, 'left', 10)
-  h.assert(s.stored.left === 48, `left min 48: ${s.stored.left}`)
+  h.assert(s.stored.left === 40, `left min 40: ${s.stored.left}`)
   s = await h.resizeBar(ctx, 'left', 5000)
   const max = Math.floor(W * 0.3)
   h.assert(s.stored.left === max, `left max 30% of ${W}: ${s.stored.left} vs ${max}`)

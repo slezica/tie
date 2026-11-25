@@ -6,8 +6,8 @@ import { BARS, isVertical, type Bar } from './bars'
 
 export type BarSizes = Record<Bar, number>
 
-export const HBAR = { min: 32, def: 40, max: 60 } // top / bottom: max = 1.5x the default (S21, S22)
-export const VBAR = { min: 48, def: 160, share: 0.3, max: 1200 } // left / right: up to 30% of the window width; `max`: static cap (files)
+export const HBAR = { min: 40, def: 40, max: 60 } // top / bottom: max = 1.5x the default (S21, S22, S53)
+export const VBAR = { min: 40, def: 160, share: 0.3, max: 1200 } // left / right: up to 30% of the window width; `max`: static cap (files)
 
 export const defaultSize = (bar: Bar) => (isVertical(bar) ? VBAR.def : HBAR.def)
 export const defaultSizes = (): BarSizes => ({ top: HBAR.def, bottom: HBAR.def, left: VBAR.def, right: VBAR.def })
@@ -32,10 +32,10 @@ export const NARROW_PAD = 4 // a narrow side bar's --pad (rows), each side
 export const NARROW_TAB_PAD = 4 // a narrow side bar's tab padding, each side
 export const TABS_MIN = Math.ceil(TAB_CHARS * TAB_CHAR_PX + TAB_ELLIPSIS_PX) + 2 * NARROW_TAB_PAD + 2 * NARROW_PAD // 65
 
-// Smallest size: horizontal 32; vertical 48, or TABS_MIN when the bar holds the tabs (`tabs`).
+// Smallest size: 40 (every bar, S53), or TABS_MIN for a side bar holding the tabs (`tabs`).
 export const minSize = (bar: Bar, tabs = false) => (isVertical(bar) ? (tabs ? TABS_MIN : VBAR.min) : HBAR.min)
 // Largest size now: horizontal 60; vertical 30% of the window width, never under the minimum (a
-// window too small for both: the minimum wins, as for 48).
+// window too small for both: the minimum wins).
 export const maxSize = (bar: Bar, windowW: number, tabs = false) => (isVertical(bar) ? Math.max(minSize(bar, tabs), Math.floor(windowW * VBAR.share)) : HBAR.max)
 
 // The size a bar is shown at: the stored one within today's limits. A vertical bar wider than 30% of
@@ -44,12 +44,13 @@ export const maxSize = (bar: Bar, windowW: number, tabs = false) => (isVertical(
 // hand edit): shown at TABS_MIN, stored kept (back when the tabs leave).
 export const shownSize = (bar: Bar, stored: number, windowW: number, tabs = false) => Math.round(clamp(stored, minSize(bar, tabs), maxSize(bar, windowW, tabs)))
 
-// Content scale of a horizontal bar (S19): 1x at 40 px, 1.5x at 60 px. Below 40 it shrinks with the
-// bar down to a compact floor, SCALE_MIN (reached at 35 px; icons 14 px): smaller icons stop being
-// legible; text never shrinks (the renderer's --kt). Vertical bars: 1 (their shelf / templates
-// scale by width: the narrow form).
-export const SCALE_MIN = 0.875
-export const barScale = (bar: Bar, size: number) => (isVertical(bar) ? 1 : Math.round(clamp(size / HBAR.def, SCALE_MIN, HBAR.max / HBAR.def) * 1000) / 1000)
+// Content scale by a bar's size (S19, S53): 1x at 40 px (every bar's minimum), 1.5x at 60 px, the
+// most. The same in both orientations: at the same size, an icon is the same size in a top / bottom
+// bar (barScale) and in a narrow side bar (narrowScale).
+const sizeScale = (size: number) => Math.round(clamp(size / HBAR.def, 1, HBAR.max / HBAR.def) * 1000) / 1000
+// A horizontal bar's content scale; vertical bars: 1 (their shelf / templates scale by width: the
+// narrow form).
+export const barScale = (bar: Bar, size: number) => (isVertical(bar) ? 1 : sizeScale(size))
 
 // Vertical bar forms (S14, S15; SHELF.md "Forms"), by width. Narrow: icons only, scaled by
 // narrowScale, centred, up to LIST_MIN. List: default icons with titles, from LIST_MIN on (a title of
@@ -57,12 +58,9 @@ export const barScale = (bar: Bar, size: number) => (isVertical(bar) ? 1 : Math.
 export const LIST_MIN = 100
 export const barForm = (size: number): 'narrow' | 'list' => (size < LIST_MIN ? 'narrow' : 'list')
 
-// Content scale of a narrow vertical bar's shelf and templates (feel round 2): at the minimum width
-// the default size, NARROW_MIN (1x: 28 px slots, 16 px glyphs; round 1's SCALE_MIN read too small),
-// then growing with the width at a horizontal bar's rate (1 / 40 per px), capped at 1.5x (reached at
-// 68 px; centred after that).
-export const NARROW_MIN = 1
-export const narrowScale = (size: number) => Math.round(clamp(NARROW_MIN + (size - VBAR.min) / HBAR.def, NARROW_MIN, HBAR.max / HBAR.def) * 1000) / 1000
+// Content scale of a narrow vertical bar's shelf and templates (S53): a horizontal bar's at the same
+// size (1x at 40 px, 1.5x from 60 px on; centred after that).
+export const narrowScale = sizeScale
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 

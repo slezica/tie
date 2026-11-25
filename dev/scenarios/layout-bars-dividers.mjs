@@ -34,7 +34,7 @@ export default async (ctx, h) => {
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, bottom: { start: [], end: ['templates'] }, left: { start: [], end: ['shelf'] } }))
   for (const theme of ['dark', 'light']) {
     if (theme === 'light') await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, bottom: { start: [], end: ['templates'] }, left: { start: [], end: ['shelf'] } }), { theme: 'solarized-light' })
-    for (const [top, side] of [[40, 160], [60, 48], [32, 240]]) {
+    for (const [top, side] of [[40, 160], [60, 40], [50, 240]]) {
       await h.setBarSize(ctx, 'top', top)
       await h.setBarSize(ctx, 'bottom', top)
       await h.setBarSize(ctx, 'left', side)
@@ -63,7 +63,7 @@ export default async (ctx, h) => {
 
   // The shelf at the left bar's start: it clears the top divider by GAP; narrow and list.
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, bottom: { start: [], end: ['templates'] }, left: { start: ['shelf'], end: [] } }))
-  for (const side of [48, 160]) {
+  for (const side of [40, 160]) {
     await h.setBarSize(ctx, 'left', side)
     const { board } = await h.list(ctx)
     const d = await dividers('left')

@@ -1,7 +1,7 @@
 // Bar content by size (LAYOUT.md "Bar sizes"): horizontal bars scale tabs, brand, shelf items and
-// templates with the thickness (32 / 40 / 60 px: heights, glyphs, centring, tab titles 5 letters at least; drop at a slot, reveal next
-// to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow from 0.875x to 1.5x
-// then centred, list from LIST_MIN), narrow tabs (a bar holding them: TABS_MIN, 5 letters) keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
+// templates with the thickness (40 / 50 / 60 px: heights, glyphs, centring, tab titles 5 letters at least; drop at a slot, reveal next
+// to the item, overflow fades at 60), bottom and top; vertical forms across widths (narrow from 1x to 1.5x
+// then centred, list from LIST_MIN); at the same size (40 / 50 / 60) the same slot, glyph and room across in a top and a left bar; narrow tabs (a bar holding them: TABS_MIN, 5 letters) keep their title on hover (no close button; menu Close, middle-click); a mixed layout.
 import { join } from 'node:path'
 import { mkdirSync, rmSync } from 'node:fs'
 import { ROOT } from '../lib.mjs'
@@ -68,14 +68,14 @@ export default async (ctx, h) => {
   await h.waitFor(ctx, async () => (await L()).tabs.some((t) => longDir.endsWith(t.title)), 'a tab titled by the long directory name')
   for (const bar of ['bottom', 'top']) {
     if (bar === 'top') await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['shelf', 'templates'] } }))
-    // size → [scale, text scale]: below 35 px a compact floor (0.875), text never below its default.
-    for (const [size, k, kt] of [[40, 1, 1], [60, 1.5, 1.5], [32, 0.875, 1], [50, 1.25, 1.25]]) {
+    // size → scale (text too): size / 40.
+    for (const [size, k] of [[40, 1], [60, 1.5], [50, 1.25]]) {
       await h.setBarSize(ctx, bar, size)
       const s = await measure(bar)
       near(s.bar.height, size, `${bar} ${size}: bar height`)
       near(s.tab.height, size - 10 * k, `${bar} ${size}: tab height`)
-      near(s.tabFont, 12 * kt, `${bar} ${size}: tab text`, 0.1)
-      near(s.brandFont, 11 * kt, `${bar} ${size}: brand text`, 0.1)
+      near(s.tabFont, 12 * k, `${bar} ${size}: tab text`, 0.1)
+      near(s.brandFont, 11 * k, `${bar} ${size}: brand text`, 0.1)
       near(s.tpl.width, 28 * k, `${bar} ${size}: template slot`)
       near(s.item.height, 28 * k, `${bar} ${size}: shelf item slot`)
       near(s.glyph, 16 * k, `${bar} ${size}: template glyph`, 0.5)
@@ -154,9 +154,9 @@ export default async (ctx, h) => {
       })
       return { bar: bar.toJSON(), narrow: document.getElementById('bar-left').classList.contains('narrow'), rows }
     })
-  // width → item size (narrow: 28 × narrowScale: 1x at 48, +1/40 per px, 1.5x from 68; list: rows
+  // width → item size (narrow: 28 × narrowScale: width / 40, 1x at 40, 1.5x from 60; list: rows
   // 28 tall).
-  for (const [w, size] of [[48, 28], [54, 32.2], [60, 36.4], [68, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
+  for (const [w, size] of [[40, 28], [50, 35], [54, 37.8], [60, 42], [80, 42], [99, 42], [100, null], [160, null], [240, null]]) {
     await h.setBarSize(ctx, 'left', w)
     const f = await forms()
     near(f.bar.width, w, `left ${w}: width`)
@@ -177,6 +177,47 @@ export default async (ctx, h) => {
     }
     await ctx.shot(`left-${w}`)
   }
+
+  // Same size, same icon (S53): at 40 / 50 / 60 px a shelf item and a template have the same slot,
+  // the same glyph and the same room across in a left bar (narrow form) as in a top bar; inside the bar
+  // and their strip (no clipping).
+  const icons = (bar) =>
+    page.evaluate((bar) => {
+      const v = bar === 'left' || bar === 'right'
+      const b = document.getElementById(`bar-${bar}`).getBoundingClientRect()
+      return ['#shelf .item', '.template'].map((sel) => {
+        const e = document.querySelector(`#bar-${bar} ${sel}`)
+        const r = e.getBoundingClientRect()
+        const g = e.querySelector('svg').getBoundingClientRect()
+        const strip = e.parentElement.getBoundingClientRect()
+        const within = r.left >= strip.left - 0.5 && r.right <= strip.right + 0.5 && r.top >= strip.top - 0.5 && r.bottom <= strip.bottom + 0.5
+        return { sel, w: r.width, h: r.height, gw: g.width, gh: g.height, before: v ? r.left - b.left : r.top - b.top, after: v ? b.right - r.right : b.bottom - r.bottom, within }
+      })
+    }, bar)
+  const SIZES = [40, 50, 60]
+  const seen = { left: {}, top: {} }
+  for (const size of SIZES) {
+    await h.setBarSize(ctx, 'left', size)
+    seen.left[size] = await icons('left')
+  }
+  await h.setBarSize(ctx, 'left', null)
+  await h.setBars(ctx, layout({ top: { start: ['tabs'], end: ['shelf', 'templates'] } }))
+  await away()
+  for (const size of SIZES) {
+    await h.setBarSize(ctx, 'top', size)
+    seen.top[size] = await icons('top')
+  }
+  await h.setBarSize(ctx, 'top', null)
+  for (const size of SIZES)
+    for (const [i, l] of seen.left[size].entries()) {
+      const t = seen.top[size][i]
+      const what = `${l.sel} at ${size}`
+      for (const k of ['w', 'h', 'gw', 'gh', 'before', 'after']) near(l[k], t[k], `${what}: ${k}, left vs top`, 0.5)
+      near(l.w, 28 * (size / 40), `${what}: slot`, 0.5)
+      near(l.before, l.after, `${what}: centred across`, 0.5)
+      h.assert(l.within && t.within && l.before >= 0 && l.after >= 0, `${what}: inside the bar and its strip (${JSON.stringify([l, t])})`)
+    }
+  console.log('icons left vs top', JSON.stringify(seen))
 
   // Narrow tabs: the tabs in the left bar too; 48 asked → TABS_MIN (65): a title of 5 letters with an
   // ellipsis; hovering keeps it (no close button).
