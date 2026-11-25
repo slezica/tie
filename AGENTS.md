@@ -23,37 +23,12 @@ Full-screen Electron workspace: tabs of tiles (terminals; sandboxed content fram
 - `docs/ENGINE.md`: assumptions about Chromium, Electron, libraries, macOS (evidence per row); upgrade checklist.
 - `docs/EXECUTION-AND-SECURITY.html`: onboarding explainer: processes, realms, per-tile doors matrix, layers, threats, attack stories, change checklist (`tie add docs/EXECUTION-AND-SECURITY.html`).
 
-## Records and backlog
+## Other docs
 
 - `docs/IDEA.md`: original concept.
-- `docs/2026-10-09-mvp-spec.md`: MVP spec, decisions, plan.
-- `docs/2026-10-09-daemon-client-architecture.md`: shelved daemon/client design.
-- `docs/2026-10-09-electron-crash-on-quit.md`: node-pty quit crash + macOS launch block.
-- `docs/2026-10-10-tabs-single-renderer.md`: tabs = spaces in one renderer.
-- `docs/2026-10-14-security-research.md`: prior art (Wave, VS Code, Joplin, Hyper/Tabby, Electron), methodology.
-- `docs/2026-10-15-tile-host-plan.md`: tile host, frame isolation, keys in main; phased plan.
-- `docs/2026-10-16-viewers-and-browser-plan.md`: text, image, hex, html, browser kinds; architecture, dependency graph.
-- `docs/2026-10-17-security-review.md`: full security pass (code, Electron defaults, harness probes): settled and open issues.
-- `docs/2026-10-17-security-report.html`: the review's rich report ("Tie Security Landscape"): every issue with where, threat model, exploit, impact.
-- `docs/2026-10-21-pty-wedge.md`: macOS pty subsystem wedge (every `openpty` blocks in the kernel); diagnosis, harness check.
-- `docs/2026-10-24-terminal-block-glyphs.md`: QR/block-char gaps (DOM renderer draws with font); options; WebGL renderer research.
-- `docs/2026-10-25-shelf-in-toolbar.md`: shelf moved from the right sidebar into the toolbar; tab list overflow.
-- `docs/2026-10-28-markdown-typography.md`: markdown typography after Pico (scale knob, em/rem), code colors per theme after the author's Neovim.
-- `docs/2026-10-28-tile-management.md`: tab drops, swap (drag + keys), cmd+S, pills list + Missing, markdown list markers.
-- `docs/2026-10-30-cli-reorg.md`: CLI: current tile, `--tile`, entropic ids, `set`, aliases.
-- `docs/2026-10-30-file-picker.md`: Tie's own file picker (replaces the native dialog): design, scorer, walk, TCC research.
-- `docs/2026-10-30-working-directories.md`: tile `cwd` vs `root`, inheritance principles, pathway review.
-- `docs/2026-11-01-install-while-running.md`: `tie-dev install` while Tie runs: stage, swap at next launch, `--restart`.
-- `docs/2026-11-13-content-roots.md`: frame root = the context cwd when it holds the file; `--root`; `/` asks.
-- `docs/2026-11-14-plannotator-research.md`: Plannotator (plan/doc annotation for agents): features, hook protocol, annotation model, agent-facing text format, lessons for Tie.
-- `docs/2026-11-16-configurable-bindings.md`: configurable key bindings (model, capture, Bindings page; phased plan; manual check results).
-- `docs/2026-11-17-shelf-multi-select.md`: shelf multi-select (cmd+click), group actions (close, unshelve, move, group drag).
-- `docs/2026-11-18-terminal-color-schemes.md`: custom terminal color schemes: open questions, not started.
-- `docs/2026-11-18-test-suite-review.md`: test suite review (5 areas): findings, waves (checks made real, harness helpers, merges / renames by feature glob), final scenario list.
-- `docs/2026-11-19-configurable-toolbars.md`: four bars, movable tabs / shelf / templates, edit layout mode, bar resize: settled design, code survey, phased plan.
-- `docs/2026-11-20-content-did-not-load.md`: "Content did not load" on files opened by agents: `ready` waited on rAF (none while not painting); timer fallback; what to check if it repeats.
 - `docs/RELEASES.md`: release notes, newest first: changes, pending manual testing, known issues.
 - `docs/PENDING.md`: backlog, open questions.
+- Records: `docs/YYYY-MM-DD-<title>` (decisions, research, plans). Not listed here: `ls docs/`.
 
 ## Stack
 
