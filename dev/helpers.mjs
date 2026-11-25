@@ -101,11 +101,14 @@ export async function dragComponent(ctx, component, bar, gravity, { index, durin
 
 // Edit mode labels (LAYOUT.md "Edit mode"), checked: one per component, each inside the window, its
 // bar and its component's box with room around its chip (LABEL_INSET, every side: never past it);
-// centred on its component; never rotated in a horizontal bar; at full size (`--ls` 1, not cut)
-// whenever it fits its box at full size in its orientation; apart from each other. `what` prefixes
-// messages. Returns the labels `{c, text, bar, rotated, ls, cut, r, comp}` (plain rects).
+// centred on its component; never rotated in a horizontal bar; whole: full size (`--ls` 1) and not
+// cut (its text's scroll size within its box); its component at least the label plus LABEL_PAD each
+// side along its bar (feel round 8: grown in the mode); components apart. `crowded`: a bar too full
+// to grow its components: labels may shrink and cut there (still inside). `what` prefixes messages.
+// Returns the labels `{c, text, bar, rotated, ls, cut, r, comp}` (plain rects).
 const LABEL_INSET = 4 // layoutedit.ts INSET
-export async function checkLabels(ctx, what) {
+export const LABEL_PAD = 6 // layoutedit.ts LABEL_PAD
+export async function checkLabels(ctx, what, { crowded = false } = {}) {
   await settle(ctx)
   const labels = await ctx.page.evaluate(() => {
     const r = (e) => e.getBoundingClientRect().toJSON()
@@ -114,21 +117,11 @@ export async function checkLabels(ctx, what) {
       const bar = document.getElementById(c).closest('.bar')
       const comp = r(document.querySelector(`#layout-edit .le-comp[data-c="${c}"]`))
       const ls = parseFloat(e.style.getPropertyValue('--ls') || '1')
-      const placed = r(e)
-      // Its natural size at full scale, uncut, in its orientation (restored after).
-      const keep = { maxWidth: e.style.maxWidth, maxHeight: e.style.maxHeight, ls: e.style.getPropertyValue('--ls') }
-      Object.assign(e.style, { maxWidth: '', maxHeight: '' })
-      e.style.setProperty('--ls', '1')
-      const full = r(e)
-      e.style.setProperty('--ls', String(ls))
-      const natural = r(e)
-      Object.assign(e.style, { maxWidth: keep.maxWidth, maxHeight: keep.maxHeight })
-      e.style.setProperty('--ls', keep.ls)
-      const cut = natural.width > placed.width + 0.5 || natural.height > placed.height + 0.5
-      return { c, text: e.textContent, bar: bar.dataset.bar, barRect: r(bar), rotated: e.classList.contains('rotated'), ls, cut, full, r: placed, comp, win: { w: innerWidth, h: innerHeight } }
+      const cut = e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight
+      return { c, text: e.textContent, bar: bar.dataset.bar, barRect: r(bar), rotated: e.classList.contains('rotated'), ls, cut, r: r(e), comp, win: { w: innerWidth, h: innerHeight } }
     })
   })
-  const ov = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom
+  const ov = (p, q) => p.left < q.right - 0.5 && q.left < p.right - 0.5 && p.top < q.bottom - 0.5 && q.top < p.bottom - 0.5
   const inside = (p, q, d = 0.5) => p.left >= q.left - d && p.top >= q.top - d && p.right <= q.right + d && p.bottom <= q.bottom + d
   const shrink = (q, d) => ({ left: q.left + d, top: q.top + d, right: q.right - d, bottom: q.bottom - d })
   for (const [i, l] of labels.entries()) {
@@ -140,11 +133,37 @@ export async function checkLabels(ctx, what) {
     const mid = (r, x) => (x ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2)
     for (const x of [true, false]) assert(Math.abs(mid(l.r, x) - mid(l.comp, x)) <= 1, `${at} centred on its component (${x ? 'x' : 'y'}): ${mid(l.r, x)} vs ${mid(l.comp, x)}`)
     if (!v) assert(!l.rotated, `${at} not rotated in a horizontal bar`)
-    const roomy = l.full.width <= l.comp.width - 2 * LABEL_INSET && l.full.height <= l.comp.height - 2 * LABEL_INSET
-    if (roomy) assert(l.ls === 1 && !l.cut, `${at} fits: full size, not cut (--ls ${l.ls}, cut ${l.cut})`)
-    for (const k of labels.slice(i + 1)) assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
+    if (!crowded) {
+      assert(l.ls === 1 && !l.cut, `${at} whole: full size, not cut (--ls ${l.ls}, cut ${l.cut})`)
+      const along = (r) => (v ? r.height : r.width)
+      assert(along(l.comp) >= along(l.r) + 2 * LABEL_PAD - 0.5, `${at}: component ${along(l.comp)} long, at least the label's ${along(l.r)} + ${LABEL_PAD} each side`)
+    }
+    for (const k of labels.slice(i + 1)) {
+      assert(!ov(l.r, k.r), `${what}: labels ${l.c} / ${k.c} apart`)
+      assert(!ov(l.comp, k.comp), `${what}: components ${l.c} / ${k.c} apart: ${JSON.stringify(l.comp)} vs ${JSON.stringify(k.comp)}`)
+    }
   }
   return labels
+}
+
+// The edit mode's drag box and its label chip, as drawn: `{shown, box, chip, text, rotated, cut}`.
+export const dragBox = (ctx) =>
+  ctx.page.evaluate(() => {
+    const e = document.querySelector('#layout-edit .le-preview')
+    const chip = e.querySelector('.le-chip')
+    return { shown: getComputedStyle(e).display !== 'none', box: e.getBoundingClientRect().toJSON(), chip: chip.getBoundingClientRect().toJSON(), text: chip.textContent, rotated: chip.classList.contains('rotated'), cut: chip.scrollWidth > chip.clientWidth || chip.scrollHeight > chip.clientHeight }
+  })
+
+// The drag box holds the dragged component's label (feel round 8): shown, its text `label`, whole
+// (not cut), inside the box, centred on it. Returns the box state (dragBox).
+export async function checkDragBox(ctx, label, what) {
+  const b = await dragBox(ctx)
+  const { box, chip } = b
+  assert(b.shown && b.text === label, `${what}: box shown with its label "${label}" (${b.shown}, "${b.text}")`)
+  assert(!b.cut && chip.width > 0, `${what}: box label whole`)
+  assert(chip.left >= box.left - 0.5 && chip.top >= box.top - 0.5 && chip.right <= box.right + 0.5 && chip.bottom <= box.bottom + 0.5, `${what}: box label inside the box: ${JSON.stringify(chip)} in ${JSON.stringify(box)}`)
+  for (const [a, z] of [['left', 'right'], ['top', 'bottom']]) assert(Math.abs((chip[a] + chip[z]) / 2 - (box[a] + box[z]) / 2) <= 1, `${what}: box label centred (${a})`)
+  return b
 }
 
 // A bar's size (LAYOUT.md "Bar sizes") set as a resize ending would: dev socket `bar-size` (clamped to

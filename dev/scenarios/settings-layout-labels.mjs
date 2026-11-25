@@ -1,59 +1,69 @@
-// Edit layout mode labels by bar size: always inside their component's box with room around the chip (never past it), centred; shrunk then truncated where the box is small (an empty or one-item shelf), full size where they fit; horizontal bars at 40 / 50 / 60 (empty and one-item shelf); side bar at 40 / 60 / 99 / 100 / 160 (empty and one item): rotated where that fits them better, across in the list form; light theme.
+// Edit layout mode labels (feel round 8): every label whole (full size, not cut), inside its component's box with room around the chip, centred; components grown along their bar to the label plus 6 px each side, never overlapping; tabs, shelf (empty and one item) and templates in each bar at 40 and 60, a side bar at 99 and 160; side bars rotate their labels below the longest one's width (40, 60), across at 99 and 160; leaving the mode gives every component its pre-mode box back (no leftover style); a bar too full to grow its components: labels shrink, then cut, still inside their component and bar; light theme.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
+const COMPONENTS = ['tabs', 'shelf', 'templates']
 
 export default async (ctx, h) => {
   const page = ctx.page
-  const check = async (what) => {
+  // Each component's box as laid out (tabs: with the brand), and whether it carries a mode style.
+  const boxes = () =>
+    page.evaluate((cs) => {
+      const union = (rs) => {
+        rs = rs.filter((x) => x.width > 0 && x.height > 0)
+        const left = Math.min(...rs.map((x) => x.left))
+        const top = Math.min(...rs.map((x) => x.top))
+        return { left, top, width: Math.max(...rs.map((x) => x.right)) - left, height: Math.max(...rs.map((x) => x.bottom)) - top }
+      }
+      return Object.fromEntries(cs.map((c) => [c, { ...union((c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id).getBoundingClientRect())), styled: !!document.getElementById(c).style.getPropertyValue('--le-min') }]))
+    }, COMPONENTS)
+  const check = async (what, opts) => {
+    const before = await boxes()
     await h.editLayout(ctx)
-    const labels = await h.checkLabels(ctx, what)
+    const labels = await h.checkLabels(ctx, what, opts)
     await ctx.shot(what)
     await page.locator('#layout-edit .le-cancel').click()
     await page.keyboard.press('Escape')
     await page.waitForSelector('.settings', { state: 'detached' })
+    await h.settle(ctx)
+    const after = await boxes()
+    for (const c of COMPONENTS) {
+      h.assert(!after[c].styled, `${what}: ${c} has no mode style after the mode`)
+      for (const k of ['left', 'top', 'width', 'height']) h.assert(Math.abs(after[c][k] - before[c][k]) <= 0.5, `${what}: ${c} back to its pre-mode box (${k}: ${after[c][k]} vs ${before[c][k]})`)
+    }
     return Object.fromEntries(labels.map((l) => [l.c, l]))
   }
 
-  // Bottom bar (default layout), empty shelf (one slot, feel round 6): tabs and templates labels
-  // full size at every size; the shelf's shrunk, as with one item (below).
-  for (const size of [40, 50, 60]) {
-    await h.setBarSize(ctx, 'bottom', size)
-    const l = await check(`bottom-${size}-empty`)
-    for (const c of ['tabs', 'templates']) h.assert(l[c].ls === 1 && !l[c].cut, `bottom ${size}: ${c} label full size (${l[c].ls})`)
-    h.assert(l.shelf.ls < 1, `bottom ${size}, empty: the shelf label shrunk (${l.shelf.ls})`)
+  // All three in one bar (tabs at the start, shelf and templates at the end: the divider), each bar
+  // at 40 and 60, empty shelf then one item. Side bars also at 99 (narrow, widest) and 160 (list).
+  for (const shelf of ['empty', 'one-item']) {
+    if (shelf === 'one-item') {
+      await h.waitTile(ctx, (await ctx.tie('add', 'terminal', '--shelved')).id)
+    }
+    for (const bar of ['bottom', 'top', 'left', 'right']) {
+      const v = bar === 'left' || bar === 'right'
+      await h.setBars(ctx, layout({ [bar]: { start: ['tabs'], end: ['shelf', 'templates'] } }))
+      for (const size of v ? [40, 60, 99, 160] : [40, 60]) {
+        await h.setBarSize(ctx, bar, size)
+        const l = await check(`${bar}-${size}-${shelf}`)
+        // One look per side bar: rotated where the longest label ("Templates") doesn't fit across.
+        if (v) for (const c of COMPONENTS) h.assert(l[c].rotated === size <= 60, `${bar} ${size}: ${c} ${size <= 60 ? 'rotated' : 'across'} (${l[c].rotated})`)
+      }
+      await h.setBarSize(ctx, bar, null)
+    }
   }
-  // One item: the shelf is shorter than its label: shrunk, then cut, never past the shelf's box.
-  const one = (await ctx.tie('add', 'terminal', '--shelved')).id
-  await h.waitTile(ctx, one)
-  for (const size of [40, 50, 60]) {
-    await h.setBarSize(ctx, 'bottom', size)
-    const l = await check(`bottom-${size}-one-item`)
-    h.assert(l.shelf.ls < 1, `bottom ${size}, one item: the shelf label shrunk (${l.shelf.ls})`)
-  }
-  await h.setBarSize(ctx, 'bottom', null)
 
-  // Side bar: tabs bottom, shelf and templates left. One item, then empty.
-  await h.setBars(ctx, layout({ bottom: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }))
-  for (const shelf of ['one-item', 'empty']) {
-    if (shelf === 'empty') {
-      await ctx.tie('close', '--tile', one)
-      await h.waitGone(ctx, one)
-    }
-    for (const w of [40, 60, 99, 100, 160]) {
-      await h.setBarSize(ctx, 'left', w)
-      const l = await check(`left-${w}-${shelf}`)
-      if (w <= 60) h.assert(l.templates.rotated, `left ${w}: Templates rotated (too long across)`)
-      else if (w === 99) h.assert(!l.templates.rotated && l.templates.ls === 1, `left 99 (narrow, 1.5x): Templates fits across, full size`)
-      else h.assert(!l.shelf.rotated && !l.templates.rotated && l.shelf.ls === 1 && l.templates.ls === 1, `left ${w}: list form: across, full size`)
-      // The shelf one item long (empty or not): across, where it is largest; at 40 cut ("S…"), as a
-      // one-item shelf in a 40 px top / bottom bar (same box).
-      if (w === 40) h.assert(!l.shelf.rotated && l.shelf.ls < 1, `left 40, ${shelf}: Shelf across, shrunk (--ls ${l.shelf.ls})`)
-    }
-  }
+  // A bar too full to grow its components (a short window, all three in a 40 px left bar): no
+  // growth there; labels shrink, then cut, inside their components and the bar.
+  const win = await page.evaluate(() => ({ w: outerWidth, h: outerHeight }))
+  await h.setBars(ctx, layout({ left: { start: ['tabs'], end: ['shelf', 'templates'] } }))
+  await h.setBarSize(ctx, 'left', 40)
+  await h.resizeWindow(ctx, 600, 250)
+  const crowded = await check('left-40-crowded', { crowded: true })
+  h.assert(Object.values(crowded).some((l) => l.ls < 1), `crowded: some label shrunk (${COMPONENTS.map((c) => crowded[c].ls)})`)
+  await h.resizeWindow(ctx, win.w, win.h)
+  await h.setBarSize(ctx, 'left', null)
 
   // Light theme, the side layout at 40 with an item: drawn on the light palette.
-  const two = (await ctx.tie('add', 'terminal', '--shelved')).id
-  await h.waitTile(ctx, two)
   await h.setBars(ctx, layout({ top: { start: ['tabs'], end: [] }, left: { start: [], end: ['shelf', 'templates'] } }), { theme: 'solarized-light' })
   await h.setBarSize(ctx, 'left', 40)
   await check('left-40-light')

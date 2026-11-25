@@ -1,6 +1,6 @@
 // Edit layout mode drags: each component to each bar, gravity by the pointer's half, reorder in a
-// group, previews (box at the landing place, animated; a potential bar's own preview), the dragged
-// component dimmed, emptied bars hidden, drops outside any bar, clicks; light theme look.
+// group, previews (box at the landing place, animated, the label in it; a potential bar's own
+// preview), the dragged component dimmed, emptied bars hidden, drops outside any bar, clicks; light theme look.
 export default async (ctx, h) => {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
   const BARS = ['top', 'bottom', 'left', 'right']
@@ -80,6 +80,7 @@ export default async (ctx, h) => {
       h.assert(bar.left === 0 && bar.width === W && bar.bottom === H && bar.height === 40, `bottom bar preview at its future rect: ${JSON.stringify(bar)}`)
       box = await rect('#layout-edit .le-preview.shown')
       h.assert(box.left >= bar.left && box.right <= bar.right && box.top >= bar.top && box.bottom <= bar.bottom, 'box inside the bar preview')
+      await h.checkDragBox(ctx, 'Shelf', 'over an absent bar') // its label in it (feel round 8)
       const op = await Promise.all(['#shelf', '#tabs'].map((sel) => ctx.page.$eval(sel, (e) => Number(getComputedStyle(e).opacity))))
       h.assert(op[0] < op[1] && op[1] < 1, `components dimmed under their labels, the dragged shelf more (${op})`)
       await ctx.shot('drag-absent-bar')
@@ -105,8 +106,14 @@ export default async (ctx, h) => {
   h.assert(atStart.left < W / 2 && (await ctx.page.$('#layout-edit .le-bar[data-bar="bottom"].target.exists')), `box at the bar's start: ${JSON.stringify(atStart)}`)
   await ctx.shot('drag-existing-start')
   // One move across the middle: a new landing place, the box animates there (layoutedit.ts: its clock).
+  // Counted as started (a loaded machine may finish the 140 ms before a check reads it running).
+  await ctx.page.$eval('#layout-edit .le-preview', (e) => {
+    const animate = e.animate.bind(e)
+    window.boxAnimations = 0
+    e.animate = (...a) => (window.boxAnimations++, animate(...a))
+  })
   await m.move(end.x, end.y)
-  h.assert((await ctx.page.$eval('#layout-edit .le-preview', (e) => e.getAnimations().length)) > 0, 'box moves animated')
+  h.assert((await ctx.page.evaluate(() => window.boxAnimations)) > 0, 'box moves animated')
   await h.eventually(ctx, async () => {
     const r = await rect('#layout-edit .le-preview')
     h.assert(r.right > W - 20, `box at the bar's end: ${JSON.stringify(r)}`)

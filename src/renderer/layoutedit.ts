@@ -26,13 +26,15 @@ export const editingLayout = () => !!session
 
 const THRESHOLD = 4
 const INSET = 4 // a label's chip stays this far inside its component's box, every side
-const LABEL_MIN = 0.65 // smallest label scale (font, padding); a label still too long is truncated
+// A label's room (feel round 8): the free drag box is its label plus this each side; in the mode a
+// component is at least its label plus this each side along its bar (`--le-min`, `grow`).
+const LABEL_PAD = 6
+const LABEL_MIN = 0.65 // a crowded bar (no room to grow): smallest label scale (font, padding), then truncated
 // The templates' divider beside the shelf (style.css #templates.after-shelf / .before-shelf), along
 // the bar: its margin outside the box, its padding and border inside.
 const DIVIDER_OUT = 4
 const DIVIDER_IN = 7
 const BOX_MS = 140 // the drag box: snap, unsnap, a new landing place, the return after a drop outside every bar
-const FREE_PAD = 6 // the drag box, free (following the pointer): this far around the component's label, each side
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
@@ -88,8 +90,9 @@ export function editLayout(done: (result: Bars | null) => void) {
     <div class="le-dim"></div>
     ${BARS.map((b) => `<div class="le-bar" data-bar="${b}"></div>`).join('')}
     ${COMPONENTS.map((c) => `<div class="le-comp" data-c="${c}"></div>`).join('')}
-    <div class="le-preview"></div>
-    ${COMPONENTS.map((c) => `<div class="le-label" data-c="${c}">${COMPONENT_LABELS[c]}</div>`).join('')}
+    <div class="le-preview"><span class="le-chip"></span></div>
+    ${COMPONENTS.map((c) => `<div class="le-label le-chip" data-c="${c}">${COMPONENT_LABELS[c]}</div>`).join('')}
+    <span class="le-chip le-measure" aria-hidden="true"></span>
     <div class="le-box" role="group" aria-label="Edit layout">
       <p>Drag Tabs, Shelf and Templates to any edge</p>
       <button class="le-cancel">Cancel</button>
@@ -102,58 +105,92 @@ export function editLayout(done: (result: Bars | null) => void) {
   const cancelBtn = $<HTMLButtonElement>('.le-cancel')
   const doneBtn = $<HTMLButtonElement>('.le-done')
   const preview = $('.le-preview')
+  const chip = preview.firstElementChild as HTMLElement
+
+  // Each label's own size (full scale, uncut): across, and its length rotated. The free box, the
+  // components' room in the mode and the labels' orientation are drawn from it.
+  const measure = $('.le-measure')
+  const dims = Object.fromEntries(
+    COMPONENTS.map((c) => {
+      measure.textContent = COMPONENT_LABELS[c]
+      measure.classList.remove('rotated')
+      const a = measure.getBoundingClientRect()
+      measure.classList.add('rotated')
+      return [c, { w: a.width, h: a.height, rh: measure.getBoundingClientRect().height }]
+    }),
+  ) as Record<Component, { w: number; h: number; rh: number }>
+  const widest = Math.max(...COMPONENTS.map((c) => dims[c].w))
+  const padOf = (b: Bar) => parseFloat(getComputedStyle(document.getElementById(`bar-${b}`)!).getPropertyValue('--pad')) || 0
+  // Labels in a side bar too narrow for the longest one across (its inset each side, in the bar's
+  // rows: less its --pad): all rotated, read top to bottom. One look per bar, whatever it holds (a
+  // drop turns no other label).
+  const rotatedIn = (b: Bar, g: ReturnType<typeof geometry>) => isVertical(b) && widest + 2 * INSET > g.rects[b].w - 2 * padOf(b)
+  // A component's room along bar `b` in the mode: its label's length there plus LABEL_PAD each side.
+  const minAlong = (c: Component, b: Bar, g: ReturnType<typeof geometry>) => (rotatedIn(b, g) ? dims[c].rh : isVertical(b) ? dims[c].h : dims[c].w) + 2 * LABEL_PAD
 
   // Indicators, component boxes, labels: re-placed on every change of the window, the bars or a
   // component's size (a tab opened meanwhile), and after each drop.
   const layout = () => {
     const g = geometry()
+    grow(g)
     for (const b of BARS) {
       const el = $(`.le-bar[data-bar="${b}"]`)
       place(el, g.zones[b])
       el.classList.toggle('exists', g.shown(b))
     }
-    for (const c of COMPONENTS) place($(`.le-comp[data-c="${c}"]`), compRect(c))
+    for (const b of BARS) for (const c of [...g.layout[b].start, ...g.layout[b].end]) place($(`.le-comp[data-c="${c}"]`), clip(compRect(c), g.rects[b]))
     placeLabels(g)
   }
-  // Labels: inside their component's box, centred on it, over its content; window-positioned (they
-  // push nothing). Never past the box: INSET inside it on every side (feel round 2). A label that
-  // doesn't fit shrinks (`--ls`: font and padding, down to LABEL_MIN), then truncates (ellipsis). In
-  // a vertical bar a label is rotated (read top to bottom) where that makes it larger; where it fits
-  // either way, the bar's orientation: rotated when any of its labels is (one look per bar unless a
-  // label would have to shrink).
+  // Components grown to their label's room along their bar (feel round 8): `--le-min` on the
+  // component's element (style.css: a min size while the mode runs; the tabs' on #tabs, the brand
+  // adds to it; the templates' divider added). The others make room as in normal use (the tab list
+  // shrinks first). A bar too full for that (its components past its end): no minimum there, its
+  // components as in normal use; their labels shrink, then truncate (placeLabels).
+  const grow = (g: ReturnType<typeof geometry>) => {
+    for (const b of BARS) {
+      const cs = [...g.layout[b].start, ...g.layout[b].end].map((c) => ({ c, el: document.getElementById(c)! }))
+      for (const { c, el } of cs) el.style.setProperty('--le-min', `${minAlong(c, b, g) + (divided(c) ? DIVIDER_IN : 0)}px`)
+      const bar = document.getElementById(`bar-${b}`)!
+      const over = isVertical(b) ? bar.scrollHeight > bar.clientHeight : bar.scrollWidth > bar.clientWidth
+      if (g.shown(b) && over) for (const { el } of cs) el.style.removeProperty('--le-min')
+    }
+  }
+  const clip = (r: BarRect, to: BarRect): BarRect => {
+    const x = Math.max(r.x, to.x)
+    const y = Math.max(r.y, to.y)
+    return { x, y, w: Math.max(0, Math.min(r.x + r.w, to.x + to.w) - x), h: Math.max(0, Math.min(r.y + r.h, to.y + to.h) - y) }
+  }
+  // Labels: inside their component's box (its part in the bar), centred on it, over its content;
+  // window-positioned (they push nothing). Never past the box: INSET inside it on every side (feel
+  // round 2). Orientation: `rotatedIn`. Grown components (`grow`) hold their label whole; in a
+  // crowded bar a label that doesn't fit shrinks (`--ls`: font and padding, down to LABEL_MIN), then
+  // truncates (ellipsis).
   const placeLabels = (g: ReturnType<typeof geometry>) => {
     for (const b of BARS) {
-      const v = isVertical(b)
-      const items = [...g.layout[b].start, ...g.layout[b].end].map((c) => ({ el: $(`.le-label[data-c="${c}"]`), comp: compRect(c), rotate: false }))
-      // The scale a label needs to fit its box in an orientation (1: fits as is).
-      const need = (el: HTMLElement, comp: BarRect, rotated: boolean) => {
-        el.classList.toggle('rotated', rotated)
-        Object.assign(el.style, { maxWidth: '', maxHeight: '' })
-        el.style.setProperty('--ls', '1')
-        const r = el.getBoundingClientRect()
-        return Math.min(1, (comp.w - 2 * INSET) / r.width, (comp.h - 2 * INSET) / r.height)
-      }
-      const fits = items.map((i) => (v ? { across: need(i.el, i.comp, false), rotated: need(i.el, i.comp, true) } : null))
-      const barRotated = fits.some((f) => f && f.rotated > f.across)
-      items.forEach((i, n) => {
-        const f = fits[n]
-        i.rotate = !!f && (f.rotated === f.across ? barRotated : f.rotated > f.across)
-      })
-      for (const { el, comp, rotate } of items) {
+      const rotate = rotatedIn(b, g)
+      for (const c of [...g.layout[b].start, ...g.layout[b].end]) {
+        const el = $(`.le-label[data-c="${c}"]`)
+        const comp = clip(compRect(c), g.rects[b])
         const w = Math.max(0, comp.w - 2 * INSET)
         const h = Math.max(0, comp.h - 2 * INSET)
-        let ls = Math.max(LABEL_MIN, Math.floor(need(el, comp, rotate) * 1000) / 1000)
-        el.style.setProperty('--ls', String(ls))
-        // Text doesn't scale quite linearly with the font: a step smaller while it is still too big.
+        el.classList.toggle('rotated', rotate)
+        Object.assign(el.style, { maxWidth: '', maxHeight: '' })
+        el.style.setProperty('--ls', '1')
         const inBox = () => {
           const r = el.getBoundingClientRect()
-          return r.width <= w && r.height <= h
+          return r.width <= w + 0.01 && r.height <= h + 0.01
         }
-        while (ls > LABEL_MIN && !inBox()) {
-          ls = Math.max(LABEL_MIN, Math.round((ls - 0.02) * 1000) / 1000)
+        if (!inBox()) {
+          const r = el.getBoundingClientRect()
+          let ls = Math.max(LABEL_MIN, Math.floor(Math.min(1, w / r.width, h / r.height) * 1000) / 1000)
           el.style.setProperty('--ls', String(ls))
+          // Text doesn't scale quite linearly with the font: a step smaller while it is still too big.
+          while (ls > LABEL_MIN && !inBox()) {
+            ls = Math.max(LABEL_MIN, Math.round((ls - 0.02) * 1000) / 1000)
+            el.style.setProperty('--ls', String(ls))
+          }
+          Object.assign(el.style, { maxWidth: `${w}px`, maxHeight: `${h}px` }) // past LABEL_MIN: truncated
         }
-        Object.assign(el.style, { maxWidth: `${w}px`, maxHeight: `${h}px` }) // past LABEL_MIN: truncated
         const r = el.getBoundingClientRect()
         el.style.left = `${comp.x + (comp.w - r.width) / 2}px`
         el.style.top = `${comp.y + (comp.h - r.height) / 2}px`
@@ -207,9 +244,10 @@ export function editLayout(done: (result: Bars | null) => void) {
   for (const el of [...COMPONENTS.flatMap(parts), ...BARS.map((b) => document.getElementById(`bar-${b}`)!)]) ro.observe(el)
   window.addEventListener('resize', layout)
 
-  // The drag box (`.le-preview`, S38, S52, S55): shown for the whole drag. Snapped (a target): the
-  // landing rect. Free (over no bar): centred on the pointer, the size of the component's label plus
-  // FREE_PAD, following it at once. A change of form (snap, unsnap) or of landing place animates
+  // The drag box (`.le-preview`, S38, S52, S55): shown for the whole drag, the component's label in
+  // it (centred, whole; feel round 8). Snapped (a target): the landing rect, the label as labels are
+  // in that bar (`rotatedIn`). Free (over no bar): centred on the pointer, the label (across) plus
+  // LABEL_PAD each side, following it at once. A change of form (snap, unsnap) or of landing place animates
   // (BOX_MS, eased) from where the box is drawn toward its goal, which keeps moving with the pointer
   // meanwhile (free); `then`: once there (the return to the origin: hide). The clock is a Web
   // Animation without keyframes (the harness's settle waits for it); frames draw (lerp), its end
@@ -242,8 +280,10 @@ export function editLayout(done: (result: Bars | null) => void) {
     draw(goal)
     then?.()
   }
-  // Aim the box at `r` (`snap`: a landing rect; else the pointer's). `then`: after the animation.
-  const aimBox = (r: BarRect, snap: boolean, then?: () => void) => {
+  // Aim the box at `r` (`snap`: a landing rect; else the pointer's), its label `rotated` or not.
+  // `then`: after the animation.
+  const aimBox = (r: BarRect, snap: boolean, rotated: boolean, then?: () => void) => {
+    chip.classList.toggle('rotated', rotated)
     const animate = !!drawn && (!!then || snap !== snapped || (snap && !same(r, goal)))
     snapped = snap
     goal = r
@@ -267,6 +307,7 @@ export function editLayout(done: (result: Bars | null) => void) {
     drawn = goal = null
     snapped = false
     preview.classList.remove('shown')
+    for (const c of COMPONENTS) $(`.le-label[data-c="${c}"]`).classList.remove('le-lifted') // the box carried it: back in place
   }
 
   // Component drag (S33 to S36, S38).
@@ -279,13 +320,14 @@ export function editLayout(done: (result: Bars | null) => void) {
     let target: Target | null = null
     let origin: BarRect | null = null // the component's box as the drag began
     let free = { w: 0, h: 0 } // the free box's size
+    const label = $(`.le-label[data-c="${c}"]`)
     const update = (x: number, y: number) => {
       const g = geometry()
       const bar = barAt(BARS.map((b) => ({ bar: b, rect: g.zones[b], exists: g.shown(b) })), x, y)
       for (const b of BARS) $(`.le-bar[data-bar="${b}"]`).classList.toggle('target', b === bar)
       if (!bar) {
         target = null
-        aimBox({ x: x - free.w / 2, y: y - free.h / 2, ...free }, false)
+        aimBox({ x: x - free.w / 2, y: y - free.h / 2, ...free }, false, false)
         shift(new Map(), false)
         lift(false)
         return
@@ -303,20 +345,21 @@ export function editLayout(done: (result: Bars | null) => void) {
       if (!target) return
       if (!g.shown(target.bar)) place($(`.le-bar[data-bar="${target.bar}"]`), g.rects[target.bar])
       const { box, shifts } = landing(c, g, target)
-      aimBox(box, true)
+      aimBox(box, true, rotatedIn(target.bar, g))
       shift(shifts, isVertical(target.bar))
       const from = placeOf(g.layout, c)
       lift(from.bar === target.bar && from.gravity === target.gravity)
     }
     // Its own list the target: the others close over its place, so the dragged component's content
-    // and label hide there (its outline, the drag's handle, stays).
+    // hides there (its outline, the drag's handle, stays; its label rides in the box all along).
     const lift = (on: boolean) => {
-      for (const el of [...parts(c), $(`.le-label[data-c="${c}"]`)]) el.classList.toggle('le-lifted', on)
+      for (const el of parts(c)) el.classList.toggle('le-lifted', on)
     }
     // The drop's result, drawn (feel round 6): the target list as it will be (`c` at its index),
     // packed from its end of the bar (the bar's padding), the bar's gap between components, each at
     // its length (the templates' divider where the shelf will be beside them). The box: `c` there,
-    // roughly its size (its length along its own bar, a long one capped in the other orientation).
+    // roughly its size (its length along its own bar, a long one capped in the other orientation; at
+    // least its room in the target bar, `minAlong`, as it will be grown there).
     // `shifts`: how far each other component of the list moves along the bar to its place.
     const landing = (c: Component, g: ReturnType<typeof geometry>, t: Target) => {
       const v = isVertical(t.bar)
@@ -327,7 +370,7 @@ export function editLayout(done: (result: Bars | null) => void) {
       const a1 = lo(r, v) + len(r, v) - (parseFloat(v ? cs.paddingBottom : cs.paddingRight) || 0)
       const ownV = isVertical(placeOf(g.layout, c).bar)
       const span = len(r, v) - 2 * g.pad
-      const length = Math.max(28, Math.min(natural(c, ownV), (ownV === v ? 0.45 : 0.3) * span))
+      const length = Math.max(minAlong(c, t.bar, g), 28, Math.min(natural(c, ownV), (ownV === v ? 0.45 : 0.3) * span))
       const others = g.layout[t.bar][t.gravity].filter((o) => o !== c)
       const list = [...others]
       list.splice(Math.max(0, Math.min(others.length, t.index)), 0, c)
@@ -353,24 +396,14 @@ export function editLayout(done: (result: Bars | null) => void) {
         for (const el of [...parts(o), $(`.le-comp[data-c="${o}"]`), $(`.le-label[data-c="${o}"]`)]) el.style.transform = tf
       }
     }
-    // The label's own size: across, full scale, uncut (as placed: restored).
-    const labelSize = () => {
-      const el = $(`.le-label[data-c="${c}"]`)
-      const keep = { rotated: el.classList.contains('rotated'), ls: el.style.getPropertyValue('--ls'), w: el.style.maxWidth, h: el.style.maxHeight }
-      el.classList.remove('rotated')
-      el.style.setProperty('--ls', '1')
-      Object.assign(el.style, { maxWidth: '', maxHeight: '' })
-      const r = el.getBoundingClientRect()
-      el.classList.toggle('rotated', keep.rotated)
-      el.style.setProperty('--ls', keep.ls)
-      Object.assign(el.style, { maxWidth: keep.w, maxHeight: keep.h })
-      return { w: r.width + 2 * FREE_PAD, h: r.height + 2 * FREE_PAD }
-    }
     const begin = () => {
       started = true
       hideBox() // a return still animating: done
       origin = compRect(c)
-      free = labelSize()
+      free = { w: dims[c].w + 2 * LABEL_PAD, h: dims[c].h + 2 * LABEL_PAD }
+      chip.textContent = COMPONENT_LABELS[c]
+      // The label leaves its place for the box (hidden there until the box hides: hideBox).
+      label.classList.add('le-lifted')
       root.classList.add('dragging')
       document.documentElement.classList.add('layout-dragging') // bar edges out of the way (style.css)
       for (const p of parts(c)) p.classList.add('le-dragging')
@@ -386,7 +419,7 @@ export function editLayout(done: (result: Bars | null) => void) {
       lift(false)
       for (const p of parts(c)) p.classList.remove('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.remove('dragging')
-      if (back && origin && drawn) aimBox(origin, false, hideBox)
+      if (back && origin && drawn) aimBox(origin, false, label.classList.contains('rotated'), hideBox)
       else hideBox()
       for (const b of BARS) $(`.le-bar[data-bar="${b}"]`).classList.remove('target')
       layout()
@@ -424,6 +457,7 @@ export function editLayout(done: (result: Bars | null) => void) {
       window.removeEventListener('keyup', onKey, true)
       window.removeEventListener('resize', layout)
       ro.disconnect()
+      for (const c of COMPONENTS) document.getElementById(c)!.style.removeProperty('--le-min') // natural sizes again
       root.remove()
       document.documentElement.classList.remove('layout-editing', 'layout-dragging')
     },

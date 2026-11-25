@@ -1913,28 +1913,64 @@ body.empty #empty-hint {
 #layout-edit.dragging .le-label {
   transition: transform 140ms ease-out;
 }
-/* Reordered in its own list: the others close over the dragged component's place; its content and
-   label hide there (layoutedit.ts `lift`). */
+/* The dragged component's label rides in the drag box (layoutedit.ts): hidden at its place until the
+   box hides. Reordered in its own list: the others close over the dragged component's place; its
+   content hides there too (`lift`). */
 :root.layout-editing .le-lifted {
   visibility: hidden;
 }
+/* Room for the labels (feel round 8): in the mode a component is at least its label plus 6 px each
+   side along its bar (`--le-min`, set by layoutedit.ts `grow`: the label's length in that bar, the
+   templates' divider added; absent in a bar too full for it). Never across (the bar keeps its size).
+   Content centred in the room (the empty shelf's "+" keeps its slot). Gone with the mode. */
+:root.layout-editing .bar.h #shelf {
+  min-width: max(var(--slot), var(--le-min, 0px));
+}
+:root.layout-editing .bar.v #shelf {
+  min-height: max(var(--item), var(--le-min, 0px));
+}
+:root.layout-editing .bar.h #templates {
+  min-width: var(--le-min, 0px);
+}
+:root.layout-editing .bar.v #templates {
+  min-height: var(--le-min, 0px);
+}
+/* The tabs: their own floor (#tabs above), or the label's room where larger. */
+:root.layout-editing .bar.h #tabs {
+  min-width: calc-size(max-content, max(min(size, var(--tabs-min) * var(--k)), var(--le-min, 0px)));
+}
+:root.layout-editing .bar.v #tabs {
+  min-height: calc-size(max-content, max(min(size, var(--tabs-min)), var(--le-min, 0px)));
+}
+:root.layout-editing #shelf,
+:root.layout-editing #templates {
+  justify-content: safe center;
+}
+:root.layout-editing #shelf.empty::before {
+  flex: none;
+}
 /* The drag box: the landing place, an abstract box as tile drop previews (#preview); over no bar,
-   following the pointer. Placed and animated by layoutedit.ts (no transition here: a free box
-   follows the pointer at once). */
+   following the pointer. The component's label centred in it, whole (never cut: may overhang the
+   box mid-animation). Placed and animated by layoutedit.ts (no transition here: a free box follows
+   the pointer at once). */
 #layout-edit .le-preview {
   display: none;
+  align-items: center;
+  justify-content: center;
   border: 2px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 4px;
   pointer-events: none;
 }
 #layout-edit .le-preview.shown {
-  display: block;
+  display: flex;
 }
-/* Labels (S37): inside their component, centred, over its content; push nothing. Never past the
-   component's box (layoutedit.ts: an inset each side; `--ls` shrinks font and padding, then max sizes
-   truncate). Rotated (reads top to bottom) in a vertical bar where that fits them better. */
-#layout-edit .le-label {
+/* Label chips: the components' labels (S37) and the drag box's. Labels: inside their component,
+   centred, over its content; push nothing. Never past the component's box (layoutedit.ts: an inset
+   each side; the mode grows components to hold them whole; in a bar too full for that, `--ls`
+   shrinks font and padding, then max sizes truncate). Rotated (reads top to bottom) in a side bar
+   too narrow for the longest label across. `.le-measure`: unseen, sizes each label. */
+#layout-edit .le-chip {
   --ls: 1;
   padding: calc(2px * var(--ls)) calc(6px * var(--ls));
   border-radius: calc(5px * var(--ls));
@@ -1943,14 +1979,22 @@ body.empty #empty-hint {
   font: 700 calc(12px * var(--ls)) var(--ui-font);
   line-height: calc(14px * var(--ls));
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
   box-shadow: 0 1px 3px var(--shadow);
 }
-#layout-edit .le-label.rotated {
+#layout-edit .le-chip.rotated {
   writing-mode: vertical-rl;
   padding: calc(7px * var(--ls)) calc(3px * var(--ls));
+}
+#layout-edit .le-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#layout-edit .le-measure {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
 }
 /* The floating box: a strip in the board's centre, not a dialog (no title, no modal frame). */
 #layout-edit .le-box {
