@@ -34,6 +34,6 @@
   - Cross-volume move: `ditto` (bundle symlinks, modes, xattrs) rather than `cpSync`.
 - Found on the way: `pgrep` skips its own ancestors, so from a Tie terminal the old running check never saw the installed Tie (`install` would have replaced it under itself). Now `ps` + resolved paths (`running_main`).
 - Left:
-  - Not verified against `/Applications`: macOS App Management (Ventura+) may refuse an app replacing its own bundle (ad hoc: no team id). Then the swap logs, restores and starts the old version each launch; `install` (from a terminal) still works once Tie is quit. Check on the first real staged install (`tie-dev logs --instance default`, `[update]`).
+  - Verified 2026-11-24 from the installed instance's log: two real swaps in `/Applications/Tie.app` (`[update] swapped`, 2026-11-19 and 2026-11-22), App Management did not refuse. Was: not verified against `/Applications`: macOS App Management (Ventura+) may refuse an app replacing its own bundle (ad hoc: no team id). Then the swap logs, restores and starts the old version each launch; `install` (from a terminal) still works once Tie is quit. Check on the first real staged install (`tie-dev logs --instance default`, `[update]`).
   - `--restart` with a visible Tie (question answered Quit / Cancel) and the real `open -a` not exercised by `check-install` (background instance, `open` stubbed).
   - One stage slot: staging for another `TIE_INSTALL_DIR` replaces it.

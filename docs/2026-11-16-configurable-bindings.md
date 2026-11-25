@@ -68,7 +68,7 @@ New panel page "Bindings", vertical.
 # Pending
 
 1. Shifted symbols vs `zoom-in` (from manual check 3). Real `Cmd+Shift+=` is named `Cmd+Shift+=` (key as Electron reports it with Cmd: the unshifted one). `zoom-in` answers to `Cmd+=`, `Cmd+Shift++`, `Cmd++`: so a real `Cmd+Shift+=` likely zooms nothing. Inferred from the code + the observation; the harness can't tell (its synthetic keys report `+`). Human: see "Manual checks" 3.
-2. Manual check 2 again (Alt chords now bindable): a saved Alt chord runs its action, terminal focused and markdown tile focused.
+2. Done 2026-11-24 (user): a saved Alt chord runs its action, terminal focused and markdown tile focused.
 
 # Manual checks (human)
 

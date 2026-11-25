@@ -6,9 +6,9 @@ Notes per release: what changed for the user, and what still needs a manual chec
 
 - Electron 45.4.1 (Chromium 156, Node 24.22.3). No behaviour change in Tie.
 
-Pending manual testing:
+Manual testing:
 
-- A real session on Electron 45: terminals, browser tiles, drags, pinch / scroll feel (only the harness was run).
+- Verified 2026-11-24 (user): a real session on Electron 45 (terminals, browser tiles, drags, pinch / scroll feel).
 
 ## 0.9.0 (2026-11-22)
 
@@ -30,10 +30,8 @@ Pending manual testing:
 ### Pending manual testing (toolbars)
 
 - Verified 2026-11-22 (user): traffic lights in the title strip; side bars drag the window on empty space.
-- Shelf reveal from a side bar stays open while the pointer crosses the bar.
-- Edit layout mode: bars do not drag the window; preview animation and gravity flip feel right.
-- Bar edges: resize cursor shows, no window drag from the edge, double-click resets; same in the edit layout mode.
-- Edit layout mode: the side bar growing under the dragged tabs looks smooth in a real window (harness offscreen frames are sparse).
+- Verified 2026-11-24 (user): shelf reveal from a side bar stays open while the pointer crosses the bar; edit layout mode: bars do not drag the window, preview animation and gravity flip, side bar growing under the dragged tabs; bar edges: resize cursor, no window drag, double-click resets (edit layout mode too); the "Other" list below.
+- Found in that pass (open, `PENDING.md`): empty shelf placeholder width; side bar minimum vs top / bottom; edit mode drop at a bar's far end (previews overlap) and no preview off the bars; bar edge lit on hover in normal mode.
 
 ### Other
 
@@ -58,8 +56,7 @@ Changes since 0.7.0:
 
 Pending manual testing:
 
-- A saved Alt chord (e.g. `Alt+A`) runs in a terminal and in a markdown tile.
-- Uncaught-error dialog in a visible instance (only the harness path, without dialog, was run).
+- Verified 2026-11-24 (user): a saved Alt chord runs in a terminal and in a markdown tile; uncaught-error dialog in a visible instance.
 - Non-US keyboard layouts (`PENDING.md` 40).
 
 Known, not fixed:
