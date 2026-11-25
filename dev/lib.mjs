@@ -129,13 +129,15 @@ export const SEED = { allowExternalControl: true, shell: '/bin/bash --noprofile 
 
 // Launch a fresh built instance in the background; returns { instance, stop }.
 // A port nobody is listening on right now (instance-name hashing can collide).
+// Never 65535: Chromium ignores it as a debugging port and listens on another one (seen 2026-11-25:
+// asked 65535, "DevTools listening on …:49152", connectOverCDP refused). The OS hands it out as any other.
 function freePort() {
   return new Promise((resolve, reject) => {
     const srv = createServer()
     srv.on('error', reject)
     srv.listen(0, '127.0.0.1', () => {
       const { port } = srv.address()
-      srv.close(() => resolve(port))
+      srv.close(() => (port < 65535 ? resolve(port) : freePort().then(resolve, reject)))
     })
   })
 }
