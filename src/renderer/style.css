@@ -1918,14 +1918,15 @@ body.empty #empty-hint {
 :root.layout-editing .le-lifted {
   visibility: hidden;
 }
-/* Landing place: an abstract box, as tile drop previews (#preview); moves animated. */
+/* The drag box: the landing place, an abstract box as tile drop previews (#preview); over no bar,
+   following the pointer. Placed and animated by layoutedit.ts (no transition here: a free box
+   follows the pointer at once). */
 #layout-edit .le-preview {
   display: none;
   border: 2px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 4px;
   pointer-events: none;
-  transition: left 140ms ease-out, top 140ms ease-out, width 140ms ease-out, height 140ms ease-out;
 }
 #layout-edit .le-preview.shown {
   display: block;

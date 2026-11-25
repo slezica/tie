@@ -104,8 +104,9 @@ export default async (ctx, h) => {
   const atStart = await rect('#layout-edit .le-preview')
   h.assert(atStart.left < W / 2 && (await ctx.page.$('#layout-edit .le-bar[data-bar="bottom"].target.exists')), `box at the bar's start: ${JSON.stringify(atStart)}`)
   await ctx.shot('drag-existing-start')
-  h.assert((await ctx.page.$eval('#layout-edit .le-preview', (e) => parseFloat(getComputedStyle(e).transitionDuration))) > 0, 'box moves with a transition')
-  await m.move(end.x, end.y, { steps: 10 })
+  // One move across the middle: a new landing place, the box animates there (layoutedit.ts: its clock).
+  await m.move(end.x, end.y)
+  h.assert((await ctx.page.$eval('#layout-edit .le-preview', (e) => e.getAnimations().length)) > 0, 'box moves animated')
   await h.eventually(ctx, async () => {
     const r = await rect('#layout-edit .le-preview')
     h.assert(r.right > W - 20, `box at the bar's end: ${JSON.stringify(r)}`)

@@ -31,6 +31,8 @@ const LABEL_MIN = 0.65 // smallest label scale (font, padding); a label still to
 // the bar: its margin outside the box, its padding and border inside.
 const DIVIDER_OUT = 4
 const DIVIDER_IN = 7
+const BOX_MS = 140 // the drag box: snap, unsnap, a new landing place, the return after a drop outside every bar
+const FREE_PAD = 6 // the drag box, free (following the pointer): this far around the component's label, each side
 
 // A component's elements: the brand sits just before the tabs (S5) and moves with them.
 const parts = (c: Component) => (c === 'tabs' ? ['brand', 'tabs'] : [c]).map((id) => document.getElementById(id)!)
@@ -205,6 +207,68 @@ export function editLayout(done: (result: Bars | null) => void) {
   for (const el of [...COMPONENTS.flatMap(parts), ...BARS.map((b) => document.getElementById(`bar-${b}`)!)]) ro.observe(el)
   window.addEventListener('resize', layout)
 
+  // The drag box (`.le-preview`, S38, S52, S55): shown for the whole drag. Snapped (a target): the
+  // landing rect. Free (over no bar): centred on the pointer, the size of the component's label plus
+  // FREE_PAD, following it at once. A change of form (snap, unsnap) or of landing place animates
+  // (BOX_MS, eased) from where the box is drawn toward its goal, which keeps moving with the pointer
+  // meanwhile (free); `then`: once there (the return to the origin: hide). The clock is a Web
+  // Animation without keyframes (the harness's settle waits for it); frames draw (lerp), its end
+  // draws the goal.
+  type Tween = { from: BarRect; clock: Animation; then?: () => void }
+  let snapped = false
+  let goal: BarRect | null = null
+  let drawn: BarRect | null = null
+  let tween: Tween | null = null
+  let frame = 0
+  const same = (a: BarRect | null, b: BarRect | null) => !!a && !!b && Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5
+  const draw = (r: BarRect) => {
+    drawn = r
+    place(preview, r)
+  }
+  const ease = (t: number) => 1 - (1 - t) * (1 - t)
+  const step = () => {
+    frame = 0
+    if (!tween || !goal) return
+    const t = Math.min(1, (Number(tween.clock.currentTime) || 0) / BOX_MS)
+    if (t < 1 && tween.clock.playState === 'running') {
+      const k = ease(t)
+      const { from: f } = tween
+      draw({ x: f.x + (goal.x - f.x) * k, y: f.y + (goal.y - f.y) * k, w: f.w + (goal.w - f.w) * k, h: f.h + (goal.h - f.h) * k })
+      frame = requestAnimationFrame(step)
+      return
+    }
+    const then = tween.then
+    tween = null
+    draw(goal)
+    then?.()
+  }
+  // Aim the box at `r` (`snap`: a landing rect; else the pointer's). `then`: after the animation.
+  const aimBox = (r: BarRect, snap: boolean, then?: () => void) => {
+    const animate = !!drawn && (!!then || snap !== snapped || (snap && !same(r, goal)))
+    snapped = snap
+    goal = r
+    if (!drawn) {
+      draw(r)
+      preview.classList.add('shown')
+    } else if (animate) {
+      tween?.clock.cancel()
+      const tw: Tween = { from: { ...drawn }, clock: preview.animate([], BOX_MS), then }
+      tween = tw
+      // Its end drawn as the clock finishes (before anything awaiting `finished` after it runs).
+      tw.clock.finished.then(() => tween === tw && (cancelAnimationFrame(frame), step())).catch(() => {}) // cancelled: replaced or hidden
+      if (!frame) frame = requestAnimationFrame(step)
+    } else if (!tween) draw(r)
+  }
+  const hideBox = () => {
+    tween?.clock.cancel()
+    tween = null
+    if (frame) cancelAnimationFrame(frame)
+    frame = 0
+    drawn = goal = null
+    snapped = false
+    preview.classList.remove('shown')
+  }
+
   // Component drag (S33 to S36, S38).
   const pressComponent = (e: PointerEvent, c: Component) => {
     if (e.button !== 0 || s.cancelDrag) return
@@ -213,13 +277,15 @@ export function editLayout(done: (result: Bars | null) => void) {
     const sy = e.clientY
     let started = false
     let target: Target | null = null
+    let origin: BarRect | null = null // the component's box as the drag began
+    let free = { w: 0, h: 0 } // the free box's size
     const update = (x: number, y: number) => {
       const g = geometry()
       const bar = barAt(BARS.map((b) => ({ bar: b, rect: g.zones[b], exists: g.shown(b) })), x, y)
       for (const b of BARS) $(`.le-bar[data-bar="${b}"]`).classList.toggle('target', b === bar)
       if (!bar) {
         target = null
-        preview.classList.remove('shown')
+        aimBox({ x: x - free.w / 2, y: y - free.h / 2, ...free }, false)
         shift(new Map(), false)
         lift(false)
         return
@@ -237,7 +303,7 @@ export function editLayout(done: (result: Bars | null) => void) {
       if (!target) return
       if (!g.shown(target.bar)) place($(`.le-bar[data-bar="${target.bar}"]`), g.rects[target.bar])
       const { box, shifts } = landing(c, g, target)
-      showBox(box)
+      aimBox(box, true)
       shift(shifts, isVertical(target.bar))
       const from = placeOf(g.layout, c)
       lift(from.bar === target.bar && from.gravity === target.gravity)
@@ -287,24 +353,32 @@ export function editLayout(done: (result: Bars | null) => void) {
         for (const el of [...parts(o), $(`.le-comp[data-c="${o}"]`), $(`.le-label[data-c="${o}"]`)]) el.style.transform = tf
       }
     }
-    // Moves animated (CSS transition); the first placement of a drag jumps there.
-    const showBox = (r: BarRect) => {
-      if (!preview.classList.contains('shown')) {
-        preview.style.transition = 'none'
-        place(preview, r)
-        preview.classList.add('shown')
-        void preview.offsetWidth
-        preview.style.transition = ''
-      } else place(preview, r)
+    // The label's own size: across, full scale, uncut (as placed: restored).
+    const labelSize = () => {
+      const el = $(`.le-label[data-c="${c}"]`)
+      const keep = { rotated: el.classList.contains('rotated'), ls: el.style.getPropertyValue('--ls'), w: el.style.maxWidth, h: el.style.maxHeight }
+      el.classList.remove('rotated')
+      el.style.setProperty('--ls', '1')
+      Object.assign(el.style, { maxWidth: '', maxHeight: '' })
+      const r = el.getBoundingClientRect()
+      el.classList.toggle('rotated', keep.rotated)
+      el.style.setProperty('--ls', keep.ls)
+      Object.assign(el.style, { maxWidth: keep.w, maxHeight: keep.h })
+      return { w: r.width + 2 * FREE_PAD, h: r.height + 2 * FREE_PAD }
     }
     const begin = () => {
       started = true
+      hideBox() // a return still animating: done
+      origin = compRect(c)
+      free = labelSize()
       root.classList.add('dragging')
       document.documentElement.classList.add('layout-dragging') // bar edges out of the way (style.css)
       for (const p of parts(c)) p.classList.add('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.add('dragging')
     }
-    const end = () => {
+    // `back`: released over no bar; the box returns to the component's place, then hides. Else (a
+    // drop, Escape, a cancel) it hides at once.
+    const end = (back = false) => {
       s.cancelDrag = null
       root.classList.remove('dragging')
       document.documentElement.classList.remove('layout-dragging')
@@ -312,7 +386,8 @@ export function editLayout(done: (result: Bars | null) => void) {
       lift(false)
       for (const p of parts(c)) p.classList.remove('le-dragging')
       $(`.le-comp[data-c="${c}"]`).classList.remove('dragging')
-      preview.classList.remove('shown')
+      if (back && origin && drawn) aimBox(origin, false, hideBox)
+      else hideBox()
       for (const b of BARS) $(`.le-bar[data-bar="${b}"]`).classList.remove('target')
       layout()
     }
@@ -326,14 +401,14 @@ export function editLayout(done: (result: Bars | null) => void) {
         const t = target
         const was = started
         const next = was && t ? moveComponent(bars(), c, t.bar, t.gravity, t.index) : null
-        end()
+        end(was && !t)
         if (!next || !t) return // a click, or a drop outside every bar: nothing
         debug('layout', 'component drop', c, t)
         if (sameBars(next, bars())) return
         applyAppearance({ ...appearance(), bars: next })
         layout()
       },
-      cancel: end,
+      cancel: () => end(),
     })
     s.cancelDrag = () => {
       stop()
@@ -344,6 +419,7 @@ export function editLayout(done: (result: Bars | null) => void) {
   const s: Session = {
     cancelDrag: null,
     cleanup: () => {
+      hideBox()
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('keyup', onKey, true)
       window.removeEventListener('resize', layout)

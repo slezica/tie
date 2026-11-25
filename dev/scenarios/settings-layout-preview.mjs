@@ -3,7 +3,10 @@
 // side bars, a reorder within its own group), the others of that list make room (shifted, their boxes
 // with them), the box overlaps none of them and stays in its bar; reordered in its own list, the
 // dragged component's content and label hide (the others close over its place); after the drop the
-// component sits where the box was and the others where they were shown.
+// component sits where the box was and the others where they were shown. Free box (S55): over no bar
+// the box follows the pointer (centred, the label's size plus 6 px a side, at once: no animation while
+// free); over a bar again, the landing rect; released over the board: layout unchanged, the box back at
+// the component's place, then hidden; Escape: hidden at once.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const COMPONENTS = ['tabs', 'shelf', 'templates']
@@ -97,4 +100,85 @@ export default async (ctx, h) => {
   // start group (templates first).
   await check('own-end', layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } }), 'shelf', 'bottom', 'end', 1, ['templates', 'shelf'])
   await check('own-start', layout({ top: { start: ['tabs', 'shelf', 'templates'], end: [] } }), 'templates', 'top', 'start', 0, ['templates', 'tabs', 'shelf'])
+
+  // Free box: the shelf (default layout) dragged over the board.
+  const FREE_PAD = 6 // layoutedit.ts
+  const m = page.mouse
+  const deflt = layout({ bottom: { start: ['tabs'], end: ['shelf', 'templates'] } })
+  if (!same(await h.mountedBars(ctx), deflt)) await h.setBars(ctx, deflt)
+  await h.editLayout(ctx)
+  const origin = (await snap()).comps.shelf
+  // The label's own size (across, full scale, uncut), as layoutedit.ts measures it.
+  const label = await page.evaluate(() => {
+    const e = document.querySelector('#layout-edit .le-label[data-c="shelf"]')
+    const keep = { rotated: e.classList.contains('rotated'), ls: e.style.getPropertyValue('--ls'), w: e.style.maxWidth, h: e.style.maxHeight }
+    e.classList.remove('rotated')
+    e.style.setProperty('--ls', '1')
+    Object.assign(e.style, { maxWidth: '', maxHeight: '' })
+    const r = e.getBoundingClientRect()
+    e.classList.toggle('rotated', keep.rotated)
+    e.style.setProperty('--ls', keep.ls)
+    Object.assign(e.style, { maxWidth: keep.w, maxHeight: keep.h })
+    return { w: r.width, h: r.height }
+  })
+  const boxState = () => page.evaluate(() => {
+    const e = document.querySelector('#layout-edit .le-preview')
+    return { shown: getComputedStyle(e).display !== 'none', r: e.getBoundingClientRect().toJSON(), style: { x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: parseFloat(e.style.width), h: parseFloat(e.style.height) }, animating: e.getAnimations().length }
+  })
+  const centredOn = (b, x, y, what) => {
+    h.assert(b.shown, `${what}: box shown`)
+    near(b.r.left + b.r.width / 2, x, `${what}: box centred on the pointer (x)`, 1)
+    near(b.r.top + b.r.height / 2, y, `${what}: box centred on the pointer (y)`, 1)
+    near(b.r.width, label.w + 2 * FREE_PAD, `${what}: box width, the label's + padding`, 1)
+    near(b.r.height, label.h + 2 * FREE_PAD, `${what}: box height, the label's + padding`, 1)
+  }
+  const { board } = await h.list(ctx)
+  const cx = board.x + board.w / 2
+  const cy = board.y + board.h / 3
+  const start = await h.boxOf(ctx, '#layout-edit .le-comp[data-c="shelf"]')
+  await m.move(start.x, start.y)
+  await m.down()
+  await m.move(cx, cy, { steps: 12 })
+  await h.settle(ctx) // the unsnap animation done
+  centredOn(await boxState(), cx, cy, 'over the board')
+  await ctx.shot('free')
+  // Free to free: no animation, the box where the pointer is.
+  await m.move(cx + 37, cy - 23)
+  h.assert((await boxState()).animating === 0, 'free: moved without an animation')
+  await h.eventually(ctx, async () => centredOn(await boxState(), cx + 37, cy - 23, 'moved over the board'))
+  // Over the bottom bar's end: snapped, the landing rect (the bar's height less --pad; not the free size).
+  const p = await h.layoutPoint(ctx, 'shelf', 'bottom', 'end', 2)
+  await m.move(p.x, p.y, { steps: 8 })
+  await h.settle(ctx)
+  const bar = (await snap()).bars.bottom
+  let b = await boxState()
+  h.assert(b.shown && b.r.top >= bar.top - 0.5 && b.r.bottom <= bar.bottom + 0.5 && b.r.right <= bar.right + 0.5, `snapped: the landing rect in the bottom bar (${JSON.stringify(b.r)} in ${JSON.stringify(bar)})`)
+  near(b.r.height, bar.height - 12, 'snapped: across, the bar less --pad each side', 1)
+  // Off it again: free, centred on the pointer.
+  await m.move(cx, cy, { steps: 8 })
+  await h.settle(ctx)
+  centredOn(await boxState(), cx, cy, 'unsnapped')
+  // Released over the board: nothing changes; the box returns to the shelf's place, then hides.
+  await m.up()
+  await h.settle(ctx)
+  await h.eventually(ctx, async () => {
+    b = await boxState()
+    h.assert(!b.shown, `after the return: hidden (${JSON.stringify(b)})`)
+  })
+  for (const k of ['x', 'y', 'w', 'h']) near(b.style[k], { x: origin.left, y: origin.top, w: origin.width, h: origin.height }[k], `returned: the box ended at the shelf's place (${k})`, 1)
+  h.assert(same(await h.mountedBars(ctx), deflt), `released over the board: layout unchanged (${JSON.stringify(await h.mountedBars(ctx))})`)
+  // Escape over the board: hidden at once, nothing changes.
+  await m.move(start.x, start.y)
+  await m.down()
+  await m.move(cx, cy, { steps: 12 })
+  await h.settle(ctx)
+  h.assert((await boxState()).shown, 'second drag: box shown over the board')
+  await page.keyboard.press('Escape')
+  h.assert(!(await boxState()).shown, 'Escape: hidden at once')
+  await m.up()
+  h.assert(same(await h.mountedBars(ctx), deflt), 'Escape: layout unchanged')
+  h.assert(await page.$('#layout-edit'), 'Escape mid-drag: the mode stays')
+  await page.locator('#layout-edit .le-cancel').click()
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('.settings', { state: 'detached' })
 }
