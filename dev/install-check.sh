@@ -2,8 +2,8 @@
 # Install while running, end to end, in a sandbox (`tie-dev check-install`): never /Applications or
 # ~/.config/tie. The package installs to <tmp>/apps/Tie.app (TIE_INSTALL_DIR), state in <tmp>/config
 # (XDG_CONFIG_HOME, for both tie-dev and the app). That copy runs as a background instance; its
-# fingerprint is set to "old-…" so the package counts as newer. `open` is stubbed (it would launch
-# through LaunchServices, without this environment). See PACKAGING.md "Install while running".
+# fingerprint is set to "old-…" so the package counts as newer. `open` is stubbed (the real one would
+# show a window); the stub records its arguments and any TIE_* it was handed (must be none). See PACKAGING.md "Install while running".
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -19,7 +19,7 @@ inst="ic-$$"
 inst2="ic2-$$"
 info="$XDG_CONFIG_HOME/tie/$inst.json"
 applog="$tmp/app.log"
-printf '#!/bin/sh\necho "$@" >> "%s/open.log"\n' "$tmp" > "$tmp/stub/open"
+printf '#!/bin/sh\necho "$@" >> "%s/open.log"\nenv | grep "^TIE_" >> "%s/open.env" || true\n' "$tmp" "$tmp" > "$tmp/stub/open"
 chmod +x "$tmp/stub/open"
 
 failed=0
@@ -85,6 +85,7 @@ echo "old-$$" > "$app/Contents/Resources/fingerprint"
 out="$(PATH="$tmp/stub:$PATH" install --restart)" || bad "--restart exit $?"
 [[ "$out" == *"restarted $app"* && "$(fp "$app")" == "$want" && ! -e "$stage" ]] && ok "--restart: quit, installed" || bad "--restart: $out"
 grep -q -- "-a $app" "$tmp/open.log" 2>/dev/null && ok "--restart: reopened (open -a)" || bad "--restart: open not called"
+[[ -e "$tmp/open.env" && ! -s "$tmp/open.env" ]] && ok "--restart: no TIE_* environment handed to open" || bad "--restart: open got $(cat "$tmp/open.env" 2>/dev/null | tr '\n' ' ')"
 alive && bad "--restart: old instance still running" || true
 pid=
 
@@ -92,7 +93,7 @@ pid=
 echo "old-$$" > "$app/Contents/Resources/fingerprint"
 : > "$tmp/open.log"
 out="$(PATH="$tmp/stub:$PATH" install --restart)" || bad "--restart (not running) exit $?"
-[[ "$out" == *"installed $app"* && "$(fp "$app")" == "$want" ]] && grep -q -- "-a $app" "$tmp/open.log" && ok "--restart, not running: installed, opened" || bad "--restart, not running: $out / $(cat "$tmp/open.log")"
+[[ "$out" == *"installed $app"* && "$(fp "$app")" == "$want" ]] && grep -q -- "-a $app" "$tmp/open.log" && [[ ! -s "$tmp/open.env" ]] && ok "--restart, not running: installed, opened" || bad "--restart, not running: $out / $(cat "$tmp/open.log")"
 
 # Only the target bundle swaps: the package copy (smoke, harness) leaves the stage alone.
 mkdir -p "$stage" && ditto "$pkg" "$stage/Tie.app" && echo "$app" > "$stage/target"

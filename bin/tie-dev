@@ -123,6 +123,15 @@ running_main() {
   done
 }
 
+# Opens the installed app as Finder would. `open` hands the caller's environment to the app:
+# TIE_INSTANCE (exported above: "dev") would make the installed copy the dev instance, TIE_SOCKET /
+# TIE_TILE (a Tie terminal's) would leak into its shells. Every TIE_* is dropped.
+open_app() {
+  local v; local -a drop=()
+  while read -r v; do drop+=(-u "$v"); done < <(compgen -e | grep '^TIE_')
+  env ${drop[@]+"${drop[@]}"} open -a "$1"
+}
+
 build() { npx electron-vite build >/dev/null && touch "$STAMP"; }
 
 # Debug port nobody listens on now (per-name hashed ports can collide); the info file records it.
@@ -292,7 +301,7 @@ case "$cmd" in
     ditto "$APP_OUT" "$dest"
     rm -rf "$stage"
     echo "installed $dest"
-    if [[ -n "$restart" ]]; then open -a "$dest"; echo "opened $dest"; fi
+    if [[ -n "$restart" ]]; then open_app "$dest"; echo "opened $dest"; fi
     echo "tie CLI outside Tie terminals: add /Applications/Tie.app/Contents/Resources/bin to PATH" ;;
   install-finish)
     # Internal (install --restart, detached): waits for Tie (pid $1) to quit, installs to $2, opens it.
@@ -305,7 +314,7 @@ case "$cmd" in
     ditto "$APP_OUT" "$dest"
     rm -rf "$STATE/staged"
     echo "installed $dest"
-    open -a "$dest"
+    open_app "$dest"
     echo "restarted $dest" ;;
   icon)
     node_modules/electron/dist/Electron.app/Contents/MacOS/Electron dev/icon.cjs -ApplePersistenceIgnoreState YES 2>/dev/null
