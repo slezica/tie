@@ -57,7 +57,7 @@
 
 ## Harness
 
-31. Guards without a scenario: guest `window.focus()` not moving the UI's focus (probed by hand only); device choosers: Bluetooth, USB / HID / serial, client certificates (no device in the harness).
+31. Guards without a scenario: device choosers: Bluetooth, USB / HID / serial, client certificates (no device in the harness).
 
 32. Flake: `markdown-links` "b.md in the same tile" and `markdown-nav` "plain Down": under full-suite load the first click into a freshly loaded out-of-process frame is sometimes lost (no DOM event in the frame, no request). Standalone 6/6 green. Mitigation: `h.clickIn` moves the pointer first and repeats the click once if the frame didn't take focus. Root cause (OOPIF surface not yet hit-testable?) unconfirmed.
 
