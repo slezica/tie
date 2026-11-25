@@ -4,6 +4,8 @@ Notes per release: what changed for the user, and what still needs a manual chec
 
 ## Unreleased
 
+## 0.10.0 (2026-11-25)
+
 - Electron 45.4.1 (Chromium 156, Node 24.22.3). No behaviour change in Tie.
 - Bar edges: no longer light up on hover in normal use (the resize cursor shows); lit while dragged. The edit layout mode keeps the hover highlight.
 - Empty shelf in a top / bottom bar: one slot wide (was three).
@@ -15,6 +17,7 @@ Notes per release: what changed for the user, and what still needs a manual chec
 - Dev builds: the quit question reads "Quit Tie (dev)?".
 - Edit layout mode: the drag box carries the component's label ("Tabs", "Shelf", "Templates"), whole, off the bars and snapped; the label leaves the component's place meanwhile.
 - Edit layout mode: every label reads whole: components shorter than their label (an empty or one-item shelf) grow along their bar while the mode runs; back to their size when it ends. Side bars at 60 px and below rotate all their labels.
+- `tie-dev install --restart`: the installed app opens as itself (was coming up as the dev instance: `open` passed `TIE_INSTANCE=dev` on).
 
 Manual testing:
 
