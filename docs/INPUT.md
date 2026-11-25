@@ -54,8 +54,9 @@ In the edit mode only (`LAYOUT.md` "Edit mode"). No modifier key.
 - Target bar (`barAt`, `core/bars.ts`): the zone holding the pointer (existing or potential bar); an existing one wins, then the nearest window edge. Over no zone (the board): no target, a drop changes nothing.
 - Gravity (`gravityAt`, S35): the pointer's half of the bar along its axis: before the middle `start`, else `end`.
 - Index (`indexAt`, S36): how many other components of that list have their midpoint before the pointer.
-- Preview (S38): `.le-preview`, accent box at the landing place: after the component before it (start) or before the one after it (end), roughly the component's size there (its length in its bar; in the other orientation capped at 30% of the bar). Moves with a 140 ms transition (also across the bar's middle); the first placement jumps. The target bar: `.le-bar.target`; an absent bar shows its future rect (its own preview, S34) with the box in it.
-- The dragged component dims in place (`.le-dragging`, below the other components' mode dim).
+- Preview (S38): `.le-preview`, accent box at the landing place, roughly the component's size there (its length in its bar; in the other orientation capped at 30% of the bar). Moves with a 140 ms transition (also across the bar's middle); the first placement jumps. The target bar: `.le-bar.target`; an absent bar shows its future rect (its own preview, S34) with the box in it.
+- The drop's result drawn (S52, `landing`): the target list as it will be, packed from its end of the bar (the bar's padding and gap, each component's length, the templates' divider where the shelf will be beside them). The others of that list make room: shifted along the bar to their places (`transform`, their outlines and labels with them; 140 ms, as the box); back when the pointer leaves the bar, at once at the drop or Escape.
+- The dragged component dims in place (`.le-dragging`, below the other components' mode dim). Reordered in its own list (the others close over its place): its content and label hidden (`.le-lifted`; its outline, the drag's handle, stays).
 - Drop: `moveComponent` (`core/bars.ts`) → applied live. Same place: nothing. A bar left empty hides (still indicated, as a potential zone).
 - Escape: cancels the drag (the mode stays).
 

@@ -5,10 +5,15 @@ Notes per release: what changed for the user, and what still needs a manual chec
 ## Unreleased
 
 - Electron 45.4.1 (Chromium 156, Node 24.22.3). No behaviour change in Tie.
+- Bar edges: no longer light up on hover in normal use (the resize cursor shows); lit while dragged. The edit layout mode keeps the hover highlight.
+- Empty shelf in a top / bottom bar: one slot wide (was three).
+- Edit layout mode: the other components make room for the dragged one's preview (was overlapping at a bar's far end, before the first or between two); the preview shows the drop's result.
 
 Manual testing:
 
 - Verified 2026-11-24 (user): a real session on Electron 45 (terminals, browser tiles, drags, pinch / scroll feel).
+- Bar edges in a visible window: no lit line on hover, lit while dragging; lit on hover in the edit layout mode.
+- Edit layout mode: the others sliding aside during a drag (feel of the 140 ms shift); a reorder in a component's own list (its content and label hide).
 
 ## 0.9.0 (2026-11-22)
 

@@ -1,6 +1,6 @@
 # Configurable toolbars
 
-Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 5 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
+Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 6 done. Not released. Open: manual checks (`RELEASES.md`), further feel iteration.
 
 # Topic
 
@@ -82,7 +82,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 5 done. Not rel
 - S35. Gravity follows the cursor along the bar: past the midpoint toward one end, the preview moves (animated) to that end. (user)
 - S36. Components in the same bar and gravity can be reordered. (user)
 - S37. Labels "Tabs", "Shelf", "Templates": only in the mode, floating outside the layout (they push nothing). (user) Feel round 1: inside their component (user). Feel round 2: never past the component's box, with room around the chip (user).
-- S38. Preview look: abstract accent-tinted box at the landing place, as tile drop previews; the dragged component dims in place. To iterate by feel. (agent)
+- S38. Preview look: abstract accent-tinted box at the landing place, as tile drop previews; the dragged component dims in place. To iterate by feel. (agent) The others make room: S52.
 
 ## Feel round 2
 
@@ -98,7 +98,7 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 5 done. Not rel
 ## Feel round 4
 
 - S46. The edit mode's Cancel reverts bar resizes made in it: the mode remembers the stored sizes as it opens; Cancel, Escape and any abort (panel closed or rebuilt under it) restore them, shown and stored; Done keeps the new ones. Sizes stay UI state (S24), outside the panel's changeset: after Done, the panel's Cancel keeps them. (user) Written at the mode's end, not at each release in it. (agent)
-- S47. Empty shelf in a horizontal bar: the "+" placeholder shown at rest, muted, accent during a drag, as in side bars (S44). Same box at rest and during a drag. (user)
+- S47. Empty shelf in a horizontal bar: the "+" placeholder shown at rest, muted, accent during a drag, as in side bars (S44). Same box at rest and during a drag. (user) Length: superseded by S51.
 
 ## Feel round 5
 
@@ -109,6 +109,12 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 5 done. Not rel
   - b. Edit mode: the tabs dragged over a side bar (existing or a potential zone) narrower than `TABS_MIN`: the bar grows to it, animated (140 ms), as part of the preview; off it, back, animated; dropped there: kept as the bar's stored size (Done keeps, Cancel reverts: S46). (user)
   - c. Other paths: shown at `TABS_MIN` whenever the bar holds the tabs (layout from settings, panel Cancel / Reload, Reset), the stored size kept (back when the tabs leave). A window too small for both: the minimum wins over the 30% cap (as 48 does). (agent: "keep it simple")
   - d. Horizontal bars: a tab never shrinks below its content (up to its max width): 5 letters at every height, checked, nothing changed. (agent)
+
+## Feel round 6
+
+- S50. Bar edge in normal use: not lit on hover (the resize cursor says it; lighting up at every crossing into the board distracted); lit while dragged. Edit mode: lit on hover and while dragged, as before. (user; "while dragged": agent's reading)
+- S51. Empty shelf in a top / bottom bar: one slot long (was three), as in side bars and as the shelf holding one. (user) Its edit mode label then reads "S…" at 32 / 40 px, "Shelf" shrunk at 60, as a one-item shelf. (agent)
+- S52. Edit mode drop preview: the box where the drop puts the component, the others of that list making room (shifted, animated); never overlapping. Bug: past the last component of an end group (or before the first of a start group, or between two) the box overlapped a component that stayed put. Reordered in its own list: the dragged component's content and label hide there. (user; hiding: agent)
 
 ## Persistence
 
