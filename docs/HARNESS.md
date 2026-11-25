@@ -167,6 +167,7 @@ UI CSS tinkered in the running instance's devtools, brought back as a diff (devt
 - Shells in Tie terminals spawn disclaimed (`TERMINALS.md` "Spawn"): an instance launched from one has the shell as responsible process, not the installed app (`sec-disclaim`). Which app a real prompt then names: unverified (`PENDING.md` 37). From a plain terminal: the dev `Electron.app`.
 - `tie-dev install` re-signs ad hoc: a new cdhash. TCC records for the old one stop matching ("Failed to match existing code requirement" in `log show --predicate 'subsystem == "com.apple.TCC"'`) and macOS prompts again. The prompt may sit behind other windows.
 - `sec-browser-session`: the guest's `getUserMedia` reaches the system mic check before Tie's permission handler; an unanswered prompt blocks it. The scenario bounds it (5 s) and names the cause. Fix: deny the prompt once (or `tccutil reset Microphone com.salezica.tie`, then deny on the next run).
+- Locked screen: `h.hideWindow` can't hide the window (the page stays `visible`, frames run), so `content-hidden-window` fails every run (seen 2026-11-25: 5/5 red locked, green once unlocked). Run it unlocked.
 - Walks (`doc:walk`) into Documents, Desktop, Downloads, Pictures, Music, Library ask too; a blocked read holds a libuv thread (`2026-10-30-file-picker.md` "Research"). The picker skips those at home's top level unless typed into.
 
 ## Traces (`out/log/`)

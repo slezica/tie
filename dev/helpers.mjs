@@ -592,7 +592,8 @@ export async function hideWindow(ctx) {
     state = await rpc(ctx.instance, 'window-state')
     if (state.visibility === 'hidden' && state.frames === 0) break
   }
-  assert(state.visibility === 'hidden' && state.frames === 0, `window hidden, no animation frames: ${JSON.stringify(state)}`)
+  // A locked screen keeps it "visible" (the show-once before the hide doesn't count there): HARNESS.md.
+  assert(state.visibility === 'hidden' && state.frames === 0, `window hidden, no animation frames (fails while the screen is locked): ${JSON.stringify(state)}`)
 }
 
 // Resize the window (dev socket `window-size`); waits for the renderer to re-layout.
