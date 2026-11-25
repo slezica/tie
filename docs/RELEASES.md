@@ -13,6 +13,8 @@ Notes per release: what changed for the user, and what still needs a manual chec
 - Tabs in a side bar: no larger minimum (was 65 px); the bar goes down to 40 px, showing a letter or two of each title. The edit layout mode no longer widens a bar under the dragged tabs.
 - Edit layout mode: the drag box shows off the bars too, following the pointer; it snaps into a bar's slot (animated) and back out. Released off the bars, it returns to the component's place (nothing changes).
 - Dev builds: the quit question reads "Quit Tie (dev)?".
+- Edit layout mode: the drag box carries the component's label ("Tabs", "Shelf", "Templates"), whole, off the bars and snapped; the label leaves the component's place meanwhile.
+- Edit layout mode: every label reads whole: components shorter than their label (an empty or one-item shelf) grow along their bar while the mode runs; back to their size when it ends. Side bars at 60 px and below rotate all their labels.
 
 Manual testing:
 
@@ -20,7 +22,8 @@ Manual testing:
 - Bar edges in a visible window: no lit line on hover, lit while dragging; lit on hover in the edit layout mode.
 - Edit layout mode: the others sliding aside during a drag (feel of the 140 ms shift); a reorder in a component's own list (its content and label hide).
 - Edit layout mode, drag box: following the pointer over the board (no lag), snap into a bar and out (140 ms), the return animation after a release off the bars; Escape mid-drag (box gone at once).
-- 40 px bars in a real window: side bar with shelf / templates (icons match a 40 px bottom bar), side bar holding the tabs (rows, brand, `+`, ellipsis; "S…" edit mode label on a one-item shelf).
+- 40 px bars in a real window: side bar with shelf / templates (icons match a 40 px bottom bar), side bar holding the tabs (rows, brand, `+`, ellipsis).
+- Edit layout mode, labels: the label inside the drag box (free, snapped, mid-snap: a brief overhang), its place left blank meanwhile; grown empty / one-item shelf in a 40 px bottom and side bar (the "+" centred under the label), others shifted to make room; Done / Cancel: everything back to its size, no jump.
 
 ## 0.9.0 (2026-11-22)
 

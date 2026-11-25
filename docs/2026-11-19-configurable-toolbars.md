@@ -123,6 +123,16 @@ Status: implemented 2026-11-20 (phases 1 to 3), feel rounds 1 to 7 done. Not rel
 - S55. Edit mode drag box always shown during a drag. Off the bars: follows the pointer, centred, the label's size plus padding, no lag; snapping into a bar and out animated. Released off the bars: nothing changes, the box animates back to the component's place, then hides. (user) Escape: hidden at once (agent: the simpler, as allowed).
 - S56. Dev (unpackaged) builds: the quit question reads "Quit Tie (dev)?"; packaged unchanged; other dialogs and menu labels unchanged. (user)
 
+## Feel round 8
+
+- S57. Edit mode drag box: the component's label inside it, whole; free: the label at its size plus 6 px each side; snapped: kept, centred, oriented as labels in that bar. (user)
+- S58. The label at the component's place: hidden while the box carries it (from the drag's start until the box hides: drop, Escape, end of the return). (agent; "hidden or dimmed" left open)
+- S59. Edit mode only: a component shorter than its label grows along its bar to the label plus 6 px each side, the free box's rule (one constant, `LABEL_PAD`); never across; gone with the mode. (user)
+- S60. Growth as a min size on the real component (`--le-min`): neighbours make room; outlines, labels, preview and result agree; the landing box uses the same minimum. (user's reading, kept)
+- S61. Side bar label orientation: all rotated when "Templates" doesn't fit across, whatever the bar holds (was per label, then the bar's look). Keeps preview == result: a drop turns no other label. (agent)
+- S62. A bar too full for the minimums: none in that bar; labels shrink, then cut, inside the bar (the old logic, kept for this case only). (agent)
+- S63. Grown components centre their content; the empty shelf's "+" keeps one slot. (agent)
+
 ## Persistence
 
 - S39. Settings shape: (agent)
@@ -392,6 +402,16 @@ Three user requests and a fix.
    - Choice: JS animation, not CSS transitions. Reason: a CSS transition to a moving pointer restarts on every move (lag while unsnapping, then a jump).
    - Checks: `settings-layout-preview` (free: centred on the pointer, label + 12 px, no animation free to free; snapped: in the bar, bar less `--pad`; release off the bars: layout unchanged, box ended at the origin rect, hidden; Escape: hidden at once), `settings-layout-drag` (the gravity flip animates: checks the box's animation, was its CSS transition). Shot: `tmp/shots/round7-free-box.png`.
 4. Quit title (S56): `app:info` already carried `dev` (= `!app.isPackaged`); `initQuit(dev)` at boot (`renderer/quit.ts`, `main.ts`). No IPC added. `quit` scenario expects "Quit Tie (dev)?". The packaged title is not checked by the harness (`check-package` doesn't open the dialog).
+
+## Feel round 8, as built (2026-11-25)
+
+1. Label in the drag box (S57, S58): `.le-preview` holds a `.le-chip` (the labels' look, shared class); centred by flex (a chip larger than the box mid-animation overhangs evenly, never cut). `aimBox(r, snap, rotated, then?)` sets its orientation: free across; snapped `rotatedIn(bar)`; the return the origin label's. Origin label `.le-lifted` from `begin`; `hideBox` restores every label. `lift` now hides only the content.
+2. Growth (S59 to S62): label sizes measured once per mode (`.le-measure`). `grow` sets `--le-min` per component (label length in its bar + 12, + 7 divider), then drops it in a bar whose content overflows (scroll size > client size). CSS: min-width / min-height under `:root.layout-editing` (`#tabs`: `calc-size(max-content, max(min(size, tabs floor), --le-min))`). `landing`: the dragged component's length ≥ `minAlong(c, target)`.
+   - Numbers (measured): horizontal Tabs 52.5, Shelf 55.3, Templates 86.5 / 93.5 (divider); rotated 54.5 / 57.3 / 88.5 / 95.5; side bar across 30.
+   - Templates (3 slots, 88 / 95 with divider) and the tabs rarely grow; the shelf (one slot or empty: 28) always does.
+   - Crowded fallback reached in the harness: 600 × 250 window, all three in a 40 px left bar ("S…").
+3. Checks: `checkLabels` now strict (whole, `--ls` 1, scroll size within the box, component ≥ label + 12 along, components apart; `crowded` relaxes); used by `settings-layout`, `-drag`, `-resize`, `-labels`. `settings-layout-labels` rewritten: all three in each bar at 40 / 60 (sides 99 / 160 too), empty and one-item shelf, orientation rule, pre-mode rects back after the mode with no `--le-min` left, crowded window, light theme. `settings-layout-preview`: box label in every landing case (`h.checkDragBox`), origin label hidden / back, free box = label + 12, empty shelf into 40 px top / left bars (absent; before the templates). `settings-layout-drag`: box label over an absent bar; "box moves animated" counts `animate` calls (was reading a running animation: failed once under 4 jobs).
+   - Shots: `tmp/shots/round8-*.png`.
 
 ## Scenarios affected
 
