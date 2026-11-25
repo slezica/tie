@@ -983,14 +983,16 @@ body.tile-drag #tab-add.drop {
 :root.layout-dragging .bar-edge {
   pointer-events: none;
 }
-/* The edge itself lit on hover and while dragged, as tile borders. */
+/* The edge itself lit while dragged, as tile borders. On hover only in the edit layout mode: in
+   normal use the resize cursor says it (a line lighting up whenever the pointer crosses into the
+   board distracts, feel round 6). */
 .bar-edge::after {
   content: '';
   position: absolute;
   background: var(--accent);
   opacity: 0;
 }
-.bar-edge:hover::after,
+:root.layout-editing .bar-edge:hover::after,
 .bar-edge.active::after {
   opacity: 0.6;
 }

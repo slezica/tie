@@ -39,6 +39,11 @@ export default async (ctx, h) => {
     const e = await h.barEdge(ctx, bar)
     h.assert((await hit(e.x, e.y)) === `edge:${bar}`, `${bar} edge takes the pointer over the mode (${await hit(e.x, e.y)})`)
   }
+  // Hovered: the edge lit in the mode (in normal use only while dragged: layout-bars-size).
+  const edge = await h.barEdge(ctx, 'left')
+  await page.mouse.move(edge.x, edge.y)
+  await h.waitFor(ctx, () => page.$eval('.bar-edge[data-bar="left"]', (e) => e.matches(':hover')), 'pointer over the left edge')
+  h.assert((await page.$eval('.bar-edge[data-bar="left"]', (e) => Number(getComputedStyle(e, '::after').opacity))) > 0, 'edit mode: the hovered edge lit')
 
   // The mode's overlays as drawn, against the bars and components they stand for.
   const overlays = () =>

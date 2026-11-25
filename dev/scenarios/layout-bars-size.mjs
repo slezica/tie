@@ -24,9 +24,18 @@ export default async (ctx, h) => {
   let b = await board()
   near(b.y + b.h, H - 40, 'board bottom at the 40 px bar')
 
+  // The edge's line (feel round 6): not lit on hover in normal use (the cursor says it), lit while
+  // dragged (below). Hover in the edit mode: settings-layout-resize.
+  const lit = (bar) => ctx.page.$eval(`.bar-edge[data-bar="${bar}"]`, (e) => Number(getComputedStyle(e, '::after').opacity))
+  const hover = await h.barEdge(ctx, 'bottom')
+  await ctx.page.mouse.move(hover.x, hover.y)
+  await h.waitFor(ctx, () => ctx.page.$eval('.bar-edge[data-bar="bottom"]', (e) => e.matches(':hover')), 'pointer over the bottom edge')
+  h.assert((await lit('bottom')) === 0, `hovered edge not lit: ${await lit('bottom')}`)
+
   // Bottom edge dragged up: live insets during the drag, the file only at the end.
   await h.resizeBar(ctx, 'bottom', 56, {
     during: async () => {
+      h.assert((await lit('bottom')) > 0, 'live: the dragged edge lit')
       const l = await board()
       near(l.y + l.h, H - 56, 'live: board bottom follows the drag')
       h.assert(fileBars() === null, 'live: nothing written during the drag')
