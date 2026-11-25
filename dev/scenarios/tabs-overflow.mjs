@@ -49,13 +49,13 @@ export default async (ctx, h) => {
   }
 
   const H = AXES.h
-  // The overflow happens in new tabs: their shelves are empty (three slots long); measured as such.
+  // The overflow happens in new tabs: their shelves are empty (one slot long); measured as such.
   const shelf0 = await box('#shelf.empty')
   const shelved = [(await ctx.tie('add', 'terminal', '--shelved')).id]
   await h.resizeWindow(ctx, 900, 600)
   h.assert(!(await cls('#tabs')).includes('overflow'), 'one tab: no overflow')
 
-  await openTabs(1) // one past the overflow: tab 1, whose shelf (one item) is shorter than an empty one, overflows too
+  await openTabs(1) // one past the overflow: tab 1, whose shelf holds one item (as long as an empty one), overflows too
   const n = await tabCount()
   h.assert(n > 1 && (await h.list(ctx)).tabs.length === n, `${n} tabs`)
   h.assert((await cls('#tabs')).includes('overflow'), 'tabs overflow: divider state')

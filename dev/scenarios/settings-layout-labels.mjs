@@ -1,4 +1,4 @@
-// Edit layout mode labels by bar size: always inside their component's box with room around the chip (never past it), centred; shrunk then truncated where the box is small (a one-item shelf), full size where they fit; horizontal bars at 32 / 40 / 60 (empty and one-item shelf); side bar at 48 / 68 / 99 / 100 / 160 (empty and one item): rotated where that fits them better, across in the list form; light theme.
+// Edit layout mode labels by bar size: always inside their component's box with room around the chip (never past it), centred; shrunk then truncated where the box is small (an empty or one-item shelf), full size where they fit; horizontal bars at 32 / 40 / 60 (empty and one-item shelf); side bar at 48 / 68 / 99 / 100 / 160 (empty and one item): rotated where that fits them better, across in the list form; light theme.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 
@@ -14,11 +14,13 @@ export default async (ctx, h) => {
     return Object.fromEntries(labels.map((l) => [l.c, l]))
   }
 
-  // Bottom bar (default layout), empty shelf (three slots): every label full size at 40 and 60.
+  // Bottom bar (default layout), empty shelf (one slot, feel round 6): tabs and templates labels
+  // full size at 40 and 60; the shelf's shrunk, as with one item (below).
   for (const size of [32, 40, 60]) {
     await h.setBarSize(ctx, 'bottom', size)
     const l = await check(`bottom-${size}-empty`)
-    if (size >= 40) for (const c of ['tabs', 'shelf', 'templates']) h.assert(l[c].ls === 1 && !l[c].cut, `bottom ${size}: ${c} label full size (${l[c].ls})`)
+    if (size >= 40) for (const c of ['tabs', 'templates']) h.assert(l[c].ls === 1 && !l[c].cut, `bottom ${size}: ${c} label full size (${l[c].ls})`)
+    h.assert(l.shelf.ls < 1, `bottom ${size}, empty: the shelf label shrunk (${l.shelf.ls})`)
   }
   // One item: the shelf is shorter than its label: shrunk, then cut, never past the shelf's box.
   const one = (await ctx.tie('add', 'terminal', '--shelved')).id

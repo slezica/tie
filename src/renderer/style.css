@@ -1123,13 +1123,11 @@ body.os-drag #shelf:not(.landing)::before {
   overflow-x: auto;
   overflow-y: hidden;
 }
-/* Empty (shelf.ts): a placeholder three slots long along the bar, so the shelf is an easy drop
-   target (and holds its label in the edit layout mode). The "+" hint fills it, shown at rest, muted
-   (feel round 4, S47; side bars: one item long, below); during a drag it takes the accent (a ghost
-   then takes one slot at its start). Same box at rest and during a drag. */
-#shelf.empty {
-  min-width: calc(var(--slot) * 3 + var(--slot-gap) * 2);
-}
+/* Empty (shelf.ts): a placeholder one slot long along the bar (the strip's min-width; feel round 6:
+   was three; side bars: one item long, below). Tile drops over the bar still reach it from its
+   empty space (barDropAt: the nearest drop-taking component). The "+" hint fills it, shown at rest,
+   muted (feel round 4, S47); during a drag it takes the accent (over it, the ghost takes its place).
+   Same box at rest and during a drag. */
 #shelf.empty::before {
   flex: 1 1 auto;
 }
@@ -1142,11 +1140,6 @@ body.tile-drag #shelf.empty::before,
 body.os-drag #shelf.empty::before {
   border-color: var(--accent);
   color: var(--accent);
-}
-/* The first item lands at the strip's fixed end: its start in a start group, its end in an end group
-   (the strip shrinks toward it). The ghost shows there, so it doesn't move at the drop. */
-.group.end > #shelf.empty {
-  justify-content: flex-end;
 }
 /* Divider only beside the shelf in the same group (bars.ts), on the side facing it. */
 #templates.after-shelf {

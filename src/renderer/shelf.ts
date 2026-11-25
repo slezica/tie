@@ -259,7 +259,7 @@ export function syncShelf() {
     if (kids[i] !== el) list.insertBefore(el, kids[i] ?? null)
     updateItem(id)
   })
-  list.classList.toggle('empty', !S.shelf.length) // the empty placeholder: three slots long (style.css)
+  list.classList.toggle('empty', !S.shelf.length) // the empty placeholder: one slot long (style.css)
   syncShelfFades()
 }
 

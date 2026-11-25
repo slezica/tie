@@ -1,4 +1,4 @@
-// Shelf ghost slots and the empty shelf, per form (bottom 32 / 40 / 60, top start group, left list 160, left narrow 48 / 73): a ghost has a real item's box (size, radius, icon, title in the list form) and nothing moves at the drop: a board tile, an item reordered, a template, a group (each tile's own title); the empty shelf: horizontal three slots long, vertical one item long (= the shelf holding one); the "+" hint fills it at rest, muted (every form); the "+" hint (accent) fills it during a drag, the ghost at the end the first item lands at.
+// Shelf ghost slots and the empty shelf, per form (bottom 32 / 40 / 60, top start group, left list 160, left narrow 48 / 73): a ghost has a real item's box (size, radius, icon, title in the list form) and nothing moves at the drop: a board tile, an item reordered, a template, a group (each tile's own title); the empty shelf: one slot / item long (= the shelf holding one), every bar; the "+" hint fills it at rest, muted (every form); the "+" hint (accent) fills it during a drag, the ghost at the end the first item lands at.
 const E = () => ({ start: [], end: [] })
 const layout = (patch) => ({ top: E(), bottom: E(), left: E(), right: E(), ...patch })
 const GAP = 2 // --slot-gap
@@ -135,8 +135,8 @@ export default async (ctx, h) => {
     sameLook(gs[1], await look(`.item[data-id="${one}"]`), `${f.name}: group second`)
     await away()
 
-    // The empty shelf. Horizontal: three slots (and two gaps) long along the bar. Vertical: one item
-    // long. Every form: the "+" hint fills it at rest, muted (not the accent).
+    // The empty shelf: one slot long along the bar (feel round 6; vertical: one item). Every form: the
+    // "+" hint fills it at rest, muted (not the accent).
     for (const s of (await L()).shelf.filter((s) => s !== b)) await ctx.tie('close', '--tile', s)
     await ctx.tie('move', '--tile', b, '--at', a, '--side', 'r')
     await h.waitFor(ctx, async () => !(await L()).shelf.length, 'shelf empty')
@@ -160,7 +160,7 @@ export default async (ctx, h) => {
       near(rest.r.height, slot, `${f.name}: empty shelf one item long`)
       near(rest.hint.h, slot, `${f.name}: "+" one item tall`)
     } else {
-      near(rest.r.width, 3 * slot + 2 * GAP, `${f.name}: empty shelf three slots long`)
+      near(rest.r.width, slot, `${f.name}: empty shelf one slot long`)
       near(rest.hint.w, rest.r.width, `${f.name}: "+" fills the empty shelf at rest`)
       near(rest.hint.h, slot, `${f.name}: "+" one slot tall`)
     }
@@ -196,7 +196,7 @@ export default async (ctx, h) => {
     await h.waitFor(ctx, async () => (await L()).shelf.join() === b, 'b shelved')
     await h.settle(ctx)
     sameLook(g, await look(`.item[data-id="${b}"]`), `${f.name}: first item`)
-    if (v) near((await strip()).r.height, rest.r.height, `${f.name}: one item: as long as the empty shelf`)
+    near(v ? (await strip()).r.height : (await strip()).r.width, v ? rest.r.height : rest.r.width, `${f.name}: one item: as long as the empty shelf`)
     await h.setBarSize(ctx, f.bar, null)
   }
   await h.assertPtySizes(ctx)
